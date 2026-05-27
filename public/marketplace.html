@@ -1,0 +1,2547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeTaste – Real Cooks. Real Food. Real People.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ======== RESET & BASE ======== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0e;
+  --bg2:#161616;
+  --bg3:#1f1f1f;
+  --bg4:#272727;
+  --card:#1a1a1a;
+  --orange:#f97316;
+  --orange-hover:#ea6c0a;
+  --orange-light:rgba(249,115,22,0.12);
+  --orange-glow:rgba(249,115,22,0.3);
+  --text:#f0f0f0;
+  --text2:#a8a8a8;
+  --text3:#6b6b6b;
+  --border:#2a2a2a;
+  --border2:#333;
+  --sidebar:240px;
+  --cart:280px;
+  --radius:12px;
+  --radius-sm:8px;
+  --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --transition:0.25s ease;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4{font-family:'Playfair Display',serif}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit}
+input{font-family:inherit;outline:none;border:none}
+img{display:block;max-width:100%}
+ul{list-style:none}
+
+/* ======== SCROLLBAR ======== */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ======== LAYOUT ======== */
+.layout{display:flex;min-height:100vh}
+
+/* ======== SIDEBAR ======== */
+.sidebar{
+  width:var(--sidebar);
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;height:100vh;
+  z-index:100;
+  transition:transform var(--transition);
+  overflow-y:auto;
+}
+.sidebar-logo{
+  padding:28px 24px 20px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+}
+.logo-icon{
+  width:40px;height:40px;
+  background:var(--orange);
+  border-radius:10px;
+  display:grid;place-items:center;
+  font-size:20px;
+  flex-shrink:0;
+}
+.logo-text{color:var(--orange);font-family:'Playfair Display',serif;font-size:17px;font-weight:700;line-height:1.1}
+.logo-sub{font-size:9px;color:var(--text3);font-weight:400;letter-spacing:0.5px}
+
+.country-selector{
+  margin:16px;
+  display:flex;gap:8px;
+}
+.country-btn{
+  flex:1;padding:7px 10px;border-radius:8px;
+  border:2px solid var(--border);
+  background:var(--bg3);
+  font-size:12px;font-weight:500;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:all var(--transition);
+  cursor:pointer;color:var(--text2);
+}
+.country-btn.active,.country-btn:hover{
+  border-color:var(--orange);color:var(--text);
+  background:var(--orange-light);
+}
+
+.sidebar-nav{flex:1;padding:8px 12px}
+.nav-label{
+  font-size:10px;font-weight:600;color:var(--text3);
+  text-transform:uppercase;letter-spacing:1px;
+  padding:12px 12px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 12px;border-radius:10px;
+  color:var(--text2);font-size:14px;font-weight:500;
+  transition:all var(--transition);cursor:pointer;
+  margin-bottom:2px;position:relative;
+}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--orange-light);color:var(--orange)}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:60%;background:var(--orange);border-radius:0 3px 3px 0;
+}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--orange);color:#fff;
+  font-size:11px;font-weight:700;border-radius:20px;
+  padding:2px 7px;
+}
+
+.sidebar-bottom{
+  padding:12px;border-top:1px solid var(--border);
+}
+
+/* ======== MAIN ======== */
+.main{
+  margin-left:var(--sidebar);
+  margin-right:0;
+  flex:1;
+  min-height:100vh;
+  background:var(--bg);
+}
+
+/* ======== CART PANEL ======== */
+.cart-panel{
+  width:var(--cart);
+  background:var(--bg2);
+  border-left:1px solid var(--border);
+  position:fixed;right:0;top:0;height:100vh;
+  display:flex;flex-direction:column;
+  z-index:100;
+  overflow-y:auto;
+  transform:translateX(105%);
+  transition:transform var(--transition);
+  box-shadow:-20px 0 45px rgba(0,0,0,.45);
+}
+.cart-panel.open{transform:translateX(0)}
+.cart-header{
+  padding:24px 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.cart-header h3{font-size:20px;font-weight:700}
+.cart-badge{
+  background:var(--orange);color:#fff;
+  width:22px;height:22px;border-radius:50%;
+  font-size:11px;font-weight:700;
+  display:grid;place-items:center;
+}
+.cart-tabs{
+  display:flex;margin:12px 16px;
+  background:var(--bg3);border-radius:10px;
+  padding:4px;gap:4px;
+}
+.cart-tab{
+  flex:1;padding:8px;border-radius:7px;
+  font-size:13px;font-weight:600;
+  transition:all var(--transition);
+  color:var(--text2);
+}
+.cart-tab.active{background:var(--orange);color:#fff}
+.cart-items{flex:1;padding:8px 16px;overflow-y:auto}
+.cart-item{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+  animation:fadeSlideIn 0.3s ease;
+}
+.cart-item-img{
+  width:54px;height:54px;border-radius:8px;
+  object-fit:cover;flex-shrink:0;
+  background:var(--bg3);
+}
+.cart-item-info{flex:1;min-width:0}
+.cart-item-name{font-size:13px;font-weight:600;line-height:1.2}
+.cart-item-by{font-size:11px;color:var(--text3)}
+.cart-qty{display:flex;align-items:center;gap:6px;margin-top:6px}
+.qty-btn{
+  width:22px;height:22px;border-radius:6px;
+  background:var(--bg4);color:var(--text);
+  font-size:14px;display:grid;place-items:center;
+  transition:background var(--transition);
+}
+.qty-btn:hover{background:var(--orange)}
+.qty-val{font-size:13px;font-weight:600;min-width:16px;text-align:center}
+.cart-item-price{font-size:13px;font-weight:700;color:var(--orange);flex-shrink:0}
+.cart-remove{
+  width:20px;height:20px;border-radius:4px;
+  display:grid;place-items:center;color:var(--text3);
+  transition:color var(--transition);font-size:16px;
+}
+.cart-remove:hover{color:#ef4444}
+
+.cart-footer{padding:16px;border-top:1px solid var(--border)}
+.cart-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;color:var(--text2)}
+.cart-total{display:flex;justify-content:space-between;font-size:16px;font-weight:700;margin:10px 0 14px;color:var(--text)}
+.btn-checkout{
+  width:100%;padding:13px;border-radius:10px;
+  background:var(--orange);color:#fff;
+  font-size:15px;font-weight:700;
+  transition:all var(--transition);
+  letter-spacing:0.3px;
+}
+.btn-checkout:hover{background:var(--orange-hover);transform:translateY(-1px);box-shadow:0 6px 20px var(--orange-glow)}
+.btn-continue{
+  width:100%;padding:11px;border-radius:10px;
+  background:var(--bg3);color:var(--text2);
+  font-size:13px;font-weight:600;
+  margin-top:8px;transition:all var(--transition);
+}
+.btn-continue:hover{background:var(--bg4);color:var(--text)}
+.cart-secure{
+  display:flex;align-items:center;gap:8px;
+  margin-top:10px;padding:10px;
+  background:var(--bg3);border-radius:8px;
+  font-size:11px;color:var(--text3);
+}
+
+/* ======== PAGES ======== */
+.page{display:none;animation:pageIn 0.35s ease}
+.page.active{display:block}
+@keyframes pageIn{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ======== HOME PAGE ======== */
+.hero{
+  position:relative;height:340px;overflow:hidden;
+  background:linear-gradient(135deg,#1a0a00 0%,#0e0e0e 60%,#1a1a0a 100%);
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:url('https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80') center/cover no-repeat;
+  opacity:0.18;
+  filter:blur(2px);
+}
+.hero-content{
+  position:relative;z-index:2;
+  padding:48px 40px 0;
+  max-width:520px;
+}
+.hero-content h1{
+  font-size:40px;font-weight:900;line-height:1.1;
+  color:#fff;margin-bottom:12px;
+}
+.hero-content h1 span{color:var(--orange)}
+.hero-desc{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.hero-social{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,0.06);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:40px;padding:8px 16px;
+  width:fit-content;font-size:13px;font-weight:600;
+}
+.hero-avatars{display:flex}
+.hero-avatar{
+  width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--bg);margin-left:-6px;
+  background:var(--bg3);overflow:hidden;
+  font-size:10px;display:grid;place-items:center;
+}
+.hero-avatar:first-child{margin-left:0}
+.hero-food-img{
+  position:absolute;right:32px;top:20px;
+  width:280px;height:220px;border-radius:20px;
+  object-fit:cover;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  animation:floatImg 4s ease-in-out infinite;
+}
+@keyframes floatImg{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-8px)}
+}
+
+/* Search */
+.search-section{padding:24px 32px 0}
+.search-bar{
+  display:flex;gap:0;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border2);background:var(--bg3);
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  transition:border-color var(--transition);
+}
+.search-bar:focus-within{border-color:var(--orange)}
+.search-input{
+  flex:1;display:flex;align-items:center;gap:10px;
+  padding:14px 16px;background:transparent;
+}
+.search-input input{
+  background:transparent;color:var(--text);font-size:14px;
+  width:100%;
+}
+.search-input input::placeholder{color:var(--text3)}
+.search-divider{width:1px;background:var(--border);margin:10px 0}
+.search-city{
+  display:flex;align-items:center;gap:8px;
+  padding:14px 16px;background:transparent;cursor:pointer;
+  color:var(--text3);font-size:14px;
+  position:relative;
+}
+.city-dropdown{
+  position:absolute;top:calc(100% + 8px);left:0;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:6px;
+  min-width:180px;z-index:50;
+  display:none;box-shadow:var(--shadow);
+  animation:dropIn 0.2s ease;
+}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.city-dropdown.open{display:block}
+.city-option{
+  padding:9px 12px;border-radius:7px;
+  font-size:13px;cursor:pointer;
+  transition:background var(--transition);
+}
+.city-option:hover{background:var(--bg3)}
+.btn-search{
+  padding:12px 24px;background:var(--orange);color:#fff;
+  font-size:14px;font-weight:700;
+  border-radius:0 12px 12px 0;
+  transition:background var(--transition);
+  flex-shrink:0;
+}
+.btn-search:hover{background:var(--orange-hover)}
+
+/* Filters */
+.filter-chips{
+  display:flex;gap:8px;padding:16px 32px;
+  overflow-x:auto;scrollbar-width:none;
+}
+.filter-chips::-webkit-scrollbar{display:none}
+.chip{
+  padding:8px 18px;border-radius:50px;
+  border:1px solid var(--border);
+  background:var(--bg3);color:var(--text2);
+  font-size:13px;font-weight:500;
+  cursor:pointer;white-space:nowrap;
+  transition:all var(--transition);flex-shrink:0;
+}
+.chip:hover,.chip.active{
+  background:var(--orange);border-color:var(--orange);
+  color:#fff;transform:translateY(-1px);
+}
+
+/* Section */
+.section{padding:0 32px 32px}
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.section-header h2{font-size:22px;font-weight:700}
+.view-all{font-size:13px;color:var(--orange);font-weight:600;cursor:pointer;transition:opacity var(--transition)}
+.view-all:hover{opacity:0.8}
+
+/* Cook Cards */
+.cooks-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+}
+.cook-card{
+  background:var(--card);border-radius:var(--radius);
+  overflow:hidden;border:1px solid var(--border);
+  cursor:pointer;transition:all var(--transition);
+}
+.cook-card:hover{
+  transform:translateY(-4px);
+  border-color:var(--orange);
+  box-shadow:0 12px 32px rgba(0,0,0,0.4),0 0 0 1px var(--orange-glow);
+}
+.cook-card-img{
+  width:100%;height:160px;object-fit:cover;
+  position:relative;overflow:hidden;
+  background:var(--bg3);
+}
+.cook-card-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.4s ease}
+.cook-card:hover .cook-card-img img{transform:scale(1.07)}
+.fav-btn{
+  position:absolute;top:10px;right:10px;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);
+  display:grid;place-items:center;font-size:16px;
+  transition:all var(--transition);z-index:2;
+}
+.fav-btn:hover,.fav-btn.active{background:rgba(239,68,68,0.9)}
+.fav-btn.active::after{content:'❤️'}
+.fav-btn:not(.active)::after{content:'🤍'}
+.cook-card-body{padding:12px}
+.cook-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cook-avatar{
+  width:32px;height:32px;border-radius:50%;
+  object-fit:cover;background:var(--bg3);
+  border:2px solid var(--border2);
+  font-size:14px;display:grid;place-items:center;
+}
+.cook-name{font-size:13px;font-weight:600}
+.cook-cuisine{font-size:11px;color:var(--orange);font-weight:500}
+.cook-verified{
+  width:16px;height:16px;background:var(--orange);
+  border-radius:50%;display:inline-grid;place-items:center;
+  font-size:9px;margin-left:auto;
+}
+.cook-location{
+  display:flex;align-items:center;gap:4px;
+  font-size:11px;color:var(--text3);margin-bottom:6px;
+}
+.cook-rating{
+  display:flex;align-items:center;gap:4px;
+  font-size:11px;color:var(--text2);margin-left:auto;
+}
+.star{color:#fbbf24;font-size:12px}
+.cook-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:8px;padding-top:8px;
+  border-top:1px solid var(--border);
+}
+.cook-dish{font-size:13px;font-weight:600}
+.cook-price{font-size:14px;font-weight:700;color:var(--orange)}
+
+/* How it works */
+.how-section{
+  background:var(--bg2);border-top:1px solid var(--border);
+  padding:32px;
+}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:20px}
+.how-item{display:flex;align-items:flex-start;gap:16px}
+.how-icon{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--orange-light);border:2px solid var(--orange-glow);
+  display:grid;place-items:center;font-size:22px;flex-shrink:0;
+}
+.how-text h4{font-size:15px;font-weight:700;margin-bottom:4px;font-family:'DM Sans',sans-serif}
+.how-text p{font-size:12px;color:var(--text3);line-height:1.5}
+
+/* ======== BROWSE COOKS PAGE ======== */
+.page-header{
+  padding:32px 32px 0;
+  margin-bottom:24px;
+}
+.page-header h1{font-size:32px;font-weight:900;margin-bottom:6px}
+.page-header p{color:var(--text2);font-size:14px}
+.filter-bar{
+  display:flex;gap:12px;align-items:center;
+  padding:0 32px 20px;flex-wrap:wrap;
+}
+.filter-select{
+  padding:9px 14px;border-radius:8px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);font-size:13px;font-family:'DM Sans',sans-serif;
+  cursor:pointer;
+}
+.filter-select:focus{border-color:var(--orange);outline:none}
+.cooks-grid-large{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:20px;padding:0 32px 32px;
+}
+
+/* ======== POPULAR DISHES ======== */
+.dishes-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:20px;padding:0 32px 32px;
+}
+.dish-card{
+  background:var(--card);border-radius:var(--radius);
+  overflow:hidden;border:1px solid var(--border);
+  cursor:pointer;transition:all var(--transition);
+}
+.dish-card:hover{transform:translateY(-3px);border-color:var(--orange)}
+.dish-img{
+  width:100%;height:200px;object-fit:cover;
+  position:relative;overflow:hidden;background:var(--bg3);
+}
+.dish-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.4s ease}
+.dish-card:hover .dish-img img{transform:scale(1.06)}
+.dish-tag{
+  position:absolute;top:10px;left:10px;
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);
+  color:var(--orange);font-size:11px;font-weight:600;
+  padding:4px 10px;border-radius:20px;
+}
+.dish-body{padding:16px}
+.dish-body h3{font-size:16px;font-weight:700;margin-bottom:6px;font-family:'DM Sans',sans-serif}
+.dish-body p{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px}
+.dish-footer{
+  display:flex;align-items:center;justify-content:space-between;
+}
+.dish-cook{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
+.dish-price{font-size:16px;font-weight:700;color:var(--orange)}
+.btn-add{
+  padding:8px 16px;border-radius:8px;
+  background:var(--orange);color:#fff;
+  font-size:12px;font-weight:700;
+  transition:all var(--transition);
+}
+.btn-add:hover{background:var(--orange-hover);transform:scale(1.03)}
+
+/* ======== ORDERS ======== */
+.orders-list{padding:0 32px 32px}
+.order-card{
+  background:var(--card);border-radius:var(--radius);
+  border:1px solid var(--border);padding:20px;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:16px;
+  transition:border-color var(--transition);
+}
+.order-card:hover{border-color:var(--border2)}
+.order-img{
+  width:70px;height:70px;border-radius:10px;
+  object-fit:cover;background:var(--bg3);
+  font-size:28px;display:grid;place-items:center;
+  flex-shrink:0;
+}
+.order-info{flex:1}
+.order-info h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.order-info p{font-size:13px;color:var(--text3);margin-bottom:8px}
+.order-tags{display:flex;gap:6px}
+.order-tag{
+  font-size:11px;padding:4px 10px;border-radius:20px;
+  background:var(--bg3);color:var(--text2);
+}
+.order-status{
+  font-size:11px;padding:4px 10px;border-radius:20px;
+  font-weight:600;
+}
+.status-delivered{background:rgba(34,197,94,0.15);color:#22c55e}
+.status-pending{background:rgba(249,115,22,0.15);color:var(--orange)}
+.status-preparing{background:rgba(234,179,8,0.15);color:#eab308}
+.order-right{text-align:right;flex-shrink:0}
+.order-price{font-size:18px;font-weight:700;color:var(--orange);margin-bottom:8px}
+.btn-reorder{
+  padding:8px 16px;border-radius:8px;
+  background:var(--orange-light);color:var(--orange);
+  font-size:12px;font-weight:700;border:1px solid var(--orange-glow);
+  transition:all var(--transition);
+}
+.btn-reorder:hover{background:var(--orange);color:#fff}
+
+/* ======== FAVORITES ======== */
+.favorites-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:20px;padding:0 32px 32px;
+}
+
+/* ======== MESSAGES ======== */
+.messages-layout{
+  display:flex;height:calc(100vh - 0px);
+  margin:0 32px 0;
+  gap:0;
+}
+.chat-list{
+  width:280px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  overflow-y:auto;
+  padding:16px 0;
+}
+.chat-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;cursor:pointer;
+  transition:background var(--transition);
+  position:relative;
+}
+.chat-item:hover,.chat-item.active{background:var(--bg3)}
+.chat-item.active::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:3px;background:var(--orange);
+}
+.chat-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--bg3);font-size:18px;
+  display:grid;place-items:center;flex-shrink:0;
+  position:relative;overflow:hidden;
+}
+.chat-online{
+  position:absolute;bottom:2px;right:2px;
+  width:10px;height:10px;border-radius:50%;
+  background:#22c55e;border:2px solid var(--bg2);
+}
+.chat-meta{flex:1;min-width:0}
+.chat-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.chat-preview{font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-time{font-size:11px;color:var(--text3)}
+.chat-unread{
+  background:var(--orange);color:#fff;
+  font-size:10px;font-weight:700;
+  width:18px;height:18px;border-radius:50%;
+  display:grid;place-items:center;
+}
+.chat-window{
+  flex:1;display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.chat-header{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+}
+.chat-header-info h3{font-size:15px;font-weight:700}
+.chat-header-info p{font-size:12px;color:var(--text3)}
+.chat-actions{margin-left:auto;display:flex;gap:8px}
+.chat-action-btn{
+  width:36px;height:36px;border-radius:8px;
+  background:var(--bg3);display:grid;place-items:center;
+  font-size:16px;transition:background var(--transition);
+}
+.chat-action-btn:hover{background:var(--bg4)}
+.chat-messages{
+  flex:1;padding:16px 20px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:12px;
+}
+.msg{
+  max-width:70%;
+}
+.msg.sent{margin-left:auto}
+.msg-bubble{
+  padding:10px 14px;border-radius:14px;
+  font-size:13px;line-height:1.5;
+}
+.msg.received .msg-bubble{
+  background:var(--bg3);border-bottom-left-radius:4px;
+}
+.msg.sent .msg-bubble{
+  background:var(--orange);color:#fff;
+  border-bottom-right-radius:4px;
+}
+.msg-time{font-size:10px;color:var(--text3);margin-top:4px;padding:0 4px}
+.msg.sent .msg-time{text-align:right}
+.chat-input-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;border-top:1px solid var(--border);
+}
+.chat-input{
+  flex:1;background:var(--bg3);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;
+  font-size:13px;color:var(--text);
+  transition:border-color var(--transition);
+}
+.chat-input:focus{border-color:var(--orange)}
+.chat-input::placeholder{color:var(--text3)}
+.btn-send{
+  width:40px;height:40px;border-radius:10px;
+  background:var(--orange);color:#fff;
+  font-size:18px;display:grid;place-items:center;
+  transition:all var(--transition);
+}
+.btn-send:hover{background:var(--orange-hover);transform:scale(1.05)}
+
+/* ======== BECOME A COOK ======== */
+.become-hero{
+  background:linear-gradient(135deg,#1a0a00,#0e0e0e);
+  padding:48px 32px;text-align:center;
+  border-bottom:1px solid var(--border);
+}
+.become-hero h1{font-size:42px;font-weight:900;margin-bottom:12px}
+.become-hero h1 span{color:var(--orange)}
+.become-hero p{font-size:16px;color:var(--text2);max-width:540px;margin:0 auto 28px}
+.btn-apply{
+  padding:14px 36px;border-radius:12px;
+  background:var(--orange);color:#fff;
+  font-size:16px;font-weight:700;
+  transition:all var(--transition);
+  display:inline-block;
+}
+.btn-apply:hover{background:var(--orange-hover);transform:translateY(-2px);box-shadow:0 8px 24px var(--orange-glow)}
+.become-features{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:20px;padding:32px;
+}
+.feature-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;
+  text-align:center;
+  transition:border-color var(--transition);
+}
+.feature-card:hover{border-color:var(--orange)}
+.feature-icon{font-size:36px;margin-bottom:14px}
+.feature-card h3{font-size:16px;font-weight:700;margin-bottom:8px;font-family:'DM Sans',sans-serif}
+.feature-card p{font-size:13px;color:var(--text3);line-height:1.6}
+
+/* ======== HELP ======== */
+.help-layout{padding:32px}
+.faq-section{max-width:720px}
+.faq-item{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;margin-bottom:10px;overflow:hidden;
+}
+.faq-question{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;cursor:pointer;
+  transition:background var(--transition);
+  font-weight:600;font-size:14px;
+}
+.faq-question:hover{background:var(--bg3)}
+.faq-answer{
+  padding:0 20px;max-height:0;overflow:hidden;
+  transition:max-height 0.3s ease,padding 0.3s ease;
+  font-size:13px;color:var(--text2);line-height:1.7;
+}
+.faq-answer.open{max-height:200px;padding:0 20px 16px}
+.faq-arrow{transition:transform 0.3s ease;font-size:12px}
+.faq-arrow.open{transform:rotate(180deg)}
+
+/* ======== SETTINGS ======== */
+.settings-layout{padding:32px;max-width:640px}
+.settings-section{margin-bottom:28px}
+.settings-section h3{
+  font-size:16px;font-weight:700;margin-bottom:14px;
+  font-family:'DM Sans',sans-serif;color:var(--text2);
+  text-transform:uppercase;font-size:11px;letter-spacing:1px;
+}
+.setting-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid var(--border);
+}
+.setting-label{font-size:14px;font-weight:500}
+.setting-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.toggle{
+  width:44px;height:24px;border-radius:12px;
+  background:var(--bg4);position:relative;cursor:pointer;
+  transition:background var(--transition);flex-shrink:0;
+}
+.toggle.on{background:var(--orange)}
+.toggle::after{
+  content:'';position:absolute;
+  top:3px;left:3px;
+  width:18px;height:18px;border-radius:50%;
+  background:#fff;transition:left var(--transition);
+}
+.toggle.on::after{left:23px}
+
+/* ======== DISH MODAL ======== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(4px);z-index:500;
+  display:none;align-items:center;justify-content:center;
+  animation:fadeIn 0.2s ease;
+}
+.modal-overlay.open{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--bg2);border-radius:20px;
+  border:1px solid var(--border);width:520px;
+  max-height:85vh;overflow-y:auto;
+  animation:modalIn 0.3s ease;
+}
+@keyframes modalIn{
+  from{opacity:0;transform:scale(0.92) translateY(20px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+.modal-img{width:100%;height:240px;object-fit:cover;border-radius:16px 16px 0 0;background:var(--bg3)}
+.modal-body{padding:24px}
+.modal-body h2{font-size:24px;font-weight:900;margin-bottom:8px}
+.modal-desc{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.modal-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.modal-tag{
+  font-size:11px;padding:4px 10px;border-radius:20px;
+  background:var(--orange-light);color:var(--orange);
+  border:1px solid var(--orange-glow);
+}
+.modal-cook{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;background:var(--bg3);border-radius:10px;
+  margin-bottom:16px;
+}
+.modal-cook-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--bg4);font-size:20px;display:grid;place-items:center;
+}
+.modal-cook-info h4{font-size:14px;font-weight:700}
+.modal-cook-info p{font-size:12px;color:var(--text3)}
+.modal-footer{display:flex;align-items:center;justify-content:space-between}
+.modal-price{font-size:28px;font-weight:900;color:var(--orange)}
+.modal-close{
+  position:absolute;top:16px;right:16px;
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);
+  font-size:18px;display:grid;place-items:center;
+  z-index:10;transition:background var(--transition);
+}
+.modal-close:hover{background:rgba(0,0,0,0.9)}
+.modal-wrap{position:relative}
+
+/* ======== CHECKOUT PAGE ======== */
+.checkout-layout{
+  display:grid;grid-template-columns:1fr 380px;
+  gap:24px;padding:32px;
+}
+.checkout-section{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;
+  margin-bottom:16px;
+}
+.checkout-section h3{
+  font-size:16px;font-weight:700;margin-bottom:16px;
+  padding-bottom:12px;border-bottom:1px solid var(--border);
+}
+.form-row{display:flex;gap:12px}
+.form-group{flex:1;margin-bottom:14px}
+.form-group label{font-size:12px;color:var(--text3);margin-bottom:6px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.form-input{
+  width:100%;padding:11px 14px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:13px;
+  font-family:'DM Sans',sans-serif;
+  transition:border-color var(--transition);
+}
+.form-input:focus{border-color:var(--orange);outline:none}
+.payment-methods{display:flex;gap:10px}
+.payment-method{
+  flex:1;padding:12px;border-radius:10px;
+  border:2px solid var(--border);background:var(--bg3);
+  cursor:pointer;text-align:center;
+  transition:all var(--transition);
+}
+.payment-method.active{border-color:var(--orange);background:var(--orange-light)}
+.payment-method div{font-size:20px;margin-bottom:4px}
+.payment-method span{font-size:12px;font-weight:600}
+.order-summary{position:sticky;top:20px}
+.summary-items{margin-bottom:16px}
+.summary-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 0;border-bottom:1px solid var(--border);
+  font-size:13px;
+}
+.summary-item img{
+  width:44px;height:44px;border-radius:8px;object-fit:cover;
+  background:var(--bg3);
+}
+.summary-item-name{flex:1;font-weight:500}
+.summary-item-price{font-weight:700;color:var(--orange)}
+.summary-totals{margin-top:12px}
+.summary-row{
+  display:flex;justify-content:space-between;
+  font-size:13px;color:var(--text2);margin-bottom:8px;
+}
+.summary-total-row{
+  display:flex;justify-content:space-between;
+  font-size:18px;font-weight:700;
+  padding-top:12px;border-top:1px solid var(--border);
+  margin-top:4px;
+}
+.btn-place-order{
+  width:100%;padding:15px;border-radius:12px;
+  background:var(--orange);color:#fff;
+  font-size:16px;font-weight:700;margin-top:16px;
+  transition:all var(--transition);
+}
+.btn-place-order:hover{background:var(--orange-hover);transform:translateY(-1px);box-shadow:0 6px 20px var(--orange-glow)}
+
+/* ======== COOK PROFILE PAGE ======== */
+.cook-profile-hero{
+  height:220px;background:linear-gradient(135deg,#1a0a00,#0e0e0e);
+  position:relative;overflow:hidden;
+}
+.cook-profile-hero-bg{
+  position:absolute;inset:0;opacity:0.2;
+  background:url('https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=1200&q=60') center/cover;
+}
+.cook-profile-info{
+  position:relative;z-index:2;padding:32px;
+  display:flex;align-items:flex-end;gap:20px;height:100%;
+}
+.cook-profile-avatar{
+  width:90px;height:90px;border-radius:50%;
+  border:4px solid var(--orange);
+  background:var(--bg3);font-size:36px;
+  display:grid;place-items:center;flex-shrink:0;
+}
+.cook-profile-details h1{font-size:26px;font-weight:900;margin-bottom:4px}
+.cook-profile-details p{font-size:14px;color:var(--text2)}
+.cook-profile-body{padding:24px 32px}
+.cook-stats{
+  display:flex;gap:20px;padding:20px;
+  background:var(--card);border-radius:var(--radius);
+  border:1px solid var(--border);margin-bottom:24px;
+}
+.cook-stat{text-align:center;flex:1}
+.cook-stat-val{font-size:22px;font-weight:900;color:var(--orange)}
+.cook-stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ======== TOAST ======== */
+.toast-container{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  z-index:1000;display:flex;flex-direction:column;gap:8px;
+  pointer-events:none;
+}
+.toast{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 20px;
+  font-size:13px;font-weight:600;
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  animation:toastIn 0.3s ease;
+  pointer-events:auto;
+}
+.toast.success{border-color:rgba(34,197,94,0.4);color:#22c55e}
+.toast.error{border-color:rgba(239,68,68,0.4);color:#ef4444}
+.toast.info{border-color:var(--orange-glow);color:var(--orange)}
+@keyframes toastIn{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes toastOut{
+  from{opacity:1}
+  to{opacity:0;transform:translateY(10px)}
+}
+
+/* ======== EMPTY STATE ======== */
+.empty-state{
+  text-align:center;padding:64px 32px;
+}
+.empty-icon{font-size:56px;margin-bottom:16px;opacity:0.5}
+.empty-state h3{font-size:20px;font-weight:700;margin-bottom:8px;font-family:'DM Sans',sans-serif}
+.empty-state p{font-size:14px;color:var(--text3)}
+
+/* ======== ANIMATIONS ======== */
+@keyframes fadeSlideIn{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.stagger-1{animation-delay:0.05s}
+.stagger-2{animation-delay:0.1s}
+.stagger-3{animation-delay:0.15s}
+.stagger-4{animation-delay:0.2s}
+
+/* ======== PULSE ANIMATION ======== */
+@keyframes pulse{
+  0%,100%{opacity:1}50%{opacity:0.5}
+}
+
+/* ======== SUCCESS OVERLAY ======== */
+.success-overlay{
+  position:fixed;inset:0;background:var(--bg);
+  z-index:999;display:none;
+  align-items:center;justify-content:center;
+  flex-direction:column;gap:16px;text-align:center;
+}
+.success-overlay.open{display:flex;animation:pageIn 0.4s ease}
+.success-icon{font-size:72px;animation:bounceIn 0.5s ease 0.2s both}
+@keyframes bounceIn{
+  0%{transform:scale(0.3)}
+  60%{transform:scale(1.1)}
+  80%{transform:scale(0.95)}
+  100%{transform:scale(1)}
+}
+
+/* ======== USER REQUEST UPDATES ======== */
+.welcome-overlay{
+  position:fixed;inset:0;z-index:2000;background:radial-gradient(circle at top left,#3a1703 0%,#0e0e0e 55%,#050505 100%);
+  display:flex;align-items:center;justify-content:center;padding:28px;
+}
+.welcome-card{width:min(760px,100%);background:rgba(22,22,22,.94);border:1px solid var(--border2);border-radius:26px;padding:34px;box-shadow:0 30px 90px rgba(0,0,0,.65)}
+.welcome-card h1{font-size:38px;line-height:1.08;margin-bottom:10px}.welcome-card h1 span{color:var(--orange)}
+.welcome-card p{color:var(--text2);line-height:1.6;margin-bottom:22px}
+.welcome-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}.welcome-full{grid-column:1/-1}
+.welcome-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
+.welcome-select,.cook-input{width:100%;padding:13px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif}
+.welcome-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.btn-secondary{padding:13px 20px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);font-weight:700;color:var(--text2)}
+.cart-floating-btn{position:fixed;right:22px;bottom:22px;z-index:450;background:var(--orange);color:#fff;padding:13px 17px;border-radius:999px;font-weight:800;box-shadow:0 12px 30px var(--orange-glow);display:flex;align-items:center;gap:8px}
+.cart-floating-btn.hidden{display:none}
+.cart-close{width:30px;height:30px;border-radius:8px;background:var(--bg3);display:grid;place-items:center;color:var(--text2)}
+.lang-switch{position:relative;display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:13px;color:var(--text3);cursor:pointer;border-radius:10px}.lang-switch:hover{background:var(--bg3);color:var(--text)}
+.lang-menu{position:absolute;left:12px;bottom:44px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:140px;display:none;box-shadow:var(--shadow);z-index:300}.lang-menu.open{display:block}
+.lang-menu button{display:block;width:100%;text-align:left;padding:9px 10px;border-radius:8px;color:var(--text2);font-size:13px}.lang-menu button:hover{background:var(--bg3);color:var(--text)}
+.info-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 8px;border-radius:99px;background:var(--bg3);color:var(--text2);margin-top:6px;margin-right:4px}.verified-photo{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.profile-extra{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}.profile-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}.profile-box small{display:block;color:var(--text3);font-size:11px;margin-bottom:5px}.profile-box strong{font-size:13px}
+.cook-form{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:32px}.cook-form .wide{grid-column:1/-1}.cook-input[type=file]{padding:10px}.live-preview-note{padding:14px;border:1px dashed var(--orange);background:var(--orange-light);border-radius:12px;color:var(--text2);font-size:13px;line-height:1.6}.camera-verified{color:#22c55e;font-weight:800}
+.tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
+.order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
+@media(max-width:900px){.welcome-grid,.cook-form,.profile-extra{grid-template-columns:1fr}.welcome-card h1{font-size:30px}.cart-panel{width:min(330px,100vw)}.main{margin-left:var(--sidebar)}}
+
+/* Mobile toggle */
+.mobile-menu-toggle{display:none}
+@media(max-width:1100px){
+  :root{--sidebar:200px;--cart:240px}
+  .cooks-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== WELCOME LOCATION PAGE ===== -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-card">
+    <h1>Where are you, and what do you want to eat?</h1>
+    <p>Choose your current country and the cuisine you miss. HomeTaste will show nearby home cooks, available dishes, payment methods, and delivery options for that country.</p>
+    <div class="welcome-grid">
+      <div>
+        <div class="welcome-label">Current country</div>
+        <select class="welcome-select" id="welcomeCountry" onchange="setCountryFromWelcome()">
+          <option value="TR">🇹🇷 Türkiye</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="ES">🇪🇸 Spain</option>
+          <option value="EG">🇪🇬 Egypt</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="NL">🇳🇱 Netherlands</option>
+        </select>
+      </div>
+      <div>
+        <div class="welcome-label">Food from</div>
+        <select class="welcome-select" id="welcomeCuisine">
+          <option>Egyptian food</option><option>Turkish food</option><option>Syrian food</option><option>Italian food</option><option>Indian food</option><option>Japanese food</option>
+        </select>
+      </div>
+      <div class="welcome-full">
+        <div class="welcome-label">City / area</div>
+        <input class="welcome-select" id="welcomeCity" placeholder="Example: Istanbul, Berlin, Madrid..." value="Istanbul">
+      </div>
+    </div>
+    <div class="welcome-actions">
+      <button class="btn-apply" onclick="finishWelcome()">Start exploring →</button>
+      <button class="btn-secondary" onclick="finishWelcome(true)">I want to become a cook</button>
+    </div>
+  </div>
+</div>
+
+<button class="cart-floating-btn" onclick="toggleCart()">🛒 Cart <span id="cartFloatingCount">0</span></button>
+
+<div class="layout">
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🍽️</div>
+    <div>
+      <div class="logo-text">HomeTaste</div>
+      <div class="logo-sub">Real cooks. Real food. Real people.</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-item active" onclick="showPage('home',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </div>
+    <div class="nav-item" onclick="showPage('browse',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Browse Cooks
+    </div>
+    <div class="nav-item" onclick="showPage('dishes',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12h8M12 8v8"/></svg>
+      Popular Dishes
+    </div>
+    <div class="nav-item" onclick="showPage('orders',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      My Orders
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" onclick="showPage('favorites',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      Favorites
+    </div>
+    <div class="nav-item" onclick="showPage('messages',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Messages
+      <span class="nav-badge">2</span>
+    </div>
+    <div class="nav-item" onclick="showPage('become',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Become a Cook
+    </div>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="nav-item" onclick="showPage('help',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+      Help & Support
+    </div>
+    <div class="nav-item" onclick="showPage('settings',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </div>
+    <div class="lang-switch" onclick="toggleLangMenu(event)">
+      <span>🌐</span><span id="currentLangLabel">EN</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      <div class="lang-menu" id="langMenu">
+        <button onclick="setLanguage('EN',event)">English</button>
+        <button onclick="setLanguage('AR',event)">العربية</button>
+        <button onclick="setLanguage('TR',event)">Türkçe</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main" id="mainContent">
+
+  <!-- HOME PAGE -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <h1>Discover authentic <span>homemade food</span> from real people</h1>
+        <p>From Turkish kebabs to Egyptian koshari,<br>home-cooked flavors from around the world.</p>
+        <div class="hero-social">
+          <div class="hero-avatars">
+            <div class="hero-avatar" style="background:#c0392b">M</div>
+            <div class="hero-avatar" style="background:#2980b9">A</div>
+            <div class="hero-avatar" style="background:#27ae60">G</div>
+          </div>
+          <span>500+ Happy foodies</span>
+        </div>
+      </div>
+      <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80" alt="food" class="hero-food-img" onerror="this.style.display='none'">
+    </div>
+
+    <div class="search-section">
+      <div class="search-bar">
+        <div class="search-input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="searchInput" type="text" placeholder="Search by dish name or cook name..." oninput="handleSearch(this.value)">
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-city" id="citySelector" onclick="toggleCityDropdown()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span id="cityLabel">Select city...</span>
+          <div class="city-dropdown" id="cityDropdown">
+            <div class="city-option" onclick="selectCity('Istanbul')">📍 Istanbul</div>
+            <div class="city-option" onclick="selectCity('Ankara')">📍 Ankara</div>
+            <div class="city-option" onclick="selectCity('Berlin')">📍 Berlin</div>
+            <div class="city-option" onclick="selectCity('Munich')">📍 Munich</div>
+            <div class="city-option" onclick="selectCity('Cairo')">📍 Cairo</div>
+            <div class="city-option" onclick="selectCity('Damascus')">📍 Damascus</div>
+          </div>
+        </div>
+        <button class="btn-search" onclick="doSearch()">Search</button>
+      </div>
+    </div>
+
+    <div class="filter-chips" id="filterChips">
+      <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
+      <div class="chip" onclick="filterChip(this,'egyptian')">Egyptian</div>
+      <div class="chip" onclick="filterChip(this,'turkish')">Turkish</div>
+      <div class="chip" onclick="filterChip(this,'italian')">Italian</div>
+      <div class="chip" onclick="filterChip(this,'syrian')">Syrian</div>
+      <div class="chip" onclick="filterChip(this,'indian')">Indian</div>
+      <div class="chip" onclick="filterChip(this,'japanese')">Japanese</div>
+      <div class="chip" onclick="filterChip(this,'mexican')">Mexican</div>
+      <div class="chip" onclick="filterChip(this,'greek')">Greek</div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>Popular Cooks Near You</h2>
+        <span class="view-all" onclick="showPage('browse',document.querySelector('[onclick*=\"browse\"]'))">View all →</span>
+      </div>
+      <div class="cooks-grid" id="homeCooksGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <div class="how-section">
+      <div class="section-header">
+        <h2>How it works</h2>
+      </div>
+      <div class="how-grid">
+        <div class="how-item">
+          <div class="how-icon">🔍</div>
+          <div class="how-text">
+            <h4>1. Search</h4>
+            <p>Find dishes or cooks you love from hundreds of home chefs in your area.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="how-icon">🛍️</div>
+          <div class="how-text">
+            <h4>2. Order</h4>
+            <p>Place your order directly with the cook and choose delivery or pickup.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="how-icon">🍽️</div>
+          <div class="how-text">
+            <h4>3. Enjoy</h4>
+            <p>Get authentic homemade food delivered to your door, fresh and delicious.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BROWSE COOKS PAGE -->
+  <div class="page" id="page-browse">
+    <div class="page-header">
+      <h1>Browse Cooks</h1>
+      <p>Discover talented home chefs in your city</p>
+    </div>
+    <div class="filter-bar">
+      <select class="filter-select" id="cookSortSelect" onchange="applyCookFilters()">
+        <option value="top-rated">Sort: Top Rated</option>
+        <option value="most-orders">Sort: Most Orders</option>
+        <option value="nearest">Sort: Nearest</option>
+        <option value="price-low">Sort: Price: Low-High</option>
+      </select>
+      <select class="filter-select" id="cookCuisineSelect" onchange="applyCookFilters()">
+        <option value="">All Cuisines</option>
+        <option value="Egyptian">Egyptian</option>
+        <option value="Turkish">Turkish</option>
+        <option value="Italian">Italian</option>
+        <option value="Syrian">Syrian</option>
+        <option value="Indian">Indian</option>
+        <option value="Japanese">Japanese</option>
+        <option value="Mexican">Mexican</option>
+      </select>
+      <select class="filter-select" id="cookCitySelect" onchange="applyCookFilters()">
+        <option value="">All Cities</option>
+        <option value="Istanbul">Istanbul</option>
+        <option value="Ankara">Ankara</option>
+        <option value="Berlin">Berlin</option>
+        <option value="Gaziantep">Gaziantep</option>
+        <option value="Mumbai">Mumbai</option>
+        <option value="Cairo">Cairo</option>
+      </select>
+    </div>
+    <div class="cooks-grid-large" id="browseGrid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- POPULAR DISHES PAGE -->
+  <div class="page" id="page-dishes">
+    <div class="page-header">
+      <h1>Popular Dishes</h1>
+      <p>The most loved homemade meals on HomeTaste</p>
+    </div>
+    <div class="filter-bar">
+      <div class="chip active" onclick="filterChip(this,'all')" style="padding:8px 16px">All</div>
+      <div class="chip" onclick="filterChip(this,'vegetarian')" style="padding:8px 16px">🌱 Vegetarian</div>
+      <div class="chip" onclick="filterChip(this,'spicy')" style="padding:8px 16px">🌶️ Spicy</div>
+      <div class="chip" onclick="filterChip(this,'dessert')" style="padding:8px 16px">🍰 Desserts</div>
+    </div>
+    <div class="dishes-grid" id="dishesGrid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- MY ORDERS PAGE -->
+  <div class="page" id="page-orders">
+    <div class="page-header">
+      <h1>My Orders</h1>
+      <p>Track and manage your food orders</p>
+    </div>
+    <div class="orders-list" id="ordersList">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- FAVORITES PAGE -->
+  <div class="page" id="page-favorites">
+    <div class="page-header">
+      <h1>My Favorites</h1>
+      <p>Your saved dishes and cooks</p>
+    </div>
+    <div class="favorites-grid" id="favoritesGrid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- MESSAGES PAGE -->
+  <div class="page" id="page-messages">
+    <div class="page-header" style="padding-bottom:16px">
+      <h1>Messages</h1>
+      <p>Chat with your cooks</p>
+    </div>
+    <div class="messages-layout">
+      <div class="chat-list" id="chatList">
+        <!-- Populated by JS -->
+      </div>
+      <div class="chat-window" id="chatWindow">
+        <div class="chat-header" id="chatHeader">
+          <div class="chat-avatar" id="chatHeaderAvatar" style="width:44px;height:44px;border-radius:50%;background:var(--bg3);font-size:20px;display:grid;place-items:center;flex-shrink:0"></div>
+          <div class="chat-header-info">
+            <h3 id="chatHeaderName"></h3>
+            <p id="chatHeaderDesc"></p>
+          </div>
+          <div class="chat-actions">
+            <button class="chat-action-btn" onclick="showToast('Phone contact is available after an active order is placed.','info')">📞</button>
+            <button class="chat-action-btn" onclick="showToast('Conversation tools: order chat, delivery notes, and cook updates.','info')">⋯</button>
+          </div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-bar">
+          <input class="chat-input" id="chatInputField" type="text" placeholder="Type a message..." onkeydown="handleChatKey(event)" aria-label="Message text">
+          <button class="btn-send" onclick="sendChatMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BECOME A COOK PAGE -->
+  <div class="page" id="page-become">
+    <div class="become-hero">
+      <h1>Become a <span>Cook</span> in minutes</h1>
+      <p>No long application. Create your cook profile, add your first dish, set your available time, and start receiving orders after quick phone/photo verification.</p>
+      <button class="btn-apply" onclick="document.getElementById('cookNameInput').focus();showToast('Start with your cook name and first dish 👇','info')">Create my cook profile</button>
+    </div>
+    <div class="cook-form">
+      <div><div class="welcome-label">Cook display name</div><input id="cookNameInput" class="cook-input" placeholder="Example: Ahmed's Egyptian Kitchen"></div>
+      <div><div class="welcome-label">Phone / WhatsApp</div><input id="cookPhoneInput" class="cook-input" placeholder="+90 ..."></div>
+      <div><div class="welcome-label">Country & city</div><input id="cookCityInput" class="cook-input" placeholder="Türkiye, Istanbul"></div>
+      <div><div class="welcome-label">Available times</div><input id="cookTimeInput" class="cook-input" placeholder="Today 6 PM - 11 PM"></div>
+      <div><div class="welcome-label">First dish</div><input id="cookDishInput" class="cook-input" placeholder="Koshari, Molokhia, Mahshi..."></div>
+      <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
+      <div><div class="welcome-label">Sauces / sides</div><input id="cookSauceInput" class="cook-input" placeholder="Extra sauce, salad, bread..."></div>
+      <div><div class="welcome-label">Drinks</div><input id="cookDrinkInput" class="cook-input" placeholder="Ayran, cola, tea..."></div>
+      <div class="wide"><div class="welcome-label">Dish photo verification</div><input id="cookPhotoInput" class="cook-input" type="file" accept="image/*" capture="environment" onchange="handleCookPhoto(this)"></div>
+      <div class="wide live-preview-note">📸 If the cook takes the photo directly from the camera during upload, the listing gets a <span class="camera-verified">Camera Verified</span> badge. If they upload from gallery, the listing appears normally without that badge.</div>
+      <div class="wide"><button class="btn-apply" onclick="createCookDemo()">Publish my first dish →</button></div>
+    </div>
+    <div class="become-features">
+      <div class="feature-card"><div class="feature-icon">⚡</div><h3>Fast setup</h3><p>No complicated application. Add your profile, dish, price, prep time, and availability.</p></div>
+      <div class="feature-card"><div class="feature-icon">💬</div><h3>Chat first</h3><p>Customers can ask if you are free before ordering and can see your phone/WhatsApp if you allow it.</p></div>
+      <div class="feature-card"><div class="feature-icon">⭐</div><h3>Build trust</h3><p>Your profile shows ratings, total orders, speed rating, camera verified dishes, and customer reviews.</p></div>
+    </div>
+  </div>
+
+  <!-- HELP & SUPPORT PAGE -->
+  <div class="page" id="page-help">
+    <div class="page-header">
+      <h1>Help & Support</h1>
+      <p>Find answers to common questions</p>
+    </div>
+    <div class="help-layout">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px">
+        <button class="feature-card" onclick="showToast('Support chat will open from the operations panel when connected to live support.','info')" style="text-align:center;cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">💬</div>
+          <div style="font-weight:700;font-size:14px">Live Chat</div>
+          <div style="font-size:12px;color:var(--text3)">Get instant help</div>
+        </button>
+        <button class="feature-card" onclick="showToast('Email support: support@hometaste.com','info')" style="cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">📧</div>
+          <div style="font-weight:700;font-size:14px">Email Us</div>
+          <div style="font-size:12px;color:var(--text3)">support@hometaste.com</div>
+        </button>
+        <button class="feature-card" onclick="showToast('Phone support: +90 212 000 00 00','info')" style="cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">📞</div>
+          <div style="font-weight:700;font-size:14px">Call Us</div>
+          <div style="font-size:12px;color:var(--text3)">+90 212 000 00 00</div>
+        </button>
+      </div>
+      <div class="faq-section">
+        <h2 style="margin-bottom:16px;font-size:20px">Frequently Asked Questions</h2>
+        <div id="faqList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <h1>Settings</h1>
+    </div>
+    <div class="settings-layout">
+
+      <div class="checkout-section" style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--orange-light);border:3px solid var(--orange);font-size:28px;display:grid;place-items:center">👤</div>
+        <div>
+          <div style="font-size:18px;font-weight:700">Alex Johnson</div>
+          <div style="font-size:13px;color:var(--text3)">alex.johnson@email.com</div>
+          <button style="font-size:12px;color:var(--orange);font-weight:600;margin-top:6px" onclick="showToast('Profile editing is controlled from your account record.','info')">Edit Profile →</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Notifications</h3>
+        <div class="setting-item">
+          <div><div class="setting-label">Order Updates</div><div class="setting-desc">Get notified about your order status</div></div>
+          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        </div>
+        <div class="setting-item">
+          <div><div class="setting-label">New Dishes</div><div class="setting-desc">Alerts when favorite cooks add new dishes</div></div>
+          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        </div>
+        <div class="setting-item">
+          <div><div class="setting-label">Promotions</div><div class="setting-desc">Deals and discount notifications</div></div>
+          <div class="toggle" onclick="toggleSetting(this)"></div>
+        </div>
+        <div class="setting-item">
+          <div><div class="setting-label">Messages</div><div class="setting-desc">New message notifications</div></div>
+          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Preferences</h3>
+        <div class="setting-item">
+          <div><div class="setting-label">Dark Mode</div></div>
+          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        </div>
+        <div class="setting-item">
+          <div><div class="setting-label">Language</div></div>
+          <select class="filter-select" style="margin:0" onchange="setLanguage(this.value,event)">
+            <option value="EN">English</option><option value="TR">Türkçe</option><option value="AR">العربية</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <div><div class="setting-label">Default City</div></div>
+          <select class="filter-select" style="margin:0">
+            <option>Istanbul</option><option>Ankara</option><option>Berlin</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Account</h3>
+        <div class="setting-item">
+          <div class="setting-label" style="cursor:pointer;color:var(--orange)" onclick="showToast('Password changes will be handled from secure account settings.','info')">Change Password</div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label" style="cursor:pointer;color:var(--orange)" onclick="showToast('Payment methods are configured during checkout and admin review.','info')">Manage Payment Methods</div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-label" style="cursor:pointer;color:#ef4444" onclick="parent.logout ? parent.logout() : showToast('Use the top Sign out button to leave your account.','info')">Sign Out</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COOK PROFILE PAGE -->
+  <div class="page" id="page-cook-profile">
+    <div class="cook-profile-hero">
+      <div class="cook-profile-hero-bg"></div>
+      <div class="cook-profile-info">
+        <div class="cook-profile-avatar" id="profileAvatar">👩‍🍳</div>
+        <div class="cook-profile-details">
+          <h1 id="profileName">Cook Name</h1>
+          <p id="profileCuisine">Cuisine Type</p>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+            <span class="star">★</span>
+            <span id="profileRating">4.9</span>
+            <span style="color:var(--text3);font-size:13px" id="profileReviews">(120 reviews)</span>
+            <span style="color:var(--text3);font-size:13px" id="profileCity">📍 Istanbul</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button class="btn-apply" style="padding:10px 20px;font-size:13px" onclick="showToast('Cook saved to favorites.','success')">+ Follow</button>
+            <button class="btn-continue" style="width:auto;padding:10px 20px;font-size:13px" onclick="showPage('messages',document.querySelector('[onclick*=\"messages\"]'))">💬 Message</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cook-profile-body">
+      <div class="cook-stats">
+        <div class="cook-stat"><div class="cook-stat-val" id="profileOrders">847</div><div class="cook-stat-label">Orders</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileFollowers">312</div><div class="cook-stat-label">Followers</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileDishes">12</div><div class="cook-stat-label">Dishes</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileSpeed">4.8★</div><div class="cook-stat-label">Speed</div></div>
+      </div>
+      <div class="profile-extra">
+        <div class="profile-box"><small>Available</small><strong id="profileAvailability">Today 6 PM–10 PM</strong></div>
+        <div class="profile-box"><small>Prep time</small><strong id="profilePrep">35–45 min</strong></div>
+        <div class="profile-box"><small>Phone</small><strong id="profilePhone">Hidden until order</strong></div>
+        <div class="profile-box"><small>Photo trust</small><strong id="profilePhotoTrust">Camera Verified</strong></div>
+      </div>
+      <div class="section-header">
+        <h2 id="profileDishesTitle">Dishes by Cook</h2>
+      </div>
+      <div class="dishes-grid" id="profileDishesGrid" style="padding:0 0 32px"></div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT PAGE -->
+  <div class="page" id="page-checkout">
+    <div class="page-header">
+      <h1>Checkout</h1>
+      <p>Complete your order</p>
+    </div>
+    <div class="checkout-layout">
+      <div>
+        <div class="checkout-section">
+          <h3>🏠 Delivery Address</h3>
+          <div class="form-row">
+            <div class="form-group"><label>First Name</label><input class="form-input" type="text" placeholder="Alex" value="Alex"></div>
+            <div class="form-group"><label>Last Name</label><input class="form-input" type="text" placeholder="Johnson" value="Johnson"></div>
+          </div>
+          <div class="form-group"><label>Street Address</label><input class="form-input" type="text" placeholder="123 Main Street, Apt 4B"></div>
+          <div class="form-row">
+            <div class="form-group"><label>City</label><input class="form-input" type="text" placeholder="Istanbul" value="Istanbul"></div>
+            <div class="form-group"><label>ZIP Code</label><input class="form-input" type="text" placeholder="34000"></div>
+          </div>
+          <div class="form-group"><label>Delivery Notes</label><input class="form-input" type="text" placeholder="Leave at door, ring doorbell..."></div>
+        </div>
+
+        <div class="checkout-section">
+          <h3>💳 Payment Method</h3>
+          <div class="payment-methods" id="paymentMethods"></div>
+          <div class="payment-note" id="paymentNote">Payment methods change depending on the selected country.</div>
+          <div style="margin-top:14px">
+            <div class="form-group"><label>Card Number</label><input class="form-input" type="text" placeholder="1234 5678 9012 3456"></div>
+            <div class="form-row">
+              <div class="form-group"><label>Expiry</label><input class="form-input" type="text" placeholder="MM/YY"></div>
+              <div class="form-group"><label>CVV</label><input class="form-input" type="text" placeholder="123"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkout-section">
+          <h3>⏰ Delivery Time</h3>
+          <div style="display:flex;gap:10px">
+            <div class="payment-method active" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>⚡</div><span>ASAP (~30 min)</span></div>
+            <div class="payment-method" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>🕐</div><span>Schedule</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="order-summary">
+        <div class="checkout-section">
+          <h3>🧾 Order Summary</h3>
+          <div class="summary-items" id="checkoutItems"></div>
+          <div class="summary-totals">
+            <div class="summary-row"><span>Subtotal</span><span id="checkoutSubtotal">370 ₺</span></div>
+            <div class="summary-row"><span>Delivery fee</span><span>30 ₺</span></div>
+            <div class="summary-row"><span>Service fee</span><span>15 ₺</span></div>
+            <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
+          </div>
+          <button class="btn-place-order" onclick="placeOrder()">Place Order →</button>
+          <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px">
+            🔒 All payments are secure and encrypted
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ===== CART PANEL ===== -->
+<aside class="cart-panel" id="cartPanel">
+  <div class="cart-header">
+    <h3>Your Cart</h3>
+    <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" onclick="toggleCart(false)">✕</button></div>
+  </div>
+  <div class="cart-tabs">
+    <button class="cart-tab active" onclick="cartTab(this,'delivery')">Delivery</button>
+    <button class="cart-tab" onclick="cartTab(this,'pickup')">Pickup</button>
+  </div>
+  <div class="cart-items" id="cartItems">
+    <!-- Populated by JS -->
+  </div>
+  <div class="cart-footer">
+    <div class="cart-row"><span>Subtotal</span><span id="cartSubtotal">0 ₺</span></div>
+    <div class="cart-row"><span>Delivery fee</span><span id="cartDeliveryFee">0 ₺</span></div>
+    <div class="cart-total"><span>Total</span><span id="cartTotal">0 ₺</span></div>
+    <button class="btn-checkout" id="cartCheckoutBtn" onclick="checkoutFromCart()">Checkout</button>
+    <button class="btn-continue" onclick="toggleCart(false);showPage('dishes',document.querySelector('[onclick*=&quot;dishes&quot;]'))">Continue Shopping</button>
+    <div class="cart-secure">
+      🔒 <span>All payments are secure. Your data is protected.</span>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<!-- ===== DISH MODAL ===== -->
+<div class="modal-overlay" id="dishModal" onclick="closeModal(event)">
+  <div class="modal-wrap">
+    <button class="modal-close" onclick="closeDishModal()">✕</button>
+    <div class="modal" id="modalContent">
+      <img src="" alt="" id="modalImg" class="modal-img">
+      <div class="modal-body">
+        <h2 id="modalTitle"></h2>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div class="modal-tags" id="modalTags"></div>
+        <div class="modal-cook" id="modalCook"></div>
+        <div class="modal-tags" id="modalOptions"></div>
+        <div class="modal-footer">
+          <div class="modal-price" id="modalPrice"></div>
+          <button class="btn-add" id="modalAddBtn" onclick="addModalToCart()">Order Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUCCESS OVERLAY ===== -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">🎉</div>
+  <h1 style="font-size:32px;font-weight:900">Order Placed!</h1>
+  <p style="color:var(--text2);font-size:15px;max-width:360px">Your food is being prepared. You can track: accepted → cooking → courier pickup → on the way → delivered.</p>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 32px;margin-top:8px;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🛵</div>
+    <div style="font-weight:700;font-size:16px">Estimated Delivery</div>
+    <div style="color:var(--orange);font-size:24px;font-weight:900;margin-top:4px">25–35 min</div>
+  </div>
+  <button class="btn-apply" style="margin-top:8px" onclick="document.getElementById('successOverlay').classList.remove('open');showPage('orders',document.querySelector('[onclick*=\"orders\"]'))">Track My Order →</button>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ===== DATA =====
+const cooks = [
+  {id:1,name:'Mona Hassan',emoji:'👩‍🍳',cuisine:'Egyptian Cuisine',city:'Istanbul',rating:4.9,reviews:120,dish:'Koshari',price:170,verified:true,
+   img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70',
+   bio:'Authentic Egyptian flavors crafted with love. My grandmother\'s recipes, now in your city.',
+   orders:847,followers:312,dishes:12},
+  {id:2,name:'Ahmet Yılmaz',emoji:'👨‍🍳',cuisine:'Turkish Cuisine',city:'Ankara',rating:4.8,reviews:98,dish:'Adana Kebap',price:200,verified:true,
+   img:'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=70',
+   bio:'Born in Adana, cooking since I could reach the grill. Real Turkish flavors.',
+   orders:653,followers:241,dishes:8},
+  {id:3,name:'Giulia Rossi',emoji:'👩‍🍳',cuisine:'Italian Cuisine',city:'Berlin',rating:4.9,reviews:76,dish:'Lasagna',price:180,verified:true,
+   img:'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=70',
+   bio:'Nonna\'s recipes straight from Bologna. Fresh pasta, rich ragù, pure love.',
+   orders:489,followers:198,dishes:10},
+  {id:4,name:'Layla Omari',emoji:'👩‍🍳',cuisine:'Syrian Cuisine',city:'Gaziantep',rating:4.7,reviews:64,dish:'Yaprak Sarma',price:150,verified:true,
+   img:'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400&q=70',
+   bio:'Syrian homestyle cooking with herbs and spices passed down for generations.',
+   orders:381,followers:156,dishes:14},
+  {id:5,name:'Raj Patel',emoji:'👨‍🍳',cuisine:'Indian Cuisine',city:'Istanbul',rating:4.8,reviews:88,dish:'Butter Chicken',price:190,verified:true,
+   img:'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=70',
+   bio:'Bringing the real taste of Mumbai to your doorstep. Aromatic, spicy, authentic.',
+   orders:512,followers:205,dishes:9},
+  {id:6,name:'Yuki Tanaka',emoji:'👩‍🍳',cuisine:'Japanese Cuisine',city:'Berlin',rating:4.9,reviews:54,dish:'Ramen Bowl',price:220,verified:false,
+   img:'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400&q=70',
+   bio:'Traditional ramen and sushi crafted with Japanese precision and care.',
+   orders:298,followers:143,dishes:7},
+];
+
+const dishes = [
+  {id:1,name:'Koshari',cookId:1,tag:'Egyptian',desc:'Egypt\'s beloved street food — rice, lentils, macaroni topped with tomato sauce and crispy onions.',price:170,img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=70',tags:['Vegetarian','Popular','Gluten-Free']},
+  {id:2,name:'Adana Kebap',cookId:2,tag:'Turkish',desc:'Spicy minced lamb skewers grilled over charcoal, served with lavash and roasted vegetables.',price:200,img:'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&q=70',tags:['Spicy','Grilled','Bestseller']},
+  {id:3,name:'Lasagna al Forno',cookId:3,tag:'Italian',desc:'Layers of fresh pasta, rich Bolognese, creamy béchamel and aged Parmigiano — baked to golden perfection.',price:180,img:'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=70',tags:['Comfort Food','Baked']},
+  {id:4,name:'Yaprak Sarma',cookId:4,tag:'Syrian',desc:'Tender grape leaves stuffed with herbed rice and minced meat, simmered in lemony broth.',price:150,img:'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=600&q=70',tags:['Traditional','Slow-Cooked']},
+  {id:5,name:'Butter Chicken',cookId:5,tag:'Indian',desc:'Slow-cooked chicken in velvety tomato-cream sauce, perfumed with cardamom, fenugreek and garam masala.',price:190,img:'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=70',tags:['Creamy','Spicy','Popular']},
+  {id:6,name:'Ramen Bowl',cookId:6,tag:'Japanese',desc:'Rich tonkotsu broth simmered 12 hours, topped with chashu pork, soft egg, nori and bamboo shoots.',price:220,img:'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600&q=70',tags:['Umami','Hot','Complex']},
+  {id:7,name:'Moussaka',cookId:1,tag:'Egyptian',desc:'Layered eggplant, spiced minced meat and creamy béchamel sauce — hearty Mediterranean comfort.',price:165,img:'https://images.unsplash.com/photo-1544025162-d76538722aee?w=600&q=70',tags:['Baked','Traditional']},
+  {id:8,name:'Baklava',cookId:4,tag:'Syrian',desc:'Crispy phyllo pastry layered with pistachios and honey syrup — the ultimate Middle Eastern dessert.',price:80,img:'https://images.unsplash.com/photo-1519676867240-f03562e64548?w=600&q=70',tags:['Dessert','Sweet']},
+  {id:9,name:'Dolmades',cookId:2,tag:'Turkish',desc:'Fresh vine leaves filled with aromatic rice, herbs, and a drizzle of lemon-olive oil dressing.',price:140,img:'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=70',tags:['Vegetarian','Fresh']},
+];
+
+const messages = [
+  {id:1,cookId:1,unread:2,messages:[
+    {text:"Hello! Your Koshari is ready 🎉",from:'cook',time:'10:30 AM'},
+    {text:"It will be delivered in about 20 minutes.",from:'cook',time:'10:31 AM'},
+    {text:"Amazing! I can't wait!",from:'user',time:'10:33 AM'},
+    {text:"Could you add extra sauce please?",from:'user',time:'10:34 AM'},
+    {text:"Of course! Extra tomato sauce added ❤️",from:'cook',time:'10:35 AM'},
+  ]},
+  {id:2,cookId:2,unread:0,messages:[
+    {text:"Hi! Is the Adana Kebap very spicy?",from:'user',time:'Yesterday'},
+    {text:"It has a medium spice level but I can adjust it for you!",from:'cook',time:'Yesterday'},
+    {text:"Perfect, medium is great. One order please!",from:'user',time:'Yesterday'},
+  ]},
+  {id:3,cookId:3,unread:0,messages:[
+    {text:"Your Lasagna was absolutely incredible!",from:'user',time:'Mon'},
+    {text:"Thank you so much! Means the world to me! 🍝",from:'cook',time:'Mon'},
+  ]},
+];
+
+const faqs = [
+  {q:'How do I track my order?',a:'Go to My Orders to see real-time updates on your order status — from preparation to delivery. You\'ll also receive push notifications at each step.'},
+  {q:'Can I cancel my order?',a:'Yes, you can cancel within 5 minutes of placing an order. After that, the cook may have already started preparing your meal.'},
+  {q:'How do I become a cook on HomeTaste?',a:'Click "Become a Cook", add your profile and first dish, set your availability and prep time, then submit it for owner review before customers can order.'},
+  {q:'Is the food safe and hygienic?',a:'All cooks on HomeTaste complete a food safety certification and agree to our hygiene standards. We regularly review ratings to ensure quality.'},
+  {q:'What payment methods are accepted?',a:'We accept credit/debit cards, bank transfers, cash on delivery, and digital wallets.'},
+  {q:'How long does delivery take?',a:'Most deliveries take 25–50 minutes depending on your distance from the cook and current order volume.'},
+];
+
+// ===== STATE =====
+let cart = [];
+let favorites = new Set([1,3]);
+let currentCook = null;
+let currentDish = null;
+let activeChatId = 1;
+let chatMessages = JSON.parse(JSON.stringify(messages)); // deep copy
+let selectedCountry = 'TR';
+let selectedLanguage = 'EN';
+let cameraPhotoVerified = false;
+let lastCookFilterSummary = 'All cooks';
+const translations = {
+  EN: {
+    welcomeTitle: 'Where are you, and what do you want to eat?',
+    welcomeBody: 'Choose your current country and the cuisine you miss. HomeTaste will show nearby home cooks, available dishes, payment methods, and delivery options for that country.',
+    currentCountry: 'Current country',
+    foodFrom: 'Food from',
+    cityArea: 'City / area',
+    startExploring: 'Start exploring →',
+    wantCook: 'I want to become a cook',
+    cart: 'Cart',
+    home: 'Home',
+    browseCooks: 'Browse Cooks',
+    popularDishes: 'Popular Dishes',
+    myOrders: 'My Orders',
+    favorites: 'Favorites',
+    messages: 'Messages',
+    becomeCook: 'Become a Cook',
+    help: 'Help & Support',
+    settings: 'Settings',
+    heroTitle: 'Discover authentic <span>homemade food</span> from real people',
+    heroBody: 'From Turkish kebabs to Egyptian koshari,<br>home-cooked flavors from around the world.',
+    searchPlaceholder: 'Search by dish name or cook name...',
+    search: 'Search',
+    selectCity: 'Select city...',
+    allDishes: 'All Dishes',
+    browseTitle: 'Browse Cooks',
+    browseBody: 'Discover talented home chefs in your city',
+    sortTop: 'Sort: Top Rated',
+    sortOrders: 'Sort: Most Orders',
+    sortNearest: 'Sort: Nearest',
+    sortPrice: 'Sort: Price: Low-High',
+    allCuisines: 'All Cuisines',
+    allCities: 'All Cities',
+    dishesTitle: 'Popular Dishes',
+    dishesBody: 'The most loved homemade meals on HomeTaste',
+    ordersTitle: 'My Orders',
+    favoritesTitle: 'My Favorites',
+    messagesTitle: 'Messages',
+    messagesBody: 'Chat with your cooks',
+    messagePlaceholder: 'Type a message...',
+    helpTitle: 'Help & Support',
+    settingsTitle: 'Settings',
+    yourCart: 'Your Cart',
+    delivery: 'Delivery',
+    pickup: 'Pickup',
+    subtotal: 'Subtotal',
+    deliveryFee: 'Delivery fee',
+    total: 'Total',
+    checkout: 'Checkout',
+    continueShopping: 'Continue Shopping',
+    secure: 'All payments are secure. Your data is protected.',
+    cartEmpty: 'Cart is empty',
+    addFood: 'Add some delicious food!',
+    cook: 'Cook',
+    status: 'Status',
+    noCooks: 'No cooks found',
+    tryFilters: 'Try another cuisine, city, or sort option.',
+    languageChanged: 'Language changed to English'
+  },
+  TR: {
+    welcomeTitle: 'Neredesin ve ne yemek istiyorsun?',
+    welcomeBody: 'Bulunduğun ülkeyi ve özlediğin mutfağı seç. HomeTaste yakındaki ev aşçılarını, uygun yemekleri, ödeme yöntemlerini ve teslimat seçeneklerini gösterir.',
+    currentCountry: 'Mevcut ülke',
+    foodFrom: 'Mutfak',
+    cityArea: 'Şehir / bölge',
+    startExploring: 'Keşfetmeye başla →',
+    wantCook: 'Aşçı olmak istiyorum',
+    cart: 'Sepet',
+    home: 'Ana sayfa',
+    browseCooks: 'Aşçıları keşfet',
+    popularDishes: 'Popüler yemekler',
+    myOrders: 'Siparişlerim',
+    favorites: 'Favoriler',
+    messages: 'Mesajlar',
+    becomeCook: 'Aşçı ol',
+    help: 'Yardım ve destek',
+    settings: 'Ayarlar',
+    heroTitle: 'Gerçek insanlardan <span>ev yapımı yemek</span> keşfet',
+    heroBody: 'Bulunduğun ülkeyi ve istediğin mutfağı seç,<br>yakındaki ev aşçılarını bul.',
+    searchPlaceholder: 'Yemek veya aşçı adıyla ara...',
+    search: 'Ara',
+    selectCity: 'Şehir seç...',
+    allDishes: 'Tüm yemekler',
+    browseTitle: 'Aşçıları keşfet',
+    browseBody: 'Şehrindeki yetenekli ev aşçılarını bul',
+    sortTop: 'Sırala: En yüksek puan',
+    sortOrders: 'Sırala: En çok sipariş',
+    sortNearest: 'Sırala: En yakın',
+    sortPrice: 'Sırala: Fiyat düşük-yüksek',
+    allCuisines: 'Tüm mutfaklar',
+    allCities: 'Tüm şehirler',
+    dishesTitle: 'Popüler yemekler',
+    dishesBody: 'HomeTaste üzerinde en sevilen ev yemekleri',
+    ordersTitle: 'Siparişlerim',
+    favoritesTitle: 'Favorilerim',
+    messagesTitle: 'Mesajlar',
+    messagesBody: 'Aşçılarla sohbet et',
+    messagePlaceholder: 'Mesaj yaz...',
+    helpTitle: 'Yardım ve destek',
+    settingsTitle: 'Ayarlar',
+    yourCart: 'Sepetin',
+    delivery: 'Teslimat',
+    pickup: 'Gel al',
+    subtotal: 'Ara toplam',
+    deliveryFee: 'Teslimat ücreti',
+    total: 'Toplam',
+    checkout: 'Ödemeye geç',
+    continueShopping: 'Alışverişe devam et',
+    secure: 'Tüm ödemeler güvenlidir. Verilerin korunur.',
+    cartEmpty: 'Sepet boş',
+    addFood: 'Lezzetli bir yemek ekle!',
+    cook: 'Aşçı',
+    status: 'Durum',
+    noCooks: 'Aşçı bulunamadı',
+    tryFilters: 'Başka mutfak, şehir veya sıralama dene.',
+    languageChanged: 'Dil Türkçe olarak değiştirildi'
+  },
+  AR: {
+    welcomeTitle: 'أين أنت وماذا تريد أن تأكل؟',
+    welcomeBody: 'اختر بلدك الحالي والمطبخ الذي تشتاق إليه. سيعرض HomeTaste الطهاة القريبين والأطباق المتاحة وطرق الدفع وخيارات التوصيل.',
+    currentCountry: 'البلد الحالي',
+    foodFrom: 'نوع المطبخ',
+    cityArea: 'المدينة / المنطقة',
+    startExploring: 'ابدأ الاستكشاف ←',
+    wantCook: 'أريد أن أصبح طباخاً',
+    cart: 'السلة',
+    home: 'الرئيسية',
+    browseCooks: 'تصفح الطهاة',
+    popularDishes: 'الأطباق الشائعة',
+    myOrders: 'طلباتي',
+    favorites: 'المفضلة',
+    messages: 'الرسائل',
+    becomeCook: 'كن طباخاً',
+    help: 'المساعدة والدعم',
+    settings: 'الإعدادات',
+    heroTitle: 'اكتشف <span>أكلاً بيتياً أصيلاً</span> من ناس حقيقيين',
+    heroBody: 'اختر البلد الذي أنت فيه والأكل الذي تريده،<br>واطلب من طهاة قريبين منك.',
+    searchPlaceholder: 'ابحث باسم الطبق أو الطباخ...',
+    search: 'بحث',
+    selectCity: 'اختر المدينة...',
+    allDishes: 'كل الأطباق',
+    browseTitle: 'تصفح الطهاة',
+    browseBody: 'اكتشف طهاة منزليين موهوبين في مدينتك',
+    sortTop: 'ترتيب: الأعلى تقييماً',
+    sortOrders: 'ترتيب: الأكثر طلباً',
+    sortNearest: 'ترتيب: الأقرب',
+    sortPrice: 'ترتيب: السعر من الأقل',
+    allCuisines: 'كل المطابخ',
+    allCities: 'كل المدن',
+    dishesTitle: 'الأطباق الشائعة',
+    dishesBody: 'أكثر الوجبات المنزلية حباً على HomeTaste',
+    ordersTitle: 'طلباتي',
+    favoritesTitle: 'مفضلتي',
+    messagesTitle: 'الرسائل',
+    messagesBody: 'تحدث مع الطهاة',
+    messagePlaceholder: 'اكتب رسالة...',
+    helpTitle: 'المساعدة والدعم',
+    settingsTitle: 'الإعدادات',
+    yourCart: 'سلتك',
+    delivery: 'توصيل',
+    pickup: 'استلام',
+    subtotal: 'المجموع الفرعي',
+    deliveryFee: 'رسوم التوصيل',
+    total: 'الإجمالي',
+    checkout: 'إتمام الطلب',
+    continueShopping: 'متابعة التسوق',
+    secure: 'كل المدفوعات آمنة. بياناتك محمية.',
+    cartEmpty: 'السلة فارغة',
+    addFood: 'أضف طعاماً لذيذاً!',
+    cook: 'الطباخ',
+    status: 'الحالة',
+    noCooks: 'لا يوجد طهاة',
+    tryFilters: 'جرب مطبخاً أو مدينة أو ترتيباً آخر.',
+    languageChanged: 'تم تغيير اللغة إلى العربية'
+  }
+};
+function tr(key) { return (translations[selectedLanguage] || translations.EN)[key] || translations.EN[key] || key; }
+const paymentMethodsByCountry = {
+  TR: ['💳 Bank / credit card', '🏦 EFT / Havale', '📱 Papara', '📱 Paycell', '📱 iyzico', '💵 Cash on delivery'],
+  DE: ['💳 Card', '🏦 SEPA transfer', '📱 PayPal', '📱 Apple Pay', '📱 Google Pay', '💵 Cash'],
+  ES: ['💳 Card', '🏦 Bank transfer', '📱 Bizum', '📱 PayPal', '📱 Apple Pay', '💵 Cash'],
+  EG: ['💳 Card', '📱 Vodafone Cash', '📱 Instapay', '🏦 Bank transfer', '💵 Cash on delivery'],
+  FR: ['💳 Card', '🏦 Bank transfer', '📱 PayPal', '📱 Apple Pay', '💵 Cash'],
+  NL: ['💳 Card', '🏦 iDEAL', '📱 PayPal', '📱 Apple Pay', '💵 Cash']
+};
+const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
+cooks.forEach((c,i)=>Object.assign(c,{
+  availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
+  prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
+  responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
+  phone: c.phone || '+90 5XX XXX XX XX',
+  speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
+  verifiedPhoto: c.verifiedPhoto ?? (i !== 5)
+}));
+dishes.forEach((d,i)=>Object.assign(d,{
+  sauces: d.sauces || ['Extra tomato sauce','Garlic yogurt','Spicy sauce'][i%3],
+  drinks: d.drinks || ['Ayran','Cola','Mint tea'][i%3],
+  prepTime: d.prepTime || (cooks.find(c=>c.id===d.cookId)?.prepTime || '35–45 min')
+}));
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('hometaste_welcome_done') === 'yes') {
+    document.getElementById('welcomeOverlay').style.display = 'none';
+  }
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+  renderOrders();
+  renderFavorites();
+  renderCart();
+  renderChatList();
+  renderFAQ();
+  openChat(1);
+  updatePaymentMethods();
+  setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
+});
+
+// ===== PAGE NAVIGATION (FIXED: null check) =====
+function showPage(pageId, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + pageId);
+  if (page) page.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  if (pageId === 'checkout') updateCheckoutItems();
+  updateCartButtonVisibility(pageId);
+  document.getElementById('cityDropdown')?.classList.remove('open');
+  applyTranslations();
+}
+
+// ===== COUNTRY / WELCOME (FIXED: try-catch + safe hide) =====
+function setCountryFromWelcome(){ selectedCountry = document.getElementById('welcomeCountry').value; updatePaymentMethods(); }
+function finishWelcome(goCook=false){
+  try {
+    selectedCountry = document.getElementById('welcomeCountry').value;
+    const city = document.getElementById('welcomeCity').value.trim() || 'Istanbul';
+    const cuisine = document.getElementById('welcomeCuisine').value;
+    document.getElementById('cityLabel').textContent = city;
+    document.getElementById('searchInput').value = cuisine;
+    localStorage.setItem('hometaste_welcome_done', 'yes');
+    document.getElementById('welcomeOverlay').style.display = 'none';
+    updatePaymentMethods();
+    if(!goCook) showToast(`Showing ${cuisine} in ${city}, ${countryNames[selectedCountry]}`, 'success');
+    else showPage('become', document.querySelector('[onclick*="become"]'));
+  } catch(e) {
+    console.error(e);
+    localStorage.setItem('hometaste_welcome_done', 'yes');
+    document.getElementById('welcomeOverlay').style.display = 'none';
+  }
+}
+function updatePaymentMethods(){
+  const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
+  const methods = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
+  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
+  const note = document.getElementById('paymentNote'); if(note) note.textContent = `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`;
+}
+function toggleCart(force){
+  const panel = document.getElementById('cartPanel');
+  if(typeof force === 'boolean') panel.classList.toggle('open', force); else panel.classList.toggle('open');
+  updateCartButtonVisibility();
+}
+function updateCartButtonVisibility(pageId) {
+  const currentPage = pageId || document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
+  const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
+  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', currentPage === 'messages' || cartOpen);
+}
+function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMenu').classList.toggle('open'); }
+function setLanguage(lang,e,silent=false){
+  if(e) e.stopPropagation(); selectedLanguage = lang; document.getElementById('currentLangLabel').textContent = lang;
+  localStorage.setItem('hometaste_language', lang);
+  document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : 'en');
+  document.body.dir = lang === 'AR' ? 'rtl' : 'ltr';
+  document.getElementById('langMenu')?.classList.remove('open');
+  applyTranslations();
+  if (!silent) showToast(tr('languageChanged'), 'success');
+}
+function setText(selector, text, all=false) {
+  const nodes = all ? document.querySelectorAll(selector) : [document.querySelector(selector)];
+  nodes.forEach(node => { if (node) node.textContent = text; });
+}
+function setHTML(selector, html) {
+  const node = document.querySelector(selector);
+  if (node) node.innerHTML = html;
+}
+function setPlaceholder(selector, text) {
+  const node = document.querySelector(selector);
+  if (node) node.placeholder = text;
+}
+function setOption(selectId, value, text) {
+  const option = document.querySelector(`#${selectId} option[value="${value}"]`);
+  if (option) option.textContent = text;
+}
+function setNav(pageId, text) {
+  const node = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
+  if (!node) return;
+  const svg = node.querySelector('svg')?.outerHTML || '';
+  const badge = node.querySelector('.nav-badge')?.outerHTML || '';
+  node.innerHTML = `${svg}${text}${badge}`;
+}
+function applyTranslations() {
+  document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ')}`;
+  setText('#welcomeOverlay h1', tr('welcomeTitle'));
+  setText('#welcomeOverlay p', tr('welcomeBody'));
+  const welcomeLabels = document.querySelectorAll('#welcomeOverlay .welcome-label');
+  if (welcomeLabels[0]) welcomeLabels[0].textContent = tr('currentCountry');
+  if (welcomeLabels[1]) welcomeLabels[1].textContent = tr('foodFrom');
+  if (welcomeLabels[2]) welcomeLabels[2].textContent = tr('cityArea');
+  setText('#welcomeOverlay .btn-apply', tr('startExploring'));
+  setText('#welcomeOverlay .btn-secondary', tr('wantCook'));
+
+  const cartCount = document.getElementById('cartFloatingCount')?.textContent || '0';
+  const floatingCart = document.querySelector('.cart-floating-btn');
+  if (floatingCart) floatingCart.innerHTML = `🛒 ${tr('cart')} <span id="cartFloatingCount">${cartCount}</span>`;
+  setNav('home', tr('home'));
+  setNav('browse', tr('browseCooks'));
+  setNav('dishes', tr('popularDishes'));
+  setNav('orders', tr('myOrders'));
+  setNav('favorites', tr('favorites'));
+  setNav('messages', tr('messages'));
+  setNav('become', tr('becomeCook'));
+  setNav('help', tr('help'));
+  setNav('settings', tr('settings'));
+
+  setHTML('.hero-content h1', tr('heroTitle'));
+  setHTML('.hero-content p', tr('heroBody'));
+  setPlaceholder('#searchInput', tr('searchPlaceholder'));
+  const cityLabel = document.getElementById('cityLabel');
+  if (cityLabel && ['Select city...', 'Şehir seç...', 'اختر المدينة...'].includes(cityLabel.textContent.trim())) cityLabel.textContent = tr('selectCity');
+  setText('.btn-search', tr('search'));
+  const firstChip = document.querySelector('.filter-chips .chip');
+  if (firstChip) firstChip.textContent = tr('allDishes');
+
+  setText('#page-browse .page-header h1', tr('browseTitle'));
+  setText('#page-browse .page-header p', tr('browseBody'));
+  setOption('cookSortSelect', 'top-rated', tr('sortTop'));
+  setOption('cookSortSelect', 'most-orders', tr('sortOrders'));
+  setOption('cookSortSelect', 'nearest', tr('sortNearest'));
+  setOption('cookSortSelect', 'price-low', tr('sortPrice'));
+  setOption('cookCuisineSelect', '', tr('allCuisines'));
+  setOption('cookCitySelect', '', tr('allCities'));
+
+  setText('#page-dishes .page-header h1', tr('dishesTitle'));
+  setText('#page-dishes .page-header p', tr('dishesBody'));
+  setText('#page-orders .page-header h1', tr('ordersTitle'));
+  setText('#page-favorites .page-header h1', tr('favoritesTitle'));
+  setText('#page-messages .page-header h1', tr('messagesTitle'));
+  setText('#page-messages .page-header p', tr('messagesBody'));
+  setPlaceholder('#chatInputField', tr('messagePlaceholder'));
+  setText('#page-help .page-header h1', tr('helpTitle'));
+  setText('#page-settings .page-header h1', tr('settingsTitle'));
+
+  setText('.cart-header h3', tr('yourCart'));
+  const cartTabs = document.querySelectorAll('.cart-tab');
+  if (cartTabs[0]) cartTabs[0].textContent = tr('delivery');
+  if (cartTabs[1]) cartTabs[1].textContent = tr('pickup');
+  const cartRows = document.querySelectorAll('.cart-footer .cart-row span:first-child');
+  if (cartRows[0]) cartRows[0].textContent = tr('subtotal');
+  if (cartRows[1]) cartRows[1].textContent = tr('deliveryFee');
+  const totalLabel = document.querySelector('.cart-total span:first-child');
+  if (totalLabel) totalLabel.textContent = tr('total');
+  setText('#cartCheckoutBtn', tr('checkout'));
+  setText('.btn-continue', tr('continueShopping'));
+  const secure = document.querySelector('.cart-secure span');
+  if (secure) secure.textContent = tr('secure');
+
+  document.querySelectorAll('.empty-state h3').forEach(node => {
+    if (node.textContent.includes('Cart') || node.textContent.includes('Sepet') || node.textContent.includes('السلة')) node.textContent = tr('cartEmpty');
+    if (node.textContent.includes('No cooks') || node.textContent.includes('Aşçı') || node.textContent.includes('طهاة')) node.textContent = tr('noCooks');
+  });
+  document.querySelectorAll('.empty-state p').forEach(node => {
+    if (node.textContent.includes('dish') || node.textContent.includes('yemek') || node.textContent.includes('طعام')) node.textContent = tr('addFood');
+    if (node.textContent.includes('cuisine') || node.textContent.includes('mutfak') || node.textContent.includes('مطبخ')) node.textContent = tr('tryFilters');
+  });
+
+}
+document.addEventListener('click',()=>document.getElementById('langMenu')?.classList.remove('open'));
+
+// ===== SEARCH (FIXED: live filtering) =====
+function toggleCityDropdown() {
+  document.getElementById('cityDropdown').classList.toggle('open');
+}
+function selectCity(city) {
+  document.getElementById('cityLabel').textContent = city;
+  document.getElementById('cityDropdown')?.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#citySelector')) {
+    document.getElementById('cityDropdown')?.classList.remove('open');
+  }
+});
+function handleSearch(val) {
+  if(val.length > 2) doSearch();
+}
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) return;
+  const filtered = dishes.filter(d => 
+    d.name.toLowerCase().includes(q) || 
+    (cooks.find(c => c.id === d.cookId)?.name.toLowerCase().includes(q))
+  );
+  const grid = document.getElementById('dishesGrid');
+  if (grid) {
+    grid.innerHTML = filtered.map(d => dishCard(d, '')).join('');
+  }
+  showToast(`🔍 Found ${filtered.length} results for "${q}"`, 'info');
+  showPage('dishes', document.querySelector('[onclick*="dishes"]'));
+}
+
+// ===== FILTERS =====
+function filterChip(el, type) {
+  el.closest('.filter-chips, .filter-bar').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
+}
+
+// ===== RENDER HOME COOKS =====
+function renderHomeCooks() {
+  const grid = document.getElementById('homeCooksGrid');
+  grid.innerHTML = cooks.slice(0, 4).map((c, i) => cookCard(c, `stagger-${i+1}`)).join('');
+}
+function renderBrowseCooks() {
+  const grid = document.getElementById('browseGrid');
+  const filtered = getFilteredCooks();
+  grid.innerHTML = filtered.length
+    ? filtered.map((c, i) => cookCard(c, `stagger-${(i%4)+1}`)).join('')
+    : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>${tr('noCooks')}</h3><p>${tr('tryFilters')}</p></div>`;
+}
+function cookCard(c, staggerClass) {
+  const isFav = favorites.has(c.id);
+  return `
+  <div class="cook-card ${staggerClass}" onclick="openCookProfile(${c.id})">
+    <div class="cook-card-img">
+      <img src="${c.img}" alt="${c.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
+      <button class="fav-btn ${isFav ? 'active' : ''}" onclick="toggleFav(event,${c.id},this)"></button>
+    </div>
+    <div class="cook-card-body">
+      <div class="cook-meta">
+        <div class="cook-avatar">${c.emoji}</div>
+        <div>
+          <div class="cook-name">${c.name} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
+          <div class="cook-cuisine">${c.cuisine}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="cook-location">📍 ${c.city}</div>
+        <div class="cook-rating"><span class="star">★</span>${c.rating} <span style="color:var(--text3)">(${c.reviews})</span></div>
+      </div>
+      <div>
+        <span class="info-pill">🕒 ${c.availability}</span>
+        <span class="info-pill">⚡ ${c.prepTime}</span>
+        ${c.verifiedPhoto ? '<span class="info-pill verified-photo">📸 Camera verified</span>' : ''}
+      </div>
+      <div class="cook-footer">
+        <div><div class="cook-dish">${c.dish}</div><div style="font-size:11px;color:var(--text3)">${c.orders} orders · speed ${c.speedRating}★</div></div>
+        <div class="cook-price">${c.price} ₺</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== RENDER DISHES =====
+function renderDishes(container = 'dishesGrid') {
+  const grid = document.getElementById(container);
+  grid.innerHTML = dishes.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
+}
+function dishCard(d, staggerClass) {
+  const cook = cooks.find(c => c.id === d.cookId);
+  return `
+  <div class="dish-card ${staggerClass}" onclick="openDishModal(${d.id})">
+    <div class="dish-img">
+      <img src="${d.img}" alt="${d.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
+      <span class="dish-tag">${d.tag}</span>
+    </div>
+    <div class="dish-body">
+      <h3>${d.name}</h3>
+      <p>${d.desc}</p>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">⏱ ${d.prepTime} · 🥫 ${d.sauces} · 🥤 ${d.drinks}</div>
+      <div class="dish-footer">
+        <div class="dish-cook">${cook ? cook.emoji + ' ' + cook.name : ''}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="dish-price">${d.price} ₺</div>
+          <button class="btn-add" onclick="event.stopPropagation();quickAddToCart(${d.id})">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== RENDER ORDERS =====
+function renderOrders() {
+  const orders = [
+    {dish:'Koshari',by:'Mona Hassan',emoji:'🍚',date:'Today, 12:30',tags:['Delivery','Istanbul'],status:'Preparing',statusClass:'status-preparing',price:'200 ₺',step:2,track:'Cook accepted your order and is preparing it now'},
+    {dish:'Adana Kebap × 2',by:'Ahmet Yılmaz',emoji:'🍢',date:'Yesterday, 19:15',tags:['Delivery','Ankara'],status:'Delivered',statusClass:'status-delivered',price:'400 ₺',step:5,track:'Delivered successfully'},
+    {dish:'Lasagna',by:'Giulia Rossi',emoji:'🍝',date:'May 24, 14:00',tags:['Pickup','Berlin'],status:'Delivered',statusClass:'status-delivered',price:'180 ₺',step:5,track:'Picked up from cook'},
+  ];
+  document.getElementById('ordersList').innerHTML = orders.map(o => `
+  <div class="order-card">
+    <div class="order-img">${o.emoji}</div>
+    <div class="order-info">
+      <h3>${o.dish}</h3>
+      <p>by ${o.by} · ${o.date}</p>
+      <div class="order-tags">
+        ${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}
+        <span class="order-status ${o.statusClass}">${o.status}</span>
+      </div>
+      <div class="tracking-steps">${[1,2,3,4,5].map(n=>`<span class="track-dot ${n<=o.step?'done':''}"></span>`).join('')}</div>
+      <div class="order-track-text">${o.track || 'Tracking updated in real time'}</div>
+    </div>
+    <div class="order-right">
+      <div class="order-price">${o.price}</div>
+      <button class="btn-reorder" onclick="reorder('${o.dish}')">Reorder</button>
+    </div>
+  </div>`).join('');
+}
+function reorder(dish) {
+  showToast(`🛒 ${dish} added to cart!`, 'success');
+  updateCartBadge();
+}
+
+// ===== RENDER FAVORITES =====
+function renderFavorites() {
+  const favDishes = dishes.filter(d => favorites.has(d.cookId));
+  const grid = document.getElementById('favoritesGrid');
+  if (favDishes.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💔</div><h3>No favorites yet</h3><p>Heart dishes or cooks to save them here</p></div>`;
+    return;
+  }
+  grid.innerHTML = favDishes.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
+}
+
+// ===== FAVORITES TOGGLE =====
+function toggleFav(e, cookId, btn) {
+  e.stopPropagation();
+  if (favorites.has(cookId)) {
+    favorites.delete(cookId);
+    btn.classList.remove('active');
+    showToast('Removed from favorites', 'info');
+  } else {
+    favorites.add(cookId);
+    btn.classList.add('active');
+    showToast('❤️ Added to favorites!', 'success');
+  }
+  renderFavorites();
+}
+
+// ===== CART =====
+function renderCart() {
+  const itemsEl = document.getElementById('cartItems');
+  if (cart.length === 0) {
+    itemsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><h3>${tr('cartEmpty')}</h3><p>${tr('addFood')}</p></div>`;
+  } else {
+    itemsEl.innerHTML = cart.map(item => `
+    <div class="cart-item" id="cart-item-${item.id}">
+      <img class="cart-item-img" src="${item.img}" alt="${item.name}" onerror="this.style.background='var(--bg3)'">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-by">by ${item.by}</div>
+        <div class="cart-qty">
+          <button class="qty-btn" onclick="changeQty(${item.id},-1)">−</button>
+          <span class="qty-val">${item.qty}</span>
+          <button class="qty-btn" onclick="changeQty(${item.id},1)">+</button>
+        </div>
+      </div>
+      <div class="cart-item-price">${item.price * item.qty} ₺</div>
+      <button class="cart-remove" onclick="removeFromCart(${item.id})">✕</button>
+    </div>`).join('');
+  }
+  updateCartTotals();
+  updateCartBadge();
+  applyTranslations();
+}
+function changeQty(id, delta) {
+  const item = cart.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(1, item.qty + delta);
+  renderCart();
+}
+function removeFromCart(id) {
+  cart = cart.filter(i => i.id !== id);
+  renderCart();
+  showToast('Item removed from cart', 'info');
+}
+function updateCartTotals() {
+  const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const delivery = cart.length ? 30 : 0;
+  document.getElementById('cartSubtotal').textContent = sub + ' ₺';
+  document.getElementById('cartDeliveryFee').textContent = delivery + ' ₺';
+  document.getElementById('cartTotal').textContent = (sub + delivery) + ' ₺';
+  const checkoutBtn = document.getElementById('cartCheckoutBtn');
+  if (checkoutBtn) {
+    checkoutBtn.disabled = cart.length === 0;
+    checkoutBtn.style.opacity = cart.length === 0 ? '.55' : '1';
+    checkoutBtn.style.cursor = cart.length === 0 ? 'not-allowed' : 'pointer';
+  }
+}
+function updateCartBadge() {
+  const count = cart.reduce((s, i) => s + i.qty, 0);
+  document.getElementById('cartBadge').textContent = count;
+  document.getElementById('cartFloatingCount').textContent = count;
+}
+function cartTab(btn, type) {
+  document.querySelectorAll('.cart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function checkoutFromCart() {
+  if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
+  toggleCart(false);
+  showPage('checkout', null);
+}
+function addToCart(dish) {
+  const existing = cart.find(i => i.id === dish.id);
+  const cook = cooks.find(c => c.id === dish.cookId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({id: dish.id, name: dish.name, by: cook ? cook.name : 'Chef', price: dish.price, qty: 1, img: dish.img});
+  }
+  renderCart();
+  showToast(`🛒 ${dish.name} added to cart!`, 'success');
+  toggleCart(true);
+}
+function quickAddToCart(dishId) {
+  const dish = dishes.find(d => d.id === dishId);
+  if (dish) addToCart(dish);
+}
+
+// ===== DISH MODAL =====
+function openDishModal(dishId) {
+  const dish = dishes.find(d => d.id === dishId);
+  if (!dish) return;
+  const cook = cooks.find(c => c.id === dish.cookId);
+  currentDish = dish;
+  document.getElementById('modalImg').src = dish.img;
+  document.getElementById('modalTitle').textContent = dish.name;
+  document.getElementById('modalDesc').textContent = dish.desc;
+  document.getElementById('modalPrice').textContent = dish.price + ' ₺';
+  document.getElementById('modalTags').innerHTML = dish.tags.map(t => `<span class="modal-tag">${t}</span>`).join('');
+  document.getElementById('modalOptions').innerHTML = `<span class="modal-tag">⏱ ${dish.prepTime}</span><span class="modal-tag">Sauce: ${dish.sauces}</span><span class="modal-tag">Drinks: ${dish.drinks}</span>`;
+  document.getElementById('modalCook').innerHTML = cook ? `
+    <div class="modal-cook-avatar">${cook.emoji}</div>
+    <div class="modal-cook-info">
+      <h4>${cook.name}</h4>
+      <p>${cook.cuisine} · ⭐ ${cook.rating} (${cook.reviews} reviews) · ${cook.responseTime}</p><p>🕒 ${cook.availability} · ☎ ${cook.phone}</p>
+    </div>
+    <button style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600" onclick="closeDishModal();openCookProfile(${cook.id})">View Profile →</button>
+  ` : '';
+  document.getElementById('dishModal').classList.add('open');
+}
+function addModalToCart() {
+  if (currentDish) { addToCart(currentDish); closeDishModal(); }
+}
+function closeDishModal() { document.getElementById('dishModal').classList.remove('open'); }
+function closeModal(e) { if (e.target === document.getElementById('dishModal')) closeDishModal(); }
+
+// ===== COOK PROFILE =====
+function openCookProfile(cookId) {
+  const cook = cooks.find(c => c.id === cookId);
+  if (!cook) return;
+  currentCook = cook;
+  document.getElementById('profileAvatar').textContent = cook.emoji;
+  document.getElementById('profileName').textContent = cook.name;
+  document.getElementById('profileCuisine').textContent = cook.cuisine;
+  document.getElementById('profileRating').textContent = cook.rating;
+  document.getElementById('profileReviews').textContent = `(${cook.reviews} reviews)`;
+  document.getElementById('profileCity').textContent = '📍 ' + cook.city;
+  document.getElementById('profileOrders').textContent = cook.orders;
+  document.getElementById('profileFollowers').textContent = cook.followers;
+  document.getElementById('profileDishes').textContent = cook.dishes;
+  document.getElementById('profileSpeed').textContent = cook.speedRating + '★';
+  document.getElementById('profileAvailability').textContent = cook.availability;
+  document.getElementById('profilePrep').textContent = cook.prepTime;
+  document.getElementById('profilePhone').textContent = cook.phone;
+  document.getElementById('profilePhotoTrust').textContent = cook.verifiedPhoto ? 'Camera Verified' : 'Gallery photo';
+  document.getElementById('profileDishesTitle').textContent = `Dishes by ${cook.name}`;
+  const cookDishes = dishes.filter(d => d.cookId === cookId);
+  document.getElementById('profileDishesGrid').innerHTML = cookDishes.map(d => dishCard(d, '')).join('');
+  showPage('cook-profile', null);
+}
+
+// ===== CHAT =====
+function renderChatList() {
+  const list = document.getElementById('chatList');
+  list.innerHTML = chatMessages.map(conv => {
+    const cook = cooks.find(c => c.id === conv.cookId);
+    const last = conv.messages[conv.messages.length - 1];
+    return `
+    <div class="chat-item ${conv.id === activeChatId ? 'active' : ''}" onclick="openChat(${conv.id})">
+      <div class="chat-avatar">${cook ? cook.emoji : '👤'}<div class="chat-online"></div></div>
+      <div class="chat-meta">
+        <div class="chat-name">${cook ? cook.name : 'Cook'}</div>
+        <div class="chat-preview">${last.text}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="chat-time">${last.time}</div>
+        ${conv.unread ? `<div class="chat-unread">${conv.unread}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function openChat(convId) {
+  activeChatId = convId;
+  const conv = chatMessages.find(c => c.id === convId);
+  conv.unread = 0;
+  const cook = cooks.find(c => c.id === conv.cookId);
+  document.getElementById('chatHeaderAvatar').textContent = cook ? cook.emoji : '👤';
+  document.getElementById('chatHeaderName').textContent = cook ? cook.name : 'Cook';
+  document.getElementById('chatHeaderDesc').textContent = cook ? cook.cuisine + ' · Online' : '';
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML = conv.messages.map(m => `
+    <div class="msg ${m.from === 'user' ? 'sent' : 'received'}">
+      <div class="msg-bubble">${m.text}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>`).join('');
+  msgs.scrollTop = msgs.scrollHeight;
+  renderChatList();
+  requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
+}
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+  if (e.key === 'Escape') {
+    e.currentTarget.value = '';
+    showToast('Message cleared', 'info');
+  }
+}
+function sendChatMessage() {
+  const input = document.getElementById('chatInputField');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  const conv = chatMessages.find(c => c.id === activeChatId);
+  const now = new Date();
+  conv.messages.push({text, from:'user', time: now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')});
+  input.value = '';
+  openChat(activeChatId);
+  setTimeout(() => {
+    conv.messages.push({text:"Thanks for your message! I'll get back to you shortly 😊", from:'cook', time: now.getHours()+':'+String(now.getMinutes()+1).padStart(2,'0')});
+    openChat(activeChatId);
+  }, 1500);
+}
+
+
+// ===== BECOME A COOK DEMO (FIXED: validation) =====
+function handleCookPhoto(input){
+  cameraPhotoVerified = !!(input.files && input.files[0]);
+  showToast(cameraPhotoVerified ? '📸 Photo added. Camera verified badge will be shown after review.' : 'Photo removed', 'info');
+}
+function createCookDemo(){
+  const name = document.getElementById('cookNameInput').value.trim();
+  const phone = document.getElementById('cookPhoneInput').value.trim();
+  if (!name) { showToast('Please enter a cook display name', 'error'); return; }
+  if (!phone || !phone.match(/^[\+\d\s\-]+$/)) { showToast('Please enter a valid phone number', 'error'); return; }
+  const city = document.getElementById('cookCityInput').value.trim() || document.getElementById('cityLabel').textContent || 'Istanbul';
+  const dish = document.getElementById('cookDishInput').value.trim() || 'Homemade Special';
+  const prep = document.getElementById('cookPrepInput').value.trim() || '45 min';
+  const time = document.getElementById('cookTimeInput').value.trim() || 'Today 6 PM–10 PM';
+  const sauces = document.getElementById('cookSauceInput').value.trim() || 'House sauce';
+  const drinks = document.getElementById('cookDrinkInput').value.trim() || 'Ayran / cola';
+  const id = cooks.length + 1;
+  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',city,rating:5.0,reviews:0,dish,price:150,verified:true,verifiedPhoto:cameraPhotoVerified,img:'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&q=70',bio:'Fresh homemade food from a new cook.',orders:0,followers:0,dishes:1,availability:time,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0'});
+  dishes.unshift({id:dishes.length+1,name:dish,cookId:id,tag:'Homemade',desc:'Fresh homemade dish made by a local cook.',price:150,img:'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=600&q=70',tags:['New Cook','Homemade'],sauces,drinks,prepTime:prep});
+  renderHomeCooks();renderBrowseCooks();renderDishes();renderFavorites();
+  showToast('✅ Your cook profile and first dish were created for review.', 'success');
+  showPage('browse',document.querySelector('[onclick*="browse"]'));
+}
+
+// ===== FAQ =====
+function renderFAQ() {
+  document.getElementById('faqList').innerHTML = faqs.map((f, i) => `
+  <div class="faq-item">
+    <div class="faq-question" onclick="toggleFaq(${i})">
+      ${f.q}
+      <span class="faq-arrow" id="faq-arrow-${i}">▼</span>
+    </div>
+    <div class="faq-answer" id="faq-ans-${i}">${f.a}</div>
+  </div>`).join('');
+}
+function toggleFaq(i) {
+  const ans = document.getElementById('faq-ans-'+i);
+  const arrow = document.getElementById('faq-arrow-'+i);
+  ans.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+// ===== SETTINGS =====
+function toggleSetting(el) {
+  el.classList.toggle('on');
+  showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
+}
+
+// ===== CHECKOUT =====
+function updateCheckoutItems() {
+  const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  document.getElementById('checkoutItems').innerHTML = cart.map(item => `
+    <div class="summary-item">
+      <img src="${item.img}" alt="${item.name}" onerror="this.style.background='var(--bg3)'">
+      <span class="summary-item-name">${item.name} ×${item.qty}</span>
+      <span class="summary-item-price">${item.price * item.qty} ₺</span>
+    </div>`).join('');
+  document.getElementById('checkoutSubtotal').textContent = sub + ' ₺';
+  document.getElementById('checkoutTotal').textContent = (sub + 30 + 15) + ' ₺';
+}
+function selectPayment(el) {
+  el.closest('.payment-methods,.checkout-section').querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
+  el.classList.add('active');
+}
+function placeOrder() {
+  if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
+  cart = [];
+  renderCart();
+  updateCartBadge();
+  document.getElementById('successOverlay').classList.add('open');
+  document.querySelector('.nav-badge').textContent = '4';
+}
+
+// ===== COOK FILTERS =====
+function getFilteredCooks() {
+  const sort = document.getElementById('cookSortSelect')?.value || 'top-rated';
+  const cuisine = document.getElementById('cookCuisineSelect')?.value || '';
+  const city = document.getElementById('cookCitySelect')?.value || '';
+  const currentCity = document.getElementById('cityLabel')?.textContent?.trim() || 'Istanbul';
+  let list = cooks.filter(c =>
+    (!cuisine || c.cuisine.toLowerCase().includes(cuisine.toLowerCase())) &&
+    (!city || c.city === city)
+  );
+
+  list.sort((a, b) => {
+    if (sort === 'most-orders') return b.orders - a.orders;
+    if (sort === 'price-low') return a.price - b.price;
+    if (sort === 'nearest') {
+      const aNear = a.city === (city || currentCity) ? 0 : 1;
+      const bNear = b.city === (city || currentCity) ? 0 : 1;
+      return aNear - bNear || b.rating - a.rating;
+    }
+    return b.rating - a.rating || b.reviews - a.reviews;
+  });
+
+  lastCookFilterSummary = `${list.length} cook${list.length === 1 ? '' : 's'} shown`;
+  return list;
+}
+function applyCookFilters() {
+  renderBrowseCooks();
+  showToast(lastCookFilterSummary, 'info');
+}
+function sortCooks() {
+  applyCookFilters();
+}
+
+// ===== TOAST =====
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 2800);
+}
+</script>
+</body>
+</html>
