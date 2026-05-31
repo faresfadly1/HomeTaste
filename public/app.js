@@ -5,6 +5,9 @@ let token = localStorage.getItem(storageKey);
 let state = null;
 let page = "dashboard";
 let mode = "login";
+let authCountry = localStorage.getItem("hometaste_country") || "TR";
+let appLanguage = localStorage.getItem("hometaste_language") || "EN";
+let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
 
@@ -13,6 +16,7 @@ const byId = (list, id) => list.find((item) => item.id === id);
 const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id);
 const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
+const roleLabel = (role) => role === "owner" ? "admin" : role;
 const statusLabels = {
   placed: "Order placed",
   accepted: "Cook accepted",
@@ -32,6 +36,127 @@ function toast(message, error = false) {
   el.textContent = message;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2600);
+}
+
+function applyAppearance() {
+  document.body.classList.toggle("app-dark", appDarkMode);
+}
+
+function marketplaceFrame() {
+  return document.querySelector(".market-frame");
+}
+
+function sendPreferenceToMarketplace(name, value) {
+  const frame = marketplaceFrame();
+  if (!frame?.contentWindow) return;
+  frame.contentWindow.postMessage({ source: "HomeTaste", name, value }, window.location.origin);
+}
+
+function toggleLanguageMenu(event) {
+  event.stopPropagation();
+  document.querySelector("#languageMenu")?.classList.toggle("open");
+}
+
+function setAppLanguage(language) {
+  appLanguage = language;
+  localStorage.setItem("hometaste_language", appLanguage);
+  document.querySelector("#languageMenu")?.classList.remove("open");
+  sendPreferenceToMarketplace("language", appLanguage);
+  toast(`Language: ${appLanguage}`);
+}
+
+function toggleDarkMode() {
+  appDarkMode = !appDarkMode;
+  localStorage.setItem("hometaste_theme", appDarkMode ? "dark" : "light");
+  applyAppearance();
+  sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+  toast(appDarkMode ? "Dark mode on." : "Dark mode off.");
+}
+
+function locationOverlay() {
+  if (document.querySelector("#locationOverlay")) return;
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="location-overlay" id="locationOverlay">
+      <div class="location-card">
+        <button class="location-close" id="closeLocation">Close</button>
+        <div class="location-title">
+          <span class="pin-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          </span>
+          <h2>Select your address</h2>
+        </div>
+        <div class="address-box">
+          <label>Enter your street address</label>
+          <input id="locationInput" placeholder="Street, Postal Code">
+          <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> Locate me</button>
+          <button class="address-submit" id="searchLocation" type="button">→</button>
+        </div>
+        <h3 class="popular-title">Popular locations</h3>
+        <div class="popular-locations">
+          ${["Istanbul", "Izmir", "Ankara", "Antalya", "Bursa"].map(city => `<button type="button" data-location-city="${city}">${city}</button>`).join("")}
+        </div>
+        <iframe id="locationMap" title="Selected location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+    </div>
+  `);
+  document.querySelector("#closeLocation").onclick = closeLocation;
+  document.querySelector("#searchLocation").onclick = () => {
+    const value = document.querySelector("#locationInput").value.trim();
+    if (!value) return toast("Enter a city or address first.", true);
+    confirmLocation(value);
+  };
+  document.querySelector("#useBrowserLocation").onclick = useBrowserLocation;
+  document.querySelectorAll("[data-location-city]").forEach((button) => {
+    button.onclick = () => setLocationMap(`${button.dataset.locationCity}, Turkey`);
+  });
+}
+
+function setLocationMap(value) {
+  localStorage.setItem("hometaste_location_label", value);
+  document.querySelector("#locationInput").value = value;
+  document.querySelector("#locationMap").src = `https://maps.google.com/maps?q=${encodeURIComponent(value)}&z=14&output=embed`;
+}
+
+function userAddressKey() {
+  return `hometaste_address_${state?.user?.id || "guest"}`;
+}
+
+function currentSavedAddress() {
+  return localStorage.getItem(userAddressKey()) || localStorage.getItem("hometaste_location_label") || "";
+}
+
+function updateAddressButton(value = currentSavedAddress()) {
+  const label = document.querySelector("#openLocation .market-location-text");
+  if (label) label.textContent = value || "Select your address";
+}
+
+function confirmLocation(value) {
+  const clean = value.trim();
+  if (!clean) return toast("Enter a city or address first.", true);
+  localStorage.setItem(userAddressKey(), clean);
+  setLocationMap(clean);
+  updateAddressButton(clean);
+  closeLocation();
+  toast("Address saved.");
+}
+
+function openLocation() {
+  locationOverlay();
+  document.querySelector("#locationOverlay").classList.add("open");
+  setLocationMap(currentSavedAddress() || (authCountry === "DE" ? "Berlin, Germany" : "Istanbul, Turkey"));
+}
+
+function closeLocation() {
+  document.querySelector("#locationOverlay")?.classList.remove("open");
+}
+
+function useBrowserLocation() {
+  if (!navigator.geolocation) return toast("Location is not available in this browser.", true);
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => setLocationMap(`${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`),
+    () => toast("Location permission was blocked. Type your area instead.", true),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 }
 
 async function api(path, options = {}) {
@@ -70,34 +195,36 @@ function setPage(next) {
 }
 
 function renderAuth(error = "") {
+  applyAppearance();
   app.innerHTML = `
     <main class="auth-wrap">
       <section class="auth-hero">
         <div class="brand" style="border:0;padding:0;margin-bottom:18px">
           <div class="mark">H</div>
-          <div><h1 style="font-size:24px">HomeTaste</h1><span>Real cooks. Real food. Real system.</span></div>
+          <div><h1 style="font-size:24px">HomeTaste</h1></div>
         </div>
         <h1>Homemade food marketplace, ready to operate.</h1>
-        <p>Customers order, cooks manage dishes and status updates, and Shewharth sees the whole system from an owner control room.</p>
       </section>
       <section class="auth-card">
         <h2>${mode === "login" ? "Sign in" : "Create account"}</h2>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
+          <div class="field">
+            <label>Country</label>
+            <select class="input" id="authCountry" name="country">
+              <option value="TR" ${authCountry === "TR" ? "selected" : ""}>Turkey</option>
+              <option value="DE" ${authCountry === "DE" ? "selected" : ""}>Germany</option>
+            </select>
+          </div>
           ${mode === "signup" ? `
             <div class="field"><label>Name</label><input class="input" name="name" required value="New Customer"></div>
-            <div class="field"><label>City</label><input class="input" name="city" value="Istanbul"></div>
+            <div class="field"><label>City</label><input class="input" name="city" value="${authCountry === "DE" ? "Berlin" : "Istanbul"}"></div>
             <div class="field"><label>Phone</label><input class="input" name="phone" value="+90 555 222 3333"></div>
           ` : ""}
-          <div class="field"><label>Email</label><input class="input" type="email" name="email" required value="${mode === "login" ? "shewharth@hometaste.local" : ""}"></div>
-          <div class="field"><label>Password</label><input class="input" type="password" name="password" required value="${mode === "login" ? "Shewharth2026!" : ""}"></div>
+          <div class="field"><label>Email</label><input class="input" type="email" name="email" required></div>
+          <div class="field"><label>Password</label><input class="input" type="password" name="password" required></div>
           <button class="button" type="submit">${mode === "login" ? "Sign in" : "Sign up"}</button>
         </form>
-        <div class="notice" style="margin-top:12px">
-          Owner login: shewharth@hometaste.local / Shewharth2026!<br>
-          Cook demo: mona@hometaste.local / Cook2026!<br>
-          Customer demo: customer@hometaste.local / Customer2026!
-        </div>
         <button class="button secondary" style="width:100%;margin-top:12px" id="switchMode">
           ${mode === "login" ? "Create a customer account" : "I already have an account"}
         </button>
@@ -109,6 +236,11 @@ function renderAuth(error = "") {
     mode = mode === "login" ? "signup" : "login";
     renderAuth();
   };
+  document.querySelector("#authCountry")?.addEventListener("change", (event) => {
+    authCountry = event.target.value;
+    localStorage.setItem("hometaste_country", authCountry);
+    renderAuth();
+  });
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -116,6 +248,8 @@ function renderAuth(error = "") {
       const data = await api(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(input) });
       token = data.token;
       localStorage.setItem(storageKey, token);
+      authCountry = input.country || authCountry;
+      localStorage.setItem("hometaste_country", authCountry);
       state = data.state;
       page = "dashboard";
       renderApp();
@@ -134,12 +268,13 @@ function navItems() {
     ["become", "Become a cook"]
   ];
   if (isCook()) base.splice(4, 0, ["cook", "Cook studio"]);
-  if (isOwner()) base.splice(1, 0, ["admin", "Owner control"]);
+  if (isOwner()) base.splice(1, 0, ["admin", "Admin control"]);
   base.push(["settings", "Profile"]);
   return base;
 }
 
 function renderApp() {
+  applyAppearance();
   if (!state?.user) return renderAuth();
   if (!isOwner()) return renderMarketplaceFrame();
   app.innerHTML = `
@@ -147,7 +282,7 @@ function renderApp() {
       <aside class="sidebar">
         <div class="brand">
           <div class="mark">H</div>
-          <div><h1>HomeTaste</h1><span>${state.user.role} view</span></div>
+          <div><h1>HomeTaste</h1><span>${roleLabel(state.user.role)} view</span></div>
         </div>
         <nav class="nav">
           ${navItems().map(([key, label]) => `<button class="${page === key ? "active" : ""}" data-page="${key}">${label}</button>`).join("")}
@@ -169,28 +304,55 @@ function renderApp() {
 }
 
 function renderMarketplaceFrame() {
+  const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
+  localStorage.setItem("hometaste_country", marketCountry);
   app.innerHTML = `
     <div class="market-shell">
       <header class="market-top">
         <div class="brand compact">
           <div class="mark">H</div>
-          <div><h1>HomeTaste</h1><span>${state.user.role} interface</span></div>
+          <div><h1>HomeTaste</h1></div>
         </div>
+        <button class="market-location" type="button" id="openLocation">
+          <span class="market-location-pin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          </span>
+          <span class="market-location-text">${currentSavedAddress() || "Select your address"}</span>
+        </button>
         <div class="market-user">
-          <span class="pill">${state.user.name}</span>
-          <span class="pill">${state.user.role}</span>
+          <div class="language-control">
+            <button class="icon-action" id="languageToggle" type="button" aria-label="Change website language" title="Change website language">🌐</button>
+            <div class="language-menu" id="languageMenu">
+              <button type="button" data-language="AR">Arabic</button>
+              <button type="button" data-language="EN">English</button>
+              <button type="button" data-language="DE">German</button>
+              <button type="button" data-language="TR">Turkish</button>
+            </div>
+          </div>
+          <button class="icon-action" id="darkToggle" type="button" aria-label="Dark mode" title="Dark mode">🌙</button>
           <button class="button secondary small" id="logout">Sign out</button>
         </div>
       </header>
       <div class="market-content panel-hidden">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="/marketplace.html"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="/marketplace.html?country=${marketCountry}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>
       </div>
     </div>
   `;
+  document.querySelector("#openLocation").onclick = openLocation;
+  updateAddressButton();
+  document.querySelector("#languageToggle").onclick = toggleLanguageMenu;
+  document.querySelectorAll("[data-language]").forEach((button) => {
+    button.onclick = () => setAppLanguage(button.dataset.language);
+  });
+  document.querySelector("#darkToggle").onclick = toggleDarkMode;
   document.querySelector("#logout").onclick = logout;
+  marketplaceFrame().addEventListener("load", () => {
+    sendPreferenceToMarketplace("language", appLanguage);
+    sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+  });
   bindPage();
 }
 
@@ -206,7 +368,7 @@ function header(title, subtitle, extra = "") {
   return `
     <div class="topbar">
       <div class="title"><h2>${title}</h2><p>${subtitle}</p></div>
-      <div>${extra}<span class="pill">${state.user.role}</span></div>
+      <div>${extra}<span class="pill">${roleLabel(state.user.role)}</span></div>
     </div>
   `;
 }
@@ -227,7 +389,7 @@ function renderDashboard() {
   const revenue = orders.reduce((sum, order) => sum + order.total, 0);
   const featured = state.dishes.filter((dish) => dish.featured && dish.available).slice(0, 3);
   return `
-    ${header("Dashboard", isOwner() ? "Full operating view for Shewharth." : "Your live HomeTaste workspace.")}
+    ${header("Dashboard", isOwner() ? "Full operating view for the admin." : "Your live HomeTaste workspace.")}
     <section class="grid cols-4">
       <div class="stat"><small>Dishes</small><strong>${state.dishes.length}</strong></div>
       <div class="stat"><small>Cooks</small><strong>${state.cooks.length}</strong></div>
@@ -241,7 +403,7 @@ function renderDashboard() {
           <button class="button secondary" data-page="browse">Browse and order food</button>
           <button class="button secondary" data-page="orders">Track orders</button>
           <button class="button secondary" data-page="chat">Message around orders</button>
-          ${isOwner() ? `<button class="button" data-page="admin">Open owner control</button>` : ""}
+          ${isOwner() ? `<button class="button" data-page="admin">Open admin control</button>` : ""}
           ${isCook() ? `<button class="button" data-page="cook">Open cook studio</button>` : `<button class="button" data-page="become">Apply as cook</button>`}
         </div>
       </div>
@@ -258,7 +420,7 @@ function renderDashboard() {
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   return `
-    ${header("Owner Control", "The Shewharth view: all users, registrations, cooks, orders, revenue, and marketplace controls.")}
+    ${header("Admin Control", "All users, registrations, cooks, orders, revenue, and marketplace controls.")}
     <section class="grid cols-4">
       <div class="stat"><small>Users</small><strong>${state.stats.users}</strong></div>
       <div class="stat"><small>Cooks</small><strong>${state.stats.cooks}</strong></div>
@@ -300,13 +462,13 @@ function renderAdmin() {
           const cook = state.cooks.find((item) => item.userId === user.id);
           return `
           <tr>
-            <td><strong>${user.name}</strong><div class="meta">${user.id} - ${user.role}</div></td>
+            <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
             <td>${user.email}<div class="meta">${user.phone || "No phone"} - ${user.city || "No city"}</div></td>
             <td>${new Date(user.createdAt).toLocaleString()}</td>
             <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? "verified" : "not verified"}</div>` : `<span class="meta">Eater account</span>`}</td>
             <td>
               <select data-role-user="${user.id}">
-                ${["customer", "cook", "owner"].map((role) => `<option ${user.role === role ? "selected" : ""}>${role}</option>`).join("")}
+                ${["customer", "cook", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
               </select>
             </td>
           </tr>
@@ -572,11 +734,11 @@ function renderBecomeCook() {
   const cook = myCook();
   if (cook) {
     return `
-      ${header("Cook Application", "Your cook profile exists and is waiting for owner action if not approved.")}
+      ${header("Cook Application", "Your cook profile exists and is waiting for admin action if not approved.")}
       <section class="panel">
         <h3>${cook.name}</h3>
         <p class="meta">${cook.bio}</p>
-        <div class="notice">Status: ${cook.status}. Shewharth can approve it in Owner Control.</div>
+        <div class="notice">Status: ${cook.status}. The admin can approve it in Admin Control.</div>
       </section>
     `;
   }
@@ -602,13 +764,13 @@ function renderSettings() {
       <div class="panel">
         <h3>${state.user.name}</h3>
         <div class="row"><span>Email</span><strong>${state.user.email}</strong></div>
-        <div class="row"><span>Role</span><strong>${state.user.role}</strong></div>
+        <div class="row"><span>Role</span><strong>${roleLabel(state.user.role)}</strong></div>
         <div class="row"><span>City</span><strong>${state.user.city || ""}</strong></div>
         <div class="row"><span>Phone</span><strong>${state.user.phone || ""}</strong></div>
       </div>
       <div class="panel">
         <h3>System status</h3>
-        <div class="notice success">Backend, authentication, database persistence, orders, messages, and role views are active locally.</div>
+        <div class="notice success">Backend, authentication, database persistence, orders, messages, and account views are active locally.</div>
       </div>
     </section>
   `;
@@ -810,5 +972,7 @@ async function sendMessage(event) {
     toast(err.message, true);
   }
 }
+
+document.addEventListener("click", () => document.querySelector("#languageMenu")?.classList.remove("open"));
 
 refresh();

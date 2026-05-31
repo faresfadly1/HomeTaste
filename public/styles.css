@@ -22,6 +22,14 @@ body {
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
 }
+body.app-dark {
+  --bg: #080809;
+  --panel: #141416;
+  --panel-2: #1e1e22;
+  --line: #303037;
+  --text: #f6f2ed;
+  --muted: #a9a29a;
+}
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 .app-shell { display: grid; grid-template-columns: 244px 1fr; min-height: 100vh; }
@@ -155,6 +163,97 @@ textarea { min-height: 88px; resize: vertical; }
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
   z-index: 50;
 }
+.location-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.58);
+  display: none;
+  place-items: center;
+  padding: 18px;
+  z-index: 100;
+}
+.location-overlay.open { display: grid; }
+.location-card {
+  width: min(980px, 100%);
+  background: #fff;
+  color: #333;
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  padding: 30px 34px;
+  box-shadow: 0 28px 80px rgba(0,0,0,.32);
+}
+.location-title { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.location-title h2 { margin: 0; font-size: 24px; font-weight: 900; font-family: Inter, system-ui, sans-serif; letter-spacing: 0; }
+.pin-icon, .market-location-pin {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  color: #333;
+  flex: 0 0 auto;
+}
+.pin-icon svg, .market-location-pin svg { width: 100%; height: 100%; }
+.address-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 96px;
+  align-items: center;
+  gap: 16px;
+  border: 2px solid #dedede;
+  border-radius: 14px;
+  padding: 18px 18px 18px 28px;
+}
+.address-box label {
+  position: absolute;
+  top: -11px;
+  left: 28px;
+  background: #fff;
+  padding: 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.address-box input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  font-size: 28px;
+  color: #333;
+  background: transparent;
+}
+.address-box input::placeholder { color: #8f8f8f; }
+.locate-me {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #333;
+  font-size: 24px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.locate-me span { color: #ec0050; font-size: 34px; }
+.address-submit {
+  height: 72px;
+  border-radius: 14px;
+  background: #ec0050;
+  color: #fff;
+  font-size: 44px;
+  font-weight: 400;
+  display: grid;
+  place-items: center;
+}
+.popular-title { margin: 28px 0 14px; font-size: 28px; font-weight: 900; color: #333; }
+.popular-locations { display: flex; gap: 18px; flex-wrap: wrap; }
+.popular-locations button {
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 14px 30px;
+  color: #333;
+  background: #fff;
+  font-size: 24px;
+  font-weight: 900;
+}
+.location-close { float: right; border: 1px solid #ddd; background: #fff; color: #333; border-radius: 10px; padding: 8px 10px; font-weight: 800; }
+#locationMap { width: 100%; height: 260px; border: 1px solid #ddd; border-radius: 14px; margin-top: 20px; background: #f4f4f4; }
 .market-shell {
   height: 100vh;
   display: grid;
@@ -162,15 +261,37 @@ textarea { min-height: 88px; resize: vertical; }
   background: var(--bg);
 }
 .market-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(260px, 560px) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
   background: #151517;
   position: relative;
   z-index: 5;
+}
+.market-location {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 38px;
+  width: min(360px, 100%);
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-weight: 900;
+  font-size: 16px;
+  min-width: 0;
+}
+.market-location-pin { color: var(--text); width: 24px; height: 24px; }
+.market-location-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .brand.compact {
   border: 0;
@@ -182,9 +303,57 @@ textarea { min-height: 88px; resize: vertical; }
 .market-user {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+.icon-action {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid #eadcc9;
+  background: #fff6eb;
+  color: #f97316;
+  display: inline-grid;
+  place-items: center;
+  font-size: 15px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.icon-action:hover {
+  transform: translateY(-1px);
+  border-color: var(--brand);
+  background: #fff1df;
+}
+.language-control { position: relative; }
+.language-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 150px;
+  display: none;
+  padding: 6px;
+  border: 1px solid #eadcc9;
+  border-radius: 12px;
+  background: #fffaf3;
+  box-shadow: 0 16px 40px rgba(0,0,0,.22);
+  z-index: 20;
+}
+.language-menu.open { display: block; }
+.language-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #362f2a;
+  padding: 9px 10px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+}
+.language-menu button:hover {
+  background: #fff1df;
+  color: var(--brand);
 }
 .market-frame {
   width: 100%;

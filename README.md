@@ -3,11 +3,11 @@
 HomeTaste is now a working full-stack local system with:
 
 - Login and signup
-- Owner view for Shewharth
+- Admin view for HomeTaste management
 - Customer browsing, cart, checkout, order tracking, and chat
 - Cook application flow
 - Cook studio for dish creation and order status updates
-- Owner controls for users, cooks, dish featuring, dish visibility, and marketplace status
+- Admin controls for users, cooks, dish featuring, dish visibility, and marketplace status
 - JSON database persistence in `data/db.json`
 
 ## Run
@@ -19,31 +19,19 @@ node server.js
 Open:
 
 ```text
-http://localhost:4173
+http://localhost:4174
 ```
 
 ## Seed Accounts
 
-Owner:
+Admin:
 
 ```text
-shewharth@hometaste.local
-Shewharth2026!
+FirstProj77@gmail.com
+HomeTasteadmin77$
 ```
 
-Cook:
-
-```text
-mona@hometaste.local
-Cook2026!
-```
-
-Customer:
-
-```text
-customer@hometaste.local
-Customer2026!
-```
+The login and signup screens let users choose Turkey or Germany. Marketplace cooks, dishes, cities, and favorites are filtered to the selected country.
 
 ## Files
 

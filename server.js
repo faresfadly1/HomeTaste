@@ -51,51 +51,17 @@ const seedDb = () => ({
   users: [
     {
       id: "usr_owner",
-      name: "Shewharth",
-      email: "shewharth@hometaste.local",
-      passwordHash: hashPassword("Shewharth2026!"),
+      name: "HomeTaste Admin",
+      email: "firstproj77@gmail.com",
+      passwordHash: hashPassword("HomeTasteadmin77$"),
       role: "owner",
       city: "Istanbul",
+      country: "TR",
       phone: "+90 555 000 0000",
-      createdAt: now()
-    },
-    {
-      id: "usr_cook_1",
-      name: "Mona Hassan",
-      email: "mona@hometaste.local",
-      passwordHash: hashPassword("Cook2026!"),
-      role: "cook",
-      city: "Istanbul",
-      phone: "+90 555 123 4567",
-      createdAt: now()
-    },
-    {
-      id: "usr_customer_1",
-      name: "Demo Customer",
-      email: "customer@hometaste.local",
-      passwordHash: hashPassword("Customer2026!"),
-      role: "customer",
-      city: "Istanbul",
-      phone: "+90 555 111 2222",
       createdAt: now()
     }
   ],
   cooks: [
-    {
-      id: "cook_1",
-      userId: "usr_cook_1",
-      name: "Mona Hassan",
-      cuisine: "Egyptian Home Kitchen",
-      city: "Istanbul",
-      bio: "Family recipes, daily batches, warm portions.",
-      verified: true,
-      status: "approved",
-      rating: 4.9,
-      reviews: 183,
-      availability: "Today 6 PM to 10 PM",
-      responseTime: "Usually replies in 5 minutes",
-      createdAt: now()
-    },
     {
       id: "cook_2",
       userId: null,
@@ -129,18 +95,6 @@ const seedDb = () => ({
   ],
   dishes: [
     {
-      id: "dish_1",
-      cookId: "cook_1",
-      name: "Koshari Bowl",
-      description: "Rice, lentils, chickpeas, crispy onions, tomato sauce.",
-      price: 200,
-      prepMinutes: 35,
-      image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=900&q=80",
-      tags: ["vegan", "filling"],
-      available: true,
-      featured: true
-    },
-    {
       id: "dish_2",
       cookId: "cook_2",
       name: "Dolma Plate",
@@ -165,46 +119,8 @@ const seedDb = () => ({
       featured: true
     }
   ],
-  orders: [
-    {
-      id: "ord_1",
-      customerId: "usr_customer_1",
-      cookId: "cook_1",
-      items: [{ dishId: "dish_1", name: "Koshari Bowl", qty: 1, price: 200 }],
-      subtotal: 200,
-      deliveryFee: 30,
-      serviceFee: 15,
-      total: 245,
-      status: "preparing",
-      statusHistory: [
-        { status: "placed", byUserId: "usr_customer_1", at: now(), note: "Seed order placed." },
-        { status: "preparing", byUserId: "usr_cook_1", at: now(), note: "Seed cook started preparing." }
-      ],
-      paymentMethod: "cash",
-      deliveryAddress: "Nisantasi, Istanbul",
-      notes: "Medium spicy",
-      createdAt: now(),
-      updatedAt: now()
-    }
-  ],
-  messages: [
-    {
-      id: "msg_1",
-      orderId: "ord_1",
-      fromUserId: "usr_customer_1",
-      toCookId: "cook_1",
-      text: "Can you make it medium spicy?",
-      createdAt: now()
-    },
-    {
-      id: "msg_2",
-      orderId: "ord_1",
-      fromUserId: "usr_cook_1",
-      toUserId: "usr_customer_1",
-      text: "Yes, medium spicy is perfect.",
-      createdAt: now()
-    }
-  ],
+  orders: [],
+  messages: [],
   notifications: [],
   sessions: {}
 });
@@ -251,6 +167,7 @@ const toUser = (row) => ({
   passwordHash: row.password_hash,
   role: row.role,
   city: row.city,
+  country: row.country || "TR",
   phone: row.phone,
   createdAt: row.created_at
 });
@@ -262,6 +179,7 @@ const fromUser = (user) => ({
   password_hash: user.passwordHash,
   role: user.role,
   city: user.city || "",
+  country: user.country || "TR",
   phone: user.phone || "",
   created_at: user.createdAt || now()
 });
@@ -540,6 +458,7 @@ async function api(req, res, pathname) {
       passwordHash: hashPassword(password),
       role: "customer",
       city: String(input.city || "Istanbul").trim(),
+      country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
       phone: String(input.phone || "").trim(),
       createdAt: now()
     };

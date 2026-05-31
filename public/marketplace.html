@@ -39,6 +39,19 @@ body{
   min-height:100vh;
   overflow-x:hidden;
 }
+body.light-mode{
+  --bg:#f8f5f0;
+  --bg2:#ffffff;
+  --bg3:#f0ebe4;
+  --bg4:#e8ded2;
+  --card:#ffffff;
+  --text:#171411;
+  --text2:#665b51;
+  --text3:#8a7d71;
+  --border:#ded6cb;
+  --border2:#cabfaf;
+  --shadow:0 4px 24px rgba(42,30,18,0.12);
+}
 h1,h2,h3,h4{font-family:'Playfair Display',serif}
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit}
@@ -310,11 +323,15 @@ ul{list-style:none}
 .search-input input::placeholder{color:var(--text3)}
 .search-divider{width:1px;background:var(--border);margin:10px 0}
 .search-city{
-  display:flex;align-items:center;gap:8px;
-  padding:14px 16px;background:transparent;cursor:pointer;
+  display:flex;align-items:center;gap:0;
+  padding:14px 0;background:transparent;cursor:pointer;
   color:var(--text3);font-size:14px;
   position:relative;
+  min-width:0;
+  width:0;
 }
+.search-city > svg{display:none}
+.search-city #cityLabel{display:none}
 .city-dropdown{
   position:absolute;top:calc(100% + 8px);left:0;
   background:var(--card);border:1px solid var(--border);
@@ -342,22 +359,84 @@ ul{list-style:none}
 
 /* Filters */
 .filter-chips{
-  display:flex;gap:8px;padding:16px 32px;
-  overflow-x:auto;scrollbar-width:none;
+  display:grid;
+  grid-template-columns:minmax(112px, 150px) minmax(240px, 420px);
+  gap:10px;
+  padding:18px 32px 10px;
+  overflow:visible;
+  align-items:start;
 }
-.filter-chips::-webkit-scrollbar{display:none}
 .chip{
-  padding:8px 18px;border-radius:50px;
+  min-height:42px;
+  padding:9px 14px;border-radius:12px;
   border:1px solid var(--border);
-  background:var(--bg3);color:var(--text2);
-  font-size:13px;font-weight:500;
-  cursor:pointer;white-space:nowrap;
-  transition:all var(--transition);flex-shrink:0;
+  background:linear-gradient(180deg,var(--bg3),var(--bg2));
+  color:var(--text2);
+  font-size:13px;font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:all var(--transition);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  box-shadow:0 8px 18px rgba(0,0,0,.14);
 }
 .chip:hover,.chip.active{
   background:var(--orange);border-color:var(--orange);
   color:#fff;transform:translateY(-1px);
+  box-shadow:0 12px 26px var(--orange-glow);
 }
+.country-filter{position:relative;width:100%}
+.country-search{
+  width:100%;
+  min-height:42px;
+  padding:9px 42px 9px 14px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,var(--bg3),var(--bg2));
+  color:var(--text);
+  font-size:13px;
+  font-weight:800;
+  outline:none;
+  box-shadow:0 8px 18px rgba(0,0,0,.14);
+}
+.country-search::placeholder{color:var(--text2)}
+.country-filter::after{
+  content:'⌄';
+  position:absolute;
+  top:9px;
+  right:14px;
+  color:var(--text2);
+  pointer-events:none;
+  font-weight:900;
+}
+.country-menu{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  right:0;
+  max-height:260px;
+  overflow:auto;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:6px;
+  box-shadow:var(--shadow);
+  z-index:80;
+  display:none;
+}
+.country-menu.open{display:block}
+.country-option{
+  width:100%;
+  text-align:left;
+  padding:9px 10px;
+  border-radius:8px;
+  color:var(--text2);
+  font-size:13px;
+  font-weight:700;
+}
+.country-option:hover{background:var(--bg3);color:var(--text)}
 
 /* Section */
 .section{padding:0 32px 32px}
@@ -978,6 +1057,9 @@ ul{list-style:none}
 .info-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 8px;border-radius:99px;background:var(--bg3);color:var(--text2);margin-top:6px;margin-right:4px}.verified-photo{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
 .profile-extra{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}.profile-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}.profile-box small{display:block;color:var(--text3);font-size:11px;margin-bottom:5px}.profile-box strong{font-size:13px}
 .cook-form{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:32px}.cook-form .wide{grid-column:1/-1}.cook-input[type=file]{padding:10px}.live-preview-note{padding:14px;border:1px dashed var(--orange);background:var(--orange-light);border-radius:12px;color:var(--text2);font-size:13px;line-height:1.6}.camera-verified{color:#22c55e;font-weight:800}
+.policy-confirm{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-weight:700;line-height:1.5}.policy-confirm input{width:18px;height:18px;accent-color:var(--orange);flex:0 0 auto}
+.profile-photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}.photo-action{padding:22px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;text-align:left;color:var(--text);font-weight:900;font-size:16px}.photo-action small{display:block;margin-top:8px;color:var(--text3);font-weight:700;line-height:1.4}.photo-action:hover{border-color:var(--orange);background:var(--orange-light)}
+.photo-preview{min-height:110px;border:1px dashed var(--border2);border-radius:14px;display:grid;place-items:center;color:var(--text3);font-weight:800;overflow:hidden;background:rgba(255,255,255,.02);position:relative}.photo-preview img,.photo-preview video{width:100%;height:180px;object-fit:cover}.photo-preview.verified{border-color:rgba(34,197,94,.45);color:#22c55e}.photo-preview.gallery{border-color:var(--orange)}
 .tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
 .order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
 @media(max-width:900px){.welcome-grid,.cook-form,.profile-extra{grid-template-columns:1fr}.welcome-card h1{font-size:30px}.cart-panel{width:min(330px,100vw)}.main{margin-left:var(--sidebar)}}
@@ -1033,14 +1115,6 @@ ul{list-style:none}
 
 <!-- ===== SIDEBAR ===== -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">🍽️</div>
-    <div>
-      <div class="logo-text">HomeTaste</div>
-      <div class="logo-sub">Real cooks. Real food. Real people.</div>
-    </div>
-  </div>
-
   <nav class="sidebar-nav">
     <div class="nav-item active" onclick="showPage('home',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -1088,6 +1162,7 @@ ul{list-style:none}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       <div class="lang-menu" id="langMenu">
         <button onclick="setLanguage('EN',event)">English</button>
+        <button onclick="setLanguage('DE',event)">Deutsch</button>
         <button onclick="setLanguage('AR',event)">العربية</button>
         <button onclick="setLanguage('TR',event)">Türkçe</button>
       </div>
@@ -1126,7 +1201,7 @@ ul{list-style:none}
         <div class="search-divider"></div>
         <div class="search-city" id="citySelector" onclick="toggleCityDropdown()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span id="cityLabel">Select city...</span>
+          <span id="cityLabel" data-city="">Select city...</span>
           <div class="city-dropdown" id="cityDropdown">
             <div class="city-option" onclick="selectCity('Istanbul')">📍 Istanbul</div>
             <div class="city-option" onclick="selectCity('Ankara')">📍 Ankara</div>
@@ -1142,14 +1217,10 @@ ul{list-style:none}
 
     <div class="filter-chips" id="filterChips">
       <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
-      <div class="chip" onclick="filterChip(this,'egyptian')">Egyptian</div>
-      <div class="chip" onclick="filterChip(this,'turkish')">Turkish</div>
-      <div class="chip" onclick="filterChip(this,'italian')">Italian</div>
-      <div class="chip" onclick="filterChip(this,'syrian')">Syrian</div>
-      <div class="chip" onclick="filterChip(this,'indian')">Indian</div>
-      <div class="chip" onclick="filterChip(this,'japanese')">Japanese</div>
-      <div class="chip" onclick="filterChip(this,'mexican')">Mexican</div>
-      <div class="chip" onclick="filterChip(this,'greek')">Greek</div>
+      <div class="country-filter">
+        <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
+        <div class="country-menu" id="countryCuisineMenu"></div>
+      </div>
     </div>
 
     <div class="section">
@@ -1214,6 +1285,7 @@ ul{list-style:none}
         <option value="Indian">Indian</option>
         <option value="Japanese">Japanese</option>
         <option value="Mexican">Mexican</option>
+        <option value="Greek">Greek</option>
       </select>
       <select class="filter-select" id="cookCitySelect" onchange="applyCookFilters()">
         <option value="">All Cities</option>
@@ -1316,9 +1388,23 @@ ul{list-style:none}
       <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
       <div><div class="welcome-label">Sauces / sides</div><input id="cookSauceInput" class="cook-input" placeholder="Extra sauce, salad, bread..."></div>
       <div><div class="welcome-label">Drinks</div><input id="cookDrinkInput" class="cook-input" placeholder="Ayran, cola, tea..."></div>
-      <div class="wide"><div class="welcome-label">Dish photo verification</div><input id="cookPhotoInput" class="cook-input" type="file" accept="image/*" capture="environment" onchange="handleCookPhoto(this)"></div>
-      <div class="wide live-preview-note">📸 If the cook takes the photo directly from the camera during upload, the listing gets a <span class="camera-verified">Camera Verified</span> badge. If they upload from gallery, the listing appears normally without that badge.</div>
-      <div class="wide"><button class="btn-apply" onclick="createCookDemo()">Publish my first dish →</button></div>
+      <div class="wide"><div class="welcome-label">Short bio</div><textarea id="cookBioInput" class="cook-input" rows="5" placeholder="Tell customers what you cook and where your food is from."></textarea></div>
+      <label class="wide policy-confirm">
+        <input id="cookPolicyConfirm" type="checkbox">
+        <span>I confirm this is my own kitchen profile and I understand my profile and dishes require admin approval before they appear publicly.</span>
+      </label>
+      <div class="wide">
+        <div class="welcome-label">Your profile photo</div>
+        <div class="profile-photo-actions">
+          <button class="photo-action" type="button" onclick="document.getElementById('cookCameraInput').click()">📸 Take Photo (Verified)<small>Photos taken with your camera get a Verified badge</small></button>
+          <button class="photo-action" type="button" onclick="document.getElementById('cookGalleryInput').click()">🖼️ Upload from Gallery<small>Choose an existing photo from your device</small></button>
+        </div>
+        <input id="cookCameraInput" type="file" accept="image/*,video/*" capture="environment" hidden onchange="handleCookPhoto(this,'camera')">
+        <input id="cookGalleryInput" type="file" accept="image/*,video/*" hidden onchange="handleCookPhoto(this,'gallery')">
+      </div>
+      <div class="wide photo-preview" id="cookPhotoPreview">No photo selected</div>
+      <div class="wide live-preview-note">Photos taken with your camera get a Verified badge</div>
+      <div class="wide"><button class="btn-apply" onclick="createCookDemo()">Publish my dish →</button></div>
     </div>
     <div class="become-features">
       <div class="feature-card"><div class="feature-icon">⚡</div><h3>Fast setup</h3><p>No complicated application. Add your profile, dish, price, prep time, and availability.</p></div>
@@ -1403,7 +1489,7 @@ ul{list-style:none}
         <div class="setting-item">
           <div><div class="setting-label">Language</div></div>
           <select class="filter-select" style="margin:0" onchange="setLanguage(this.value,event)">
-            <option value="EN">English</option><option value="TR">Türkçe</option><option value="AR">العربية</option>
+            <option value="EN">English</option><option value="DE">Deutsch</option><option value="TR">Türkçe</option><option value="AR">العربية</option>
           </select>
         </div>
         <div class="setting-item">
@@ -1603,30 +1689,34 @@ ul{list-style:none}
 <script>
 // ===== DATA =====
 const cooks = [
-  {id:1,name:'Mona Hassan',emoji:'👩‍🍳',cuisine:'Egyptian Cuisine',city:'Istanbul',rating:4.9,reviews:120,dish:'Koshari',price:170,verified:true,
+  {id:1,name:'Omar El-Sayed',emoji:'👨‍🍳',cuisine:'Egyptian Cuisine',city:'Istanbul',country:'TR',rating:4.9,reviews:120,dish:'Koshari',price:170,verified:true,
    img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=70',
    bio:'Authentic Egyptian flavors crafted with love. My grandmother\'s recipes, now in your city.',
    orders:847,followers:312,dishes:12},
-  {id:2,name:'Ahmet Yılmaz',emoji:'👨‍🍳',cuisine:'Turkish Cuisine',city:'Ankara',rating:4.8,reviews:98,dish:'Adana Kebap',price:200,verified:true,
+  {id:2,name:'Ahmet Yılmaz',emoji:'👨‍🍳',cuisine:'Turkish Cuisine',city:'Ankara',country:'TR',rating:4.8,reviews:98,dish:'Adana Kebap',price:200,verified:true,
    img:'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=70',
    bio:'Born in Adana, cooking since I could reach the grill. Real Turkish flavors.',
    orders:653,followers:241,dishes:8},
-  {id:3,name:'Giulia Rossi',emoji:'👩‍🍳',cuisine:'Italian Cuisine',city:'Berlin',rating:4.9,reviews:76,dish:'Lasagna',price:180,verified:true,
+  {id:3,name:'Giulia Rossi',emoji:'👩‍🍳',cuisine:'Italian Cuisine',city:'Berlin',country:'DE',rating:4.9,reviews:76,dish:'Lasagna',price:180,verified:true,
    img:'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=70',
    bio:'Nonna\'s recipes straight from Bologna. Fresh pasta, rich ragù, pure love.',
    orders:489,followers:198,dishes:10},
-  {id:4,name:'Layla Omari',emoji:'👩‍🍳',cuisine:'Syrian Cuisine',city:'Gaziantep',rating:4.7,reviews:64,dish:'Yaprak Sarma',price:150,verified:true,
+  {id:4,name:'Layla Omari',emoji:'👩‍🍳',cuisine:'Syrian Cuisine',city:'Gaziantep',country:'TR',rating:4.7,reviews:64,dish:'Yaprak Sarma',price:150,verified:true,
    img:'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400&q=70',
    bio:'Syrian homestyle cooking with herbs and spices passed down for generations.',
    orders:381,followers:156,dishes:14},
-  {id:5,name:'Raj Patel',emoji:'👨‍🍳',cuisine:'Indian Cuisine',city:'Istanbul',rating:4.8,reviews:88,dish:'Butter Chicken',price:190,verified:true,
+  {id:5,name:'Raj Patel',emoji:'👨‍🍳',cuisine:'Indian Cuisine',city:'Istanbul',country:'TR',rating:4.8,reviews:88,dish:'Butter Chicken',price:190,verified:true,
    img:'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=70',
    bio:'Bringing the real taste of Mumbai to your doorstep. Aromatic, spicy, authentic.',
    orders:512,followers:205,dishes:9},
-  {id:6,name:'Yuki Tanaka',emoji:'👩‍🍳',cuisine:'Japanese Cuisine',city:'Berlin',rating:4.9,reviews:54,dish:'Ramen Bowl',price:220,verified:false,
+  {id:6,name:'Yuki Tanaka',emoji:'👩‍🍳',cuisine:'Japanese Cuisine',city:'Berlin',country:'DE',rating:4.9,reviews:54,dish:'Ramen Bowl',price:220,verified:false,
    img:'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400&q=70',
    bio:'Traditional ramen and sushi crafted with Japanese precision and care.',
    orders:298,followers:143,dishes:7},
+  {id:7,name:'Nikos Papadopoulos',emoji:'👨‍🍳',cuisine:'Greek Cuisine',city:'Munich',country:'DE',rating:4.8,reviews:69,dish:'Greek Moussaka',price:185,verified:true,
+   img:'https://images.unsplash.com/photo-1544025162-d76538722aee?w=400&q=70',
+   bio:'Greek family food with olive oil, herbs, and warm hospitality.',
+   orders:344,followers:127,dishes:6},
 ];
 
 const dishes = [
@@ -1639,6 +1729,7 @@ const dishes = [
   {id:7,name:'Moussaka',cookId:1,tag:'Egyptian',desc:'Layered eggplant, spiced minced meat and creamy béchamel sauce — hearty Mediterranean comfort.',price:165,img:'https://images.unsplash.com/photo-1544025162-d76538722aee?w=600&q=70',tags:['Baked','Traditional']},
   {id:8,name:'Baklava',cookId:4,tag:'Syrian',desc:'Crispy phyllo pastry layered with pistachios and honey syrup — the ultimate Middle Eastern dessert.',price:80,img:'https://images.unsplash.com/photo-1519676867240-f03562e64548?w=600&q=70',tags:['Dessert','Sweet']},
   {id:9,name:'Dolmades',cookId:2,tag:'Turkish',desc:'Fresh vine leaves filled with aromatic rice, herbs, and a drizzle of lemon-olive oil dressing.',price:140,img:'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=70',tags:['Vegetarian','Fresh']},
+  {id:10,name:'Greek Moussaka',cookId:7,tag:'Greek',desc:'Greek baked layers of eggplant, spiced beef, potatoes, and creamy béchamel.',price:185,img:'https://images.unsplash.com/photo-1544025162-d76538722aee?w=600&q=70',tags:['Greek','Baked','Comfort Food']},
 ];
 
 const messages = [
@@ -1679,6 +1770,8 @@ let chatMessages = JSON.parse(JSON.stringify(messages)); // deep copy
 let selectedCountry = 'TR';
 let selectedLanguage = 'EN';
 let cameraPhotoVerified = false;
+let cookPhotoSelected = false;
+let cookPhotoPreviewUrl = '';
 let lastCookFilterSummary = 'All cooks';
 const translations = {
   EN: {
@@ -1797,6 +1890,64 @@ const translations = {
     tryFilters: 'Başka mutfak, şehir veya sıralama dene.',
     languageChanged: 'Dil Türkçe olarak değiştirildi'
   },
+  DE: {
+    welcomeTitle: 'Wo bist du, und was mochtest du essen?',
+    welcomeBody: 'Wahle dein aktuelles Land und die Kuche, die du vermisst. HomeTaste zeigt dir nahe gelegene Hobbykoche, verfugbare Gerichte, Zahlungsmethoden und Lieferoptionen.',
+    currentCountry: 'Aktuelles Land',
+    foodFrom: 'Kuche',
+    cityArea: 'Stadt / Gebiet',
+    startExploring: 'Jetzt entdecken →',
+    wantCook: 'Ich mochte Koch werden',
+    cart: 'Warenkorb',
+    home: 'Start',
+    browseCooks: 'Koche entdecken',
+    popularDishes: 'Beliebte Gerichte',
+    myOrders: 'Meine Bestellungen',
+    favorites: 'Favoriten',
+    messages: 'Nachrichten',
+    becomeCook: 'Koch werden',
+    help: 'Hilfe & Support',
+    settings: 'Einstellungen',
+    heroTitle: 'Entdecke authentisches <span>hausgemachtes Essen</span> von echten Menschen',
+    heroBody: 'Wahle dein Land und das Essen, das du mochtest,<br>und bestelle bei Kochinnen und Kochen in deiner Nahe.',
+    searchPlaceholder: 'Nach Gericht oder Koch suchen...',
+    search: 'Suchen',
+    selectCity: 'Stadt wahlen...',
+    allDishes: 'Alle Gerichte',
+    browseTitle: 'Koche entdecken',
+    browseBody: 'Entdecke talentierte Hobbykoche in deiner Stadt',
+    sortTop: 'Sortieren: Beste Bewertung',
+    sortOrders: 'Sortieren: Meiste Bestellungen',
+    sortNearest: 'Sortieren: Nachste',
+    sortPrice: 'Sortieren: Preis niedrig-hoch',
+    allCuisines: 'Alle Kuchen',
+    allCities: 'Alle Stadte',
+    dishesTitle: 'Beliebte Gerichte',
+    dishesBody: 'Die beliebtesten hausgemachten Mahlzeiten auf HomeTaste',
+    ordersTitle: 'Meine Bestellungen',
+    favoritesTitle: 'Meine Favoriten',
+    messagesTitle: 'Nachrichten',
+    messagesBody: 'Chatte mit deinen Kochen',
+    messagePlaceholder: 'Nachricht schreiben...',
+    helpTitle: 'Hilfe & Support',
+    settingsTitle: 'Einstellungen',
+    yourCart: 'Dein Warenkorb',
+    delivery: 'Lieferung',
+    pickup: 'Abholung',
+    subtotal: 'Zwischensumme',
+    deliveryFee: 'Liefergebuhr',
+    total: 'Gesamt',
+    checkout: 'Zur Kasse',
+    continueShopping: 'Weiter einkaufen',
+    secure: 'Alle Zahlungen sind sicher. Deine Daten sind geschutzt.',
+    cartEmpty: 'Warenkorb ist leer',
+    addFood: 'Fuge leckeres Essen hinzu!',
+    cook: 'Koch',
+    status: 'Status',
+    noCooks: 'Keine Koche gefunden',
+    tryFilters: 'Versuche eine andere Kuche, Stadt oder Sortierung.',
+    languageChanged: 'Sprache auf Deutsch geandert'
+  },
   AR: {
     welcomeTitle: 'أين أنت وماذا تريد أن تأكل؟',
     welcomeBody: 'اختر بلدك الحالي والمطبخ الذي تشتاق إليه. سيعرض HomeTaste الطهاة القريبين والأطباق المتاحة وطرق الدفع وخيارات التوصيل.',
@@ -1866,6 +2017,32 @@ const paymentMethodsByCountry = {
   NL: ['💳 Card', '🏦 iDEAL', '📱 PayPal', '📱 Apple Pay', '💵 Cash']
 };
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
+const countryDefaults = {
+  TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
+  DE: { city: 'Berlin', cities: ['Berlin', 'Munich'] }
+};
+const allCountries = [
+  'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
+  'Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
+  'Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia',
+  'Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica',
+  'Cote d Ivoire','Croatia','Cuba','Cyprus','Czechia','Democratic Republic of the Congo','Denmark','Djibouti','Dominica','Dominican Republic',
+  'Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland',
+  'France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea',
+  'Guinea-Bissau','Guyana','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq',
+  'Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kuwait',
+  'Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg',
+  'Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico',
+  'Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru',
+  'Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman',
+  'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal',
+  'Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe',
+  'Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
+  'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria',
+  'Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan',
+  'Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City',
+  'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
+];
 cooks.forEach((c,i)=>Object.assign(c,{
   availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
   prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
@@ -1882,6 +2059,14 @@ dishes.forEach((d,i)=>Object.assign(d,{
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
+  selectedCountry = new URLSearchParams(location.search).get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
+  if (!['TR', 'DE'].includes(selectedCountry)) selectedCountry = 'TR';
+  localStorage.setItem('hometaste_country', selectedCountry);
+  document.getElementById('welcomeCountry').value = selectedCountry;
+  document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
+  document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
+  document.getElementById('cityLabel').textContent = '';
+  renderCityDropdown();
   if (localStorage.getItem('hometaste_welcome_done') === 'yes') {
     document.getElementById('welcomeOverlay').style.display = 'none';
   }
@@ -1891,6 +2076,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOrders();
   renderFavorites();
   renderCart();
+  renderCountryMenu();
+  bindCountrySelector();
   renderChatList();
   renderFAQ();
   openChat(1);
@@ -1912,14 +2099,33 @@ function showPage(pageId, navEl) {
 }
 
 // ===== COUNTRY / WELCOME (FIXED: try-catch + safe hide) =====
-function setCountryFromWelcome(){ selectedCountry = document.getElementById('welcomeCountry').value; updatePaymentMethods(); }
+function setCountryFromWelcome(){
+  selectedCountry = document.getElementById('welcomeCountry').value;
+  localStorage.setItem('hometaste_country', selectedCountry);
+  document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
+  document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
+  document.getElementById('cityLabel').textContent = '';
+  renderCityDropdown();
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+  renderFavorites();
+  updatePaymentMethods();
+}
 function finishWelcome(goCook=false){
   try {
     selectedCountry = document.getElementById('welcomeCountry').value;
+    localStorage.setItem('hometaste_country', selectedCountry);
     const city = document.getElementById('welcomeCity').value.trim() || 'Istanbul';
     const cuisine = document.getElementById('welcomeCuisine').value;
-    document.getElementById('cityLabel').textContent = city;
+    document.getElementById('cityLabel').dataset.city = city;
+    document.getElementById('cityLabel').textContent = '';
     document.getElementById('searchInput').value = cuisine;
+    renderCityDropdown();
+    renderHomeCooks();
+    renderBrowseCooks();
+    renderDishes();
+    renderFavorites();
     localStorage.setItem('hometaste_welcome_done', 'yes');
     document.getElementById('welcomeOverlay').style.display = 'none';
     updatePaymentMethods();
@@ -1951,7 +2157,7 @@ function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMe
 function setLanguage(lang,e,silent=false){
   if(e) e.stopPropagation(); selectedLanguage = lang; document.getElementById('currentLangLabel').textContent = lang;
   localStorage.setItem('hometaste_language', lang);
-  document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : 'en');
+  document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : (lang === 'DE' ? 'de' : 'en'));
   document.body.dir = lang === 'AR' ? 'rtl' : 'ltr';
   document.getElementById('langMenu')?.classList.remove('open');
   applyTranslations();
@@ -2021,6 +2227,8 @@ function applyTranslations() {
   setOption('cookSortSelect', 'price-low', tr('sortPrice'));
   setOption('cookCuisineSelect', '', tr('allCuisines'));
   setOption('cookCitySelect', '', tr('allCities'));
+  renderCuisineFilterOptions();
+  renderCityFilterOptions();
 
   setText('#page-dishes .page-header h1', tr('dishesTitle'));
   setText('#page-dishes .page-header p', tr('dishesBody'));
@@ -2057,14 +2265,99 @@ function applyTranslations() {
 
 }
 document.addEventListener('click',()=>document.getElementById('langMenu')?.classList.remove('open'));
+document.addEventListener('click',(event)=>{
+  if (!event.target.closest('.country-filter')) {
+    document.getElementById('countryCuisineMenu')?.classList.remove('open');
+  }
+});
+window.addEventListener('message', (event) => {
+  if (event.origin !== location.origin || event.data?.source !== 'HomeTaste') return;
+  if (event.data.name === 'language') setLanguage(event.data.value, null, true);
+  if (event.data.name === 'theme') document.body.classList.toggle('light-mode', event.data.value !== 'dark');
+});
 
 // ===== SEARCH (FIXED: live filtering) =====
 function toggleCityDropdown() {
   document.getElementById('cityDropdown').classList.toggle('open');
 }
+function countryCooks() {
+  return cooks.filter(c => (c.country || 'TR') === selectedCountry);
+}
+function countryDishes() {
+  const visibleCookIds = new Set(countryCooks().map(c => c.id));
+  return dishes.filter(d => visibleCookIds.has(d.cookId));
+}
+function renderCityDropdown() {
+  const dropdown = document.getElementById('cityDropdown');
+  if (!dropdown) return;
+  dropdown.innerHTML = countryDefaults[selectedCountry].cities
+    .map(city => `<div class="city-option" onclick="selectCity('${city}')">📍 ${city}</div>`)
+    .join('');
+  renderCuisineFilterOptions();
+  renderCityFilterOptions();
+}
+function renderCuisineFilterOptions() {
+  const select = document.getElementById('cookCuisineSelect');
+  if (!select) return;
+  const current = select.value;
+  const cuisines = [...new Set(countryCooks().map(c => c.cuisine.replace(/\s*Cuisine$/i, '')))].sort();
+  select.innerHTML = `<option value="">${tr('allCuisines')}</option>` + cuisines
+    .map(cuisine => `<option value="${cuisine}">${cuisine}</option>`)
+    .join('');
+  select.value = cuisines.includes(current) ? current : '';
+}
+function renderCityFilterOptions() {
+  const select = document.getElementById('cookCitySelect');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">${tr('allCities')}</option>` + countryDefaults[selectedCountry].cities
+    .map(city => `<option value="${city}">${city}</option>`)
+    .join('');
+  select.value = countryDefaults[selectedCountry].cities.includes(current) ? current : '';
+}
 function selectCity(city) {
-  document.getElementById('cityLabel').textContent = city;
+  document.getElementById('cityLabel').dataset.city = city;
+  document.getElementById('cityLabel').textContent = '';
   document.getElementById('cityDropdown')?.classList.remove('open');
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+}
+function renderCountryMenu(query = '') {
+  const menu = document.getElementById('countryCuisineMenu');
+  if (!menu) return;
+  const q = query.trim().toLowerCase();
+  const list = allCountries.filter(country => !q || country.toLowerCase().includes(q));
+  menu.innerHTML = list.map(country => `<button class="country-option" type="button" onclick="selectCountryCuisine('${country.replace(/'/g, "\\'")}')">${country}</button>`).join('');
+}
+function bindCountrySelector() {
+  const input = document.getElementById('countryCuisineSearch');
+  if (!input || input.dataset.bound === 'yes') return;
+  input.dataset.bound = 'yes';
+  input.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openCountryMenu();
+  });
+  input.addEventListener('focus', openCountryMenu);
+  input.addEventListener('input', () => filterCountryMenu(input.value));
+}
+function openCountryMenu() {
+  renderCountryMenu(document.getElementById('countryCuisineSearch')?.value || '');
+  document.getElementById('countryCuisineMenu')?.classList.add('open');
+}
+function filterCountryMenu(value) {
+  renderCountryMenu(value);
+  document.getElementById('countryCuisineMenu')?.classList.add('open');
+}
+function selectCountryCuisine(country) {
+  const input = document.getElementById('countryCuisineSearch');
+  if (input) input.value = country;
+  document.getElementById('countryCuisineMenu')?.classList.remove('open');
+  const allChip = document.querySelector('.filter-chips .chip');
+  if (allChip) allChip.classList.remove('active');
+  const search = document.getElementById('searchInput');
+  if (search) search.value = country;
+  doSearch();
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#citySelector')) {
@@ -2077,9 +2370,11 @@ function handleSearch(val) {
 function doSearch() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if (!q) return;
-  const filtered = dishes.filter(d => 
+  const filtered = countryDishes().filter(d =>
     d.name.toLowerCase().includes(q) || 
-    (cooks.find(c => c.id === d.cookId)?.name.toLowerCase().includes(q))
+    d.tag.toLowerCase().includes(q) ||
+    (cooks.find(c => c.id === d.cookId)?.name.toLowerCase().includes(q)) ||
+    (cooks.find(c => c.id === d.cookId)?.cuisine.toLowerCase().includes(q))
   );
   const grid = document.getElementById('dishesGrid');
   if (grid) {
@@ -2093,13 +2388,14 @@ function doSearch() {
 function filterChip(el, type) {
   el.closest('.filter-chips, .filter-bar').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  renderDishes();
   showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
 }
 
 // ===== RENDER HOME COOKS =====
 function renderHomeCooks() {
   const grid = document.getElementById('homeCooksGrid');
-  grid.innerHTML = cooks.slice(0, 4).map((c, i) => cookCard(c, `stagger-${i+1}`)).join('');
+  grid.innerHTML = countryCooks().slice(0, 4).map((c, i) => cookCard(c, `stagger-${i+1}`)).join('');
 }
 function renderBrowseCooks() {
   const grid = document.getElementById('browseGrid');
@@ -2144,7 +2440,9 @@ function cookCard(c, staggerClass) {
 // ===== RENDER DISHES =====
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
-  grid.innerHTML = dishes.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
+  const activeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase() || 'all';
+  const list = countryDishes().filter(d => activeChip.includes('all') || d.tag.toLowerCase() === activeChip);
+  grid.innerHTML = list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
 }
 function dishCard(d, staggerClass) {
   const cook = cooks.find(c => c.id === d.cookId);
@@ -2172,7 +2470,7 @@ function dishCard(d, staggerClass) {
 // ===== RENDER ORDERS =====
 function renderOrders() {
   const orders = [
-    {dish:'Koshari',by:'Mona Hassan',emoji:'🍚',date:'Today, 12:30',tags:['Delivery','Istanbul'],status:'Preparing',statusClass:'status-preparing',price:'200 ₺',step:2,track:'Cook accepted your order and is preparing it now'},
+    {dish:'Koshari',by:'Omar El-Sayed',emoji:'🍚',date:'Today, 12:30',tags:['Delivery','Istanbul'],status:'Preparing',statusClass:'status-preparing',price:'200 ₺',step:2,track:'Cook accepted your order and is preparing it now'},
     {dish:'Adana Kebap × 2',by:'Ahmet Yılmaz',emoji:'🍢',date:'Yesterday, 19:15',tags:['Delivery','Ankara'],status:'Delivered',statusClass:'status-delivered',price:'400 ₺',step:5,track:'Delivered successfully'},
     {dish:'Lasagna',by:'Giulia Rossi',emoji:'🍝',date:'May 24, 14:00',tags:['Pickup','Berlin'],status:'Delivered',statusClass:'status-delivered',price:'180 ₺',step:5,track:'Picked up from cook'},
   ];
@@ -2202,7 +2500,7 @@ function reorder(dish) {
 
 // ===== RENDER FAVORITES =====
 function renderFavorites() {
-  const favDishes = dishes.filter(d => favorites.has(d.cookId));
+  const favDishes = countryDishes().filter(d => favorites.has(d.cookId));
   const grid = document.getElementById('favoritesGrid');
   if (favDishes.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💔</div><h3>No favorites yet</h3><p>Heart dishes or cooks to save them here</p></div>`;
@@ -2425,24 +2723,41 @@ function sendChatMessage() {
 
 
 // ===== BECOME A COOK DEMO (FIXED: validation) =====
-function handleCookPhoto(input){
-  cameraPhotoVerified = !!(input.files && input.files[0]);
-  showToast(cameraPhotoVerified ? '📸 Photo added. Camera verified badge will be shown after review.' : 'Photo removed', 'info');
+function handleCookPhoto(input, source='gallery'){
+  const file = input.files && input.files[0];
+  cameraPhotoVerified = !!file && source === 'camera';
+  cookPhotoSelected = !!file;
+  const preview = document.getElementById('cookPhotoPreview');
+  if (cookPhotoPreviewUrl) URL.revokeObjectURL(cookPhotoPreviewUrl);
+  cookPhotoPreviewUrl = file ? URL.createObjectURL(file) : '';
+  if (preview) {
+    preview.classList.toggle('verified', cameraPhotoVerified);
+    preview.classList.toggle('gallery', !!file && !cameraPhotoVerified);
+    const isVideo = file?.type?.startsWith('video/');
+    preview.innerHTML = file
+      ? `${isVideo ? `<video src="${cookPhotoPreviewUrl}" controls muted></video>` : `<img src="${cookPhotoPreviewUrl}" alt="Selected cook profile photo">`}`
+      : 'No photo selected';
+  }
+  showToast(file ? (cameraPhotoVerified ? '📸 Camera photo added. Verified badge will be shown after review.' : '🖼️ Gallery photo added.') : 'Photo removed', 'info');
 }
 function createCookDemo(){
   const name = document.getElementById('cookNameInput').value.trim();
   const phone = document.getElementById('cookPhoneInput').value.trim();
+  const policyConfirmed = document.getElementById('cookPolicyConfirm')?.checked;
   if (!name) { showToast('Please enter a cook display name', 'error'); return; }
   if (!phone || !phone.match(/^[\+\d\s\-]+$/)) { showToast('Please enter a valid phone number', 'error'); return; }
-  const city = document.getElementById('cookCityInput').value.trim() || document.getElementById('cityLabel').textContent || 'Istanbul';
+  if (!policyConfirmed) { showToast('Please confirm the publishing policy before submitting.', 'error'); return; }
+  const city = document.getElementById('cookCityInput').value.trim() || document.getElementById('cityLabel').dataset.city || 'Istanbul';
   const dish = document.getElementById('cookDishInput').value.trim() || 'Homemade Special';
+  const bio = document.getElementById('cookBioInput').value.trim() || 'Fresh homemade food from a new cook.';
   const prep = document.getElementById('cookPrepInput').value.trim() || '45 min';
   const time = document.getElementById('cookTimeInput').value.trim() || 'Today 6 PM–10 PM';
   const sauces = document.getElementById('cookSauceInput').value.trim() || 'House sauce';
   const drinks = document.getElementById('cookDrinkInput').value.trim() || 'Ayran / cola';
   const id = cooks.length + 1;
-  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',city,rating:5.0,reviews:0,dish,price:150,verified:true,verifiedPhoto:cameraPhotoVerified,img:'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&q=70',bio:'Fresh homemade food from a new cook.',orders:0,followers:0,dishes:1,availability:time,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0'});
-  dishes.unshift({id:dishes.length+1,name:dish,cookId:id,tag:'Homemade',desc:'Fresh homemade dish made by a local cook.',price:150,img:'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=600&q=70',tags:['New Cook','Homemade'],sauces,drinks,prepTime:prep});
+  const image = cookPhotoPreviewUrl || 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=600&q=70';
+  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',city,rating:5.0,reviews:0,dish,price:150,verified:true,verifiedPhoto:cameraPhotoVerified,img:image,bio,orders:0,followers:0,dishes:1,availability:time,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0'});
+  dishes.unshift({id:dishes.length+1,name:dish,cookId:id,tag:'Homemade',desc:bio,price:150,img:image,tags:['New Cook','Homemade'],sauces,drinks,prepTime:prep});
   renderHomeCooks();renderBrowseCooks();renderDishes();renderFavorites();
   showToast('✅ Your cook profile and first dish were created for review.', 'success');
   showPage('browse',document.querySelector('[onclick*="browse"]'));
@@ -2502,8 +2817,8 @@ function getFilteredCooks() {
   const sort = document.getElementById('cookSortSelect')?.value || 'top-rated';
   const cuisine = document.getElementById('cookCuisineSelect')?.value || '';
   const city = document.getElementById('cookCitySelect')?.value || '';
-  const currentCity = document.getElementById('cityLabel')?.textContent?.trim() || 'Istanbul';
-  let list = cooks.filter(c =>
+  const currentCity = document.getElementById('cityLabel')?.dataset.city || 'Istanbul';
+  let list = countryCooks().filter(c =>
     (!cuisine || c.cuisine.toLowerCase().includes(cuisine.toLowerCase())) &&
     (!city || c.city === city)
   );

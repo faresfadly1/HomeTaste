@@ -5,6 +5,7 @@ create table if not exists app_users (
   password_hash text not null,
   role text not null check (role in ('owner', 'cook', 'customer')),
   city text,
+  country text not null default 'TR' check (country in ('TR', 'DE')),
   phone text,
   created_at timestamptz not null default now()
 );
