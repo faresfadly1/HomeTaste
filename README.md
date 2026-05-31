@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HomeTaste System
 
 HomeTaste is now a working full-stack local system with:
