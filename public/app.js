@@ -1,5 +1,10 @@
 const app = document.querySelector("#app");
 const storageKey = "hometaste_token";
+const isGitHubPages = window.location.hostname.endsWith("github.io");
+
+if (isGitHubPages && !window.location.pathname.endsWith("marketplace.html")) {
+  window.location.replace("marketplace.html?country=TR&user=Guest");
+}
 
 let token = localStorage.getItem(storageKey);
 let state = null;
@@ -355,7 +360,7 @@ function renderMarketplaceFrame() {
         </div>
       </header>
       <div class="market-content panel-hidden">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="/marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>
