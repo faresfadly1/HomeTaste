@@ -135,3 +135,10 @@ create policy "server can manage messages" on messages for all to service_role u
 create policy "server can manage notifications" on notifications for all to service_role using (true) with check (true);
 create policy "server can manage app_sessions" on app_sessions for all to service_role using (true) with check (true);
 create policy "server can manage admin_audit_log" on admin_audit_log for all to service_role using (true) with check (true);
+
+grant usage on schema public to service_role;
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
