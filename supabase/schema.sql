@@ -3,7 +3,7 @@ create table if not exists app_users (
   name text not null,
   email text not null unique,
   password_hash text not null,
-  role text not null check (role in ('owner', 'cook', 'customer')),
+  role text not null check (role in ('owner', 'cook', 'customer', 'driver')),
   city text,
   country text not null default 'TR' check (country in ('TR', 'DE')),
   phone text,
@@ -43,12 +43,13 @@ create table if not exists orders (
   id text primary key,
   customer_id text not null references app_users(id) on delete restrict,
   cook_id text not null references cook_profiles(id) on delete restrict,
+  driver_id text references app_users(id) on delete set null,
   items jsonb not null default '[]'::jsonb,
   subtotal numeric not null default 0,
   delivery_fee numeric not null default 0,
   service_fee numeric not null default 0,
   total numeric not null default 0,
-  status text not null default 'placed' check (status in ('placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled')),
+  status text not null default 'placed' check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled')),
   status_history jsonb not null default '[]'::jsonb,
   payment_method text not null default 'cash',
   delivery_address text,
@@ -95,10 +96,18 @@ create index if not exists idx_cook_profiles_user_id on cook_profiles(user_id);
 create index if not exists idx_dishes_cook_id on dishes(cook_id);
 create index if not exists idx_orders_customer_id on orders(customer_id);
 create index if not exists idx_orders_cook_id on orders(cook_id);
+create index if not exists idx_orders_driver_id on orders(driver_id);
 create index if not exists idx_orders_status on orders(status);
 create index if not exists idx_messages_order_id on messages(order_id);
 create index if not exists idx_notifications_user_id on notifications(user_id);
 create index if not exists idx_sessions_user_id on app_sessions(user_id);
+
+alter table app_users drop constraint if exists app_users_role_check;
+alter table app_users add constraint app_users_role_check check (role in ('owner', 'cook', 'customer', 'driver'));
+
+alter table orders add column if not exists driver_id text references app_users(id) on delete set null;
+alter table orders drop constraint if exists orders_status_check;
+alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled'));
 
 alter table app_users enable row level security;
 alter table cook_profiles enable row level security;

@@ -1,6 +1,8 @@
 const app = document.querySelector("#app");
 const storageKey = "hometaste_token";
 const isGitHubPages = window.location.hostname.endsWith("github.io");
+const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
+const useStaticApi = isGitHubPages && !configuredApiBase;
 const staticDbKey = "hometaste_static_db";
 const staticOwnerEmail = "firstproj77@gmail.com";
 const staticOwnerPassword = "HomeTasteadmin77$";
@@ -191,8 +193,8 @@ function useBrowserLocation() {
 }
 
 async function api(path, options = {}) {
-  if (isGitHubPages) return staticApi(path, options);
-  const res = await fetch(path, {
+  if (useStaticApi) return staticApi(path, options);
+  const res = await fetch(configuredApiBase ? `${configuredApiBase}${path}` : path, {
     ...options,
     headers: {
       "content-type": "application/json",
@@ -722,7 +724,7 @@ function renderAuth(error = "") {
     event.preventDefault();
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
-      if (isGitHubPages) {
+      if (useStaticApi) {
         const data = staticAuth(input);
         token = data.token;
         localStorage.setItem(storageKey, token);
@@ -862,7 +864,7 @@ function renderMarketplaceFrame() {
 }
 
 async function logout() {
-  if (!isGitHubPages) {
+  if (!useStaticApi) {
     try { await api("/api/auth/logout", { method: "POST" }); } catch {}
   }
   token = null;

@@ -23,6 +23,10 @@ if (existsSync(envPath)) {
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
 const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const useSupabase = Boolean(supabaseUrl && supabaseKey);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173,http://127.0.0.1:4174,http://127.0.0.1:4173")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 const json = (res, status, body) => {
   res.writeHead(status, {
@@ -31,6 +35,17 @@ const json = (res, status, body) => {
   });
   res.end(JSON.stringify(body));
 };
+
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+    res.setHeader("access-control-allow-origin", origin);
+    res.setHeader("vary", "Origin");
+    res.setHeader("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    res.setHeader("access-control-allow-headers", "content-type,authorization");
+  }
+}
 
 const hashPassword = (password, salt = crypto.randomBytes(16).toString("hex")) => {
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
@@ -570,6 +585,14 @@ async function api(req, res, pathname) {
   const db = await loadDb();
   if (ensureSystemUsers(db)) await saveDb(db);
 
+  if (req.method === "GET" && pathname === "/api/health") {
+    return json(res, 200, {
+      ok: true,
+      database: useSupabase ? "supabase" : "local-json",
+      time: now()
+    });
+  }
+
   if (req.method === "POST" && pathname === "/api/auth/signup") {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
@@ -859,6 +882,11 @@ async function staticFile(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    applyCors(req, res);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      return res.end();
+    }
     if (url.pathname.startsWith("/api/")) return await api(req, res, url.pathname);
     return await staticFile(req, res, url.pathname);
   } catch (error) {
