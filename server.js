@@ -494,6 +494,24 @@ async function api(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/state") return json(res, 200, publicState(db, user));
 
+  if (req.method === "PATCH" && pathname === "/api/auth/password") {
+    const input = await body(req);
+    const currentPassword = String(input.currentPassword || "");
+    const newPassword = String(input.newPassword || "");
+    if (!verifyPassword(currentPassword, user.passwordHash)) {
+      return json(res, 403, { error: "Current password is incorrect." });
+    }
+    if (newPassword.length < 8) {
+      return json(res, 400, { error: "New password must be at least 8 characters." });
+    }
+    if (currentPassword === newPassword) {
+      return json(res, 400, { error: "Choose a different new password." });
+    }
+    user.passwordHash = hashPassword(newPassword);
+    await saveDb(db);
+    return json(res, 200, { ok: true });
+  }
+
   if (req.method === "POST" && pathname === "/api/cooks/apply") {
     const input = await body(req);
     let cook = cookForUser(db, user.id);

@@ -52,6 +52,27 @@ function sendPreferenceToMarketplace(name, value) {
   frame.contentWindow.postMessage({ source: "HomeTaste", name, value }, window.location.origin);
 }
 
+async function handleMarketplaceMessage(event) {
+  if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
+  if (event.data.action !== "change-password") return;
+
+  const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", action: "password-result", ...payload }, event.origin);
+  try {
+    await api("/api/auth/password", {
+      method: "PATCH",
+      body: JSON.stringify({
+        currentPassword: event.data.currentPassword,
+        newPassword: event.data.newPassword
+      })
+    });
+    reply({ ok: true });
+  } catch (err) {
+    reply({ ok: false, error: err.message });
+  }
+}
+
+window.addEventListener("message", handleMarketplaceMessage);
+
 function toggleLanguageMenu(event) {
   event.stopPropagation();
   document.querySelector("#languageMenu")?.classList.toggle("open");
@@ -334,7 +355,7 @@ function renderMarketplaceFrame() {
         </div>
       </header>
       <div class="market-content panel-hidden">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="/marketplace.html?country=${marketCountry}"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="/marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>

@@ -806,6 +806,13 @@ ul{list-style:none}
 }
 .setting-label{font-size:14px;font-weight:500}
 .setting-desc{font-size:12px;color:var(--text3);margin-top:2px}
+.settings-avatar{
+  width:72px;height:72px;border-radius:50%;
+  background:var(--orange-light);border:3px solid var(--orange);
+  font-size:28px;display:grid;place-items:center;
+  overflow:hidden;flex-shrink:0;
+}
+.settings-avatar img{width:100%;height:100%;object-fit:cover}
 .toggle{
   width:44px;height:24px;border-radius:12px;
   background:var(--bg4);position:relative;cursor:pointer;
@@ -871,6 +878,31 @@ ul{list-style:none}
 }
 .modal-close:hover{background:rgba(0,0,0,0.9)}
 .modal-wrap{position:relative}
+.account-modal .modal-body{padding:24px}
+.account-form{display:grid;gap:14px}
+.account-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.account-cancel{
+  padding:12px 18px;border-radius:10px;
+  border:1px solid var(--border);background:var(--bg3);
+  font-weight:700;color:var(--text);
+}
+.payment-choice-list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.payment-choice{
+  display:flex;align-items:center;gap:10px;
+  padding:12px;border:1px solid var(--border);
+  border-radius:12px;background:var(--bg3);
+  cursor:pointer;font-weight:700;font-size:13px;
+}
+.payment-choice input{accent-color:var(--orange);width:16px;height:16px}
+.account-hint{font-size:12px;color:var(--text3);line-height:1.6}
+.profile-picture-preview{
+  min-height:180px;border:1px dashed var(--border2);
+  border-radius:14px;background:var(--bg3);
+  display:grid;place-items:center;overflow:hidden;
+  color:var(--text3);font-weight:800;margin:14px 0;
+}
+.profile-picture-preview img{width:100%;height:220px;object-fit:cover}
+.profile-picture-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 /* ======== CHECKOUT PAGE ======== */
 .checkout-layout{
@@ -1062,13 +1094,99 @@ ul{list-style:none}
 .photo-preview{min-height:110px;border:1px dashed var(--border2);border-radius:14px;display:grid;place-items:center;color:var(--text3);font-weight:800;overflow:hidden;background:rgba(255,255,255,.02);position:relative}.photo-preview img,.photo-preview video{width:100%;height:180px;object-fit:cover}.photo-preview.verified{border-color:rgba(34,197,94,.45);color:#22c55e}.photo-preview.gallery{border-color:var(--orange)}
 .tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
 .order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
-@media(max-width:900px){.welcome-grid,.cook-form,.profile-extra{grid-template-columns:1fr}.welcome-card h1{font-size:30px}.cart-panel{width:min(330px,100vw)}.main{margin-left:var(--sidebar)}}
-
-/* Mobile toggle */
-.mobile-menu-toggle{display:none}
 @media(max-width:1100px){
-  :root{--sidebar:200px;--cart:240px}
+  :root{--sidebar:200px;--cart:260px}
   .cooks-grid{grid-template-columns:repeat(3,1fr)}
+  .dishes-grid,.favorites-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:760px){
+  :root{--sidebar:0px;--cart:100vw}
+  body{padding-bottom:76px}
+  .layout{display:block;min-height:100vh}
+  .sidebar{
+    position:fixed;left:0;right:0;top:auto;bottom:0;
+    width:100%;height:76px;z-index:700;
+    border-right:0;border-top:1px solid var(--border);
+    background:rgba(22,22,22,.96);backdrop-filter:blur(14px);
+    overflow:hidden;
+  }
+  body.light-mode .sidebar{background:rgba(255,255,255,.96)}
+  .sidebar-nav{
+    height:100%;display:flex;align-items:stretch;gap:2px;
+    padding:6px;overflow-x:auto;scrollbar-width:none;
+  }
+  .sidebar-nav::-webkit-scrollbar{display:none}
+  .sidebar-bottom{display:none}
+  .nav-item{
+    min-width:76px;flex:1 0 76px;justify-content:center;
+    flex-direction:column;gap:4px;margin:0;padding:8px 6px;
+    font-size:10px;text-align:center;border-radius:12px;
+  }
+  .nav-item svg{width:18px;height:18px}
+  .nav-item.active::before{left:50%;top:0;transform:translateX(-50%);width:32px;height:3px;border-radius:0 0 3px 3px}
+  .nav-badge{position:absolute;right:10px;top:7px;margin:0}
+  .main{margin-left:0;padding-bottom:0}
+  .welcome-overlay{align-items:flex-start;overflow:auto;padding:16px}
+  .welcome-card{padding:20px;border-radius:18px;margin:12px 0 96px}
+  .welcome-card h1{font-size:28px}
+  .welcome-card p{font-size:14px}
+  .welcome-grid,.cook-form,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
+  .welcome-actions{display:grid;grid-template-columns:1fr;gap:10px}
+  .btn-apply,.btn-secondary{width:100%;text-align:center}
+  .hero{margin:14px;border-radius:18px;min-height:280px}
+  .hero-content{padding:24px;max-width:100%}
+  .hero-content h1{font-size:34px}
+  .hero-content p{font-size:14px}
+  .hero-food-img{display:none}
+  .search-section{padding:16px 14px 0}
+  .search-bar{display:grid;grid-template-columns:1fr auto;border-radius:14px;overflow:visible}
+  .search-input{min-width:0}
+  .search-divider,.search-city{display:none}
+  .btn-search{border-radius:0 14px 14px 0;padding:12px 16px}
+  .filter-chips{grid-template-columns:1fr;padding:12px 14px 4px}
+  .country-menu{max-height:230px}
+  .section,.help-layout,.cook-profile-body{padding:18px 14px}
+  .section-header{align-items:center;gap:12px}
+  .section-header h2,.page-header h1{font-size:24px}
+  .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{grid-template-columns:1fr;padding:0 14px 18px;gap:14px}
+  .page-header{padding:22px 14px 16px}
+  .messages-layout{display:grid;grid-template-rows:auto minmax(420px,1fr);height:auto;margin:0 14px 90px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
+  .chat-list{width:100%;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}
+  .chat-item{min-width:220px;border-radius:12px}
+  .chat-item.active::before{height:3px;width:50%;left:25%;top:0;bottom:auto}
+  .chat-window{min-height:430px}
+  .chat-messages{padding:14px}
+  .msg{max-width:86%}
+  .chat-input-bar{padding:10px}
+  .chat-action-btn{width:34px;height:34px}
+  .cart-panel{width:100vw;max-width:none;z-index:800}
+  .cart-floating-btn{right:16px;bottom:92px;padding:12px 15px}
+  .checkout-layout{padding:14px}
+  .checkout-section{padding:16px}
+  .payment-methods{grid-template-columns:1fr}
+  .order-card{align-items:flex-start}
+  .order-right{text-align:left}
+  .cook-profile-hero{height:auto;min-height:220px}
+  .cook-profile-info{padding:24px 14px;align-items:center;flex-direction:column;text-align:center}
+  .cook-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .cook-form{padding:18px 14px}
+  .become-hero{padding:34px 14px}
+  .become-hero h1{font-size:34px}
+  .policy-confirm{align-items:flex-start}
+  .photo-action{padding:18px}
+  .modal{width:min(94vw,520px);max-height:86vh}
+  .modal-body{padding:18px}
+  .success-overlay{padding:18px}
+  .toast-container{left:14px;right:14px;bottom:92px;transform:none}
+  .toast{width:100%;justify-content:center}
+}
+@media(max-width:420px){
+  .hero-content h1{font-size:29px}
+  .page-header h1{font-size:22px}
+  .cook-stats{grid-template-columns:1fr}
+  .order-card{display:grid}
+  .cart-item{align-items:flex-start}
+  .popular-locations button{width:100%}
 }
 </style>
 </head>
@@ -1372,6 +1490,28 @@ ul{list-style:none}
     </div>
   </div>
 
+  <!-- SUPPORT CHAT PAGE -->
+  <div class="page" id="page-support-chat">
+    <div class="page-header" style="padding-bottom:16px">
+      <h1>Live Chat</h1>
+      <p>Private support conversation with HomeTaste Admin</p>
+    </div>
+    <div class="chat-window" style="height:calc(100vh - 170px)">
+      <div class="chat-header">
+        <div class="chat-avatar" style="width:44px;height:44px;border-radius:50%;background:var(--bg3);font-size:20px;display:grid;place-items:center;flex-shrink:0">🛟</div>
+        <div class="chat-header-info">
+          <h3>HomeTaste Admin</h3>
+          <p>Admin support · Online</p>
+        </div>
+      </div>
+      <div class="chat-messages" id="supportChatMessages"></div>
+      <div class="chat-input-bar">
+        <input class="chat-input" id="supportChatInput" type="text" placeholder="Type a message..." onkeydown="handleSupportChatKey(event)" aria-label="Support message text">
+        <button class="btn-send" onclick="sendSupportMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
   <!-- BECOME A COOK PAGE -->
   <div class="page" id="page-become">
     <div class="become-hero">
@@ -1421,7 +1561,7 @@ ul{list-style:none}
     </div>
     <div class="help-layout">
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px">
-        <button class="feature-card" onclick="showToast('Support chat will open from the operations panel when connected to live support.','info')" style="text-align:center;cursor:pointer">
+        <button class="feature-card" onclick="openSupportChat()" style="text-align:center;cursor:pointer">
           <div style="font-size:30px;margin-bottom:8px">💬</div>
           <div style="font-weight:700;font-size:14px">Live Chat</div>
           <div style="font-size:12px;color:var(--text3)">Get instant help</div>
@@ -1452,11 +1592,11 @@ ul{list-style:none}
     <div class="settings-layout">
 
       <div class="checkout-section" style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
-        <div style="width:72px;height:72px;border-radius:50%;background:var(--orange-light);border:3px solid var(--orange);font-size:28px;display:grid;place-items:center">👤</div>
+        <div class="settings-avatar" id="settingsProfileAvatar">👤</div>
         <div>
-          <div style="font-size:18px;font-weight:700">Alex Johnson</div>
-          <div style="font-size:13px;color:var(--text3)">alex.johnson@email.com</div>
-          <button style="font-size:12px;color:var(--orange);font-weight:600;margin-top:6px" onclick="showToast('Profile editing is controlled from your account record.','info')">Edit Profile →</button>
+          <div id="settingsProfileName" style="font-size:18px;font-weight:700">Your account</div>
+          <div id="settingsProfileRegion" style="font-size:13px;color:var(--text3)">HomeTaste customer</div>
+          <button style="font-size:12px;color:var(--orange);font-weight:600;margin-top:6px" onclick="openProfilePicturePanel()">Change pic →</button>
         </div>
       </div>
 
@@ -1471,8 +1611,8 @@ ul{list-style:none}
           <div class="toggle on" onclick="toggleSetting(this)"></div>
         </div>
         <div class="setting-item">
-          <div><div class="setting-label">Promotions</div><div class="setting-desc">Deals and discount notifications</div></div>
-          <div class="toggle" onclick="toggleSetting(this)"></div>
+          <div><div class="setting-label">Online</div><div class="setting-desc">Switch on when you have free time to cook, switch off when unavailable</div></div>
+          <div class="toggle" onclick="toggleOnlineSetting(this)"></div>
         </div>
         <div class="setting-item">
           <div><div class="setting-label">Messages</div><div class="setting-desc">New message notifications</div></div>
@@ -1481,32 +1621,12 @@ ul{list-style:none}
       </div>
 
       <div class="settings-section">
-        <h3>Preferences</h3>
-        <div class="setting-item">
-          <div><div class="setting-label">Dark Mode</div></div>
-          <div class="toggle on" onclick="toggleSetting(this)"></div>
-        </div>
-        <div class="setting-item">
-          <div><div class="setting-label">Language</div></div>
-          <select class="filter-select" style="margin:0" onchange="setLanguage(this.value,event)">
-            <option value="EN">English</option><option value="DE">Deutsch</option><option value="TR">Türkçe</option><option value="AR">العربية</option>
-          </select>
-        </div>
-        <div class="setting-item">
-          <div><div class="setting-label">Default City</div></div>
-          <select class="filter-select" style="margin:0">
-            <option>Istanbul</option><option>Ankara</option><option>Berlin</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="settings-section">
         <h3>Account</h3>
         <div class="setting-item">
-          <div class="setting-label" style="cursor:pointer;color:var(--orange)" onclick="showToast('Password changes will be handled from secure account settings.','info')">Change Password</div>
+          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPasswordPanel()">Change Password</button>
         </div>
         <div class="setting-item">
-          <div class="setting-label" style="cursor:pointer;color:var(--orange)" onclick="showToast('Payment methods are configured during checkout and admin review.','info')">Manage Payment Methods</div>
+          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPaymentPanel()">Manage Payment Methods</button>
         </div>
         <div class="setting-item">
           <div class="setting-label" style="cursor:pointer;color:#ef4444" onclick="parent.logout ? parent.logout() : showToast('Use the top Sign out button to leave your account.','info')">Sign Out</div>
@@ -1670,6 +1790,13 @@ ul{list-style:none}
   </div>
 </div>
 
+<!-- ===== ACCOUNT MODAL ===== -->
+<div class="modal-overlay" id="accountModal" onclick="closeAccountPanel(event)">
+  <div class="modal account-modal">
+    <div class="modal-body" id="accountModalBody"></div>
+  </div>
+</div>
+
 <!-- ===== SUCCESS OVERLAY ===== -->
 <div class="success-overlay" id="successOverlay">
   <div class="success-icon">🎉</div>
@@ -1767,11 +1894,14 @@ let currentCook = null;
 let currentDish = null;
 let activeChatId = 1;
 let chatMessages = JSON.parse(JSON.stringify(messages)); // deep copy
+let supportMessages = [];
 let selectedCountry = 'TR';
 let selectedLanguage = 'EN';
+let currentUserName = 'User';
 let cameraPhotoVerified = false;
 let cookPhotoSelected = false;
 let cookPhotoPreviewUrl = '';
+let pendingProfilePicture = '';
 let lastCookFilterSummary = 'All cooks';
 const translations = {
   EN: {
@@ -2016,6 +2146,7 @@ const paymentMethodsByCountry = {
   FR: ['💳 Card', '🏦 Bank transfer', '📱 PayPal', '📱 Apple Pay', '💵 Cash'],
   NL: ['💳 Card', '🏦 iDEAL', '📱 PayPal', '📱 Apple Pay', '💵 Cash']
 };
+const allPaymentMethods = [...new Set(Object.values(paymentMethodsByCountry).flat())];
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
 const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
@@ -2059,7 +2190,10 @@ dishes.forEach((d,i)=>Object.assign(d,{
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
-  selectedCountry = new URLSearchParams(location.search).get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
+  const params = new URLSearchParams(location.search);
+  selectedCountry = params.get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
+  currentUserName = (params.get('user') || localStorage.getItem('hometaste_user_name') || 'User').trim() || 'User';
+  localStorage.setItem('hometaste_user_name', currentUserName);
   if (!['TR', 'DE'].includes(selectedCountry)) selectedCountry = 'TR';
   localStorage.setItem('hometaste_country', selectedCountry);
   document.getElementById('welcomeCountry').value = selectedCountry;
@@ -2080,6 +2214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCountrySelector();
   renderChatList();
   renderFAQ();
+  updateSettingsAccount();
   openChat(1);
   updatePaymentMethods();
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
@@ -2093,6 +2228,7 @@ function showPage(pageId, navEl) {
   if (page) page.classList.add('active');
   if (navEl) navEl.classList.add('active');
   if (pageId === 'checkout') updateCheckoutItems();
+  if (pageId === 'settings') updateSettingsAccount();
   updateCartButtonVisibility(pageId);
   document.getElementById('cityDropdown')?.classList.remove('open');
   applyTranslations();
@@ -2139,9 +2275,13 @@ function finishWelcome(goCook=false){
 }
 function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
-  const methods = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
+  const saved = getSavedPaymentMethods();
+  const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
   wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
-  const note = document.getElementById('paymentNote'); if(note) note.textContent = `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`;
+  const note = document.getElementById('paymentNote');
+  if(note) note.textContent = saved.length
+    ? `Your saved payment methods: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`
+    : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`;
 }
 function toggleCart(force){
   const panel = document.getElementById('cartPanel');
@@ -2151,7 +2291,7 @@ function toggleCart(force){
 function updateCartButtonVisibility(pageId) {
   const currentPage = pageId || document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
   const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
-  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', currentPage === 'messages' || cartOpen);
+  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', ['messages', 'support-chat'].includes(currentPage) || cartOpen);
 }
 function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMenu').classList.toggle('open'); }
 function setLanguage(lang,e,silent=false){
@@ -2274,6 +2414,7 @@ window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.data?.source !== 'HomeTaste') return;
   if (event.data.name === 'language') setLanguage(event.data.value, null, true);
   if (event.data.name === 'theme') document.body.classList.toggle('light-mode', event.data.value !== 'dark');
+  if (event.data.action === 'password-result') handlePasswordResult(event.data);
 });
 
 // ===== SEARCH (FIXED: live filtering) =====
@@ -2696,6 +2837,45 @@ function openChat(convId) {
   renderChatList();
   requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
 }
+function openSupportChat() {
+  const greeting = `Hello ${currentUserName} Welocome to HomeTaste`;
+  if (!supportMessages.some(message => message.text === greeting)) {
+    supportMessages.unshift({ text: greeting, from: 'cook', time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+  }
+  showPage('support-chat', null);
+  renderSupportChat();
+  showToast('Live chat opened with HomeTaste Admin.', 'success');
+}
+function renderSupportChat() {
+  const msgs = document.getElementById('supportChatMessages');
+  if (!msgs) return;
+  msgs.innerHTML = supportMessages.map(m => `
+    <div class="msg ${m.from === 'user' ? 'sent' : 'received'}">
+      <div class="msg-bubble">${m.text}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>`).join('');
+  msgs.scrollTop = msgs.scrollHeight;
+  requestAnimationFrame(() => document.getElementById('supportChatInput')?.focus());
+}
+function handleSupportChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendSupportMessage();
+  }
+  if (e.key === 'Escape') {
+    e.currentTarget.value = '';
+    showToast('Message cleared', 'info');
+  }
+}
+function sendSupportMessage() {
+  const input = document.getElementById('supportChatInput');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  const now = new Date();
+  supportMessages.push({text, from:'user', time: now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')});
+  input.value = '';
+  renderSupportChat();
+}
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -2785,6 +2965,166 @@ function toggleFaq(i) {
 function toggleSetting(el) {
   el.classList.toggle('on');
   showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
+}
+function toggleOnlineSetting(el) {
+  el.classList.toggle('on');
+  showToast(el.classList.contains('on') ? '🟢 You are online and available to cook' : 'Offline: customers will see you are unavailable', 'info');
+}
+
+function userPaymentKey() {
+  return `hometaste_payment_methods_${currentUserName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'user'}`;
+}
+function getSavedPaymentMethods() {
+  try {
+    const methods = JSON.parse(localStorage.getItem(userPaymentKey()) || '[]');
+    return Array.isArray(methods) ? methods.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+function setSavedPaymentMethods(methods) {
+  localStorage.setItem(userPaymentKey(), JSON.stringify(methods));
+}
+function userProfilePictureKey() {
+  return `hometaste_profile_picture_${currentUserName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'user'}`;
+}
+function getSavedProfilePicture() {
+  return localStorage.getItem(userProfilePictureKey()) || '';
+}
+function setSavedProfilePicture(value) {
+  localStorage.setItem(userProfilePictureKey(), value);
+}
+function updateSettingsAccount() {
+  const name = document.getElementById('settingsProfileName');
+  const region = document.getElementById('settingsProfileRegion');
+  const avatar = document.getElementById('settingsProfileAvatar');
+  const photo = getSavedProfilePicture();
+  if (name) name.textContent = currentUserName || 'Your account';
+  if (region) region.textContent = `${countryNames[selectedCountry] || 'Selected country'} account`;
+  if (avatar) avatar.innerHTML = photo ? `<img src="${photo}" alt="${currentUserName} profile picture">` : '👤';
+}
+function openAccountModal(html) {
+  document.getElementById('accountModalBody').innerHTML = html;
+  document.getElementById('accountModal').classList.add('open');
+}
+function closeAccountPanel(event) {
+  if (!event || event.target.id === 'accountModal' || event.target.closest('[data-close-account]')) {
+    document.getElementById('accountModal')?.classList.remove('open');
+  }
+}
+function openProfilePicturePanel() {
+  const photo = getSavedProfilePicture();
+  pendingProfilePicture = '';
+  openAccountModal(`
+    <h2>Change Profile Picture</h2>
+    <p class="account-hint">Take a fresh photo or upload one from your device, then press Save picture.</p>
+    <div class="profile-picture-preview" id="profilePicturePreview">${photo ? `<img src="${photo}" alt="Current profile picture">` : 'No profile picture selected'}</div>
+    <div class="profile-picture-actions">
+      <button class="photo-action" type="button" onclick="document.getElementById('profileCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
+      <button class="photo-action" type="button" onclick="document.getElementById('profileGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
+    </div>
+    <input id="profileCameraInput" type="file" accept="image/*" capture="user" hidden onchange="handleProfilePicture(this)">
+    <input id="profileGalleryInput" type="file" accept="image/*" hidden onchange="handleProfilePicture(this)">
+    <div class="account-actions">
+      <button class="account-cancel" type="button" onclick="removeProfilePicture()">Remove photo</button>
+      <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
+      <button class="btn-place-order" type="button" onclick="saveProfilePicture()">Save picture</button>
+    </div>
+  `);
+}
+function handleProfilePicture(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
+  const reader = new FileReader();
+  reader.onload = () => {
+    const value = String(reader.result || '');
+    pendingProfilePicture = value;
+    document.getElementById('profilePicturePreview').innerHTML = `<img src="${value}" alt="New profile picture">`;
+    showToast('Picture selected. Press Save picture to confirm.', 'info');
+  };
+  reader.readAsDataURL(file);
+}
+function saveProfilePicture() {
+  if (!pendingProfilePicture) return showToast('Choose a photo first.', 'error');
+  setSavedProfilePicture(pendingProfilePicture);
+  pendingProfilePicture = '';
+  updateSettingsAccount();
+  document.getElementById('accountModal')?.classList.remove('open');
+  showToast('Profile picture saved.', 'success');
+}
+function removeProfilePicture() {
+  localStorage.removeItem(userProfilePictureKey());
+  pendingProfilePicture = '';
+  updateSettingsAccount();
+  document.getElementById('profilePicturePreview').textContent = 'No profile picture selected';
+  showToast('Profile picture removed.', 'info');
+}
+function openPasswordPanel() {
+  openAccountModal(`
+    <h2>Change Password</h2>
+    <p class="account-hint">Update the password for ${currentUserName}. Use at least 8 characters.</p>
+    <form class="account-form" onsubmit="submitPasswordChange(event)">
+      <div class="form-group"><label>Current Password</label><input class="form-input" id="currentPasswordInput" type="password" autocomplete="current-password" required></div>
+      <div class="form-group"><label>New Password</label><input class="form-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="form-group"><label>Confirm New Password</label><input class="form-input" id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="account-actions">
+        <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Cancel</button>
+        <button class="btn-place-order" type="submit">Save Password</button>
+      </div>
+    </form>
+  `);
+}
+function submitPasswordChange(event) {
+  event.preventDefault();
+  const currentPassword = document.getElementById('currentPasswordInput').value;
+  const newPassword = document.getElementById('newPasswordInput').value;
+  const confirmPassword = document.getElementById('confirmPasswordInput').value;
+  if (newPassword !== confirmPassword) return showToast('New passwords do not match.', 'error');
+  if (newPassword.length < 8) return showToast('New password must be at least 8 characters.', 'error');
+  parent.postMessage({ source:'HomeTaste', action:'change-password', currentPassword, newPassword }, location.origin);
+  showToast('Saving password...', 'info');
+}
+function handlePasswordResult(data) {
+  if (!data.ok) return showToast(data.error || 'Password could not be changed.', 'error');
+  document.getElementById('accountModal')?.classList.remove('open');
+  showToast('Password changed successfully.', 'success');
+}
+function openPaymentPanel() {
+  const saved = new Set(getSavedPaymentMethods());
+  const defaults = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
+  const chosen = saved.size ? saved : new Set(defaults.slice(0, 3));
+  openAccountModal(`
+    <h2>Manage Payment Methods</h2>
+    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${currentUserName}.</p>
+    <div class="payment-choice-list">
+      ${allPaymentMethods.map(method => `
+        <label class="payment-choice">
+          <input type="checkbox" value="${method}" ${chosen.has(method) ? 'checked' : ''}>
+          <span>${method}</span>
+        </label>
+      `).join('')}
+    </div>
+    <div class="account-actions">
+      <button class="account-cancel" type="button" onclick="resetPaymentMethods()">Use country default</button>
+      <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Cancel</button>
+      <button class="btn-place-order" type="button" onclick="savePaymentPanel()">Save Methods</button>
+    </div>
+  `);
+}
+function savePaymentPanel() {
+  const selected = [...document.querySelectorAll('#accountModal input[type="checkbox"]:checked')].map(input => input.value);
+  if (!selected.length) return showToast('Select at least one payment method.', 'error');
+  setSavedPaymentMethods(selected);
+  updatePaymentMethods();
+  document.getElementById('accountModal')?.classList.remove('open');
+  showToast('Payment methods saved.', 'success');
+}
+function resetPaymentMethods() {
+  localStorage.removeItem(userPaymentKey());
+  updatePaymentMethods();
+  document.getElementById('accountModal')?.classList.remove('open');
+  showToast('Country default payment methods restored.', 'success');
 }
 
 // ===== CHECKOUT =====
