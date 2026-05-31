@@ -46,25 +46,53 @@ const verifyPassword = (password, stored) => {
 const id = (prefix) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
 
 const now = () => new Date().toISOString();
+const ownerEmail = "firstproj77@gmail.com";
+const ownerPassword = "HomeTasteadmin77$";
+const cookEmail = "cook1@hometaste.local";
+const cookPassword = "CookTaste$$7";
+const driverEmail = "drive1k202@gmail.com";
+const driverPassword = "DriveTaste$$7";
 
 const seedDb = () => ({
   users: [
     {
       id: "usr_owner",
       name: "HomeTaste Admin",
-      email: "firstproj77@gmail.com",
-      passwordHash: hashPassword("HomeTasteadmin77$"),
+      email: ownerEmail,
+      passwordHash: hashPassword(ownerPassword),
       role: "owner",
       city: "Istanbul",
       country: "TR",
       phone: "+90 555 000 0000",
+      createdAt: now()
+    },
+    {
+      id: "usr_cook_1",
+      name: "Aylin Demir",
+      email: cookEmail,
+      passwordHash: hashPassword(cookPassword),
+      role: "cook",
+      city: "Kadikoy",
+      country: "TR",
+      phone: "+90 555 202 0000",
+      createdAt: now()
+    },
+    {
+      id: "usr_driver_1",
+      name: "HomeTaste Driver",
+      email: driverEmail,
+      passwordHash: hashPassword(driverPassword),
+      role: "driver",
+      city: "Bursa",
+      country: "TR",
+      phone: "+90 555 101 0000",
       createdAt: now()
     }
   ],
   cooks: [
     {
       id: "cook_2",
-      userId: null,
+      userId: "usr_cook_1",
       name: "Aylin Demir",
       cuisine: "Turkish Classics",
       city: "Kadikoy",
@@ -124,6 +152,99 @@ const seedDb = () => ({
   notifications: [],
   sessions: {}
 });
+
+function ensureSystemUsers(db) {
+  let changed = false;
+  const ensureUser = ({ id: userId, name, email, password, role, city, country, phone }) => {
+    const normalizedEmail = email.toLowerCase();
+    let user = db.users.find((item) => item.email === normalizedEmail || item.id === userId);
+    if (!user) {
+      user = {
+        id: userId,
+        name,
+        email: normalizedEmail,
+        passwordHash: hashPassword(password),
+        role,
+        city,
+        country,
+        phone,
+        createdAt: now()
+      };
+      db.users.unshift(user);
+      changed = true;
+      return;
+    }
+    if (user.id !== userId) {
+      user.id = userId;
+      changed = true;
+    }
+    if (user.name !== name) {
+      user.name = name;
+      changed = true;
+    }
+    if (user.email !== normalizedEmail) {
+      user.email = normalizedEmail;
+      changed = true;
+    }
+    if (user.role !== role) {
+      user.role = role;
+      changed = true;
+    }
+    if (user.city !== city) {
+      user.city = city;
+      changed = true;
+    }
+    if (user.country !== country) {
+      user.country = country;
+      changed = true;
+    }
+    if (user.phone !== phone) {
+      user.phone = phone;
+      changed = true;
+    }
+    if (!verifyPassword(password, user.passwordHash)) {
+      user.passwordHash = hashPassword(password);
+      changed = true;
+    }
+  };
+
+  ensureUser({
+    id: "usr_owner",
+    name: "HomeTaste Admin",
+    email: ownerEmail,
+    password: ownerPassword,
+    role: "owner",
+    city: "Istanbul",
+    country: "TR",
+    phone: "+90 555 000 0000"
+  });
+  ensureUser({
+    id: "usr_cook_1",
+    name: "Aylin Demir",
+    email: cookEmail,
+    password: cookPassword,
+    role: "cook",
+    city: "Kadikoy",
+    country: "TR",
+    phone: "+90 555 202 0000"
+  });
+  ensureUser({
+    id: "usr_driver_1",
+    name: "HomeTaste Driver",
+    email: driverEmail,
+    password: driverPassword,
+    role: "driver",
+    city: "Bursa",
+    country: "TR",
+    phone: "+90 555 101 0000"
+  });
+  const primaryCook = db.cooks.find((cook) => cook.id === "cook_2");
+  if (primaryCook && primaryCook.userId !== "usr_cook_1") {
+    primaryCook.userId = "usr_cook_1";
+    changed = true;
+  }
+  return changed;
+}
 
 async function loadDb() {
   if (useSupabase) return loadSupabaseDb();
@@ -246,6 +367,7 @@ const toOrder = (row) => ({
   id: row.id,
   customerId: row.customer_id,
   cookId: row.cook_id,
+  driverId: row.driver_id,
   items: row.items || [],
   subtotal: Number(row.subtotal || 0),
   deliveryFee: Number(row.delivery_fee || 0),
@@ -264,6 +386,7 @@ const fromOrder = (order) => ({
   id: order.id,
   customer_id: order.customerId,
   cook_id: order.cookId,
+  driver_id: order.driverId,
   items: order.items || [],
   subtotal: order.subtotal || 0,
   delivery_fee: order.deliveryFee || 0,
@@ -403,6 +526,7 @@ function cookForUser(db, userId) {
 
 function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
+  if (user.role === "driver") return db.orders.filter((order) => order.driverId === user.id);
   if (user.role === "cook") {
     const cook = cookForUser(db, user.id);
     return cook ? db.orders.filter((order) => order.cookId === cook.id) : [];
@@ -433,6 +557,7 @@ function publicState(db, user = null) {
       ? {
           users: db.users.length,
           cooks: db.cooks.length,
+          drivers: db.users.filter((item) => item.role === "driver").length,
           pendingCooks: db.cooks.filter((cook) => cook.status === "pending").length,
           orders: db.orders.length,
           revenue: db.orders.reduce((sum, order) => sum + order.total, 0)
@@ -443,6 +568,7 @@ function publicState(db, user = null) {
 
 async function api(req, res, pathname) {
   const db = await loadDb();
+  if (ensureSystemUsers(db)) await saveDb(db);
 
   if (req.method === "POST" && pathname === "/api/auth/signup") {
     const input = await body(req);
@@ -587,10 +713,12 @@ async function api(req, res, pathname) {
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const defaultDriver = db.users.find((item) => item.role === "driver");
     const order = {
       id: id("ord"),
       customerId: user.id,
       cookId: firstDish.cookId,
+      driverId: defaultDriver?.id || null,
       items: normalized,
       subtotal,
       deliveryFee: 30,
@@ -607,6 +735,7 @@ async function api(req, res, pathname) {
     db.orders.unshift(order);
     const cook = db.cooks.find((item) => item.id === order.cookId);
     if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `New order ${order.id} received.`, createdAt: now(), read: false });
+    if (order.driverId) db.notifications.push({ id: id("not"), userId: order.driverId, text: `Delivery request created for ${order.id}.`, createdAt: now(), read: false });
     await saveDb(db);
     return json(res, 201, publicState(db, user));
   }
@@ -616,16 +745,20 @@ async function api(req, res, pathname) {
     if (!order) return json(res, 404, { error: "Order not found." });
     const cook = cookForUser(db, user.id);
     const input = await body(req);
-    const allowed = ["placed", "accepted", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"];
+    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"];
     if (!allowed.includes(input.status)) return json(res, 400, { error: "Invalid status." });
     const isOrderCook = cook?.id === order.cookId;
+    const isOrderDriver = order.driverId === user.id;
     const isOrderCustomer = user.id === order.customerId;
-    const customerCanReceive = isOrderCustomer && input.status === "delivered" && ["ready", "out_for_delivery"].includes(order.status);
-    if (user.role !== "owner" && !isOrderCook && !customerCanReceive) {
-      return json(res, 403, { error: "Only the cook, customer receiver, or owner can update this order." });
+    const customerCanReceive = isOrderCustomer && input.status === "delivered" && ["picked_up", "out_for_delivery"].includes(order.status);
+    if (user.role !== "owner" && !isOrderCook && !isOrderDriver && !customerCanReceive) {
+      return json(res, 403, { error: "Only the cook, assigned driver, customer receiver, or owner can update this order." });
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(input.status)) {
       return json(res, 403, { error: "Cook can accept, prepare, mark finished, or cancel." });
+    }
+    if (isOrderDriver && !["picked_up", "out_for_delivery", "delivered"].includes(input.status)) {
+      return json(res, 403, { error: "Driver can receive, start delivery, or mark delivered." });
     }
     order.status = input.status;
     order.updatedAt = now();
@@ -636,7 +769,18 @@ async function api(req, res, pathname) {
       at: order.updatedAt,
       note: String(input.note || "").trim()
     });
-    db.notifications.push({ id: id("not"), userId: order.customerId, text: `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, createdAt: now(), read: false });
+    const notifyIds = [order.customerId, order.driverId];
+    const relatedCook = db.cooks.find((item) => item.id === order.cookId);
+    if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
+    for (const userId of new Set(notifyIds.filter(Boolean))) {
+      db.notifications.push({
+        id: id("not"),
+        userId,
+        text: `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`,
+        createdAt: now(),
+        read: false
+      });
+    }
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -646,7 +790,7 @@ async function api(req, res, pathname) {
     const order = db.orders.find((item) => item.id === input.orderId);
     if (!order) return json(res, 404, { error: "Order not found." });
     const cook = cookForUser(db, user.id);
-    if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId) return json(res, 403, { error: "No access to this chat." });
+    if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId && user.id !== order.driverId) return json(res, 403, { error: "No access to this chat." });
     const msg = {
       id: id("msg"),
       orderId: order.id,
@@ -675,7 +819,7 @@ async function api(req, res, pathname) {
     const target = db.users.find((item) => item.id === pathname.split("/").pop());
     if (!target) return json(res, 404, { error: "User not found." });
     const input = await body(req);
-    if (["customer", "cook", "owner"].includes(input.role)) target.role = input.role;
+    if (["customer", "cook", "driver", "owner"].includes(input.role)) target.role = input.role;
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }

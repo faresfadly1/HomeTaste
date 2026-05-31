@@ -1,7 +1,13 @@
 const app = document.querySelector("#app");
 const storageKey = "hometaste_token";
 const isGitHubPages = window.location.hostname.endsWith("github.io");
-const staticStateKey = "hometaste_static_state";
+const staticDbKey = "hometaste_static_db";
+const staticOwnerEmail = "firstproj77@gmail.com";
+const staticOwnerPassword = "HomeTasteadmin77$";
+const staticCookEmail = "cook1@hometaste.local";
+const staticCookPassword = "CookTaste$$7";
+const staticDriverEmail = "drive1k202@gmail.com";
+const staticDriverPassword = "DriveTaste$$7";
 
 let token = localStorage.getItem(storageKey);
 let state = null;
@@ -18,17 +24,19 @@ const byId = (list, id) => list.find((item) => item.id === id);
 const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id);
 const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
+const isDriver = () => state?.user?.role === "driver";
 const roleLabel = (role) => role === "owner" ? "admin" : role;
 const statusLabels = {
   placed: "Order placed",
   accepted: "Cook accepted",
   preparing: "Being prepared",
   ready: "Finished by cook",
+  picked_up: "Received by driver",
   out_for_delivery: "On the way",
   delivered: "Received by customer",
   cancelled: "Cancelled"
 };
-const statusSteps = ["placed", "accepted", "preparing", "ready", "delivered"];
+const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered"];
 
 function toast(message, error = false) {
   const old = document.querySelector(".toast");
@@ -183,6 +191,7 @@ function useBrowserLocation() {
 }
 
 async function api(path, options = {}) {
+  if (isGitHubPages) return staticApi(path, options);
   const res = await fetch(path, {
     ...options,
     headers: {
@@ -198,15 +207,6 @@ async function api(path, options = {}) {
 
 async function refresh() {
   if (!token) return renderAuth();
-  if (isGitHubPages) {
-    state = JSON.parse(localStorage.getItem(staticStateKey) || "null");
-    if (!state?.user) {
-      token = null;
-      localStorage.removeItem(storageKey);
-      return renderAuth();
-    }
-    return renderApp();
-  }
   try {
     state = await api("/api/state");
     renderApp();
@@ -217,31 +217,438 @@ async function refresh() {
   }
 }
 
-function staticAuthState(input) {
-  const name = String(input.name || input.email?.split("@")[0] || "HomeTaste User").trim();
-  const country = ["TR", "DE"].includes(input.country) ? input.country : authCountry;
-  const city = String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim();
-  const email = String(input.email || "user@hometaste.local").trim();
+function staticSeedDb() {
+  const createdAt = new Date().toISOString();
+  return {
+    users: [
+      {
+        id: "usr_owner",
+        name: "HomeTaste Admin",
+        email: staticOwnerEmail,
+        passwordHash: staticOwnerPassword,
+        role: "owner",
+        city: "Istanbul",
+        country: "TR",
+        phone: "+90 555 000 0000",
+        createdAt
+      },
+      {
+        id: "usr_cook_1",
+        name: "Aylin Demir",
+        email: staticCookEmail,
+        passwordHash: staticCookPassword,
+        role: "cook",
+        city: "Kadikoy",
+        country: "TR",
+        phone: "+90 555 202 0000",
+        createdAt
+      },
+      {
+        id: "usr_driver_1",
+        name: "HomeTaste Driver",
+        email: staticDriverEmail,
+        passwordHash: staticDriverPassword,
+        role: "driver",
+        city: "Bursa",
+        country: "TR",
+        phone: "+90 555 101 0000",
+        createdAt
+      }
+    ],
+    cooks: [
+      {
+        id: "cook_2",
+        userId: "usr_cook_1",
+        name: "Aylin Demir",
+        cuisine: "Turkish Classics",
+        city: "Kadikoy",
+        bio: "Stuffed vegetables, soups, and trays for families.",
+        verified: true,
+        status: "approved",
+        rating: 4.8,
+        reviews: 96,
+        availability: "Weekdays 12 PM to 8 PM",
+        responseTime: "Usually replies in 12 minutes",
+        createdAt
+      },
+      {
+        id: "cook_3",
+        userId: null,
+        name: "Ravi Patel",
+        cuisine: "Indian Comfort Food",
+        city: "Besiktas",
+        bio: "Fresh curries, biryani, dal, and homemade chutneys.",
+        verified: true,
+        status: "approved",
+        rating: 4.7,
+        reviews: 74,
+        availability: "Fri to Sun 5 PM to 11 PM",
+        responseTime: "Usually replies in 18 minutes",
+        createdAt
+      }
+    ],
+    dishes: [
+      {
+        id: "dish_2",
+        cookId: "cook_2",
+        name: "Dolma Plate",
+        description: "Stuffed peppers and vine leaves with yogurt.",
+        price: 240,
+        prepMinutes: 45,
+        image: "https://images.unsplash.com/photo-1559847844-5315695dadae?w=900&q=80",
+        tags: ["turkish", "family"],
+        available: true,
+        featured: false
+      },
+      {
+        id: "dish_3",
+        cookId: "cook_3",
+        name: "Chicken Biryani",
+        description: "Layered rice, spices, chicken, raita, and chutney.",
+        price: 285,
+        prepMinutes: 50,
+        image: "https://images.unsplash.com/photo-1563379091339-03246963d7d3?w=900&q=80",
+        tags: ["spicy", "halal"],
+        available: true,
+        featured: true
+      }
+    ],
+    orders: [],
+    messages: [],
+    notifications: [],
+    sessions: {}
+  };
+}
+
+function loadStaticDb() {
+  const seeded = JSON.parse(localStorage.getItem(staticDbKey) || "null") || staticSeedDb();
+  let changed = false;
+  const ensureUser = ({ id, name, email, passwordHash, role, city, country, phone }) => {
+    let user = seeded.users.find((item) => item.id === id || item.email === email);
+    if (!user) {
+      seeded.users.push({ id, name, email, passwordHash, role, city, country, phone, createdAt: new Date().toISOString() });
+      changed = true;
+      return;
+    }
+    for (const [key, value] of Object.entries({ id, name, email, passwordHash, role, city, country, phone })) {
+      if (user[key] !== value) {
+        user[key] = value;
+        changed = true;
+      }
+    }
+  };
+  ensureUser({
+    id: "usr_owner",
+    name: "HomeTaste Admin",
+    email: staticOwnerEmail,
+    passwordHash: staticOwnerPassword,
+    role: "owner",
+    city: "Istanbul",
+    country: "TR",
+    phone: "+90 555 000 0000"
+  });
+  ensureUser({
+    id: "usr_cook_1",
+    name: "Aylin Demir",
+    email: staticCookEmail,
+    passwordHash: staticCookPassword,
+    role: "cook",
+    city: "Kadikoy",
+    country: "TR",
+    phone: "+90 555 202 0000"
+  });
+  ensureUser({
+    id: "usr_driver_1",
+    name: "HomeTaste Driver",
+    email: staticDriverEmail,
+    passwordHash: staticDriverPassword,
+    role: "driver",
+    city: "Bursa",
+    country: "TR",
+    phone: "+90 555 101 0000"
+  });
+  const primaryCook = seeded.cooks.find((cook) => cook.id === "cook_2");
+  if (primaryCook && primaryCook.userId !== "usr_cook_1") {
+    primaryCook.userId = "usr_cook_1";
+    changed = true;
+  }
+  if (changed || !localStorage.getItem(staticDbKey)) saveStaticDb(seeded);
+  return seeded;
+}
+
+function saveStaticDb(db) {
+  localStorage.setItem(staticDbKey, JSON.stringify(db));
+}
+
+function staticSafeUser(user) {
+  if (!user) return null;
+  const { passwordHash, ...rest } = user;
+  return rest;
+}
+
+function staticCookForUser(db, userId) {
+  return db.cooks.find((cook) => cook.userId === userId) || null;
+}
+
+function staticVisibleOrders(db, user) {
+  if (user.role === "owner") return db.orders;
+  if (user.role === "driver") return db.orders.filter((order) => order.driverId === user.id);
+  if (user.role === "cook") {
+    const cook = staticCookForUser(db, user.id);
+    return cook ? db.orders.filter((order) => order.cookId === cook.id) : [];
+  }
+  return db.orders.filter((order) => order.customerId === user.id);
+}
+
+function staticPublicState(db, user) {
+  const cooks = user?.role === "owner"
+    ? db.cooks
+    : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
+  const cookIds = new Set(cooks.map((cook) => cook.id));
+  const visible = user ? staticVisibleOrders(db, user) : [];
+  return {
+    user: staticSafeUser(user),
+    cooks,
+    dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
+    orders: visible,
+    messages: user ? db.messages.filter((message) => visible.some((order) => order.id === message.orderId)) : [],
+    users: user?.role === "owner" ? db.users.map(staticSafeUser) : [],
+    notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
+    stats: user?.role === "owner" ? {
+      users: db.users.length,
+      cooks: db.cooks.length,
+      drivers: db.users.filter((item) => item.role === "driver").length,
+      pendingCooks: db.cooks.filter((cook) => cook.status === "pending").length,
+      orders: db.orders.length,
+      revenue: db.orders.reduce((sum, order) => sum + order.total, 0)
+    } : null
+  };
+}
+
+function staticUserByToken(db) {
+  const session = token ? db.sessions[token] : null;
+  return session ? db.users.find((user) => user.id === session.userId) || null : null;
+}
+
+async function staticApi(path, options = {}) {
+  const method = options.method || "GET";
+  const input = options.body ? JSON.parse(options.body) : {};
+  const db = loadStaticDb();
+
+  if (method === "GET" && path === "/api/state") {
+    const user = staticUserByToken(db);
+    if (!user) throw new Error("Please sign in first.");
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path === "/api/auth/password") {
+    const user = staticUserByToken(db);
+    if (!user) throw new Error("Please sign in first.");
+    if (user.passwordHash !== String(input.currentPassword || "")) throw new Error("Current password is incorrect.");
+    if (String(input.newPassword || "").length < 8) throw new Error("New password must be at least 8 characters.");
+    user.passwordHash = String(input.newPassword);
+    saveStaticDb(db);
+    return { ok: true };
+  }
+
+  const user = staticUserByToken(db);
+  if (!user) throw new Error("Please sign in first.");
+
+  if (method === "POST" && path === "/api/cooks/apply") {
+    if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
+    const cook = {
+      id: `cook_${Date.now()}`,
+      userId: user.id,
+      name: String(input.name || user.name).trim(),
+      cuisine: String(input.cuisine || "Home Kitchen").trim(),
+      city: String(input.city || user.city || "Istanbul").trim(),
+      bio: String(input.bio || "Fresh home cooking.").trim(),
+      verified: false,
+      status: "pending",
+      rating: 5,
+      reviews: 0,
+      availability: String(input.availability || "Today").trim(),
+      responseTime: "New cook",
+      createdAt: new Date().toISOString()
+    };
+    user.role = "cook";
+    db.cooks.push(cook);
+    db.notifications.push({ id: `not_${Date.now()}`, userId: "usr_owner", text: `${cook.name} applied to become a cook.`, createdAt: new Date().toISOString(), read: false });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "POST" && path === "/api/dishes") {
+    const cook = staticCookForUser(db, user.id);
+    if (!cook && user.role !== "owner") throw new Error("Only cooks can add dishes.");
+    const dish = {
+      id: `dish_${Date.now()}`,
+      cookId: user.role === "owner" && input.cookId ? input.cookId : cook.id,
+      name: String(input.name || "").trim(),
+      description: String(input.description || "").trim(),
+      price: Number(input.price || 0),
+      prepMinutes: Number(input.prepMinutes || 30),
+      image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
+      tags: String(input.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      available: true,
+      featured: false
+    };
+    if (!dish.name || dish.price <= 0) throw new Error("Dish name and price are required.");
+    db.dishes.push(dish);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path.startsWith("/api/dishes/")) {
+    const dish = db.dishes.find((item) => item.id === path.split("/").pop());
+    if (!dish) throw new Error("Dish not found.");
+    const cook = staticCookForUser(db, user.id);
+    if (user.role !== "owner" && cook?.id !== dish.cookId) throw new Error("No access to this dish.");
+    if ("available" in input) dish.available = Boolean(input.available);
+    if ("featured" in input && user.role === "owner") dish.featured = Boolean(input.featured);
+    if (input.name) dish.name = String(input.name).trim();
+    if (input.price) dish.price = Number(input.price);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "POST" && path === "/api/orders") {
+    const items = Array.isArray(input.items) ? input.items : [];
+    if (!items.length) throw new Error("Cart is empty.");
+    const normalized = items.map((item) => {
+      const dish = db.dishes.find((d) => d.id === item.dishId && d.available);
+      if (!dish) throw new Error("A dish in your cart is unavailable.");
+      return { dishId: dish.id, name: dish.name, qty: Math.max(1, Number(item.qty || 1)), price: dish.price };
+    });
+    const firstDish = db.dishes.find((dish) => dish.id === normalized[0].dishId);
+    const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
+    if (!sameCook) throw new Error("Please order from one cook at a time.");
+    const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const driver = db.users.find((item) => item.role === "driver");
+    const createdAt = new Date().toISOString();
+    const order = {
+      id: `ord_${Date.now()}`,
+      customerId: user.id,
+      cookId: firstDish.cookId,
+      driverId: driver?.id || null,
+      items: normalized,
+      subtotal,
+      deliveryFee: 30,
+      serviceFee: 15,
+      total: subtotal + 45,
+      status: "placed",
+      statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
+      paymentMethod: String(input.paymentMethod || "cash"),
+      deliveryAddress: String(input.deliveryAddress || "").trim(),
+      notes: String(input.notes || "").trim(),
+      createdAt,
+      updatedAt: createdAt
+    };
+    db.orders.unshift(order);
+    const orderCook = db.cooks.find((item) => item.id === order.cookId);
+    if (orderCook?.userId) db.notifications.push({ id: `not_${Date.now()}_cook`, userId: orderCook.userId, text: `New order ${order.id} received.`, createdAt, read: false });
+    if (order.driverId) db.notifications.push({ id: `not_${Date.now()}_driver`, userId: order.driverId, text: `Delivery request created for ${order.id}.`, createdAt, read: false });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path.startsWith("/api/orders/")) {
+    const order = db.orders.find((item) => item.id === path.split("/").pop());
+    if (!order) throw new Error("Order not found.");
+    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"];
+    const nextStatus = String(input.status || "");
+    if (!allowed.includes(nextStatus)) throw new Error("Invalid status.");
+    const cook = staticCookForUser(db, user.id);
+    const isOrderCook = cook?.id === order.cookId;
+    const isOrderDriver = order.driverId === user.id;
+    const isOrderCustomer = order.customerId === user.id;
+    const customerCanReceive = isOrderCustomer && nextStatus === "delivered" && ["picked_up", "out_for_delivery"].includes(order.status);
+    if (user.role !== "owner" && !isOrderCook && !isOrderDriver && !customerCanReceive) {
+      throw new Error("Only the cook, assigned driver, customer receiver, or owner can update this order.");
+    }
+    if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(nextStatus)) throw new Error("Cook can accept, prepare, mark finished, or cancel.");
+    if (isOrderDriver && !["picked_up", "out_for_delivery", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, or mark delivered.");
+    order.status = nextStatus;
+    order.updatedAt = new Date().toISOString();
+    order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });
+    const orderCook = db.cooks.find((item) => item.id === order.cookId);
+    for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
+      db.notifications.push({ id: `not_${Date.now()}_${userId}`, userId, text: `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, createdAt: order.updatedAt, read: false });
+    }
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "POST" && path === "/api/messages") {
+    const order = db.orders.find((item) => item.id === input.orderId);
+    if (!order) throw new Error("Order not found.");
+    const cook = staticCookForUser(db, user.id);
+    if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId && user.id !== order.driverId) throw new Error("No access to this chat.");
+    const text = String(input.text || "").trim();
+    if (!text) throw new Error("Message cannot be empty.");
+    db.messages.push({
+      id: `msg_${Date.now()}`,
+      orderId: order.id,
+      fromUserId: user.id,
+      toCookId: order.cookId,
+      text,
+      createdAt: new Date().toISOString()
+    });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/cooks/")) {
+    const cook = db.cooks.find((item) => item.id === path.split("/").pop());
+    if (!cook) throw new Error("Cook not found.");
+    if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
+    if ("verified" in input) cook.verified = Boolean(input.verified);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/users/")) {
+    const target = db.users.find((item) => item.id === path.split("/").pop());
+    if (!target) throw new Error("User not found.");
+    if (["customer", "cook", "driver", "owner"].includes(input.role)) target.role = input.role;
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  throw new Error("Route not found.");
+}
+
+function staticAuth(input) {
+  const db = loadStaticDb();
+  const email = String(input.email || "").trim().toLowerCase();
+  const password = String(input.password || "");
+  if (mode === "login") {
+    const user = db.users.find((item) => item.email === email);
+    if (!user || user.passwordHash !== password) throw new Error("Invalid email or password.");
+    const nextToken = `static_${Date.now()}`;
+    db.sessions[nextToken] = { userId: user.id, createdAt: new Date().toISOString() };
+    saveStaticDb(db);
+    return { token: nextToken, state: staticPublicState(db, user) };
+  }
+  const name = String(input.name || email.split("@")[0] || "HomeTaste User").trim();
+  if (!name || !email || password.length < 8) throw new Error("Name, email, and an 8 character password are required.");
+  if (db.users.some((user) => user.email === email)) throw new Error("That email already exists.");
   const user = {
-    id: `static_${email.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+    id: `usr_${Date.now()}`,
     name,
     email,
+    passwordHash: password,
     role: "customer",
-    city,
-    country,
+    city: String(input.city || (input.country === "DE" ? "Berlin" : "Istanbul")).trim(),
+    country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
     phone: String(input.phone || "").trim(),
     createdAt: new Date().toISOString()
   };
-  return {
-    user,
-    cooks: [],
-    dishes: [],
-    orders: [],
-    messages: [],
-    users: [],
-    notifications: [],
-    stats: null
-  };
+  db.users.push(user);
+  const nextToken = `static_${Date.now()}`;
+  db.sessions[nextToken] = { userId: user.id, createdAt: new Date().toISOString() };
+  saveStaticDb(db);
+  return { token: nextToken, state: staticPublicState(db, user) };
 }
 
 function saveCart() {
@@ -305,12 +712,12 @@ function renderAuth(error = "") {
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
       if (isGitHubPages) {
-        state = staticAuthState(input);
-        token = `static_${Date.now()}`;
+        const data = staticAuth(input);
+        token = data.token;
         localStorage.setItem(storageKey, token);
-        localStorage.setItem(staticStateKey, JSON.stringify(state));
         authCountry = input.country || authCountry;
         localStorage.setItem("hometaste_country", authCountry);
+        state = data.state;
         page = "dashboard";
         renderApp();
         return;
@@ -330,6 +737,23 @@ function renderAuth(error = "") {
 }
 
 function navItems() {
+  if (isDriver()) {
+    return [
+      ["dashboard", "Driver Hub"],
+      ["orders", "Deliveries"],
+      ["chat", "Order chat"],
+      ["settings", "Profile"]
+    ];
+  }
+  if (isOwner()) {
+    return [
+      ["dashboard", "Dashboard"],
+      ["admin", "Admin control"],
+      ["orders", "Orders"],
+      ["chat", "Chat"],
+      ["settings", "Profile"]
+    ];
+  }
   const base = [
     ["dashboard", "Dashboard"],
     ["browse", "Browse food"],
@@ -346,7 +770,7 @@ function navItems() {
 function renderApp() {
   applyAppearance();
   if (!state?.user) return renderAuth();
-  if (!isOwner()) return renderMarketplaceFrame();
+  if (!isOwner() && !isDriver()) return renderMarketplaceFrame();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -433,7 +857,6 @@ async function logout() {
   token = null;
   state = null;
   localStorage.removeItem(storageKey);
-  localStorage.removeItem(staticStateKey);
   renderAuth();
 }
 
@@ -458,6 +881,34 @@ function renderPage() {
 }
 
 function renderDashboard() {
+  if (isDriver()) {
+    const driverOrders = state.orders || [];
+    const readyOrders = driverOrders.filter((order) => order.status === "ready").length;
+    const onRoad = driverOrders.filter((order) => ["picked_up", "out_for_delivery"].includes(order.status)).length;
+    return `
+      ${header("Driver Hub", "See ready orders, receive food from cooks, and update the delivery tracking for customers and admin.")}
+      <section class="grid cols-4">
+        <div class="stat"><small>Assigned</small><strong>${driverOrders.length}</strong></div>
+        <div class="stat"><small>Ready now</small><strong>${readyOrders}</strong></div>
+        <div class="stat"><small>On the road</small><strong>${onRoad}</strong></div>
+        <div class="stat"><small>Delivered</small><strong>${driverOrders.filter((order) => order.status === "delivered").length}</strong></div>
+      </section>
+      <section class="grid cols-2" style="margin-top:18px">
+        <div class="panel">
+          <h3>Driver actions</h3>
+          <div class="grid">
+            <button class="button" data-page="orders">Open delivery queue</button>
+            <button class="button secondary" data-page="chat">Open order chat</button>
+            <button class="button secondary" data-page="settings">View profile</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Live handoff flow</h3>
+          <div class="notice success">Cook finishes food -> driver receives food -> driver starts delivery -> customer and admin see each step live.</div>
+        </div>
+      </section>
+    `;
+  }
   const orders = state.orders;
   const revenue = orders.reduce((sum, order) => sum + order.total, 0);
   const featured = state.dishes.filter((dish) => dish.featured && dish.available).slice(0, 3);
@@ -494,9 +945,10 @@ function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   return `
     ${header("Admin Control", "All users, registrations, cooks, orders, revenue, and marketplace controls.")}
-    <section class="grid cols-4">
+    <section class="grid" style="grid-template-columns:repeat(5,minmax(0,1fr))">
       <div class="stat"><small>Users</small><strong>${state.stats.users}</strong></div>
       <div class="stat"><small>Cooks</small><strong>${state.stats.cooks}</strong></div>
+      <div class="stat"><small>Drivers</small><strong>${state.stats.drivers || 0}</strong></div>
       <div class="stat"><small>Pending cooks</small><strong>${state.stats.pendingCooks}</strong></div>
       <div class="stat"><small>Revenue</small><strong>${money(state.stats.revenue)}</strong></div>
     </section>
@@ -541,7 +993,7 @@ function renderAdmin() {
             <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? "verified" : "not verified"}</div>` : `<span class="meta">Eater account</span>`}</td>
             <td>
               <select data-role-user="${user.id}">
-                ${["customer", "cook", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
+                ${["customer", "cook", "driver", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
               </select>
             </td>
           </tr>
@@ -552,7 +1004,7 @@ function renderAdmin() {
       <h3>All orders and fulfillment control</h3>
       ${state.orders.length ? `
         <table class="table">
-          <thead><tr><th>Order</th><th>Customer</th><th>Cook</th><th>Items</th><th>Status</th><th>Admin action</th></tr></thead>
+          <thead><tr><th>Order</th><th>Customer</th><th>Cook</th><th>Driver</th><th>Items</th><th>Status</th><th>Admin action</th></tr></thead>
           <tbody>${state.orders.map(orderRow).join("")}</tbody>
         </table>
       ` : `<div class="empty">No orders yet.</div>`}
@@ -630,11 +1082,11 @@ function dishMini(dish) {
 
 function renderOrders() {
   return `
-    ${header("Orders", "Clear fulfillment flow: placed, accepted, preparing, finished, received.")}
+    ${header(isDriver() ? "Deliveries" : "Orders", isDriver() ? "Receive food from cooks, start delivery, and mark handoff updates live." : "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.")}
     <section class="panel">
       ${state.orders.length ? `
         <table class="table">
-          <thead><tr><th>Order</th><th>Items</th><th>Cook</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Order</th><th>Items</th><th>Cook</th><th>Driver</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>${state.orders.map(orderRow).join("")}</tbody>
         </table>
       ` : `<div class="empty">No orders yet.</div>`}
@@ -643,13 +1095,15 @@ function renderOrders() {
 }
 
 function orderRow(order) {
-  const canUpdate = isOwner() || (isCook() && myCook()?.id === order.cookId);
+  const canUpdate = isOwner() || (isCook() && myCook()?.id === order.cookId) || (isDriver() && order.driverId === state.user?.id);
   const customer = state.users?.find((user) => user.id === order.customerId);
+  const driver = state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null);
   return `
     <tr>
       <td><strong>${order.id}</strong><div class="meta">${new Date(order.createdAt).toLocaleString()}</div></td>
       <td>${order.items.map((item) => `${item.qty}x ${item.name}`).join("<br>")}</td>
       <td>${cookName(order.cookId)}${customer ? `<div class="meta">Customer: ${customer.name}</div>` : ""}</td>
+      <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div>` : `<span class="meta">Unassigned</span>`}</td>
       <td>${money(order.total)}</td>
       <td>${orderProgress(order)}</td>
       <td>
@@ -677,15 +1131,24 @@ function orderActionButtons(order) {
   if (isOwner()) {
     return `
       <select data-order-status="${order.id}">
-        ${["placed", "accepted", "preparing", "ready", "out_for_delivery", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabels[status]}</option>`).join("")}
+        ${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabels[status]}</option>`).join("")}
       </select>
     `;
+  }
+  if (isDriver()) {
+    const nextDriver = {
+      ready: ["picked_up", "Receive food"],
+      picked_up: ["out_for_delivery", "Start delivery"],
+      out_for_delivery: ["delivered", "Mark delivered"]
+    }[order.status];
+    if (!nextDriver) return `<span class="meta">Waiting for cook</span>`;
+    return `<button class="button small good" data-order-action="${order.id}" data-status="${nextDriver[0]}">${nextDriver[1]}</button>`;
   }
   const next = {
     placed: ["accepted", "Accept order"],
     accepted: ["preparing", "Start preparing"],
     preparing: ["ready", "Food finished"],
-    ready: ["ready", "Waiting for customer"]
+    ready: ["ready", "Waiting for driver"]
   }[order.status];
   if (!next) return `<span class="meta">Waiting</span>`;
   if (next[0] === order.status) return `<span class="meta">${next[1]}</span>`;
@@ -694,15 +1157,24 @@ function orderActionButtons(order) {
 
 function customerReceiveButton(order) {
   if (state.user?.id !== order.customerId) return "";
-  if (["ready", "out_for_delivery"].includes(order.status)) {
+  if (["picked_up", "out_for_delivery"].includes(order.status)) {
     return `<button class="button small good" data-order-action="${order.id}" data-status="delivered">Confirm received</button>`;
   }
   return "";
 }
 
 function renderRoleOperations() {
+  if (isDriver()) return renderDriverOperations();
   if (isCook()) return renderCookOperations();
   return renderCustomerOperations();
+}
+
+function renderDriverOperations() {
+  return `
+    <h3>Driver queue</h3>
+    <p class="meta">See ready orders, receive them from cooks, then update delivery progress for the customer and admin.</p>
+    ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">No assigned deliveries yet.</div>`}
+  `;
 }
 
 function renderCookOperations() {
@@ -718,7 +1190,7 @@ function renderCookOperations() {
 function renderCustomerOperations() {
   return `
     <h3>My orders</h3>
-    <p class="meta">Track your food clearly. When the cook marks it finished and you receive it, confirm receipt.</p>
+    <p class="meta">Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">No customer orders yet.</div>`}
   `;
 }
@@ -732,10 +1204,11 @@ function orderOperationCard(order) {
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
       <div class="meta">Cook: ${cookName(order.cookId)}</div>
+      ${order.driverId ? `<div class="meta">Driver: ${(state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null))?.name || "Assigned"}</div>` : ""}
       ${orderProgress(order)}
       <div class="toolbar" style="margin:10px 0 0">
-        ${isCook() ? orderActionButtons(order) : customerReceiveButton(order) || `<span class="meta">${statusLabels[order.status] || order.status}</span>`}
-        <button class="button small secondary" data-market-page="messages">Chat</button>
+        ${(isCook() || isDriver()) ? orderActionButtons(order) : customerReceiveButton(order) || `<span class="meta">${statusLabels[order.status] || order.status}</span>`}
+        ${isDriver() ? `<button class="button small secondary" data-page="chat">Chat</button>` : `<button class="button small secondary" data-market-page="messages">Chat</button>`}
       </div>
     </article>
   `;
@@ -854,6 +1327,9 @@ function cookName(cookId) {
 }
 
 function bindPage() {
+  document.querySelectorAll("[data-page]").forEach((button) => {
+    button.onclick = () => setPage(button.dataset.page);
+  });
   document.querySelectorAll("[data-add]").forEach((button) => {
     button.onclick = () => addToCart(button.dataset.add);
   });
