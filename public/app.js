@@ -1,10 +1,7 @@
 const app = document.querySelector("#app");
 const storageKey = "hometaste_token";
 const isGitHubPages = window.location.hostname.endsWith("github.io");
-
-if (isGitHubPages && !window.location.pathname.endsWith("marketplace.html")) {
-  window.location.replace("marketplace.html?country=TR&user=Guest");
-}
+const staticStateKey = "hometaste_static_state";
 
 let token = localStorage.getItem(storageKey);
 let state = null;
@@ -201,6 +198,15 @@ async function api(path, options = {}) {
 
 async function refresh() {
   if (!token) return renderAuth();
+  if (isGitHubPages) {
+    state = JSON.parse(localStorage.getItem(staticStateKey) || "null");
+    if (!state?.user) {
+      token = null;
+      localStorage.removeItem(storageKey);
+      return renderAuth();
+    }
+    return renderApp();
+  }
   try {
     state = await api("/api/state");
     renderApp();
@@ -209,6 +215,33 @@ async function refresh() {
     localStorage.removeItem(storageKey);
     renderAuth();
   }
+}
+
+function staticAuthState(input) {
+  const name = String(input.name || input.email?.split("@")[0] || "HomeTaste User").trim();
+  const country = ["TR", "DE"].includes(input.country) ? input.country : authCountry;
+  const city = String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim();
+  const email = String(input.email || "user@hometaste.local").trim();
+  const user = {
+    id: `static_${email.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+    name,
+    email,
+    role: "customer",
+    city,
+    country,
+    phone: String(input.phone || "").trim(),
+    createdAt: new Date().toISOString()
+  };
+  return {
+    user,
+    cooks: [],
+    dishes: [],
+    orders: [],
+    messages: [],
+    users: [],
+    notifications: [],
+    stats: null
+  };
 }
 
 function saveCart() {
@@ -271,6 +304,17 @@ function renderAuth(error = "") {
     event.preventDefault();
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
+      if (isGitHubPages) {
+        state = staticAuthState(input);
+        token = `static_${Date.now()}`;
+        localStorage.setItem(storageKey, token);
+        localStorage.setItem(staticStateKey, JSON.stringify(state));
+        authCountry = input.country || authCountry;
+        localStorage.setItem("hometaste_country", authCountry);
+        page = "dashboard";
+        renderApp();
+        return;
+      }
       const data = await api(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(input) });
       token = data.token;
       localStorage.setItem(storageKey, token);
@@ -383,10 +427,13 @@ function renderMarketplaceFrame() {
 }
 
 async function logout() {
-  try { await api("/api/auth/logout", { method: "POST" }); } catch {}
+  if (!isGitHubPages) {
+    try { await api("/api/auth/logout", { method: "POST" }); } catch {}
+  }
   token = null;
   state = null;
   localStorage.removeItem(storageKey);
+  localStorage.removeItem(staticStateKey);
   renderAuth();
 }
 
