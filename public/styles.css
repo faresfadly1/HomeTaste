@@ -143,6 +143,30 @@ textarea { min-height: 88px; resize: vertical; }
 .auth-hero p { max-width: 650px; color: #e7ddd2; font-size: 18px; line-height: 1.6; }
 .auth-card { margin: auto; width: min(440px, calc(100% - 32px)); padding: 22px; background: rgba(23,23,25,.96); border: 1px solid var(--line); border-radius: var(--radius); }
 .auth-card h2 { margin: 0 0 12px; }
+.auth-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.auth-switch-btn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  color: var(--muted);
+  padding: 10px 12px;
+  font-weight: 800;
+}
+.auth-switch-btn.active {
+  background: rgba(249, 115, 22, .16);
+  border-color: rgba(249, 115, 22, .42);
+  color: var(--text);
+}
+.auth-subtitle {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
 .form { display: grid; gap: 12px; }
 .notice { padding: 10px 12px; border: 1px solid var(--line); background: var(--panel-2); border-radius: var(--radius); color: var(--muted); font-size: 13px; line-height: 1.5; }
 .error { color: #fecaca; background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.35); }

@@ -574,17 +574,18 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
     const password = String(input.password || "");
-    const name = String(input.name || "").trim();
-    if (!name || !email || password.length < 8) return json(res, 400, { error: "Name, email, and an 8 character password are required." });
+    const name = String(input.name || email.split("@")[0] || "HomeTaste User").trim();
+    if (!email || password.length < 8) return json(res, 400, { error: "Email and a password with at least 8 characters are required." });
     if (db.users.some((user) => user.email === email)) return json(res, 409, { error: "That email already exists." });
+    const country = ["TR", "DE"].includes(input.country) ? input.country : "TR";
     const user = {
       id: id("usr"),
       name,
       email,
       passwordHash: hashPassword(password),
       role: "customer",
-      city: String(input.city || "Istanbul").trim(),
-      country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
+      city: String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim(),
+      country,
       phone: String(input.phone || "").trim(),
       createdAt: now()
     };

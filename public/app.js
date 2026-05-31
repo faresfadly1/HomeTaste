@@ -672,7 +672,12 @@ function renderAuth(error = "") {
         <h1>Homemade food marketplace, ready to operate.</h1>
       </section>
       <section class="auth-card">
+        <div class="auth-switch">
+          <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">Sign in</button>
+          <button class="auth-switch-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">Create account</button>
+        </div>
         <h2>${mode === "login" ? "Sign in" : "Create account"}</h2>
+        <p class="auth-subtitle">${mode === "login" ? "Use your account to open your HomeTaste dashboard." : "Create your customer account in a few seconds."}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
           <div class="field">
@@ -683,21 +688,27 @@ function renderAuth(error = "") {
             </select>
           </div>
           ${mode === "signup" ? `
-            <div class="field"><label>Name</label><input class="input" name="name" required value="New Customer"></div>
-            <div class="field"><label>City</label><input class="input" name="city" value="${authCountry === "DE" ? "Berlin" : "Istanbul"}"></div>
-            <div class="field"><label>Phone</label><input class="input" name="phone" value="+90 555 222 3333"></div>
+            <div class="field"><label>Full name</label><input class="input" name="name" placeholder="Your name"></div>
           ` : ""}
-          <div class="field"><label>Email</label><input class="input" type="email" name="email" required></div>
-          <div class="field"><label>Password</label><input class="input" type="password" name="password" required></div>
+          <div class="field"><label>Email</label><input class="input" type="email" name="email" placeholder="name@email.com" required></div>
+          <div class="field"><label>Password</label><input class="input" type="password" name="password" placeholder="At least 8 characters" required></div>
           <button class="button" type="submit">${mode === "login" ? "Sign in" : "Sign up"}</button>
         </form>
         <button class="button secondary" style="width:100%;margin-top:12px" id="switchMode">
-          ${mode === "login" ? "Create a customer account" : "I already have an account"}
+          ${mode === "login" ? "Need a new account?" : "I already have an account"}
         </button>
       </section>
     </main>
   `;
 
+  document.querySelector("#showLogin").onclick = () => {
+    mode = "login";
+    renderAuth();
+  };
+  document.querySelector("#showSignup").onclick = () => {
+    mode = "signup";
+    renderAuth();
+  };
   document.querySelector("#switchMode").onclick = () => {
     mode = mode === "login" ? "signup" : "login";
     renderAuth();
