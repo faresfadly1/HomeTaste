@@ -115,7 +115,7 @@ window.addEventListener("message", handleMarketplaceMessage);
 function updateRolePanelVisibility() {
   const content = document.querySelector(".market-content");
   if (!content || !state?.user) return;
-  const hideCustomerPanel = !isCook() && !isDriver() && currentMarketPage !== "orders";
+  const hideCustomerPanel = !isCook() && !isDriver();
   content.classList.toggle("panel-hidden", hideCustomerPanel);
 }
 
@@ -848,7 +848,7 @@ function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
   currentMarketPage = "home";
-  const hideCustomerPanel = !isCook() && !isDriver() && currentMarketPage !== "orders";
+  const hideCustomerPanel = !isCook() && !isDriver();
   app.innerHTML = `
     <div class="market-shell">
       <header class="market-top">
@@ -1335,19 +1335,7 @@ function renderCookOperations() {
 }
 
 function renderCustomerOperations() {
-  return `
-    <h3>My orders</h3>
-    <p class="meta">Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
-    ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">No customer orders yet.</div>`}
-    <h3 style="margin-top:18px">Refund requests</h3>
-    ${state.refunds?.length ? state.refunds.map((refund) => `
-      <div class="operation-card">
-        <strong>${refundLabels[refund.reason] || refund.reason}</strong>
-        <div class="meta">${refund.orderId} - ${refund.status}</div>
-        ${refund.status === "reviewed" ? `<div class="notice">Admin decision: ${refundLabels[refund.outcome] || refund.outcome} - ${money(refund.amount)}</div>` : `<div class="meta">Waiting for admin review.</div>`}
-      </div>
-    `).join("") : `<div class="empty">No refund requests yet.</div>`}
-  `;
+  return "";
 }
 
 function orderOperationCard(order) {
