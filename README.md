@@ -2,7 +2,7 @@
 
 HomeTaste is a role-based food ordering system with separate customer, cook, driver, and admin flows.
 
-The current production layer includes cook verification, meal subscriptions, order tracking, cook analytics, social actions, 15% commission accounting, payment escrow records, and refund review.
+The current production layer includes real authentication flows, live order routing fields, driver dispatch, scheduled orders, cook verification, meal subscriptions, order tracking, cook analytics, social actions, 15% commission accounting, payment escrow records, and refund review.
 
 ## Current stack
 
@@ -93,6 +93,14 @@ Set these backend environment variables in the production host:
 - `SUPABASE_URL`
 - `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`
 - `ALLOWED_ORIGINS`
+- `PUBLIC_BASE_URL`
+- `API_BASE_URL`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `APPLE_CLIENT_ID`
+- `APPLE_CLIENT_SECRET`
+- `APPLE_REDIRECT_URI`
 
 Recommended `ALLOWED_ORIGINS`:
 
@@ -128,11 +136,14 @@ Then push again so the GitHub Pages frontend talks to the live backend.
 
 Once Supabase and the hosted backend are connected:
 
+- customers can create accounts with email verification, request password reset links, and verify phone numbers
+- Google and Apple login buttons use provider OAuth callbacks when provider client IDs and secrets are configured
 - customers place orders
+- customers can schedule orders for later times such as tomorrow at 8 PM or Friday at 6 PM
 - cooks accept and finish food
-- drivers receive pickup and delivery tasks
+- drivers receive available orders, accept deliveries, update driver location, navigate, mark delivered, and see daily earnings
 - admin sees the whole system in one shared dataset
-- customers can subscribe to weekly meal plans
+- customers can subscribe to weekly meal plans from a dedicated dashboard, then pause, resume, skip a week, or cancel
 - customers can follow cooks, like dishes, comment, and share food photos
 - HomeTaste records 15% commission and the cook payout after delivery
 - customers can report refund issues for food not delivered, spoiled food, wrong orders, or missing items

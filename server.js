@@ -27,6 +27,14 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://faresfadly1.gith
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+const publicBaseUrl = (process.env.PUBLIC_BASE_URL || "https://faresfadly1.github.io/HomeTaste").replace(/\/$/, "");
+const apiBaseUrl = (process.env.API_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN && `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` || "").replace(/\/$/, "");
+const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
+const appleClientId = process.env.APPLE_CLIENT_ID || "";
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+const appleClientSecret = process.env.APPLE_CLIENT_SECRET || "";
+const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/google/callback`;
+const appleRedirectUri = process.env.APPLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/apple/callback`;
 
 const json = (res, status, body) => {
   res.writeHead(status, {
@@ -80,6 +88,148 @@ const defaultVerification = (status = "pending") => ({
 const paymentMethods = ["cash", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
 const refundReasons = ["not_delivered", "spoiled", "wrong_order", "missing_item"];
 const refundOutcomes = ["full", "half", "none"];
+const subscriptionActions = ["pause", "resume", "skip_week", "cancel"];
+
+const publicUrl = (path) => `${publicBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+
+function authToken(prefix = "tok") {
+  return `${prefix}_${crypto.randomBytes(24).toString("hex")}`;
+}
+
+function addAuthToken(db, { userId = null, email = "", phone = "", type, ttlMinutes = 30, meta = {} }) {
+  const token = authToken(type.slice(0, 3));
+  db.authTokens.unshift({
+    id: id("aut"),
+    token,
+    userId,
+    email: String(email || "").trim().toLowerCase(),
+    phone: String(phone || "").trim(),
+    type,
+    meta,
+    consumedAt: null,
+    expiresAt: new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString(),
+    createdAt: now()
+  });
+  return token;
+}
+
+function consumeAuthToken(db, token, type) {
+  const item = db.authTokens.find((entry) => entry.token === token && entry.type === type && !entry.consumedAt);
+  if (!item) return null;
+  if (new Date(item.expiresAt).getTime() < Date.now()) return null;
+  item.consumedAt = now();
+  return item;
+}
+
+function verificationUrl(token) {
+  return publicUrl(`/settings/?verify=${encodeURIComponent(token)}`);
+}
+
+function resetUrl(token) {
+  return publicUrl(`/?reset=${encodeURIComponent(token)}`);
+}
+
+function oauthReturnUrl(params) {
+  const url = new URL(publicUrl("/"));
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+function redirect(res, url) {
+  res.writeHead(302, { location: url });
+  res.end();
+}
+
+function jwtPayload(token) {
+  const payload = String(token || "").split(".")[1];
+  if (!payload) return {};
+  const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+  return JSON.parse(Buffer.from(normalized, "base64url").toString("utf8"));
+}
+
+function findOrCreateOAuthUser(db, { provider, providerId, email, name, emailVerified }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  let user = db.users.find((item) => item.authProvider === provider && item.authMeta?.providerId === providerId);
+  if (!user && normalizedEmail) user = db.users.find((item) => item.email === normalizedEmail);
+  if (!user) {
+    user = {
+      id: id("usr"),
+      name: String(name || normalizedEmail.split("@")[0] || `${provider} user`).trim(),
+      email: normalizedEmail || `${providerId}@${provider}.hometaste.local`,
+      passwordHash: hashPassword(authToken("oauth_password")),
+      role: "customer",
+      city: "Istanbul",
+      country: "TR",
+      phone: "",
+      emailVerified: Boolean(emailVerified),
+      phoneVerified: false,
+      authProvider: provider,
+      authMeta: { providerId },
+      createdAt: now()
+    };
+    db.users.push(user);
+  }
+  user.authProvider = provider;
+  user.authMeta = { ...(user.authMeta || {}), providerId };
+  if (normalizedEmail) user.email = normalizedEmail;
+  if (name) user.name = String(name).trim();
+  if (emailVerified) user.emailVerified = true;
+  return user;
+}
+
+function coordinateFromText(text, fallback = { lat: 41.0082, lng: 28.9784 }) {
+  const input = String(text || "").toLowerCase();
+  const known = [
+    ["istanbul", 41.0082, 28.9784],
+    ["kadikoy", 40.9909, 29.0303],
+    ["besiktas", 41.0438, 29.0094],
+    ["bursa", 40.1885, 29.061],
+    ["ankara", 39.9334, 32.8597],
+    ["berlin", 52.52, 13.405],
+    ["munich", 48.1351, 11.582]
+  ].find(([name]) => input.includes(name));
+  return known ? { lat: known[1], lng: known[2] } : fallback;
+}
+
+function normalizeLocation(value, fallbackText = "") {
+  if (value && typeof value === "object") {
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  const text = typeof value === "string" ? value : fallbackText;
+  const match = String(text || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  if (match) return { lat: Number(match[1]), lng: Number(match[2]) };
+  return coordinateFromText(text);
+}
+
+function distanceKm(a, b) {
+  const toRad = (deg) => deg * Math.PI / 180;
+  const radius = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * radius * Math.asin(Math.sqrt(h));
+}
+
+function routeForOrder(order) {
+  const driver = order.driverLocation || order.cookLocation || coordinateFromText("Kadikoy");
+  const customer = order.customerLocation || normalizeLocation(order.deliveryAddress || "");
+  const km = Math.max(0.5, distanceKm(driver, customer));
+  const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
+  return {
+    driver,
+    customer,
+    distanceKm: Math.round(km * 10) / 10,
+    etaMinutes,
+    polyline: [driver, customer],
+    optimizedAt: now()
+  };
+}
 
 const seedDb = () => ({
   users: [
@@ -92,6 +242,9 @@ const seedDb = () => ({
       city: "Istanbul",
       country: "TR",
       phone: "+90 555 000 0000",
+      emailVerified: true,
+      phoneVerified: true,
+      authProvider: "password",
       createdAt: now()
     },
     {
@@ -103,6 +256,9 @@ const seedDb = () => ({
       city: "Kadikoy",
       country: "TR",
       phone: "+90 555 202 0000",
+      emailVerified: true,
+      phoneVerified: true,
+      authProvider: "password",
       createdAt: now()
     },
     {
@@ -114,6 +270,9 @@ const seedDb = () => ({
       city: "Bursa",
       country: "TR",
       phone: "+90 555 101 0000",
+      emailVerified: true,
+      phoneVerified: true,
+      authProvider: "password",
       createdAt: now()
     }
   ],
@@ -196,6 +355,7 @@ const seedDb = () => ({
   payments: [],
   refunds: [],
   socialActions: [],
+  authTokens: [],
   sessions: {}
 });
 
@@ -214,6 +374,9 @@ function ensureSystemUsers(db) {
         city,
         country,
         phone,
+        emailVerified: true,
+        phoneVerified: true,
+        authProvider: "password",
         createdAt: now()
       };
       db.users.unshift(user);
@@ -248,6 +411,15 @@ function ensureSystemUsers(db) {
       user.phone = phone;
       changed = true;
     }
+    if (!user.emailVerified) {
+      user.emailVerified = true;
+      changed = true;
+    }
+    if (!user.phoneVerified) {
+      user.phoneVerified = true;
+      changed = true;
+    }
+    user.authProvider ||= "password";
     if (!verifyPassword(password, user.passwordHash)) {
       user.passwordHash = hashPassword(password);
       changed = true;
@@ -325,7 +497,13 @@ function normalizeDb(db) {
   db.payments ||= [];
   db.refunds ||= [];
   db.socialActions ||= [];
+  db.authTokens ||= [];
 
+  for (const user of db.users) {
+    user.emailVerified ??= ["owner", "cook", "driver"].includes(user.role);
+    user.phoneVerified ??= ["owner", "cook", "driver"].includes(user.role);
+    user.authProvider ||= "password";
+  }
   for (const cook of db.cooks) {
     cook.verification ||= defaultVerification(cook.verified ? "verified" : "pending");
     cook.followers ||= 0;
@@ -333,6 +511,18 @@ function normalizeDb(db) {
   for (const order of db.orders) {
     order.statusHistory ||= [];
     order.payment ||= paymentLedgerForOrder(order);
+    order.scheduledFor ||= null;
+    order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
+    order.cookLocation ||= coordinateFromText(db.cooks.find((cook) => cook.id === order.cookId)?.city || "Istanbul");
+    order.driverLocation ||= order.driverId ? coordinateFromText(db.users.find((item) => item.id === order.driverId)?.city || "Istanbul") : null;
+    order.route ||= routeForOrder(order);
+    order.etaMinutes ||= order.route.etaMinutes;
+    order.dailyEarning ||= Math.round(Number(order.deliveryFee || 0) * 100) / 100;
+  }
+  for (const subscription of db.subscriptions) {
+    subscription.status ||= "active";
+    subscription.skipWeeks ||= [];
+    subscription.pausedAt ||= null;
   }
   if (!db.mealPlans.length && db.cooks.some((cook) => cook.id === "cook_2")) {
     db.mealPlans.push({
@@ -394,10 +584,30 @@ const toUser = (row) => ({
   city: row.city,
   country: row.country || "TR",
   phone: row.phone,
+  emailVerified: Boolean(row.email_verified),
+  phoneVerified: Boolean(row.phone_verified),
+  authProvider: row.auth_provider || "password",
+  authMeta: row.auth_meta || {},
   createdAt: row.created_at
 });
 
 const fromUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  password_hash: user.passwordHash,
+  role: user.role,
+  city: user.city || "",
+  country: user.country || "TR",
+  phone: user.phone || "",
+  email_verified: Boolean(user.emailVerified),
+  phone_verified: Boolean(user.phoneVerified),
+  auth_provider: user.authProvider || "password",
+  auth_meta: user.authMeta || {},
+  created_at: user.createdAt || now()
+});
+
+const fromUserLegacy = (user) => ({
   id: user.id,
   name: user.name,
   email: user.email,
@@ -486,6 +696,12 @@ const toOrder = (row) => ({
   paymentMethod: row.payment_method,
   payment: row.payment || null,
   deliveryAddress: row.delivery_address,
+  scheduledFor: row.scheduled_for,
+  customerLocation: row.customer_location || null,
+  cookLocation: row.cook_location || null,
+  driverLocation: row.driver_location || null,
+  route: row.route || null,
+  etaMinutes: Number(row.eta_minutes || 0),
   notes: row.notes,
   createdAt: row.created_at,
   updatedAt: row.updated_at
@@ -505,6 +721,40 @@ const fromOrder = (order) => ({
   status_history: order.statusHistory || [],
   payment_method: order.paymentMethod || "cash",
   payment: order.payment || paymentLedgerForOrder(order),
+  delivery_address: order.deliveryAddress || "",
+  scheduled_for: order.scheduledFor || null,
+  customer_location: order.customerLocation || null,
+  cook_location: order.cookLocation || null,
+  driver_location: order.driverLocation || null,
+  route: order.route || routeForOrder(order),
+  eta_minutes: order.etaMinutes || order.route?.etaMinutes || null,
+  notes: order.notes || "",
+  created_at: order.createdAt || now(),
+  updated_at: order.updatedAt || now()
+});
+
+const fromOrderLegacy = (order) => ({
+  id: order.id,
+  customer_id: order.customerId,
+  cook_id: order.cookId,
+  driver_id: order.driverId,
+  items: order.items || [],
+  subtotal: order.subtotal || 0,
+  delivery_fee: order.deliveryFee || 0,
+  service_fee: order.serviceFee || 0,
+  total: order.total || 0,
+  status: order.status,
+  status_history: order.statusHistory || [],
+  payment_method: order.paymentMethod || "cash",
+  payment: {
+    ...(order.payment || paymentLedgerForOrder(order)),
+    scheduledFor: order.scheduledFor || null,
+    customerLocation: order.customerLocation || null,
+    cookLocation: order.cookLocation || null,
+    driverLocation: order.driverLocation || null,
+    route: order.route || routeForOrder(order),
+    etaMinutes: order.etaMinutes || order.route?.etaMinutes || null
+  },
   delivery_address: order.deliveryAddress || "",
   notes: order.notes || "",
   created_at: order.createdAt || now(),
@@ -578,6 +828,8 @@ const toSubscription = (row) => ({
   price: Number(row.price || 0),
   status: row.status,
   nextDeliveryAt: row.next_delivery_at,
+  skipWeeks: row.skip_weeks || [],
+  pausedAt: row.paused_at,
   createdAt: row.created_at
 });
 
@@ -590,7 +842,47 @@ const fromSubscription = (subscription) => ({
   price: subscription.price || 0,
   status: subscription.status || "active",
   next_delivery_at: subscription.nextDeliveryAt || null,
+  skip_weeks: subscription.skipWeeks || [],
+  paused_at: subscription.pausedAt || null,
   created_at: subscription.createdAt || now()
+});
+
+const fromSubscriptionLegacy = (subscription) => ({
+  id: subscription.id,
+  customer_id: subscription.customerId,
+  cook_id: subscription.cookId,
+  plan_id: subscription.planId,
+  meals_per_week: subscription.mealsPerWeek || 0,
+  price: subscription.price || 0,
+  status: subscription.status || "active",
+  next_delivery_at: subscription.nextDeliveryAt || null,
+  created_at: subscription.createdAt || now()
+});
+
+const toAuthToken = (row) => ({
+  id: row.id,
+  token: row.token,
+  userId: row.user_id,
+  email: row.email || "",
+  phone: row.phone || "",
+  type: row.type,
+  meta: row.meta || {},
+  consumedAt: row.consumed_at,
+  expiresAt: row.expires_at,
+  createdAt: row.created_at
+});
+
+const fromAuthToken = (entry) => ({
+  id: entry.id,
+  token: entry.token,
+  user_id: entry.userId || null,
+  email: entry.email || "",
+  phone: entry.phone || "",
+  type: entry.type,
+  meta: entry.meta || {},
+  consumed_at: entry.consumedAt || null,
+  expires_at: entry.expiresAt,
+  created_at: entry.createdAt || now()
 });
 
 const toPayment = (row) => ({
@@ -676,7 +968,7 @@ const fromSocialAction = (action) => ({
 });
 
 async function loadSupabaseDb() {
-  const [users, cooks, dishes, orders, messages, notifications, sessions, mealPlans, subscriptions, payments, refunds, socialActions] = await Promise.all([
+  const [users, cooks, dishes, orders, messages, notifications, sessions, mealPlans, subscriptions, payments, refunds, socialActions, authTokens] = await Promise.all([
     supabaseRequest("app_users", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("cook_profiles", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("dishes", { query: "?select=*" }),
@@ -688,7 +980,8 @@ async function loadSupabaseDb() {
     supabaseRequest("subscriptions", { query: "?select=*&order=created_at.desc" }),
     supabaseRequest("payments", { query: "?select=*&order=created_at.desc" }),
     supabaseRequest("refunds", { query: "?select=*&order=created_at.desc" }),
-    supabaseRequest("social_actions", { query: "?select=*&order=created_at.desc" })
+    supabaseRequest("social_actions", { query: "?select=*&order=created_at.desc" }),
+    supabaseRequest("auth_tokens", { query: "?select=*&order=created_at.desc" }).catch(() => [])
   ]);
 
   if (!users.length) {
@@ -709,6 +1002,7 @@ async function loadSupabaseDb() {
     payments: payments.map(toPayment),
     refunds: refunds.map(toRefund),
     socialActions: socialActions.map(toSocialAction),
+    authTokens: authTokens.map(toAuthToken),
     sessions: Object.fromEntries(sessions.map((session) => [session.token, { userId: session.user_id, createdAt: session.created_at }]))
   });
 }
@@ -724,17 +1018,28 @@ async function upsert(table, rows, conflict = "id") {
 }
 
 async function saveSupabaseDb(db) {
-  await upsert("app_users", db.users.map(fromUser));
+  async function compatibleUpsert(table, rows, fallbackRows) {
+    try {
+      return await upsert(table, rows);
+    } catch (err) {
+      if (!fallbackRows) throw err;
+      console.warn(`Falling back to legacy ${table} payload: ${err.message}`);
+      return await upsert(table, fallbackRows);
+    }
+  }
+
+  await compatibleUpsert("app_users", db.users.map(fromUser), db.users.map(fromUserLegacy));
   await upsert("cook_profiles", db.cooks.map(fromCook));
   await upsert("dishes", db.dishes.map(fromDish));
-  await upsert("orders", db.orders.map(fromOrder));
+  await compatibleUpsert("orders", db.orders.map(fromOrder), db.orders.map(fromOrderLegacy));
   await upsert("messages", db.messages.map(fromMessage));
   await upsert("notifications", db.notifications.map(fromNotification));
   await upsert("meal_plans", db.mealPlans.map(fromMealPlan));
-  await upsert("subscriptions", db.subscriptions.map(fromSubscription));
+  await compatibleUpsert("subscriptions", db.subscriptions.map(fromSubscription), db.subscriptions.map(fromSubscriptionLegacy));
   await upsert("payments", db.payments.map(fromPayment));
   await upsert("refunds", db.refunds.map(fromRefund));
   await upsert("social_actions", db.socialActions.map(fromSocialAction));
+  await upsert("auth_tokens", db.authTokens.map(fromAuthToken)).catch(() => []);
   await supabaseRequest("app_sessions", {
     method: "DELETE",
     query: "?token=neq.__never_match__",
@@ -752,7 +1057,12 @@ async function body(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+  if (!raw) return {};
+  const type = String(req.headers["content-type"] || "");
+  if (type.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(raw).entries());
+  }
+  return JSON.parse(raw);
 }
 
 function safeUser(user) {
@@ -779,7 +1089,11 @@ function cookForUser(db, userId) {
 
 function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
-  if (user.role === "driver") return db.orders.filter((order) => order.driverId === user.id);
+  if (user.role === "driver") {
+    return db.orders
+      .filter((order) => order.driverId === user.id || (!order.driverId && ["accepted", "preparing", "ready"].includes(order.status)))
+      .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
+  }
   if (user.role === "cook") {
     const cook = cookForUser(db, user.id);
     return cook ? db.orders.filter((order) => order.cookId === cook.id) : [];
@@ -869,8 +1183,195 @@ async function api(req, res, pathname) {
     return json(res, 200, {
       ok: true,
       database: useSupabase ? "supabase" : "local-json",
+      auth: {
+        emailVerification: true,
+        phoneVerification: true,
+        passwordReset: true,
+        google: Boolean(googleClientId && googleClientSecret),
+        apple: Boolean(appleClientId && appleClientSecret)
+      },
       time: now()
     });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/verify-email/request") {
+    const input = await body(req);
+    const email = String(input.email || "").trim().toLowerCase();
+    const user = db.users.find((item) => item.email === email);
+    if (!user) return json(res, 404, { error: "No account exists for that email." });
+    const token = addAuthToken(db, { userId: user.id, email, type: "email_verification", ttlMinutes: 60 });
+    user.pendingEmailVerificationUrl = verificationUrl(token);
+    await saveDb(db);
+    return json(res, 200, {
+      ok: true,
+      message: "Verification link created.",
+      verificationUrl: verificationUrl(token)
+    });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/verify-email/confirm") {
+    const input = await body(req);
+    const entry = consumeAuthToken(db, String(input.token || ""), "email_verification");
+    if (!entry) return json(res, 400, { error: "Verification link is invalid or expired." });
+    const user = db.users.find((item) => item.id === entry.userId || item.email === entry.email);
+    if (!user) return json(res, 404, { error: "User not found." });
+    user.emailVerified = true;
+    user.pendingEmailVerificationUrl = "";
+    await saveDb(db);
+    return json(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/password/request") {
+    const input = await body(req);
+    const email = String(input.email || "").trim().toLowerCase();
+    const user = db.users.find((item) => item.email === email);
+    if (!user) return json(res, 200, { ok: true, message: "If the email exists, a reset link was created." });
+    const token = addAuthToken(db, { userId: user.id, email, type: "password_reset", ttlMinutes: 30 });
+    user.pendingPasswordResetUrl = resetUrl(token);
+    await saveDb(db);
+    return json(res, 200, {
+      ok: true,
+      message: "Password reset link created.",
+      resetUrl: resetUrl(token)
+    });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/password/reset") {
+    const input = await body(req);
+    const entry = consumeAuthToken(db, String(input.token || ""), "password_reset");
+    const newPassword = String(input.newPassword || "");
+    if (!entry) return json(res, 400, { error: "Reset link is invalid or expired." });
+    if (newPassword.length < 8) return json(res, 400, { error: "New password must be at least 8 characters." });
+    const user = db.users.find((item) => item.id === entry.userId || item.email === entry.email);
+    if (!user) return json(res, 404, { error: "User not found." });
+    user.passwordHash = hashPassword(newPassword);
+    user.pendingPasswordResetUrl = "";
+    await saveDb(db);
+    return json(res, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/oauth/start") {
+    const input = await body(req);
+    const provider = String(input.provider || "").trim();
+    const stateToken = addAuthToken(db, { type: "oauth_state", ttlMinutes: 10, meta: { provider } });
+    await saveDb(db);
+    if (provider === "google") {
+      if (!googleClientId || !googleClientSecret) return json(res, 501, { error: "Google login needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in production." });
+      const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      url.searchParams.set("client_id", googleClientId);
+      url.searchParams.set("redirect_uri", googleRedirectUri);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("scope", "openid email profile");
+      url.searchParams.set("state", stateToken);
+      return json(res, 200, { provider, url: url.toString() });
+    }
+    if (provider === "apple") {
+      if (!appleClientId || !appleClientSecret) return json(res, 501, { error: "Apple login needs APPLE_CLIENT_ID and APPLE_CLIENT_SECRET in production." });
+      const url = new URL("https://appleid.apple.com/auth/authorize");
+      url.searchParams.set("client_id", appleClientId);
+      url.searchParams.set("redirect_uri", appleRedirectUri);
+      url.searchParams.set("response_type", "code id_token");
+      url.searchParams.set("scope", "name email");
+      url.searchParams.set("state", stateToken);
+      return json(res, 200, { provider, url: url.toString() });
+    }
+    return json(res, 400, { error: "Provider must be google or apple." });
+  }
+
+  if (req.method === "GET" && pathname === "/api/auth/oauth/google/callback") {
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const entry = consumeAuthToken(db, state, "oauth_state");
+    if (!entry || entry.meta?.provider !== "google") {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: "Invalid Google login state." }));
+    }
+    if (!code || !googleClientId || !googleClientSecret) {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: "Google login is not fully configured." }));
+    }
+    try {
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: googleClientId,
+          client_secret: googleClientSecret,
+          redirect_uri: googleRedirectUri,
+          grant_type: "authorization_code"
+        })
+      });
+      const tokenBody = await tokenResponse.json();
+      if (!tokenResponse.ok || !tokenBody.id_token) throw new Error(tokenBody.error_description || "Google token exchange failed.");
+      const profileResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokenBody.id_token)}`);
+      const profile = await profileResponse.json();
+      if (!profileResponse.ok || profile.aud !== googleClientId || !profile.sub) throw new Error("Google identity token could not be verified.");
+      const user = findOrCreateOAuthUser(db, {
+        provider: "google",
+        providerId: profile.sub,
+        email: profile.email,
+        name: profile.name,
+        emailVerified: profile.email_verified === "true" || profile.email_verified === true
+      });
+      const token = id("ses");
+      db.sessions[token] = { userId: user.id, createdAt: now() };
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authToken: token }));
+    } catch (err) {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: err.message || "Google login failed." }));
+    }
+  }
+
+  if ((req.method === "GET" || req.method === "POST") && pathname === "/api/auth/oauth/apple/callback") {
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const input = req.method === "POST" ? await body(req) : Object.fromEntries(url.searchParams.entries());
+    const code = input.code;
+    const state = input.state;
+    const entry = consumeAuthToken(db, state, "oauth_state");
+    if (!entry || entry.meta?.provider !== "apple") {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: "Invalid Apple login state." }));
+    }
+    if (!code || !appleClientId || !appleClientSecret) {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: "Apple login is not fully configured." }));
+    }
+    try {
+      const tokenResponse = await fetch("https://appleid.apple.com/auth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: appleClientId,
+          client_secret: appleClientSecret,
+          redirect_uri: appleRedirectUri,
+          grant_type: "authorization_code"
+        })
+      });
+      const tokenBody = await tokenResponse.json();
+      if (!tokenResponse.ok || !tokenBody.id_token) throw new Error(tokenBody.error || "Apple token exchange failed.");
+      const profile = jwtPayload(tokenBody.id_token);
+      if (profile.iss !== "https://appleid.apple.com" || profile.aud !== appleClientId || !profile.sub) throw new Error("Apple identity token could not be verified.");
+      const appleUser = input.user ? JSON.parse(input.user) : {};
+      const name = [appleUser.name?.firstName, appleUser.name?.lastName].filter(Boolean).join(" ");
+      const user = findOrCreateOAuthUser(db, {
+        provider: "apple",
+        providerId: profile.sub,
+        email: profile.email,
+        name,
+        emailVerified: profile.email_verified === "true" || profile.email_verified === true
+      });
+      const token = id("ses");
+      db.sessions[token] = { userId: user.id, createdAt: now() };
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authToken: token }));
+    } catch (err) {
+      await saveDb(db);
+      return redirect(res, oauthReturnUrl({ authError: err.message || "Apple login failed." }));
+    }
   }
 
   if (req.method === "POST" && pathname === "/api/auth/signup") {
@@ -890,13 +1391,19 @@ async function api(req, res, pathname) {
       city: String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim(),
       country,
       phone: String(input.phone || "").trim(),
+      emailVerified: false,
+      phoneVerified: false,
+      authProvider: "password",
+      authMeta: {},
       createdAt: now()
     };
     db.users.push(user);
+    const verifyToken = addAuthToken(db, { userId: user.id, email: user.email, type: "email_verification", ttlMinutes: 60 });
+    user.pendingEmailVerificationUrl = verificationUrl(verifyToken);
     const token = id("ses");
     db.sessions[token] = { userId: user.id, createdAt: now() };
     await saveDb(db);
-    return json(res, 201, { token, state: publicState(db, user) });
+    return json(res, 201, { token, state: publicState(db, user), verificationUrl: verificationUrl(verifyToken) });
   }
 
   if (req.method === "POST" && pathname === "/api/auth/login") {
@@ -923,6 +1430,37 @@ async function api(req, res, pathname) {
   if (!user) return json(res, 401, { error: "Please sign in first." });
 
   if (req.method === "GET" && pathname === "/api/state") return json(res, 200, publicState(db, user));
+
+  if (req.method === "POST" && pathname === "/api/auth/phone/request") {
+    const input = await body(req);
+    const phone = String(input.phone || user.phone || "").trim();
+    if (!phone) return json(res, 400, { error: "Phone number is required." });
+    const code = String(crypto.randomInt(100000, 999999));
+    addAuthToken(db, { userId: user.id, phone, type: "phone_verification", ttlMinutes: 10, meta: { code } });
+    user.phone = phone;
+    user.pendingPhoneCode = code;
+    await saveDb(db);
+    return json(res, 200, { ok: true, code, message: "SMS code created." });
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/phone/confirm") {
+    const input = await body(req);
+    const code = String(input.code || "").trim();
+    const entry = db.authTokens.find((item) =>
+      item.userId === user.id &&
+      item.type === "phone_verification" &&
+      !item.consumedAt &&
+      item.meta?.code === code &&
+      new Date(item.expiresAt).getTime() >= Date.now()
+    );
+    if (!entry) return json(res, 400, { error: "Phone code is invalid or expired." });
+    entry.consumedAt = now();
+    user.phone = entry.phone || user.phone;
+    user.phoneVerified = true;
+    user.pendingPhoneCode = "";
+    await saveDb(db);
+    return json(res, 200, { ok: true, state: publicState(db, user) });
+  }
 
   if (req.method === "PATCH" && pathname === "/api/auth/password") {
     const input = await body(req);
@@ -1018,12 +1556,13 @@ async function api(req, res, pathname) {
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
-    const defaultDriver = db.users.find((item) => item.role === "driver");
+    const customerLocation = normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
+    const cookLocation = coordinateFromText(db.cooks.find((cook) => cook.id === firstDish.cookId)?.city || "Istanbul");
     const order = {
       id: id("ord"),
       customerId: user.id,
       cookId: firstDish.cookId,
-      driverId: defaultDriver?.id || null,
+      driverId: null,
       items: normalized,
       subtotal,
       deliveryFee: 30,
@@ -1033,10 +1572,18 @@ async function api(req, res, pathname) {
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
       deliveryAddress: String(input.deliveryAddress || "").trim(),
+      scheduledFor: String(input.scheduledFor || "").trim() || null,
+      customerLocation,
+      cookLocation,
+      driverLocation: null,
+      route: null,
+      etaMinutes: null,
       notes: String(input.notes || "").trim(),
       createdAt: now(),
       updatedAt: now()
     };
+    order.route = routeForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
     order.payment = paymentLedgerForOrder(order);
     db.orders.unshift(order);
     db.payments.unshift({
@@ -1056,9 +1603,28 @@ async function api(req, res, pathname) {
     });
     const cook = db.cooks.find((item) => item.id === order.cookId);
     if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `New order ${order.id} received.`, createdAt: now(), read: false });
-    if (order.driverId) db.notifications.push({ id: id("not"), userId: order.driverId, text: `Delivery request created for ${order.id}.`, createdAt: now(), read: false });
+    for (const driver of db.users.filter((item) => item.role === "driver")) {
+      db.notifications.push({ id: id("not"), userId: driver.id, text: `Available delivery: ${order.id}.`, createdAt: now(), read: false });
+    }
     await saveDb(db);
     return json(res, 201, publicState(db, user));
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/orders/") && pathname.endsWith("/location")) {
+    const orderId = pathname.split("/").at(-2);
+    const order = db.orders.find((item) => item.id === orderId);
+    if (!order) return json(res, 404, { error: "Order not found." });
+    const input = await body(req);
+    const isOrderDriver = order.driverId === user.id || user.role === "owner";
+    const isOrderCustomer = order.customerId === user.id || user.role === "owner";
+    if (!isOrderDriver && !isOrderCustomer) return json(res, 403, { error: "No access to update this order location." });
+    if (input.driverLocation && isOrderDriver) order.driverLocation = normalizeLocation(input.driverLocation);
+    if (input.customerLocation && isOrderCustomer) order.customerLocation = normalizeLocation(input.customerLocation, order.deliveryAddress);
+    order.route = routeForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
+    order.updatedAt = now();
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
   }
 
   if (req.method === "PATCH" && pathname.startsWith("/api/orders/")) {
@@ -1110,6 +1676,25 @@ async function api(req, res, pathname) {
         read: false
       });
     }
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/driver/orders/") && pathname.endsWith("/accept")) {
+    if (user.role !== "driver" && user.role !== "owner") return json(res, 403, { error: "Only drivers can accept deliveries." });
+    const orderId = pathname.split("/").at(-2);
+    const order = db.orders.find((item) => item.id === orderId);
+    if (!order) return json(res, 404, { error: "Order not found." });
+    if (order.driverId && order.driverId !== user.id) return json(res, 409, { error: "This order is already assigned." });
+    if (!["ready", "accepted", "preparing"].includes(order.status)) return json(res, 400, { error: "Order is not ready for driver assignment." });
+    order.driverId = user.id;
+    order.driverLocation = normalizeLocation(user.city || "Istanbul");
+    order.route = routeForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
+    order.updatedAt = now();
+    order.statusHistory ||= [];
+    order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
+    db.notifications.push({ id: id("not"), userId: order.customerId, text: `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, createdAt: now(), read: false });
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -1166,6 +1751,8 @@ async function api(req, res, pathname) {
       price: plan.price,
       status: "active",
       nextDeliveryAt: String(input.nextDeliveryAt || "").trim() || null,
+      skipWeeks: [],
+      pausedAt: null,
       createdAt: now()
     };
     db.subscriptions.unshift(subscription);
@@ -1173,6 +1760,36 @@ async function api(req, res, pathname) {
     if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `${user.name} subscribed to ${plan.name}.`, createdAt: now(), read: false });
     await saveDb(db);
     return json(res, 201, publicState(db, user));
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/subscriptions/")) {
+    const subscription = db.subscriptions.find((item) => item.id === pathname.split("/").pop());
+    if (!subscription) return json(res, 404, { error: "Subscription not found." });
+    const cook = cookForUser(db, user.id);
+    if (user.role !== "owner" && user.id !== subscription.customerId && cook?.id !== subscription.cookId) {
+      return json(res, 403, { error: "No access to this subscription." });
+    }
+    const input = await body(req);
+    if (!subscriptionActions.includes(input.action)) return json(res, 400, { error: "Invalid subscription action." });
+    if (input.action === "pause") {
+      subscription.status = "paused";
+      subscription.pausedAt = now();
+    }
+    if (input.action === "resume") {
+      subscription.status = "active";
+      subscription.pausedAt = null;
+    }
+    if (input.action === "skip_week") {
+      subscription.skipWeeks ||= [];
+      const skipDate = String(input.weekOf || subscription.nextDeliveryAt || now());
+      subscription.skipWeeks.push(skipDate);
+      subscription.nextDeliveryAt = new Date(new Date(skipDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    if (input.action === "cancel") {
+      subscription.status = "cancelled";
+    }
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
   }
 
   if (req.method === "POST" && pathname === "/api/social") {
@@ -1284,7 +1901,7 @@ async function api(req, res, pathname) {
 }
 
 async function staticFile(req, res, pathname) {
-  const clean = pathname === "/" ? "/index.html" : pathname;
+  const clean = pathname === "/" ? "/index.html" : pathname.endsWith("/") ? `${pathname}index.html` : pathname;
   const filePath = path.normalize(path.join(publicDir, clean));
   if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);

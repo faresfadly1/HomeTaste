@@ -1,6 +1,6 @@
 const base = (process.argv[2] || "https://faresfadly1.github.io/HomeTaste").replace(/\/$/, "");
 const apiBase = (process.argv[3] || "https://hometaste-api-production.up.railway.app").replace(/\/$/, "");
-const routes = ["/", "/orders/", "/browse/", "/dishes/", "/favorites/", "/messages/", "/become/", "/help/", "/settings/", "/marketplace.html?page=orders"];
+const routes = ["/", "/orders/", "/browse/", "/dishes/", "/favorites/", "/messages/", "/become/", "/help/", "/settings/", "/subscriptions/", "/marketplace.html?page=orders"];
 
 let failed = false;
 
@@ -22,6 +22,8 @@ for (const route of routes) {
     await check(html.includes("HomeTaste"), `${route} contains app shell`);
   } else if (route.startsWith("/marketplace")) {
     await check(html.includes("page-track-order") && html.includes("orders-tabs"), `${route} contains mobile marketplace`);
+  } else if (route === "/settings/" || route === "/subscriptions/") {
+    await check(html.includes("../app.js"), `${route} opens the SPA shell`);
   } else {
     await check(html.includes("marketplace.html?page="), `${route} opens the routed marketplace shell`);
   }

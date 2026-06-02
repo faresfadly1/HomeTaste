@@ -7,6 +7,10 @@ create table if not exists app_users (
   city text,
   country text not null default 'TR' check (country in ('TR', 'DE')),
   phone text,
+  email_verified boolean not null default false,
+  phone_verified boolean not null default false,
+  auth_provider text not null default 'password',
+  auth_meta jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -56,6 +60,12 @@ create table if not exists orders (
   payment_method text not null default 'cash',
   payment jsonb not null default '{}'::jsonb,
   delivery_address text,
+  scheduled_for timestamptz,
+  customer_location jsonb,
+  cook_location jsonb,
+  driver_location jsonb,
+  route jsonb,
+  eta_minutes integer,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -115,6 +125,21 @@ create table if not exists subscriptions (
   price numeric not null,
   status text not null default 'active' check (status in ('active', 'paused', 'cancelled')),
   next_delivery_at timestamptz,
+  skip_weeks jsonb not null default '[]'::jsonb,
+  paused_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists auth_tokens (
+  id text primary key,
+  token text not null unique,
+  user_id text references app_users(id) on delete cascade,
+  email text,
+  phone text,
+  type text not null check (type in ('email_verification', 'phone_verification', 'password_reset', 'oauth_state')),
+  meta jsonb not null default '{}'::jsonb,
+  consumed_at timestamptz,
+  expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
 
@@ -168,6 +193,8 @@ create index if not exists idx_orders_status on orders(status);
 create index if not exists idx_messages_order_id on messages(order_id);
 create index if not exists idx_notifications_user_id on notifications(user_id);
 create index if not exists idx_sessions_user_id on app_sessions(user_id);
+create index if not exists idx_auth_tokens_token on auth_tokens(token);
+create index if not exists idx_auth_tokens_user_id on auth_tokens(user_id);
 create index if not exists idx_meal_plans_cook_id on meal_plans(cook_id);
 create index if not exists idx_subscriptions_customer_id on subscriptions(customer_id);
 create index if not exists idx_subscriptions_cook_id on subscriptions(cook_id);
@@ -178,13 +205,26 @@ create index if not exists idx_social_actions_dish_id on social_actions(dish_id)
 
 alter table app_users drop constraint if exists app_users_role_check;
 alter table app_users add constraint app_users_role_check check (role in ('owner', 'cook', 'customer', 'driver'));
+alter table app_users add column if not exists email_verified boolean not null default false;
+alter table app_users add column if not exists phone_verified boolean not null default false;
+alter table app_users add column if not exists auth_provider text not null default 'password';
+alter table app_users add column if not exists auth_meta jsonb not null default '{}'::jsonb;
 
 alter table cook_profiles add column if not exists verification jsonb not null default '{"id":"pending","address":"pending","phone":"pending","notes":""}'::jsonb;
 alter table cook_profiles add column if not exists followers integer not null default 0;
 alter table orders add column if not exists driver_id text references app_users(id) on delete set null;
 alter table orders add column if not exists payment jsonb not null default '{}'::jsonb;
+alter table orders add column if not exists scheduled_for timestamptz;
+alter table orders add column if not exists customer_location jsonb;
+alter table orders add column if not exists cook_location jsonb;
+alter table orders add column if not exists driver_location jsonb;
+alter table orders add column if not exists route jsonb;
+alter table orders add column if not exists eta_minutes integer;
 alter table orders drop constraint if exists orders_status_check;
 alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
+
+alter table subscriptions add column if not exists skip_weeks jsonb not null default '[]'::jsonb;
+alter table subscriptions add column if not exists paused_at timestamptz;
 
 alter table app_users enable row level security;
 alter table cook_profiles enable row level security;
@@ -193,6 +233,7 @@ alter table orders enable row level security;
 alter table messages enable row level security;
 alter table notifications enable row level security;
 alter table app_sessions enable row level security;
+alter table auth_tokens enable row level security;
 alter table admin_audit_log enable row level security;
 alter table meal_plans enable row level security;
 alter table subscriptions enable row level security;
@@ -207,6 +248,7 @@ drop policy if exists "server can manage orders" on orders;
 drop policy if exists "server can manage messages" on messages;
 drop policy if exists "server can manage notifications" on notifications;
 drop policy if exists "server can manage app_sessions" on app_sessions;
+drop policy if exists "server can manage auth_tokens" on auth_tokens;
 drop policy if exists "server can manage admin_audit_log" on admin_audit_log;
 drop policy if exists "server can manage meal_plans" on meal_plans;
 drop policy if exists "server can manage subscriptions" on subscriptions;
@@ -221,6 +263,7 @@ create policy "server can manage orders" on orders for all to service_role using
 create policy "server can manage messages" on messages for all to service_role using (true) with check (true);
 create policy "server can manage notifications" on notifications for all to service_role using (true) with check (true);
 create policy "server can manage app_sessions" on app_sessions for all to service_role using (true) with check (true);
+create policy "server can manage auth_tokens" on auth_tokens for all to service_role using (true) with check (true);
 create policy "server can manage admin_audit_log" on admin_audit_log for all to service_role using (true) with check (true);
 create policy "server can manage meal_plans" on meal_plans for all to service_role using (true) with check (true);
 create policy "server can manage subscriptions" on subscriptions for all to service_role using (true) with check (true);

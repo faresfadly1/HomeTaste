@@ -15,7 +15,7 @@ const staticDriverPassword = "DriveTaste$$7";
 
 let token = localStorage.getItem(storageKey);
 let state = null;
-let page = "dashboard";
+let page = null;
 let mode = "login";
 let authCountry = localStorage.getItem("hometaste_country") || "TR";
 let appLanguage = localStorage.getItem("hometaste_language") || "EN";
@@ -35,6 +35,13 @@ const routePageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "home";
   return marketplaceRoutes.has(segment) ? segment : "home";
 };
+const appRoutes = new Set(["browse", "orders", "subscriptions", "become", "settings"]);
+const routeAppPageFromLocation = () => {
+  const segment = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
+  if (segment === "messages") return "chat";
+  return appRoutes.has(segment) ? segment : "dashboard";
+};
+page = routeAppPageFromLocation();
 let currentMarketPage = routePageFromLocation();
 const statusLabels = {
   placed: "Order placed",
@@ -720,6 +727,10 @@ function renderAuth(error = "") {
         <h2>${mode === "login" ? "Sign in" : "Create account"}</h2>
         <p class="auth-subtitle">${mode === "login" ? "Use your account to open your HomeTaste dashboard." : "Create your customer account in a few seconds."}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
+        <div class="oauth-grid">
+          <button class="button secondary" type="button" data-oauth="google">Continue with Google</button>
+          <button class="button secondary" type="button" data-oauth="apple">Continue with Apple</button>
+        </div>
         <form class="form" id="authForm">
           <div class="field">
             <label>Country</label>
@@ -730,6 +741,7 @@ function renderAuth(error = "") {
           </div>
           ${mode === "signup" ? `
             <div class="field"><label>Full name</label><input class="input" name="name" placeholder="Your name"></div>
+            <div class="field"><label>Phone</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
           <div class="field"><label>Email</label><input class="input" type="email" name="email" placeholder="name@email.com" required></div>
           <div class="field"><label>Password</label><input class="input" type="password" name="password" placeholder="At least 8 characters" required></div>
@@ -738,6 +750,10 @@ function renderAuth(error = "") {
         <button class="button secondary" style="width:100%;margin-top:12px" id="switchMode">
           ${mode === "login" ? "Need a new account?" : "I already have an account"}
         </button>
+        <form class="form mini-form" id="resetRequestForm">
+          <div class="field"><label>Password reset</label><input class="input" type="email" name="email" placeholder="email for reset link"></div>
+          <button class="button secondary" type="submit">Send reset link</button>
+        </form>
       </section>
     </main>
   `;
@@ -759,6 +775,10 @@ function renderAuth(error = "") {
     localStorage.setItem("hometaste_country", authCountry);
     renderAuth();
   });
+  document.querySelectorAll("[data-oauth]").forEach((button) => {
+    button.onclick = () => startOAuth(button.dataset.oauth);
+  });
+  document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -780,6 +800,7 @@ function renderAuth(error = "") {
       authCountry = input.country || authCountry;
       localStorage.setItem("hometaste_country", authCountry);
       state = data.state;
+      if (data.verificationUrl) toast("Account created. Email verification link is ready in Profile.");
       page = "dashboard";
       renderApp();
     } catch (err) {
@@ -810,6 +831,7 @@ function navItems() {
     ["dashboard", "Dashboard"],
     ["browse", "Browse food"],
     ["orders", "Orders"],
+    ["subscriptions", "Meal plans"],
     ["chat", "Chat"],
     ["become", "Become a cook"]
   ];
@@ -822,7 +844,7 @@ function navItems() {
 function renderApp() {
   applyAppearance();
   if (!state?.user) return renderAuth();
-  if (!isOwner() && !isDriver()) return renderMarketplaceFrame();
+  if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -929,6 +951,7 @@ function renderPage() {
   if (page === "admin") return renderAdmin();
   if (page === "browse") return renderBrowse();
   if (page === "orders") return renderOrders();
+  if (page === "subscriptions") return renderSubscriptions();
   if (page === "chat") return renderChat();
   if (page === "cook") return renderCookStudio();
   if (page === "become") return renderBecomeCook();
@@ -939,28 +962,27 @@ function renderPage() {
 function renderDashboard() {
   if (isDriver()) {
     const driverOrders = state.orders || [];
-    const readyOrders = driverOrders.filter((order) => order.status === "ready").length;
-    const onRoad = driverOrders.filter((order) => ["picked_up", "out_for_delivery", "near_you"].includes(order.status)).length;
+    const availableOrders = driverOrders.filter((order) => !order.driverId && ["accepted", "preparing", "ready"].includes(order.status));
+    const assignedOrders = driverOrders.filter((order) => order.driverId === state.user.id);
+    const onRoad = assignedOrders.filter((order) => ["picked_up", "out_for_delivery", "near_you"].includes(order.status)).length;
+    const deliveredToday = assignedOrders.filter((order) => order.status === "delivered" && new Date(order.updatedAt || order.createdAt).toDateString() === new Date().toDateString());
+    const dailyEarning = deliveredToday.reduce((sum, order) => sum + Number(order.deliveryFee || 0), 0);
     return `
-      ${header("Driver Hub", "See ready orders, receive food from cooks, and update the delivery tracking for customers and admin.")}
+      ${header("Driver Hub", "Available orders, navigation, live location, delivery status, and daily earnings.")}
       <section class="grid cols-4">
-        <div class="stat"><small>Assigned</small><strong>${driverOrders.length}</strong></div>
-        <div class="stat"><small>Ready now</small><strong>${readyOrders}</strong></div>
+        <div class="stat"><small>Available</small><strong>${availableOrders.length}</strong></div>
+        <div class="stat"><small>Assigned</small><strong>${assignedOrders.length}</strong></div>
         <div class="stat"><small>On the road</small><strong>${onRoad}</strong></div>
-        <div class="stat"><small>Delivered</small><strong>${driverOrders.filter((order) => order.status === "delivered").length}</strong></div>
+        <div class="stat"><small>Daily earning</small><strong>${money(dailyEarning)}</strong></div>
       </section>
       <section class="grid cols-2" style="margin-top:18px">
         <div class="panel">
-          <h3>Driver actions</h3>
-          <div class="grid">
-            <button class="button" data-page="orders">Open delivery queue</button>
-            <button class="button secondary" data-page="chat">Open order chat</button>
-            <button class="button secondary" data-page="settings">View profile</button>
-          </div>
+          <h3>Available orders</h3>
+          ${availableOrders.map(driverOrderCard).join("") || `<div class="empty">No available orders yet.</div>`}
         </div>
         <div class="panel">
-          <h3>Live handoff flow</h3>
-          <div class="notice success">Cook finishes food -> driver receives food -> driver starts delivery -> customer and admin see each step live.</div>
+          <h3>Your deliveries</h3>
+          ${assignedOrders.map(driverOrderCard).join("") || `<div class="empty">Accept an order to start delivery.</div>`}
         </div>
       </section>
     `;
@@ -994,6 +1016,49 @@ function renderDashboard() {
         </div>
       </div>
     </section>
+  `;
+}
+
+function renderSubscriptions() {
+  const subs = state.subscriptions || [];
+  const plans = state.mealPlans || [];
+  return `
+    ${header("Meal Plan Dashboard", "Active plan, pause, resume, and skip-week controls for weekly subscriptions.")}
+    <section class="grid cols-2">
+      <div class="panel">
+        <h3>Active subscriptions</h3>
+        ${subs.length ? subs.map(subscriptionCard).join("") : `<div class="empty">No subscriptions yet. Pick a weekly plan below.</div>`}
+      </div>
+      <div class="panel">
+        <h3>Available weekly plans</h3>
+        ${plans.map((plan) => `
+          <div class="operation-card">
+            <strong>${plan.name}</strong>
+            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} meals weekly - ${money(plan.price)}</div>
+            <div class="meta">${plan.description}</div>
+            <button class="button small" data-subscribe="${plan.id}">Subscribe</button>
+          </div>
+        `).join("") || `<div class="empty">No meal plans are available.</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function subscriptionCard(subscription) {
+  const plan = byId(state.mealPlans || [], subscription.planId);
+  return `
+    <div class="operation-card">
+      <div class="price-row"><strong>${plan?.name || subscription.planId}</strong><span class="status">${subscription.status}</span></div>
+      <div class="meta">${cookName(subscription.cookId)} - ${subscription.mealsPerWeek} meals weekly - ${money(subscription.price)}</div>
+      <div class="meta">Next delivery: ${subscription.nextDeliveryAt ? new Date(subscription.nextDeliveryAt).toLocaleString() : "Not scheduled"}</div>
+      <div class="meta">Skipped weeks: ${(subscription.skipWeeks || []).length}</div>
+      <div class="toolbar" style="margin:10px 0 0">
+        ${subscription.status === "active" ? `<button class="button small secondary" data-subscription="${subscription.id}" data-action="pause">Pause</button>` : ""}
+        ${subscription.status === "paused" ? `<button class="button small good" data-subscription="${subscription.id}" data-action="resume">Resume</button>` : ""}
+        <button class="button small secondary" data-subscription="${subscription.id}" data-action="skip_week">Skip week</button>
+        <button class="button small bad" data-subscription="${subscription.id}" data-action="cancel">Cancel</button>
+      </div>
+    </div>
   `;
 }
 
@@ -1190,6 +1255,7 @@ function renderCart() {
       <div class="row"><span>Total paid to HomeTaste</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
       <form class="form" id="checkoutForm">
         <div class="field"><label>Delivery address</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
+        <div class="field"><label>Schedule order</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>Payment method</label><select name="paymentMethod">
           <option value="visa">Visa</option>
           <option value="mastercard">Mastercard</option>
@@ -1246,16 +1312,57 @@ function renderOrders() {
   `;
 }
 
+function driverOrderCard(order) {
+  const route = order.route || {};
+  const assigned = order.driverId === state.user.id;
+  const navUrl = mapsUrl(order);
+  return `
+    <article class="operation-card">
+      <div class="price-row">
+        <strong>${order.id}</strong>
+        <span class="price">${money(order.deliveryFee || 0)}</span>
+      </div>
+      <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
+      <div class="meta">Pickup: ${cookName(order.cookId)} · Dropoff: ${order.deliveryAddress || "Customer address"}</div>
+      <div class="meta">ETA ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `Scheduled ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP"}</div>
+      ${routeMap(order)}
+      <div class="toolbar" style="margin:10px 0 0">
+        ${!assigned ? `<button class="button small" data-driver-accept="${order.id}">Accept order</button>` : orderActionButtons(order)}
+        <a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">Navigate</a>
+        ${assigned ? `<button class="button small secondary" data-driver-location="${order.id}">Update location</button>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function routeMap(order) {
+  const route = order.route || {};
+  return `
+    <div class="mini-map">
+      <span class="map-dot pickup"></span>
+      <span class="map-line"></span>
+      <span class="map-dot dropoff"></span>
+      <strong>${route.distanceKm || "-"} km</strong>
+    </div>
+  `;
+}
+
+function mapsUrl(order) {
+  const destination = order.customerLocation || {};
+  const query = destination.lat && destination.lng ? `${destination.lat},${destination.lng}` : (order.deliveryAddress || "Istanbul, Turkey");
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+}
+
 function orderRow(order) {
   const canUpdate = isOwner() || (isCook() && myCook()?.id === order.cookId) || (isDriver() && order.driverId === state.user?.id);
   const customer = state.users?.find((user) => user.id === order.customerId);
   const driver = state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null);
   return `
     <tr>
-      <td><strong>${order.id}</strong><div class="meta">${new Date(order.createdAt).toLocaleString()}</div></td>
+      <td><strong>${order.id}</strong><div class="meta">${new Date(order.createdAt).toLocaleString()}</div>${order.scheduledFor ? `<div class="tag">Scheduled ${new Date(order.scheduledFor).toLocaleString()}</div>` : `<div class="tag">ASAP</div>`}</td>
       <td>${order.items.map((item) => `${item.qty}x ${item.name}`).join("<br>")}</td>
       <td>${cookName(order.cookId)}${customer ? `<div class="meta">Customer: ${customer.name}</div>` : ""}</td>
-      <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div>` : `<span class="meta">Unassigned</span>`}</td>
+      <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div><div class="meta">ETA ${order.etaMinutes || "-"} min</div>` : `<span class="meta">Available</span>`}</td>
       <td>${money(order.total)}<div class="meta">${paymentLabels[order.paymentMethod] || order.paymentMethod}</div><div class="meta">Commission ${money(order.payment?.commission || 0)} / payout ${money(order.payment?.cookPayout || 0)}</div></td>
       <td>${orderProgress(order)}</td>
       <td>
@@ -1288,6 +1395,7 @@ function orderActionButtons(order) {
     `;
   }
   if (isDriver()) {
+    if (!order.driverId) return `<button class="button small" data-driver-accept="${order.id}">Accept order</button>`;
     const nextDriver = {
       ready: ["picked_up", "Receive food"],
       picked_up: ["out_for_delivery", "Start delivery"],
@@ -1492,13 +1600,42 @@ function renderSettings() {
       <div class="panel">
         <h3>${state.user.name}</h3>
         <div class="row"><span>Email</span><strong>${state.user.email}</strong></div>
+        <div class="row"><span>Email verified</span><strong>${state.user.emailVerified ? "Verified" : "Needs verification"}</strong></div>
         <div class="row"><span>Role</span><strong>${roleLabel(state.user.role)}</strong></div>
         <div class="row"><span>City</span><strong>${state.user.city || ""}</strong></div>
         <div class="row"><span>Phone</span><strong>${state.user.phone || ""}</strong></div>
+        <div class="row"><span>Phone verified</span><strong>${state.user.phoneVerified ? "Verified" : "Needs verification"}</strong></div>
+        <div class="row"><span>Login provider</span><strong>${state.user.authProvider || "password"}</strong></div>
+      </div>
+      <div class="panel">
+        <h3>Real authentication</h3>
+        <div class="toolbar">
+          <button class="button small secondary" data-email-verify>Send email verification</button>
+          <button class="button small secondary" data-oauth="google">Connect Google</button>
+          <button class="button small secondary" data-oauth="apple">Connect Apple</button>
+        </div>
+        ${state.user.pendingEmailVerificationUrl ? `<div class="notice">Email verification URL: <a href="${state.user.pendingEmailVerificationUrl}" target="_blank" rel="noreferrer">${state.user.pendingEmailVerificationUrl}</a></div>` : ""}
+        <form class="form" id="phoneRequestForm" style="margin-top:12px">
+          <div class="field"><label>Phone verification</label><input class="input" name="phone" value="${state.user.phone || ""}" placeholder="+90 555 000 0000"></div>
+          <button class="button secondary" type="submit">Send SMS code</button>
+        </form>
+        ${state.user.pendingPhoneCode ? `<div class="notice">Demo SMS code: <strong>${state.user.pendingPhoneCode}</strong></div>` : ""}
+        <form class="form" id="phoneConfirmForm" style="margin-top:12px">
+          <div class="field"><label>Confirm phone code</label><input class="input" name="code" placeholder="6 digit code"></div>
+          <button class="button" type="submit">Verify phone</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h3>Password reset</h3>
+        <form class="form" id="profileResetRequestForm">
+          <div class="field"><label>Email</label><input class="input" type="email" name="email" value="${state.user.email}"></div>
+          <button class="button secondary" type="submit">Create reset link</button>
+        </form>
+        ${state.user.pendingPasswordResetUrl ? `<div class="notice">Password reset URL: <a href="${state.user.pendingPasswordResetUrl}" target="_blank" rel="noreferrer">${state.user.pendingPasswordResetUrl}</a></div>` : ""}
       </div>
       <div class="panel">
         <h3>System status</h3>
-        <div class="notice success">Backend, authentication, database persistence, orders, messages, and account views are active locally.</div>
+        <div class="notice success">Backend, authentication verification, database persistence, orders, driver tracking, meal plans, and account views are active.</div>
       </div>
     </section>
   `;
@@ -1580,6 +1717,89 @@ function bindPage() {
   });
   const msgForm = document.querySelector("#messageForm");
   if (msgForm) msgForm.onsubmit = sendMessage;
+  document.querySelectorAll("[data-oauth]").forEach((button) => {
+    button.onclick = () => startOAuth(button.dataset.oauth);
+  });
+  document.querySelectorAll("[data-email-verify]").forEach((button) => {
+    button.onclick = requestEmailVerification;
+  });
+  const resetForm = document.querySelector("#profileResetRequestForm");
+  if (resetForm) resetForm.onsubmit = requestPasswordReset;
+  const phoneRequest = document.querySelector("#phoneRequestForm");
+  if (phoneRequest) phoneRequest.onsubmit = requestPhoneVerification;
+  const phoneConfirm = document.querySelector("#phoneConfirmForm");
+  if (phoneConfirm) phoneConfirm.onsubmit = confirmPhoneVerification;
+  document.querySelectorAll("[data-subscription]").forEach((button) => {
+    button.onclick = () => subscriptionAction(button.dataset.subscription, button.dataset.action);
+  });
+  document.querySelectorAll("[data-driver-accept]").forEach((button) => {
+    button.onclick = () => acceptDelivery(button.dataset.driverAccept);
+  });
+  document.querySelectorAll("[data-driver-location]").forEach((button) => {
+    button.onclick = () => updateDriverLocation(button.dataset.driverLocation);
+  });
+}
+
+async function startOAuth(provider) {
+  try {
+    const data = await api("/api/auth/oauth/start", { method: "POST", body: JSON.stringify({ provider }) });
+    if (data.url) {
+      location.href = data.url;
+      return;
+    }
+    toast(`${provider} login started.`);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function requestPasswordReset(event) {
+  event.preventDefault();
+  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    const data = await api("/api/auth/password/request", { method: "POST", body: JSON.stringify(input) });
+    toast(data.resetUrl ? "Password reset link created." : "Password reset request handled.");
+    if (data.resetUrl) window.prompt("Password reset URL", data.resetUrl);
+    await refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function requestEmailVerification() {
+  try {
+    const data = await api("/api/auth/verify-email/request", { method: "POST", body: JSON.stringify({ email: state.user.email }) });
+    toast("Email verification link created.");
+    if (data.verificationUrl) window.prompt("Email verification URL", data.verificationUrl);
+    await refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function requestPhoneVerification(event) {
+  event.preventDefault();
+  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    const data = await api("/api/auth/phone/request", { method: "POST", body: JSON.stringify(input) });
+    toast("Phone verification code created.");
+    if (data.code) window.prompt("SMS code", data.code);
+    await refresh();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function confirmPhoneVerification(event) {
+  event.preventDefault();
+  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    state = (await api("/api/auth/phone/confirm", { method: "POST", body: JSON.stringify(input) })).state;
+    toast("Phone verified.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 function openMarketplacePage(marketPage) {
@@ -1760,6 +1980,38 @@ async function subscribePlan(planId) {
   }
 }
 
+async function subscriptionAction(subscriptionId, action) {
+  try {
+    state = await api(`/api/subscriptions/${subscriptionId}`, { method: "PATCH", body: JSON.stringify({ action }) });
+    toast(`Subscription ${action.replace("_", " ")} complete.`);
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function acceptDelivery(orderId) {
+  try {
+    state = await api(`/api/driver/orders/${orderId}/accept`, { method: "PATCH", body: JSON.stringify({}) });
+    toast("Delivery accepted.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function updateDriverLocation(orderId) {
+  const current = window.prompt("Driver location as city or lat,lng", state.user.city || "Istanbul");
+  if (!current) return;
+  try {
+    state = await api(`/api/orders/${orderId}/location`, { method: "PATCH", body: JSON.stringify({ driverLocation: current }) });
+    toast("Driver location and ETA updated.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 async function socialAction(input) {
   try {
     state = await api("/api/social", { method: "POST", body: JSON.stringify(input) });
@@ -1818,4 +2070,38 @@ async function sendMessage(event) {
 
 document.addEventListener("click", () => document.querySelector("#languageMenu")?.classList.remove("open"));
 
-refresh();
+async function handleAuthLinkParams() {
+  const params = new URLSearchParams(location.search);
+  const verify = params.get("verify");
+  const reset = params.get("reset");
+  const authToken = params.get("authToken");
+  const authError = params.get("authError");
+  try {
+    if (authError) {
+      toast(authError, true);
+      history.replaceState({}, "", location.pathname);
+    }
+    if (authToken) {
+      localStorage.setItem(storageKey, authToken);
+      toast("Signed in successfully.");
+      history.replaceState({}, "", location.pathname);
+    }
+    if (verify) {
+      await api("/api/auth/verify-email/confirm", { method: "POST", body: JSON.stringify({ token: verify }) });
+      toast("Email verified.");
+      history.replaceState({}, "", location.pathname);
+    }
+    if (reset) {
+      const newPassword = window.prompt("Enter your new password");
+      if (newPassword) {
+        await api("/api/auth/password/reset", { method: "POST", body: JSON.stringify({ token: reset, newPassword }) });
+        toast("Password reset complete. Sign in with the new password.");
+      }
+      history.replaceState({}, "", location.pathname);
+    }
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+handleAuthLinkParams().finally(refresh);
