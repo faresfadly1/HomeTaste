@@ -628,6 +628,76 @@ ul{list-style:none}
   transition:all var(--transition);
 }
 .btn-reorder:hover{background:var(--orange);color:#fff}
+.orders-tabs{display:none}
+.track-page{padding:32px;max-width:760px}
+.track-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px;margin-bottom:18px;
+}
+.track-header{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;margin-bottom:18px;
+}
+.track-title h2{font-size:22px;font-family:'DM Sans',sans-serif;margin-bottom:4px}
+.track-title p{font-size:13px;color:var(--text3)}
+.track-timeline{display:grid;gap:0}
+.track-step{
+  display:grid;grid-template-columns:30px 1fr auto;gap:12px;
+  min-height:64px;position:relative;
+}
+.track-step::before{
+  content:'';position:absolute;left:14px;top:26px;bottom:-8px;
+  width:2px;background:var(--border2);
+}
+.track-step:last-child::before{display:none}
+.track-step-dot{
+  width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  background:var(--bg4);border:2px solid var(--border2);color:var(--text3);
+  font-size:11px;font-weight:900;z-index:1;
+}
+.track-step.done .track-step-dot{background:#237a45;border-color:#237a45;color:#fff}
+.track-step.active{
+  background:var(--orange-light);border-radius:12px;padding:8px;
+  margin-left:-8px;margin-right:-8px;
+}
+.track-step.active .track-step-dot{background:var(--orange);border-color:var(--orange);color:#fff}
+.track-step-text h3{font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:3px}
+.track-step-text p{font-size:12px;color:var(--text3)}
+.track-step-time{font-size:12px;color:var(--text3);white-space:nowrap}
+.track-map{
+  height:190px;border-radius:16px;overflow:hidden;border:1px solid var(--border);
+  background:
+    linear-gradient(90deg,transparent 24px,rgba(255,255,255,.08) 25px,transparent 26px),
+    linear-gradient(transparent 24px,rgba(255,255,255,.08) 25px,transparent 26px),
+    linear-gradient(135deg,var(--bg3),var(--card));
+  background-size:50px 50px,50px 50px,100% 100%;
+  position:relative;margin-bottom:16px;
+}
+.track-route{
+  position:absolute;left:58px;right:58px;top:86px;height:4px;
+  background:#3b82f6;transform:rotate(-8deg);border-radius:99px;
+}
+.track-route::before,.track-route::after{
+  content:'';position:absolute;top:50%;transform:translateY(-50%);
+  width:18px;height:18px;border-radius:50%;background:#22c55e;border:4px solid #dff8e7;
+}
+.track-route::before{left:-8px}.track-route::after{right:-8px;background:#0f172a;border-color:#dbeafe}
+.track-driver{
+  position:absolute;right:54px;top:44px;width:54px;height:54px;border-radius:50%;
+  background:#1f2937;color:#fff;display:grid;place-items:center;font-size:24px;
+  box-shadow:0 12px 28px rgba(0,0,0,.25);
+}
+.driver-card{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border:1px solid var(--border);border-radius:18px;padding:14px;
+}
+.driver-avatar{width:46px;height:46px;border-radius:50%;background:var(--bg3);display:grid;place-items:center;font-size:22px;flex:0 0 auto}
+.driver-meta{flex:1}.driver-meta strong{display:block;font-size:14px}.driver-meta span{font-size:12px;color:var(--text3)}
+.driver-actions{display:flex;gap:8px}.driver-action{width:38px;height:38px;border-radius:50%;background:var(--bg3);display:grid;place-items:center}
+.track-back-btn{
+  padding:9px 14px;border-radius:10px;background:var(--bg3);
+  border:1px solid var(--border);font-size:13px;font-weight:800;color:var(--text2);
+}
 
 /* ======== FAVORITES ======== */
 .favorites-grid{
@@ -1001,6 +1071,7 @@ ul{list-style:none}
 .cook-stat{text-align:center;flex:1}
 .cook-stat-val{font-size:22px;font-weight:900;color:var(--orange)}
 .cook-stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+.profile-mobile-topbar,.profile-about{display:none}
 
 /* ======== TOAST ======== */
 .toast-container{
@@ -1101,7 +1172,21 @@ ul{list-style:none}
 }
 @media(max-width:760px){
   :root{--sidebar:0px;--cart:100vw}
-  body{padding-bottom:76px}
+  body{
+    padding-bottom:76px;
+    --bg:#fffaf4;
+    --bg2:#ffffff;
+    --bg3:#f7f1ea;
+    --bg4:#ece3d9;
+    --card:#ffffff;
+    --text:#1d1712;
+    --text2:#5f544a;
+    --text3:#94897e;
+    --border:#eadfd3;
+    --border2:#ded0bf;
+    --shadow:0 18px 45px rgba(71,45,23,.12);
+    background:#fffaf4;
+  }
   .layout{display:block;min-height:100vh}
   .sidebar{
     position:fixed;left:0;right:0;top:auto;bottom:0;
@@ -1179,6 +1264,133 @@ ul{list-style:none}
   .success-overlay{padding:18px}
   .toast-container{left:14px;right:14px;bottom:92px;transform:none}
   .toast{width:100%;justify-content:center}
+  #page-orders .page-header,#page-track-order .page-header{padding:18px 14px 10px;text-align:center;margin:0}
+  #page-orders .page-header h1,#page-track-order .page-header h1{font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900}
+  #page-orders .page-header p,#page-orders .refund-header{display:none}
+  .orders-tabs{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
+    padding:0 14px 14px;
+  }
+  .orders-tab{
+    border-radius:999px;padding:9px 6px;font-size:10px;font-weight:800;
+    color:#6f6358;background:transparent;
+  }
+  .orders-tab.active{background:#f4efe8;color:#1d1712}
+  .orders-list{padding:0 12px 96px}
+  .order-card{
+    display:grid;grid-template-columns:72px 1fr auto;gap:12px;
+    align-items:center;padding:12px;margin-bottom:14px;border-radius:10px;
+    box-shadow:0 8px 26px rgba(69,42,21,.08);border-color:#efe5da;
+  }
+  .order-card-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .order-id{font-size:12px;font-weight:900;color:#29211b}
+  .order-date{font-size:10px;color:#94897e;margin-top:2px}
+  .order-img{width:72px;height:72px;border-radius:9px;overflow:hidden;font-size:0}
+  .order-img img{width:100%;height:100%;object-fit:cover}
+  .order-info h3{font-family:'DM Sans',sans-serif;font-size:13px;margin-bottom:2px}
+  .order-info p{font-size:11px;margin-bottom:8px}
+  .order-tags,.tracking-steps,.order-track-text{display:none}
+  .order-status{font-size:10px;padding:6px 10px;border-radius:6px}
+  .status-delivered,.status-completed{background:#dff3df;color:#247448}
+  .status-pending,.status-preparing{background:#e6f1ff;color:#2563a7}
+  .order-right{text-align:right;align-self:center}
+  .order-price{font-size:13px;color:#2b2119;margin-bottom:0}
+  .btn-reorder{
+    grid-column:1/-1;width:100%;background:#fff;border:0;border-top:1px solid #f0e6db;
+    color:#237a45;border-radius:0;padding:12px 0 2px;font-size:12px;
+  }
+  .track-page{padding:0 12px 96px;max-width:none}
+  .track-card{padding:0;border:0;background:transparent;box-shadow:none;margin:0 0 12px}
+  .track-header{padding:4px 0 12px;margin:0;align-items:flex-start}
+  .track-title h2{font-size:18px}
+  .track-title p{font-size:12px}
+  .track-timeline{padding:0}
+  .track-step{grid-template-columns:28px 1fr auto;gap:10px;min-height:58px}
+  .track-step::before{left:13px;top:26px;background:#23824a}
+  .track-step:not(.done):not(.active)::before{background:#ddd4ca}
+  .track-step-dot{width:26px;height:26px;font-size:10px;background:#fff;border-color:#ddd4ca}
+  .track-step-text h3{font-size:13px}
+  .track-step-text p,.track-step-time{font-size:10px}
+  .track-step.active{background:#fff5e6;border:1px solid #f5e0bf}
+  .track-map{height:164px;border-radius:12px;background-color:#f5efe7}
+  .driver-card{border-radius:18px;box-shadow:0 8px 24px rgba(69,42,21,.08)}
+  .profile-mobile-topbar{
+    display:flex;position:absolute;top:10px;left:10px;right:10px;z-index:4;
+    justify-content:space-between;align-items:center;color:#fff;
+  }
+  .profile-mobile-topbar button{
+    width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.28);
+    backdrop-filter:blur(8px);display:grid;place-items:center;font-size:20px;
+  }
+  .cook-profile-hero{
+    min-height:320px;height:320px;border-radius:0 0 26px 26px;background:#21170f;overflow:visible;
+  }
+  .cook-profile-hero-bg{opacity:1;filter:none;background-size:cover;background-position:center;border-radius:0 0 26px 26px;overflow:hidden}
+  .cook-profile-hero::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:155px;
+    background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,250,244,.97) 74%,#fffaf4);
+    z-index:1;
+  }
+  .cook-profile-info{
+    height:auto;position:absolute;left:0;right:0;bottom:-84px;z-index:3;
+    padding:0 14px;display:grid;grid-template-columns:62px 1fr;align-items:end;
+    gap:12px;text-align:left;
+  }
+  .cook-profile-avatar{
+    width:62px;height:62px;border:3px solid #fff;box-shadow:0 8px 20px rgba(58,32,12,.18);
+    overflow:hidden;background:#fff;font-size:0;
+  }
+  .cook-profile-avatar img{width:100%;height:100%;object-fit:cover}
+  .cook-profile-details{padding-bottom:8px}
+  .cook-profile-details h1{font-family:'DM Sans',sans-serif;font-size:16px;color:#1d1712;margin-bottom:3px}
+  .cook-profile-details p{font-size:12px;color:#23824a;font-weight:800}
+  .cook-profile-details > div:first-of-type{
+    display:flex!important;gap:7px!important;flex-wrap:wrap;margin-top:7px!important;color:#1d1712;
+  }
+  .cook-profile-details > div:first-of-type span{font-size:11px!important}
+  .cook-profile-details > div:nth-of-type(2){
+    display:grid!important;grid-template-columns:104px 1fr;gap:10px!important;margin-top:14px!important;
+  }
+  .cook-profile-details .btn-apply{
+    padding:11px 16px!important;border-radius:7px!important;background:#176d3b!important;
+    font-size:12px!important;color:#fff!important;
+  }
+  .cook-profile-details .btn-continue{
+    display:none;
+  }
+  .cook-profile-body{padding:104px 14px 96px}
+  .cook-stats{
+    display:flex;gap:16px;padding:0;margin:0 0 24px;background:transparent;border:0;border-radius:0;
+    justify-content:space-between;
+  }
+  .cook-stat{text-align:left;flex:0 0 auto}
+  .cook-stat-val{font-size:12px;color:#1d1712;font-family:'DM Sans',sans-serif}
+  .cook-stat-label{font-size:10px;color:#6f6358}
+  .cook-stat:nth-child(3),.cook-stat:nth-child(4),.profile-extra{display:none}
+  .profile-about{
+    display:block;border-top:1px solid #eee3d7;border-bottom:1px solid #eee3d7;
+    padding:16px 0;margin-bottom:16px;
+  }
+  .profile-about h3,.profile-dishes-mobile-title{
+    font-family:'DM Sans',sans-serif;font-size:13px;margin-bottom:12px;
+  }
+  .profile-about p{font-size:12px;line-height:1.55;color:#4d443c;margin-bottom:12px}
+  .profile-about small{display:block;color:#8f8378;font-size:11px;margin-top:8px}
+  #profileDishesTitle{font-family:'DM Sans',sans-serif;font-size:13px}
+  #profileDishesGrid.dishes-grid{
+    display:flex;overflow-x:auto;gap:14px;padding:0 0 10px!important;scroll-snap-type:x mandatory;
+    scrollbar-width:none;
+  }
+  #profileDishesGrid.dishes-grid::-webkit-scrollbar{display:none}
+  #profileDishesGrid .dish-card{
+    flex:0 0 160px;border:0;background:transparent;box-shadow:none;scroll-snap-align:start;
+  }
+  #profileDishesGrid .dish-img{height:132px;border-radius:10px}
+  #profileDishesGrid .dish-body{padding:8px 0}
+  #profileDishesGrid .dish-body p,#profileDishesGrid .dish-body > div:first-of-type,#profileDishesGrid .dish-cook{display:none}
+  #profileDishesGrid .dish-footer{align-items:center}
+  #profileDishesGrid .dish-body h3{font-size:12px;margin:0}
+  #profileDishesGrid .btn-add{display:none}
 }
 @media(max-width:420px){
   .hero-content h1{font-size:29px}
@@ -1443,12 +1655,52 @@ ul{list-style:none}
       <h1>My Orders</h1>
       <p>Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     </div>
+    <div class="orders-tabs">
+      <button class="orders-tab active" type="button">All</button>
+      <button class="orders-tab" type="button">Ongoing</button>
+      <button class="orders-tab" type="button">Completed</button>
+      <button class="orders-tab" type="button">Canceled</button>
+    </div>
     <div class="orders-list" id="ordersList">
       <!-- Populated by JS -->
     </div>
-    <div class="page-header" style="padding-top:20px">
+    <div class="page-header refund-header" style="padding-top:20px">
       <h1 style="font-size:24px">Refund requests</h1>
       <p>No refund requests yet.</p>
+    </div>
+  </div>
+
+  <!-- TRACK ORDER PAGE -->
+  <div class="page" id="page-track-order">
+    <div class="page-header">
+      <h1>Track Order</h1>
+    </div>
+    <div class="track-page">
+      <div class="track-card">
+        <div class="track-header">
+          <div class="track-title">
+            <h2 id="trackOrderId">Order #HT12345</h2>
+            <p id="trackOrderDate">May 12, 2024 at 1:30 PM</p>
+          </div>
+          <button class="track-back-btn" type="button" onclick="showPage('orders',null)">Back</button>
+        </div>
+        <div class="track-timeline" id="trackTimeline"></div>
+      </div>
+      <div class="track-map">
+        <div class="track-route"></div>
+        <div class="track-driver">🛵</div>
+      </div>
+      <div class="driver-card">
+        <div class="driver-avatar">👨‍✈️</div>
+        <div class="driver-meta">
+          <strong>Ali K.</strong>
+          <span>⭐ 4.9 Your Driver</span>
+        </div>
+        <div class="driver-actions">
+          <button class="driver-action" type="button" onclick="showToast('Calling driver...','info')">☎</button>
+          <button class="driver-action" type="button" onclick="showPage('messages',null)">💬</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1642,6 +1894,10 @@ ul{list-style:none}
   <!-- COOK PROFILE PAGE -->
   <div class="page" id="page-cook-profile">
     <div class="cook-profile-hero">
+      <div class="profile-mobile-topbar">
+        <button type="button" onclick="showPage('browse',null)">‹</button>
+        <button type="button" onclick="showToast('Profile menu opened.','info')">⋯</button>
+      </div>
       <div class="cook-profile-hero-bg"></div>
       <div class="cook-profile-info">
         <div class="cook-profile-avatar" id="profileAvatar">👩‍🍳</div>
@@ -1667,6 +1923,12 @@ ul{list-style:none}
         <div class="cook-stat"><div class="cook-stat-val" id="profileFollowers">312</div><div class="cook-stat-label">Followers</div></div>
         <div class="cook-stat"><div class="cook-stat-val" id="profileDishes">12</div><div class="cook-stat-label">Dishes</div></div>
         <div class="cook-stat"><div class="cook-stat-val" id="profileSpeed">4.8★</div><div class="cook-stat-label">Speed</div></div>
+      </div>
+      <div class="profile-about">
+        <h3>About me</h3>
+        <p id="profileBio">I love cooking traditional food from my home.</p>
+        <small id="profileAboutCity">⊙ Istanbul, Turkey</small>
+        <small>♙ Member since Jan 2024</small>
       </div>
       <div class="profile-extra">
         <div class="profile-box"><small>Available</small><strong id="profileAvailability">Today 6 PM–10 PM</strong></div>
@@ -1861,6 +2123,65 @@ const dishes = [
   {id:8,name:'Baklava',cookId:4,tag:'Syrian',desc:'Crispy phyllo pastry layered with pistachios and honey syrup — the ultimate Middle Eastern dessert.',price:80,img:'https://images.unsplash.com/photo-1519676867240-f03562e64548?w=600&q=70',tags:['Dessert','Sweet']},
   {id:9,name:'Dolmades',cookId:2,tag:'Turkish',desc:'Fresh vine leaves filled with aromatic rice, herbs, and a drizzle of lemon-olive oil dressing.',price:140,img:'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=70',tags:['Vegetarian','Fresh']},
   {id:10,name:'Greek Moussaka',cookId:7,tag:'Greek',desc:'Greek baked layers of eggplant, spiced beef, potatoes, and creamy béchamel.',price:185,img:'https://images.unsplash.com/photo-1544025162-d76538722aee?w=600&q=70',tags:['Greek','Baked','Comfort Food']},
+];
+
+const demoOrders = [
+  {
+    id:'HT12345',
+    dish:'Warak Enab',
+    by:'Samira A.',
+    cookId:4,
+    date:'May 12, 2024 at 1:30 PM',
+    shortDate:'May 12, 2024 at 1:30 PM',
+    status:'On the Way',
+    statusClass:'status-pending',
+    price:'₺120',
+    itemCount:'1 item',
+    img:'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=500&q=70',
+    step:4,
+    action:'Track Order',
+    track:'Your driver is on the way'
+  },
+  {
+    id:'HT12230',
+    dish:'Koshari',
+    by:'Ahmed H.',
+    cookId:1,
+    date:'May 10, 2024 at 7:20 PM',
+    shortDate:'May 10, 2024 at 7:20 PM',
+    status:'Delivered',
+    statusClass:'status-delivered',
+    price:'₺120',
+    itemCount:'1 item',
+    img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=70',
+    step:6,
+    action:'Reorder',
+    track:'Delivered successfully'
+  },
+  {
+    id:'HT12215',
+    dish:'Chicken Biryani',
+    by:'Fatima K.',
+    cookId:5,
+    date:'May 8, 2024 at 1:15 PM',
+    shortDate:'May 8, 2024 at 1:15 PM',
+    status:'Completed',
+    statusClass:'status-completed',
+    price:'₺140',
+    itemCount:'1 item',
+    img:'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=500&q=70',
+    step:6,
+    action:'View Details',
+    track:'Order completed'
+  }
+];
+
+const trackingSteps = [
+  {key:'confirmed',title:'Order Confirmed',body:'Your order has been confirmed',time:'1:30 PM'},
+  {key:'cooking',title:'Cooking Started',body:'Your cook has started preparing your meal',time:'1:45 PM'},
+  {key:'ready',title:'Food is Ready',body:'Your food is freshly ready',time:'2:15 PM'},
+  {key:'way',title:'On the Way',body:'Your driver is on the way',time:'2:25 PM'},
+  {key:'delivered',title:'Delivered',body:'Enjoy your meal!',time:''}
 ];
 
 const messages = [
@@ -2156,6 +2477,15 @@ const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
   DE: { city: 'Berlin', cities: ['Berlin', 'Munich'] }
 };
+const profilePhotos = [
+  'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=900&q=75',
+  'https://images.unsplash.com/photo-1566554273541-37a9ca77b91f?w=900&q=75',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=900&q=75',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=900&q=75',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900&q=75',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=900&q=75',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=75'
+];
 const allCountries = [
   'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
   'Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
@@ -2184,7 +2514,8 @@ cooks.forEach((c,i)=>Object.assign(c,{
   responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
   phone: c.phone || '+90 5XX XXX XX XX',
   speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
-  verifiedPhoto: c.verifiedPhoto ?? (i !== 5)
+  verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
+  profilePhoto: c.profilePhoto || profilePhotos[i % profilePhotos.length]
 }));
 dishes.forEach((d,i)=>Object.assign(d,{
   sauces: d.sauces || ['Extra tomato sauce','Garlic yogurt','Spicy sauce'][i%3],
@@ -2301,7 +2632,7 @@ function toggleCart(force){
 function updateCartButtonVisibility(pageId) {
   const currentPage = pageId || document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
   const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
-  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', ['messages', 'support-chat'].includes(currentPage) || cartOpen);
+  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', ['messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
 }
 function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMenu').classList.toggle('open'); }
 function setLanguage(lang,e,silent=false){
@@ -2620,29 +2951,51 @@ function dishCard(d, staggerClass) {
 
 // ===== RENDER ORDERS =====
 function renderOrders() {
-  const orders = [
-    {dish:'Koshari',by:'Omar El-Sayed',emoji:'🍚',date:'Today, 12:30',tags:['Delivery','Istanbul'],status:'Preparing',statusClass:'status-preparing',price:'200 ₺',step:2,track:'Cook accepted your order and is preparing it now'},
-    {dish:'Adana Kebap × 2',by:'Ahmet Yılmaz',emoji:'🍢',date:'Yesterday, 19:15',tags:['Delivery','Ankara'],status:'Delivered',statusClass:'status-delivered',price:'400 ₺',step:5,track:'Delivered successfully'},
-    {dish:'Lasagna',by:'Giulia Rossi',emoji:'🍝',date:'May 24, 14:00',tags:['Pickup','Berlin'],status:'Delivered',statusClass:'status-delivered',price:'180 ₺',step:5,track:'Picked up from cook'},
-  ];
-  document.getElementById('ordersList').innerHTML = orders.map(o => `
+  document.getElementById('ordersList').innerHTML = demoOrders.map(o => `
   <div class="order-card">
-    <div class="order-img">${o.emoji}</div>
+    <div class="order-card-head">
+      <div>
+        <div class="order-id">Order #${o.id}</div>
+        <div class="order-date">${o.shortDate}</div>
+      </div>
+      <span class="order-status ${o.statusClass}">${o.status}</span>
+    </div>
+    <div class="order-img"><img src="${o.img}" alt="${o.dish}" onerror="this.parentElement.textContent='🍽️'"></div>
     <div class="order-info">
       <h3>${o.dish}</h3>
-      <p>by ${o.by} · ${o.date}</p>
+      <p>by ${o.by}</p>
       <div class="order-tags">
-        ${o.tags.map(t => `<span class="order-tag">${t}</span>`).join('')}
         <span class="order-status ${o.statusClass}">${o.status}</span>
+        <span class="order-tag">${o.itemCount}</span>
       </div>
       <div class="tracking-steps">${[1,2,3,4,5].map(n=>`<span class="track-dot ${n<=o.step?'done':''}"></span>`).join('')}</div>
       <div class="order-track-text">${o.track || 'Tracking updated in real time'}</div>
     </div>
     <div class="order-right">
       <div class="order-price">${o.price}</div>
-      <button class="btn-reorder" onclick="reorder('${o.dish}')">Reorder</button>
     </div>
+    <button class="btn-reorder" onclick="${o.action === 'Track Order' ? `openTrackOrder('${o.id}')` : `reorder('${o.dish.replace(/'/g, "\\'")}')`}">${o.action}</button>
   </div>`).join('');
+}
+function openTrackOrder(orderId) {
+  const order = demoOrders.find(item => item.id === orderId) || demoOrders[0];
+  document.getElementById('trackOrderId').textContent = `Order #${order.id}`;
+  document.getElementById('trackOrderDate').textContent = order.date;
+  document.getElementById('trackTimeline').innerHTML = trackingSteps.map((step, index) => {
+    const number = index + 1;
+    const isDone = number < order.step;
+    const isActive = number === order.step;
+    return `
+      <div class="track-step ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}">
+        <div class="track-step-dot">${isDone ? '✓' : number}</div>
+        <div class="track-step-text">
+          <h3>${step.title}</h3>
+          <p>${step.body}</p>
+        </div>
+        <div class="track-step-time">${step.time}</div>
+      </div>`;
+  }).join('');
+  showPage('track-order', null);
 }
 function reorder(dish) {
   showToast(`🛒 ${dish} added to cart!`, 'success');
@@ -2789,7 +3142,9 @@ function openCookProfile(cookId) {
   const cook = cooks.find(c => c.id === cookId);
   if (!cook) return;
   currentCook = cook;
-  document.getElementById('profileAvatar').textContent = cook.emoji;
+  const profilePhoto = cook.profilePhoto || cook.img;
+  document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url('${profilePhoto}')`;
+  document.getElementById('profileAvatar').innerHTML = `<img src="${profilePhoto}" alt="${cook.name}" onerror="this.parentElement.textContent='${cook.emoji}'">`;
   document.getElementById('profileName').textContent = cook.name;
   document.getElementById('profileCuisine').textContent = cook.cuisine;
   document.getElementById('profileRating').textContent = cook.rating;
@@ -2803,6 +3158,8 @@ function openCookProfile(cookId) {
   document.getElementById('profilePrep').textContent = cook.prepTime;
   document.getElementById('profilePhone').textContent = cook.phone;
   document.getElementById('profilePhotoTrust').textContent = cook.verifiedPhoto ? 'Camera Verified' : 'Gallery photo';
+  document.getElementById('profileBio').textContent = cook.bio;
+  document.getElementById('profileAboutCity').textContent = `⊙ ${cook.city}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
   document.getElementById('profileDishesTitle').textContent = `Dishes by ${cook.name}`;
   const cookDishes = dishes.filter(d => d.cookId === cookId);
   document.getElementById('profileDishesGrid').innerHTML = cookDishes.map(d => dishCard(d, '')).join('');
