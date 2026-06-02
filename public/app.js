@@ -1,5 +1,7 @@
 const app = document.querySelector("#app");
 const storageKey = "hometaste_token";
+const currentScript = document.querySelector('script[src$="app.js"]');
+const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
 const isGitHubPages = window.location.hostname.endsWith("github.io");
 const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
 const useStaticApi = isGitHubPages && !configuredApiBase;
@@ -860,7 +862,7 @@ function renderMarketplaceFrame() {
         </div>
       </header>
       <div class="market-content">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>
