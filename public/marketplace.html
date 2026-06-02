@@ -2526,6 +2526,7 @@ dishes.forEach((d,i)=>Object.assign(d,{
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
+  const initialPage = params.get('page');
   selectedCountry = params.get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
   currentUserName = (params.get('user') || localStorage.getItem('hometaste_user_name') || 'User').trim() || 'User';
   localStorage.setItem('hometaste_user_name', currentUserName);
@@ -2536,7 +2537,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
   document.getElementById('cityLabel').textContent = '';
   renderCityDropdown();
-  if (localStorage.getItem('hometaste_welcome_done') === 'yes') {
+  if (localStorage.getItem('hometaste_welcome_done') === 'yes' || initialPage) {
     document.getElementById('welcomeOverlay').style.display = 'none';
   }
   renderHomeCooks();
@@ -2553,7 +2554,6 @@ document.addEventListener('DOMContentLoaded', () => {
   openChat(1);
   updatePaymentMethods();
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
-  const initialPage = params.get('page');
   if (initialPage) {
     const targetNav = document.querySelector(`.nav-item[onclick*="'${initialPage}'"]`);
     showPage(initialPage, targetNav);
