@@ -22,7 +22,6 @@ let appLanguage = localStorage.getItem("hometaste_language") || "EN";
 let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
-let currentMarketPage = "home";
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -31,6 +30,12 @@ const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
 const isDriver = () => state?.user?.role === "driver";
 const roleLabel = (role) => role === "owner" ? "admin" : role;
+const marketplaceRoutes = new Set(["home", "browse", "dishes", "orders", "favorites", "messages", "become", "help", "settings"]);
+const routePageFromLocation = () => {
+  const segment = location.pathname.split("/").filter(Boolean).pop() || "home";
+  return marketplaceRoutes.has(segment) ? segment : "home";
+};
+let currentMarketPage = routePageFromLocation();
 const statusLabels = {
   placed: "Order placed",
   accepted: "Order received",
@@ -847,8 +852,9 @@ function renderApp() {
 function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
-  currentMarketPage = "home";
+  currentMarketPage = routePageFromLocation();
   const hideCustomerPanel = !isCook() && !isDriver();
+  const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
     <div class="market-shell">
       <header class="market-top">
@@ -877,7 +883,7 @@ function renderMarketplaceFrame() {
         </div>
       </header>
       <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>

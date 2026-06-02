@@ -2222,6 +2222,11 @@ document.addEventListener('DOMContentLoaded', () => {
   openChat(1);
   updatePaymentMethods();
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
+  const initialPage = params.get('page');
+  if (initialPage) {
+    const targetNav = document.querySelector(`.nav-item[onclick*="'${initialPage}'"]`);
+    showPage(initialPage, targetNav);
+  }
 });
 
 // ===== PAGE NAVIGATION (FIXED: null check) =====
