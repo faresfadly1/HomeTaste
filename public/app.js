@@ -22,6 +22,7 @@ let appLanguage = localStorage.getItem("hometaste_language") || "EN";
 let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
+let authProviderStatus = null;
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -72,6 +73,10 @@ const refundLabels = {
   full: "100% refund",
   half: "50% refund",
   none: "No refund"
+};
+const oauthProviderLabels = {
+  google: "Google",
+  apple: "Apple"
 };
 
 function toast(message, error = false) {
@@ -251,6 +256,44 @@ async function api(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Something went wrong.");
   return data;
+}
+
+function oauthProviderLabel(provider) {
+  return oauthProviderLabels[provider] || provider;
+}
+
+async function getAuthProviderStatus() {
+  if (authProviderStatus) return authProviderStatus;
+  if (useStaticApi) {
+    authProviderStatus = { google: false, apple: false };
+    return authProviderStatus;
+  }
+  try {
+    const health = await api("/api/health");
+    authProviderStatus = {
+      google: Boolean(health.auth?.google),
+      apple: Boolean(health.auth?.apple)
+    };
+  } catch {
+    authProviderStatus = { google: false, apple: false };
+  }
+  return authProviderStatus;
+}
+
+async function refreshOAuthButtons(root = document) {
+  const buttons = [...root.querySelectorAll("[data-oauth]")];
+  if (!buttons.length) return;
+  const status = await getAuthProviderStatus();
+  buttons.forEach((button) => {
+    const provider = button.dataset.oauth;
+    const available = Boolean(status[provider]);
+    button.hidden = !available;
+    button.disabled = !available;
+    button.title = available ? "" : `${oauthProviderLabel(provider)} login is not configured yet.`;
+  });
+  root.querySelectorAll(".oauth-grid").forEach((grid) => {
+    grid.hidden = ![...grid.querySelectorAll("[data-oauth]")].some((button) => !button.hidden);
+  });
 }
 
 async function refresh() {
@@ -778,6 +821,7 @@ function renderAuth(error = "") {
   document.querySelectorAll("[data-oauth]").forEach((button) => {
     button.onclick = () => startOAuth(button.dataset.oauth);
   });
+  refreshOAuthButtons();
   document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
@@ -1720,6 +1764,7 @@ function bindPage() {
   document.querySelectorAll("[data-oauth]").forEach((button) => {
     button.onclick = () => startOAuth(button.dataset.oauth);
   });
+  refreshOAuthButtons();
   document.querySelectorAll("[data-email-verify]").forEach((button) => {
     button.onclick = requestEmailVerification;
   });
@@ -1742,6 +1787,12 @@ function bindPage() {
 
 async function startOAuth(provider) {
   try {
+    const status = await getAuthProviderStatus();
+    if (!status[provider]) {
+      refreshOAuthButtons();
+      toast(`${oauthProviderLabel(provider)} login is not configured yet.`, true);
+      return;
+    }
     const data = await api("/api/auth/oauth/start", { method: "POST", body: JSON.stringify({ provider }) });
     if (data.url) {
       location.href = data.url;
