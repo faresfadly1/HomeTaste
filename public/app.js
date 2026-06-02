@@ -22,6 +22,7 @@ let appLanguage = localStorage.getItem("hometaste_language") || "EN";
 let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
+let currentMarketPage = "home";
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -87,6 +88,11 @@ function sendPreferenceToMarketplace(name, value) {
 
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
+  if (event.data.action === "market-page") {
+    currentMarketPage = event.data.page || "home";
+    updateRolePanelVisibility();
+    return;
+  }
   if (event.data.action !== "change-password") return;
 
   const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", action: "password-result", ...payload }, event.origin);
@@ -105,6 +111,13 @@ async function handleMarketplaceMessage(event) {
 }
 
 window.addEventListener("message", handleMarketplaceMessage);
+
+function updateRolePanelVisibility() {
+  const content = document.querySelector(".market-content");
+  if (!content || !state?.user) return;
+  const hideCustomerPanel = !isCook() && !isDriver() && currentMarketPage !== "orders";
+  content.classList.toggle("panel-hidden", hideCustomerPanel);
+}
 
 function toggleLanguageMenu(event) {
   event.stopPropagation();
@@ -834,6 +847,8 @@ function renderApp() {
 function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
+  currentMarketPage = "home";
+  const hideCustomerPanel = !isCook() && !isDriver() && currentMarketPage !== "orders";
   app.innerHTML = `
     <div class="market-shell">
       <header class="market-top">
@@ -861,7 +876,7 @@ function renderMarketplaceFrame() {
           <button class="button secondary small" id="logout">Sign out</button>
         </div>
       </header>
-      <div class="market-content">
+      <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
         <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
@@ -880,6 +895,7 @@ function renderMarketplaceFrame() {
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
     sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+    updateRolePanelVisibility();
   });
   bindPage();
 }
