@@ -27,6 +27,9 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Validate static artifact
+        run: npm run check:static
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:

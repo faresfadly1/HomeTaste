@@ -10,6 +10,7 @@ The current production layer includes cook verification, meal subscriptions, ord
 - Node.js backend in `server.js`
 - Local JSON storage for development
 - Supabase-ready production persistence
+- Production API hosted at `https://hometaste-api-production.up.railway.app`
 
 ## Local run
 
@@ -22,6 +23,22 @@ Default local URL:
 ```text
 http://localhost:4174
 ```
+
+## Deployment checks
+
+Before pushing a production change:
+
+```bash
+npm run check:static
+```
+
+After GitHub Pages finishes deploying:
+
+```bash
+npm run check:prod
+```
+
+The production check verifies the GitHub Pages routes, the routed marketplace pages, and the live API health endpoint.
 
 ## System accounts
 
@@ -63,21 +80,35 @@ https://porumrfiwyrfvjigbjtl.supabase.co
 
 When those environment variables exist, the backend uses Supabase instead of `data/db.json`.
 
-## Render deploy
+## Production backend
 
-This repo includes [`render.yaml`](/Users/faresfadly/Desktop/HomeTaste/render.yaml) for a Render web service.
+The live frontend in [`public/config.js`](/Users/faresfadly/Desktop/HomeTaste/public/config.js) points to:
+
+```text
+https://hometaste-api-production.up.railway.app
+```
+
+Set these backend environment variables in the production host:
+
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS`
+
+Recommended `ALLOWED_ORIGINS`:
+
+```text
+https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173,http://127.0.0.1:4174,http://127.0.0.1:4173
+```
+
+## Alternative Render deploy
+
+This repo also includes [`render.yaml`](/Users/faresfadly/Desktop/HomeTaste/render.yaml) for a Render web service.
 
 Create a Render web service from this GitHub repo and set:
 
 - `SUPABASE_URL`
 - `SUPABASE_SECRET_KEY`
 - `ALLOWED_ORIGINS`
-
-Recommended `ALLOWED_ORIGINS`:
-
-```text
-https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173
-```
 
 After Render gives you a backend URL such as:
 
