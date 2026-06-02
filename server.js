@@ -67,6 +67,19 @@ const cookEmail = "cook1@hometaste.local";
 const cookPassword = "CookTaste$$7";
 const driverEmail = "drive1k202@gmail.com";
 const driverPassword = "DriveTaste$$7";
+const commissionRate = 0.15;
+
+const defaultVerification = (status = "pending") => ({
+  id: status,
+  address: status,
+  phone: status,
+  updatedAt: now(),
+  notes: ""
+});
+
+const paymentMethods = ["cash", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
+const refundReasons = ["not_delivered", "spoiled", "wrong_order", "missing_item"];
+const refundOutcomes = ["full", "half", "none"];
 
 const seedDb = () => ({
   users: [
@@ -113,6 +126,7 @@ const seedDb = () => ({
       city: "Kadikoy",
       bio: "Stuffed vegetables, soups, and trays for families.",
       verified: true,
+      verification: defaultVerification("verified"),
       status: "approved",
       rating: 4.8,
       reviews: 96,
@@ -128,6 +142,7 @@ const seedDb = () => ({
       city: "Besiktas",
       bio: "Fresh curries, biryani, dal, and homemade chutneys.",
       verified: true,
+      verification: defaultVerification("verified"),
       status: "approved",
       rating: 4.7,
       reviews: 74,
@@ -165,6 +180,22 @@ const seedDb = () => ({
   orders: [],
   messages: [],
   notifications: [],
+  mealPlans: [
+    {
+      id: "plan_family_5",
+      cookId: "cook_2",
+      name: "5 homemade meals weekly",
+      mealsPerWeek: 5,
+      price: 1500,
+      description: "Five fresh weekly meals from Aylin's kitchen with delivery scheduling.",
+      active: true,
+      createdAt: now()
+    }
+  ],
+  subscriptions: [],
+  payments: [],
+  refunds: [],
+  socialActions: [],
   sessions: {}
 });
 
@@ -261,16 +292,74 @@ function ensureSystemUsers(db) {
   return changed;
 }
 
+function paymentLedgerForOrder(order) {
+  const foodAmount = Number(order.subtotal || 0);
+  const deliveryFee = Number(order.deliveryFee || 0);
+  const commission = Math.round(foodAmount * commissionRate * 100) / 100;
+  return {
+    method: order.paymentMethod || "cash",
+    status: order.status === "delivered" ? "released" : "held",
+    gross: foodAmount + deliveryFee,
+    foodAmount,
+    deliveryFee,
+    commissionRate,
+    commission,
+    cookPayout: Math.max(0, foodAmount - commission),
+    provider: "manual",
+    capturedAt: order.createdAt || now(),
+    releasedAt: order.status === "delivered" ? (order.updatedAt || now()) : null,
+    refundStatus: "none"
+  };
+}
+
+function normalizeDb(db) {
+  db.users ||= [];
+  db.cooks ||= [];
+  db.dishes ||= [];
+  db.orders ||= [];
+  db.messages ||= [];
+  db.notifications ||= [];
+  db.sessions ||= {};
+  db.mealPlans ||= [];
+  db.subscriptions ||= [];
+  db.payments ||= [];
+  db.refunds ||= [];
+  db.socialActions ||= [];
+
+  for (const cook of db.cooks) {
+    cook.verification ||= defaultVerification(cook.verified ? "verified" : "pending");
+    cook.followers ||= 0;
+  }
+  for (const order of db.orders) {
+    order.statusHistory ||= [];
+    order.payment ||= paymentLedgerForOrder(order);
+  }
+  if (!db.mealPlans.length && db.cooks.some((cook) => cook.id === "cook_2")) {
+    db.mealPlans.push({
+      id: "plan_family_5",
+      cookId: "cook_2",
+      name: "5 homemade meals weekly",
+      mealsPerWeek: 5,
+      price: 1500,
+      description: "Five fresh weekly meals from Aylin's kitchen with delivery scheduling.",
+      active: true,
+      createdAt: now()
+    });
+  }
+  return db;
+}
+
 async function loadDb() {
   if (useSupabase) return loadSupabaseDb();
   if (!existsSync(dbPath)) {
     await mkdir(dataDir, { recursive: true });
     await saveDb(seedDb());
   }
-  return JSON.parse(await readFile(dbPath, "utf8"));
+  return normalizeDb(JSON.parse(await readFile(dbPath, "utf8")));
 }
 
 async function saveDb(db) {
+  normalizeDb(db);
   if (useSupabase) return saveSupabaseDb(db);
   await mkdir(dataDir, { recursive: true });
   const tmp = path.join(dataDir, "db.tmp");
@@ -328,11 +417,13 @@ const toCook = (row) => ({
   city: row.city,
   bio: row.bio,
   verified: row.verified,
+  verification: row.verification || defaultVerification(row.verified ? "verified" : "pending"),
   status: row.status,
   rating: Number(row.rating || 0),
   reviews: Number(row.reviews || 0),
   availability: row.availability,
   responseTime: row.response_time,
+  followers: Number(row.followers || 0),
   createdAt: row.created_at
 });
 
@@ -344,11 +435,13 @@ const fromCook = (cook) => ({
   city: cook.city,
   bio: cook.bio,
   verified: Boolean(cook.verified),
+  verification: cook.verification || defaultVerification(cook.verified ? "verified" : "pending"),
   status: cook.status,
   rating: cook.rating || 0,
   reviews: cook.reviews || 0,
   availability: cook.availability || "",
   response_time: cook.responseTime || "",
+  followers: cook.followers || 0,
   created_at: cook.createdAt || now()
 });
 
@@ -391,6 +484,7 @@ const toOrder = (row) => ({
   status: row.status,
   statusHistory: row.status_history || [],
   paymentMethod: row.payment_method,
+  payment: row.payment || null,
   deliveryAddress: row.delivery_address,
   notes: row.notes,
   createdAt: row.created_at,
@@ -410,6 +504,7 @@ const fromOrder = (order) => ({
   status: order.status,
   status_history: order.statusHistory || [],
   payment_method: order.paymentMethod || "cash",
+  payment: order.payment || paymentLedgerForOrder(order),
   delivery_address: order.deliveryAddress || "",
   notes: order.notes || "",
   created_at: order.createdAt || now(),
@@ -452,15 +547,148 @@ const fromNotification = (note) => ({
   read: Boolean(note.read)
 });
 
+const toMealPlan = (row) => ({
+  id: row.id,
+  cookId: row.cook_id,
+  name: row.name,
+  mealsPerWeek: Number(row.meals_per_week || 0),
+  price: Number(row.price || 0),
+  description: row.description || "",
+  active: row.active,
+  createdAt: row.created_at
+});
+
+const fromMealPlan = (plan) => ({
+  id: plan.id,
+  cook_id: plan.cookId,
+  name: plan.name,
+  meals_per_week: plan.mealsPerWeek || 0,
+  price: plan.price || 0,
+  description: plan.description || "",
+  active: Boolean(plan.active),
+  created_at: plan.createdAt || now()
+});
+
+const toSubscription = (row) => ({
+  id: row.id,
+  customerId: row.customer_id,
+  cookId: row.cook_id,
+  planId: row.plan_id,
+  mealsPerWeek: Number(row.meals_per_week || 0),
+  price: Number(row.price || 0),
+  status: row.status,
+  nextDeliveryAt: row.next_delivery_at,
+  createdAt: row.created_at
+});
+
+const fromSubscription = (subscription) => ({
+  id: subscription.id,
+  customer_id: subscription.customerId,
+  cook_id: subscription.cookId,
+  plan_id: subscription.planId,
+  meals_per_week: subscription.mealsPerWeek || 0,
+  price: subscription.price || 0,
+  status: subscription.status || "active",
+  next_delivery_at: subscription.nextDeliveryAt || null,
+  created_at: subscription.createdAt || now()
+});
+
+const toPayment = (row) => ({
+  id: row.id,
+  orderId: row.order_id,
+  customerId: row.customer_id,
+  cookId: row.cook_id,
+  method: row.method,
+  status: row.status,
+  gross: Number(row.gross || 0),
+  commissionRate: Number(row.commission_rate || commissionRate),
+  commission: Number(row.commission || 0),
+  cookPayout: Number(row.cook_payout || 0),
+  provider: row.provider || "manual",
+  createdAt: row.created_at,
+  releasedAt: row.released_at
+});
+
+const fromPayment = (payment) => ({
+  id: payment.id,
+  order_id: payment.orderId,
+  customer_id: payment.customerId,
+  cook_id: payment.cookId,
+  method: payment.method || "cash",
+  status: payment.status || "held",
+  gross: payment.gross || 0,
+  commission_rate: payment.commissionRate || commissionRate,
+  commission: payment.commission || 0,
+  cook_payout: payment.cookPayout || 0,
+  provider: payment.provider || "manual",
+  created_at: payment.createdAt || now(),
+  released_at: payment.releasedAt || null
+});
+
+const toRefund = (row) => ({
+  id: row.id,
+  orderId: row.order_id,
+  customerId: row.customer_id,
+  reason: row.reason,
+  details: row.details || "",
+  status: row.status,
+  outcome: row.outcome,
+  amount: Number(row.amount || 0),
+  adminNote: row.admin_note || "",
+  createdAt: row.created_at,
+  reviewedAt: row.reviewed_at
+});
+
+const fromRefund = (refund) => ({
+  id: refund.id,
+  order_id: refund.orderId,
+  customer_id: refund.customerId,
+  reason: refund.reason,
+  details: refund.details || "",
+  status: refund.status || "pending",
+  outcome: refund.outcome || null,
+  amount: refund.amount || 0,
+  admin_note: refund.adminNote || "",
+  created_at: refund.createdAt || now(),
+  reviewed_at: refund.reviewedAt || null
+});
+
+const toSocialAction = (row) => ({
+  id: row.id,
+  userId: row.user_id,
+  cookId: row.cook_id,
+  dishId: row.dish_id,
+  type: row.type,
+  text: row.text || "",
+  photo: row.photo || "",
+  createdAt: row.created_at
+});
+
+const fromSocialAction = (action) => ({
+  id: action.id,
+  user_id: action.userId,
+  cook_id: action.cookId || null,
+  dish_id: action.dishId || null,
+  type: action.type,
+  text: action.text || "",
+  photo: action.photo || "",
+  created_at: action.createdAt || now()
+});
+
 async function loadSupabaseDb() {
-  const [users, cooks, dishes, orders, messages, notifications, sessions] = await Promise.all([
+  const [users, cooks, dishes, orders, messages, notifications, sessions, mealPlans, subscriptions, payments, refunds, socialActions] = await Promise.all([
     supabaseRequest("app_users", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("cook_profiles", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("dishes", { query: "?select=*" }),
     supabaseRequest("orders", { query: "?select=*&order=created_at.desc" }),
     supabaseRequest("messages", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("notifications", { query: "?select=*&order=created_at.desc" }),
-    supabaseRequest("app_sessions", { query: "?select=*" })
+    supabaseRequest("app_sessions", { query: "?select=*" }),
+    supabaseRequest("meal_plans", { query: "?select=*&order=created_at.asc" }),
+    supabaseRequest("subscriptions", { query: "?select=*&order=created_at.desc" }),
+    supabaseRequest("payments", { query: "?select=*&order=created_at.desc" }),
+    supabaseRequest("refunds", { query: "?select=*&order=created_at.desc" }),
+    supabaseRequest("social_actions", { query: "?select=*&order=created_at.desc" })
   ]);
 
   if (!users.length) {
@@ -469,15 +697,20 @@ async function loadSupabaseDb() {
     return seeded;
   }
 
-  return {
+  return normalizeDb({
     users: users.map(toUser),
     cooks: cooks.map(toCook),
     dishes: dishes.map(toDish),
     orders: orders.map(toOrder),
     messages: messages.map(toMessage),
     notifications: notifications.map(toNotification),
+    mealPlans: mealPlans.map(toMealPlan),
+    subscriptions: subscriptions.map(toSubscription),
+    payments: payments.map(toPayment),
+    refunds: refunds.map(toRefund),
+    socialActions: socialActions.map(toSocialAction),
     sessions: Object.fromEntries(sessions.map((session) => [session.token, { userId: session.user_id, createdAt: session.created_at }]))
-  };
+  });
 }
 
 async function upsert(table, rows, conflict = "id") {
@@ -497,6 +730,11 @@ async function saveSupabaseDb(db) {
   await upsert("orders", db.orders.map(fromOrder));
   await upsert("messages", db.messages.map(fromMessage));
   await upsert("notifications", db.notifications.map(fromNotification));
+  await upsert("meal_plans", db.mealPlans.map(fromMealPlan));
+  await upsert("subscriptions", db.subscriptions.map(fromSubscription));
+  await upsert("payments", db.payments.map(fromPayment));
+  await upsert("refunds", db.refunds.map(fromRefund));
+  await upsert("social_actions", db.socialActions.map(fromSocialAction));
   await supabaseRequest("app_sessions", {
     method: "DELETE",
     query: "?token=neq.__never_match__",
@@ -549,6 +787,39 @@ function visibleOrders(db, user) {
   return db.orders.filter((order) => order.customerId === user.id);
 }
 
+function visibleSubscriptions(db, user) {
+  if (user.role === "owner") return db.subscriptions;
+  if (user.role === "cook") {
+    const cook = cookForUser(db, user.id);
+    return cook ? db.subscriptions.filter((item) => item.cookId === cook.id) : [];
+  }
+  return db.subscriptions.filter((item) => item.customerId === user.id);
+}
+
+function visibleRefunds(db, user) {
+  if (user.role === "owner") return db.refunds;
+  const orders = visibleOrders(db, user);
+  const orderIds = new Set(orders.map((order) => order.id));
+  return db.refunds.filter((refund) => orderIds.has(refund.orderId));
+}
+
+function visiblePayments(db, user) {
+  if (user.role === "owner") return db.payments;
+  const orders = visibleOrders(db, user);
+  const orderIds = new Set(orders.map((order) => order.id));
+  return db.payments.filter((payment) => orderIds.has(payment.orderId));
+}
+
+function socialSummary(db, cookId = null) {
+  const actions = cookId ? db.socialActions.filter((action) => action.cookId === cookId) : db.socialActions;
+  return {
+    followers: actions.filter((action) => action.type === "follow").length,
+    likes: actions.filter((action) => action.type === "like").length,
+    comments: actions.filter((action) => action.type === "comment").length,
+    photos: actions.filter((action) => action.type === "photo").length
+  };
+}
+
 function publicState(db, user = null) {
   const approvedCooks = db.cooks.filter((cook) => cook.status === "approved");
   const cooks = user?.role === "owner"
@@ -566,6 +837,12 @@ function publicState(db, user = null) {
           return order && visibleOrders(db, user).some((item) => item.id === order.id);
         })
       : [],
+    mealPlans: db.mealPlans.filter((plan) => plan.active && cookIds.has(plan.cookId) || user?.role === "owner"),
+    subscriptions: user ? visibleSubscriptions(db, user) : [],
+    payments: user ? visiblePayments(db, user) : [],
+    refunds: user ? visibleRefunds(db, user) : [],
+    socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
+    social: socialSummary(db),
     users: user?.role === "owner" ? db.users.map(safeUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
     stats: user?.role === "owner"
@@ -575,7 +852,10 @@ function publicState(db, user = null) {
           drivers: db.users.filter((item) => item.role === "driver").length,
           pendingCooks: db.cooks.filter((cook) => cook.status === "pending").length,
           orders: db.orders.length,
-          revenue: db.orders.reduce((sum, order) => sum + order.total, 0)
+          revenue: db.orders.reduce((sum, order) => sum + order.total, 0),
+          commission: db.payments.reduce((sum, payment) => sum + Number(payment.commission || 0), 0),
+          pendingRefunds: db.refunds.filter((refund) => refund.status === "pending").length,
+          activeSubscriptions: db.subscriptions.filter((subscription) => subscription.status === "active").length
         }
       : null
   };
@@ -737,6 +1017,7 @@ async function api(req, res, pathname) {
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
     const defaultDriver = db.users.find((item) => item.role === "driver");
     const order = {
       id: id("ord"),
@@ -746,17 +1027,33 @@ async function api(req, res, pathname) {
       items: normalized,
       subtotal,
       deliveryFee: 30,
-      serviceFee: 15,
-      total: subtotal + 45,
+      serviceFee: 0,
+      total: subtotal + 30,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
-      paymentMethod: String(input.paymentMethod || "cash"),
+      paymentMethod,
       deliveryAddress: String(input.deliveryAddress || "").trim(),
       notes: String(input.notes || "").trim(),
       createdAt: now(),
       updatedAt: now()
     };
+    order.payment = paymentLedgerForOrder(order);
     db.orders.unshift(order);
+    db.payments.unshift({
+      id: id("pay"),
+      orderId: order.id,
+      customerId: order.customerId,
+      cookId: order.cookId,
+      method: paymentMethod,
+      status: order.payment.status,
+      gross: order.payment.gross,
+      commissionRate,
+      commission: order.payment.commission,
+      cookPayout: order.payment.cookPayout,
+      provider: paymentMethod === "cash" ? "cash_on_delivery" : "manual_gateway_ready",
+      createdAt: now(),
+      releasedAt: null
+    });
     const cook = db.cooks.find((item) => item.id === order.cookId);
     if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `New order ${order.id} received.`, createdAt: now(), read: false });
     if (order.driverId) db.notifications.push({ id: id("not"), userId: order.driverId, text: `Delivery request created for ${order.id}.`, createdAt: now(), read: false });
@@ -769,23 +1066,31 @@ async function api(req, res, pathname) {
     if (!order) return json(res, 404, { error: "Order not found." });
     const cook = cookForUser(db, user.id);
     const input = await body(req);
-    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"];
+    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"];
     if (!allowed.includes(input.status)) return json(res, 400, { error: "Invalid status." });
     const isOrderCook = cook?.id === order.cookId;
     const isOrderDriver = order.driverId === user.id;
     const isOrderCustomer = user.id === order.customerId;
-    const customerCanReceive = isOrderCustomer && input.status === "delivered" && ["picked_up", "out_for_delivery"].includes(order.status);
+    const customerCanReceive = isOrderCustomer && input.status === "delivered" && ["near_you", "out_for_delivery"].includes(order.status);
     if (user.role !== "owner" && !isOrderCook && !isOrderDriver && !customerCanReceive) {
       return json(res, 403, { error: "Only the cook, assigned driver, customer receiver, or owner can update this order." });
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(input.status)) {
       return json(res, 403, { error: "Cook can accept, prepare, mark finished, or cancel." });
     }
-    if (isOrderDriver && !["picked_up", "out_for_delivery", "delivered"].includes(input.status)) {
-      return json(res, 403, { error: "Driver can receive, start delivery, or mark delivered." });
+    if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
+      return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
     }
     order.status = input.status;
     order.updatedAt = now();
+    if (order.status === "delivered") {
+      order.payment = { ...(order.payment || paymentLedgerForOrder(order)), status: "released", releasedAt: order.updatedAt };
+      const payment = db.payments.find((item) => item.orderId === order.id);
+      if (payment) {
+        payment.status = "released";
+        payment.releasedAt = order.updatedAt;
+      }
+    }
     order.statusHistory = order.statusHistory || [];
     order.statusHistory.push({
       status: input.status,
@@ -829,12 +1134,139 @@ async function api(req, res, pathname) {
     return json(res, 201, publicState(db, user));
   }
 
+  if (req.method === "POST" && pathname === "/api/meal-plans") {
+    const cook = cookForUser(db, user.id);
+    if (!cook && user.role !== "owner") return json(res, 403, { error: "Only cooks or admin can create subscription plans." });
+    const input = await body(req);
+    const plan = {
+      id: id("plan"),
+      cookId: user.role === "owner" && input.cookId ? input.cookId : cook.id,
+      name: String(input.name || "Weekly meal plan").trim(),
+      mealsPerWeek: Math.max(1, Number(input.mealsPerWeek || 5)),
+      price: Math.max(1, Number(input.price || 1500)),
+      description: String(input.description || "Fresh weekly homemade meals.").trim(),
+      active: true,
+      createdAt: now()
+    };
+    db.mealPlans.unshift(plan);
+    await saveDb(db);
+    return json(res, 201, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/subscriptions") {
+    const input = await body(req);
+    const plan = db.mealPlans.find((item) => item.id === input.planId && item.active);
+    if (!plan) return json(res, 404, { error: "Meal subscription plan not found." });
+    const subscription = {
+      id: id("sub"),
+      customerId: user.id,
+      cookId: plan.cookId,
+      planId: plan.id,
+      mealsPerWeek: plan.mealsPerWeek,
+      price: plan.price,
+      status: "active",
+      nextDeliveryAt: String(input.nextDeliveryAt || "").trim() || null,
+      createdAt: now()
+    };
+    db.subscriptions.unshift(subscription);
+    const cook = db.cooks.find((item) => item.id === plan.cookId);
+    if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `${user.name} subscribed to ${plan.name}.`, createdAt: now(), read: false });
+    await saveDb(db);
+    return json(res, 201, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/social") {
+    const input = await body(req);
+    const type = String(input.type || "").trim();
+    if (!["follow", "like", "comment", "photo"].includes(type)) return json(res, 400, { error: "Invalid social action." });
+    const cookId = String(input.cookId || "").trim();
+    const dishId = String(input.dishId || "").trim();
+    if (cookId && !db.cooks.some((cook) => cook.id === cookId)) return json(res, 404, { error: "Cook not found." });
+    if (dishId && !db.dishes.some((dish) => dish.id === dishId)) return json(res, 404, { error: "Dish not found." });
+    if (type === "follow") {
+      const existing = db.socialActions.find((action) => action.userId === user.id && action.cookId === cookId && action.type === "follow");
+      if (existing) return json(res, 200, publicState(db, user));
+    }
+    if (type === "like") {
+      const existing = db.socialActions.find((action) => action.userId === user.id && action.dishId === dishId && action.type === "like");
+      if (existing) return json(res, 200, publicState(db, user));
+    }
+    const action = {
+      id: id("soc"),
+      userId: user.id,
+      cookId: cookId || null,
+      dishId: dishId || null,
+      type,
+      text: String(input.text || "").trim(),
+      photo: String(input.photo || "").trim(),
+      createdAt: now()
+    };
+    if (type === "comment" && !action.text) return json(res, 400, { error: "Comment text is required." });
+    if (type === "photo" && !action.photo) return json(res, 400, { error: "Photo URL is required." });
+    db.socialActions.unshift(action);
+    const cook = db.cooks.find((item) => item.id === action.cookId);
+    if (cook) cook.followers = socialSummary(db, cook.id).followers;
+    await saveDb(db);
+    return json(res, 201, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/refunds") {
+    const input = await body(req);
+    const order = db.orders.find((item) => item.id === input.orderId && item.customerId === user.id);
+    if (!order) return json(res, 404, { error: "Refunds can only be requested for your own orders." });
+    const reason = refundReasons.includes(input.reason) ? input.reason : "";
+    if (!reason) return json(res, 400, { error: "Choose a valid refund reason." });
+    const refund = {
+      id: id("ref"),
+      orderId: order.id,
+      customerId: user.id,
+      reason,
+      details: String(input.details || "").trim(),
+      status: "pending",
+      outcome: null,
+      amount: 0,
+      adminNote: "",
+      createdAt: now(),
+      reviewedAt: null
+    };
+    db.refunds.unshift(refund);
+    db.notifications.push({ id: id("not"), userId: "usr_owner", text: `Refund request ${refund.id} opened for ${order.id}.`, createdAt: now(), read: false });
+    await saveDb(db);
+    return json(res, 201, publicState(db, user));
+  }
+
   if (user.role === "owner" && req.method === "PATCH" && pathname.startsWith("/api/admin/cooks/")) {
     const cook = db.cooks.find((item) => item.id === pathname.split("/").pop());
     if (!cook) return json(res, 404, { error: "Cook not found." });
     const input = await body(req);
     if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
     if ("verified" in input) cook.verified = Boolean(input.verified);
+    if (input.verification) {
+      cook.verification = { ...(cook.verification || defaultVerification()), ...input.verification, updatedAt: now() };
+      cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
+    }
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (user.role === "owner" && req.method === "PATCH" && pathname.startsWith("/api/admin/refunds/")) {
+    const refund = db.refunds.find((item) => item.id === pathname.split("/").pop());
+    if (!refund) return json(res, 404, { error: "Refund not found." });
+    const input = await body(req);
+    if (!refundOutcomes.includes(input.outcome)) return json(res, 400, { error: "Invalid refund outcome." });
+    const order = db.orders.find((item) => item.id === refund.orderId);
+    const rate = input.outcome === "full" ? 1 : input.outcome === "half" ? 0.5 : 0;
+    refund.status = "reviewed";
+    refund.outcome = input.outcome;
+    refund.amount = Math.round(Number(order?.total || 0) * rate * 100) / 100;
+    refund.adminNote = String(input.adminNote || "").trim();
+    refund.reviewedAt = now();
+    if (order) {
+      order.payment = { ...(order.payment || paymentLedgerForOrder(order)), refundStatus: input.outcome, refundAmount: refund.amount };
+      const payment = db.payments.find((item) => item.orderId === order.id);
+      if (payment && refund.amount > 0) payment.status = "refunded";
+    }
+    db.notifications.push({ id: id("not"), userId: refund.customerId, text: `Refund ${refund.id} reviewed: ${input.outcome}.`, createdAt: now(), read: false });
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }

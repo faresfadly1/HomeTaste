@@ -30,15 +30,34 @@ const isDriver = () => state?.user?.role === "driver";
 const roleLabel = (role) => role === "owner" ? "admin" : role;
 const statusLabels = {
   placed: "Order placed",
-  accepted: "Cook accepted",
-  preparing: "Being prepared",
+  accepted: "Order received",
+  preparing: "Cooking",
   ready: "Finished by cook",
-  picked_up: "Received by driver",
+  picked_up: "Driver picked up",
   out_for_delivery: "On the way",
-  delivered: "Received by customer",
+  near_you: "Near you",
+  delivered: "Delivered",
   cancelled: "Cancelled"
 };
-const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered"];
+const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered"];
+const paymentLabels = {
+  cash: "Cash on delivery",
+  visa: "Visa",
+  mastercard: "Mastercard",
+  troy: "Troy",
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
+  turkish_bank_card: "Turkish bank card"
+};
+const refundLabels = {
+  not_delivered: "Food not delivered",
+  spoiled: "Food spoiled",
+  wrong_order: "Wrong order",
+  missing_item: "Missing item",
+  full: "100% refund",
+  half: "50% refund",
+  none: "No refund"
+};
 
 function toast(message, error = false) {
   const old = document.querySelector(".toast");
@@ -557,19 +576,19 @@ async function staticApi(path, options = {}) {
   if (method === "PATCH" && path.startsWith("/api/orders/")) {
     const order = db.orders.find((item) => item.id === path.split("/").pop());
     if (!order) throw new Error("Order not found.");
-    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"];
+    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"];
     const nextStatus = String(input.status || "");
     if (!allowed.includes(nextStatus)) throw new Error("Invalid status.");
     const cook = staticCookForUser(db, user.id);
     const isOrderCook = cook?.id === order.cookId;
     const isOrderDriver = order.driverId === user.id;
     const isOrderCustomer = order.customerId === user.id;
-    const customerCanReceive = isOrderCustomer && nextStatus === "delivered" && ["picked_up", "out_for_delivery"].includes(order.status);
+    const customerCanReceive = isOrderCustomer && nextStatus === "delivered" && ["near_you", "out_for_delivery"].includes(order.status);
     if (user.role !== "owner" && !isOrderCook && !isOrderDriver && !customerCanReceive) {
       throw new Error("Only the cook, assigned driver, customer receiver, or owner can update this order.");
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(nextStatus)) throw new Error("Cook can accept, prepare, mark finished, or cancel.");
-    if (isOrderDriver && !["picked_up", "out_for_delivery", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, or mark delivered.");
+    if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, mark near you, or mark delivered.");
     order.status = nextStatus;
     order.updatedAt = new Date().toISOString();
     order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });
@@ -840,7 +859,7 @@ function renderMarketplaceFrame() {
           <button class="button secondary small" id="logout">Sign out</button>
         </div>
       </header>
-      <div class="market-content panel-hidden">
+      <div class="market-content">
         <iframe class="market-frame" title="HomeTaste marketplace" src="marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
@@ -897,7 +916,7 @@ function renderDashboard() {
   if (isDriver()) {
     const driverOrders = state.orders || [];
     const readyOrders = driverOrders.filter((order) => order.status === "ready").length;
-    const onRoad = driverOrders.filter((order) => ["picked_up", "out_for_delivery"].includes(order.status)).length;
+    const onRoad = driverOrders.filter((order) => ["picked_up", "out_for_delivery", "near_you"].includes(order.status)).length;
     return `
       ${header("Driver Hub", "See ready orders, receive food from cooks, and update the delivery tracking for customers and admin.")}
       <section class="grid cols-4">
@@ -958,23 +977,35 @@ function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   return `
     ${header("Admin Control", "All users, registrations, cooks, orders, revenue, and marketplace controls.")}
-    <section class="grid" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
       <div class="stat"><small>Users</small><strong>${state.stats.users}</strong></div>
       <div class="stat"><small>Cooks</small><strong>${state.stats.cooks}</strong></div>
       <div class="stat"><small>Drivers</small><strong>${state.stats.drivers || 0}</strong></div>
       <div class="stat"><small>Pending cooks</small><strong>${state.stats.pendingCooks}</strong></div>
       <div class="stat"><small>Revenue</small><strong>${money(state.stats.revenue)}</strong></div>
+      <div class="stat"><small>15% commission</small><strong>${money(state.stats.commission || 0)}</strong></div>
+      <div class="stat"><small>Subscriptions</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
+      <div class="stat"><small>Refund review</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
         <h3>Cook verification</h3>
         ${state.cooks.map((cook) => `
           <div class="row">
-            <div><strong>${cook.name}</strong><div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span></div></div>
-            <div class="toolbar" style="margin:0">
+            <div>
+              <strong>${cook.name}</strong>
+              <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span></div>
+              <div class="tag-row" style="margin-top:8px">
+                ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
+              </div>
+            </div>
+            <div class="toolbar" style="margin:0;justify-content:flex-end">
               <button class="button small good" data-cook-status="${cook.id}" data-status="approved">Approve</button>
               <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">Pending</button>
               <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">Suspend</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">Verify ID</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">Verify address</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">Verify phone</button>
             </div>
           </div>
         `).join("")}
@@ -1022,6 +1053,51 @@ function renderAdmin() {
         </table>
       ` : `<div class="empty">No orders yet.</div>`}
     </section>
+    <section class="grid cols-2" style="margin-top:18px">
+      <div class="panel">
+        <h3>Payment escrow and payouts</h3>
+        ${state.payments?.length ? state.payments.map((payment) => `
+          <div class="row">
+            <div><strong>${payment.orderId}</strong><div class="meta">${paymentLabels[payment.method] || payment.method} - ${payment.status}</div></div>
+            <div class="meta">HomeTaste ${money(payment.commission)}<br>Cook payout ${money(payment.cookPayout)}</div>
+          </div>
+        `).join("") : `<div class="empty">No payment records yet.</div>`}
+      </div>
+      <div class="panel">
+        <h3>Refund review</h3>
+        ${state.refunds?.length ? state.refunds.map((refund) => `
+          <div class="operation-card">
+            <strong>${refund.id}</strong>
+            <div class="meta">${refund.orderId} - ${refundLabels[refund.reason] || refund.reason} - ${refund.status}</div>
+            <div class="meta">${refund.details || "No customer note"}</div>
+            ${refund.status === "pending" ? `
+              <div class="toolbar" style="margin:10px 0 0">
+                <button class="button small good" data-refund="${refund.id}" data-outcome="full">100% refund</button>
+                <button class="button small secondary" data-refund="${refund.id}" data-outcome="half">50% refund</button>
+                <button class="button small bad" data-refund="${refund.id}" data-outcome="none">No refund</button>
+              </div>
+            ` : `<div class="notice">Outcome: ${refundLabels[refund.outcome] || refund.outcome} - ${money(refund.amount)}</div>`}
+          </div>
+        `).join("") : `<div class="empty">No refund requests yet.</div>`}
+      </div>
+    </section>
+    <section class="panel" style="margin-top:18px">
+      <h3>Meal subscriptions</h3>
+      ${state.subscriptions?.length ? `
+        <table class="table">
+          <thead><tr><th>Subscription</th><th>Customer</th><th>Cook</th><th>Plan</th><th>Status</th></tr></thead>
+          <tbody>${state.subscriptions.map((subscription) => `
+            <tr>
+              <td><strong>${subscription.id}</strong><div class="meta">${subscription.mealsPerWeek} meals weekly</div></td>
+              <td>${state.users.find((user) => user.id === subscription.customerId)?.name || subscription.customerId}</td>
+              <td>${cookName(subscription.cookId)}</td>
+              <td>${money(subscription.price)}</td>
+              <td><span class="status">${subscription.status}</span></td>
+            </tr>
+          `).join("")}</tbody>
+        </table>
+      ` : `<div class="empty">No subscriptions yet.</div>`}
+    </section>
   `;
 }
 
@@ -1040,6 +1116,7 @@ function renderBrowse() {
           <input class="input" id="search" placeholder="Search dish, cook, city, tag" value="${filters.q}">
           <select id="cityFilter"><option value="">All cities</option>${cities.map((city) => `<option ${filters.city === city ? "selected" : ""}>${city}</option>`).join("")}</select>
         </div>
+        ${renderMealPlans()}
         <div class="grid cols-3">
           ${dishes.map(dishCard).join("") || `<div class="empty">No dishes match your search.</div>`}
         </div>
@@ -1049,8 +1126,30 @@ function renderBrowse() {
   `;
 }
 
+function renderMealPlans() {
+  const plans = state.mealPlans || [];
+  if (!plans.length) return "";
+  return `
+    <section class="panel" style="margin-bottom:18px">
+      <h3>Subscription meals</h3>
+      <div class="grid cols-3">
+        ${plans.map((plan) => `
+          <div class="operation-card">
+            <strong>${plan.name}</strong>
+            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} meals weekly</div>
+            <div class="price-row"><span class="price">${money(plan.price)}</span><button class="button small" data-subscribe="${plan.id}">Subscribe</button></div>
+            <div class="meta">${plan.description}</div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderCart() {
   const subtotal = cart.reduce((sum, item) => sum + item.qty * item.price, 0);
+  const commission = Math.round(subtotal * 0.15 * 100) / 100;
+  const deliveryFee = cart.length ? 30 : 0;
   return `
     <aside class="panel cart">
       <h3>Cart</h3>
@@ -1061,11 +1160,21 @@ function renderCart() {
         </div>
       `).join("") : `<div class="empty">Your cart is empty.</div>`}
       <div class="row"><span>Subtotal</span><strong>${money(subtotal)}</strong></div>
-      <div class="row"><span>Delivery + service</span><strong>${cart.length ? money(45) : money(0)}</strong></div>
-      <div class="row"><span>Total</span><strong>${money(cart.length ? subtotal + 45 : 0)}</strong></div>
+      <div class="row"><span>Delivery</span><strong>${money(deliveryFee)}</strong></div>
+      <div class="row"><span>HomeTaste commission after delivery</span><strong>${money(commission)}</strong></div>
+      <div class="row"><span>Cook payout after commission</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
+      <div class="row"><span>Total paid to HomeTaste</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
       <form class="form" id="checkoutForm">
         <div class="field"><label>Delivery address</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
-        <div class="field"><label>Payment method</label><select name="paymentMethod"><option value="cash">Cash on delivery</option><option value="card">Card placeholder</option><option value="bank">Bank transfer</option></select></div>
+        <div class="field"><label>Payment method</label><select name="paymentMethod">
+          <option value="visa">Visa</option>
+          <option value="mastercard">Mastercard</option>
+          <option value="troy">Troy</option>
+          <option value="apple_pay">Apple Pay</option>
+          <option value="google_pay">Google Pay</option>
+          <option value="turkish_bank_card">Turkish bank card</option>
+          <option value="cash">Cash on delivery</option>
+        </select></div>
         <div class="field"><label>Notes</label><textarea name="notes" placeholder="Allergies, spice level, delivery notes"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>Place order</button>
       </form>
@@ -1084,6 +1193,12 @@ function dishCard(dish) {
         <div class="tag-row">${dish.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>
         <div class="meta">${cook?.name || "Cook"} - ${cook?.city || ""} - ${dish.prepMinutes} min</div>
         <div class="price-row"><span class="price">${money(dish.price)}</span><button class="button small" data-add="${dish.id}">Add</button></div>
+        <div class="toolbar" style="margin:0">
+          <button class="button small secondary" data-social="follow" data-cook="${dish.cookId}">Follow cook</button>
+          <button class="button small secondary" data-social="like" data-dish="${dish.id}" data-cook="${dish.cookId}">Like</button>
+          <button class="button small secondary" data-comment="${dish.id}" data-cook="${dish.cookId}">Comment</button>
+          <button class="button small secondary" data-photo="${dish.id}" data-cook="${dish.cookId}">Share photo</button>
+        </div>
       </div>
     </article>
   `;
@@ -1117,7 +1232,7 @@ function orderRow(order) {
       <td>${order.items.map((item) => `${item.qty}x ${item.name}`).join("<br>")}</td>
       <td>${cookName(order.cookId)}${customer ? `<div class="meta">Customer: ${customer.name}</div>` : ""}</td>
       <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div>` : `<span class="meta">Unassigned</span>`}</td>
-      <td>${money(order.total)}</td>
+      <td>${money(order.total)}<div class="meta">${paymentLabels[order.paymentMethod] || order.paymentMethod}</div><div class="meta">Commission ${money(order.payment?.commission || 0)} / payout ${money(order.payment?.cookPayout || 0)}</div></td>
       <td>${orderProgress(order)}</td>
       <td>
         ${canUpdate ? `
@@ -1144,7 +1259,7 @@ function orderActionButtons(order) {
   if (isOwner()) {
     return `
       <select data-order-status="${order.id}">
-        ${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabels[status]}</option>`).join("")}
+        ${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabels[status]}</option>`).join("")}
       </select>
     `;
   }
@@ -1152,7 +1267,8 @@ function orderActionButtons(order) {
     const nextDriver = {
       ready: ["picked_up", "Receive food"],
       picked_up: ["out_for_delivery", "Start delivery"],
-      out_for_delivery: ["delivered", "Mark delivered"]
+      out_for_delivery: ["near_you", "Near customer"],
+      near_you: ["delivered", "Mark delivered"]
     }[order.status];
     if (!nextDriver) return `<span class="meta">Waiting for cook</span>`;
     return `<button class="button small good" data-order-action="${order.id}" data-status="${nextDriver[0]}">${nextDriver[1]}</button>`;
@@ -1170,7 +1286,7 @@ function orderActionButtons(order) {
 
 function customerReceiveButton(order) {
   if (state.user?.id !== order.customerId) return "";
-  if (["picked_up", "out_for_delivery"].includes(order.status)) {
+  if (["near_you", "out_for_delivery"].includes(order.status)) {
     return `<button class="button small good" data-order-action="${order.id}" data-status="delivered">Confirm received</button>`;
   }
   return "";
@@ -1205,6 +1321,14 @@ function renderCustomerOperations() {
     <h3>My orders</h3>
     <p class="meta">Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">No customer orders yet.</div>`}
+    <h3 style="margin-top:18px">Refund requests</h3>
+    ${state.refunds?.length ? state.refunds.map((refund) => `
+      <div class="operation-card">
+        <strong>${refundLabels[refund.reason] || refund.reason}</strong>
+        <div class="meta">${refund.orderId} - ${refund.status}</div>
+        ${refund.status === "reviewed" ? `<div class="notice">Admin decision: ${refundLabels[refund.outcome] || refund.outcome} - ${money(refund.amount)}</div>` : `<div class="meta">Waiting for admin review.</div>`}
+      </div>
+    `).join("") : `<div class="empty">No refund requests yet.</div>`}
   `;
 }
 
@@ -1221,6 +1345,7 @@ function orderOperationCard(order) {
       ${orderProgress(order)}
       <div class="toolbar" style="margin:10px 0 0">
         ${(isCook() || isDriver()) ? orderActionButtons(order) : customerReceiveButton(order) || `<span class="meta">${statusLabels[order.status] || order.status}</span>`}
+        ${state.user?.id === order.customerId ? `<button class="button small secondary" data-refund-order="${order.id}">Report issue</button>` : ""}
         ${isDriver() ? `<button class="button small secondary" data-page="chat">Chat</button>` : `<button class="button small secondary" data-market-page="messages">Chat</button>`}
       </div>
     </article>
@@ -1261,14 +1386,46 @@ function renderCookStudio() {
   if (!cook) return renderBecomeCook();
   const dishes = state.dishes.filter((dish) => dish.cookId === cook.id);
   const orders = state.orders.filter((order) => order.cookId === cook.id);
+  const payments = state.payments?.filter((payment) => payment.cookId === cook.id) || [];
+  const social = state.socialActions?.filter((action) => action.cookId === cook.id) || [];
+  const revenue = payments.reduce((sum, payment) => sum + Number(payment.gross || 0), 0);
+  const payout = payments.reduce((sum, payment) => sum + Number(payment.cookPayout || 0), 0);
+  const popularDish = [...dishes].sort((a, b) => {
+    const bCount = orders.flatMap((order) => order.items).filter((item) => item.dishId === b.id).length;
+    const aCount = orders.flatMap((order) => order.items).filter((item) => item.dishId === a.id).length;
+    return bCount - aCount;
+  })[0];
+  const subscriptions = state.subscriptions?.filter((subscription) => subscription.cookId === cook.id && subscription.status === "active") || [];
   return `
     ${header("Cook Studio", "Manage your profile, dishes, availability, and incoming orders.")}
-    <section class="grid cols-3">
+    <section class="grid cols-4">
       <div class="stat"><small>Status</small><strong>${cook.status}</strong></div>
       <div class="stat"><small>Dishes</small><strong>${dishes.length}</strong></div>
       <div class="stat"><small>Orders</small><strong>${orders.length}</strong></div>
+      <div class="stat"><small>Revenue</small><strong>${money(revenue)}</strong></div>
+      <div class="stat"><small>Cook payout</small><strong>${money(payout)}</strong></div>
+      <div class="stat"><small>Rating</small><strong>${cook.rating || 5}</strong></div>
+      <div class="stat"><small>Followers</small><strong>${social.filter((action) => action.type === "follow").length}</strong></div>
+      <div class="stat"><small>Subscriptions</small><strong>${subscriptions.length}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
+      <div class="panel">
+        <h3>Business summary</h3>
+        <div class="row"><span>Popular dish</span><strong>${popularDish?.name || "No orders yet"}</strong></div>
+        <div class="row"><span>Likes</span><strong>${social.filter((action) => action.type === "like").length}</strong></div>
+        <div class="row"><span>Comments</span><strong>${social.filter((action) => action.type === "comment").length}</strong></div>
+        <div class="row"><span>Customer photos</span><strong>${social.filter((action) => action.type === "photo").length}</strong></div>
+      </div>
+      <div class="panel">
+        <h3>Create subscription plan</h3>
+        <form class="form" id="mealPlanForm">
+          <div class="field"><label>Name</label><input class="input" name="name" value="5 meals weekly"></div>
+          <div class="field"><label>Meals per week</label><input class="input" type="number" name="mealsPerWeek" value="5"></div>
+          <div class="field"><label>Price TL</label><input class="input" type="number" name="price" value="1500"></div>
+          <div class="field"><label>Description</label><textarea name="description">Five homemade meals delivered weekly.</textarea></div>
+          <button class="button">Create plan</button>
+        </form>
+      </div>
       <div class="panel">
         <h3>Add dish</h3>
         <form class="form" id="dishForm">
@@ -1357,6 +1514,8 @@ function bindPage() {
   if (checkout) checkout.onsubmit = placeOrder;
   const dishForm = document.querySelector("#dishForm");
   if (dishForm) dishForm.onsubmit = createDish;
+  const mealPlanForm = document.querySelector("#mealPlanForm");
+  if (mealPlanForm) mealPlanForm.onsubmit = createMealPlan;
   const cookApply = document.querySelector("#cookApplyForm");
   if (cookApply) cookApply.onsubmit = applyCook;
   document.querySelectorAll("[data-toggle-dish]").forEach((button) => {
@@ -1367,6 +1526,27 @@ function bindPage() {
   });
   document.querySelectorAll("[data-cook-status]").forEach((button) => {
     button.onclick = () => cookStatus(button.dataset.cookStatus, button.dataset.status);
+  });
+  document.querySelectorAll("[data-verify-cook]").forEach((button) => {
+    button.onclick = () => verifyCookStep(button.dataset.verifyCook, button.dataset.check);
+  });
+  document.querySelectorAll("[data-refund]").forEach((button) => {
+    button.onclick = () => reviewRefund(button.dataset.refund, button.dataset.outcome);
+  });
+  document.querySelectorAll("[data-refund-order]").forEach((button) => {
+    button.onclick = () => requestRefund(button.dataset.refundOrder);
+  });
+  document.querySelectorAll("[data-subscribe]").forEach((button) => {
+    button.onclick = () => subscribePlan(button.dataset.subscribe);
+  });
+  document.querySelectorAll("[data-social]").forEach((button) => {
+    button.onclick = () => socialAction({ type: button.dataset.social, cookId: button.dataset.cook, dishId: button.dataset.dish });
+  });
+  document.querySelectorAll("[data-comment]").forEach((button) => {
+    button.onclick = () => commentDish(button.dataset.comment, button.dataset.cook);
+  });
+  document.querySelectorAll("[data-photo]").forEach((button) => {
+    button.onclick = () => photoDish(button.dataset.photo, button.dataset.cook);
   });
   document.querySelectorAll("[data-role-user]").forEach((select) => {
     select.onchange = () => setUserRole(select.dataset.roleUser, select.value);
@@ -1456,6 +1636,18 @@ async function createDish(event) {
   }
 }
 
+async function createMealPlan(event) {
+  event.preventDefault();
+  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    state = await api("/api/meal-plans", { method: "POST", body: JSON.stringify(input) });
+    toast("Subscription plan created.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 async function applyCook(event) {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -1499,6 +1691,83 @@ async function cookStatus(cookId, status) {
   } catch (err) {
     toast(err.message, true);
   }
+}
+
+async function verifyCookStep(cookId, check) {
+  try {
+    state = await api(`/api/admin/cooks/${cookId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ verification: { [check]: "verified" } })
+    });
+    toast(`${check} verification updated.`);
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function reviewRefund(refundId, outcome) {
+  try {
+    state = await api(`/api/admin/refunds/${refundId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ outcome })
+    });
+    toast("Refund reviewed.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function requestRefund(orderId) {
+  const reason = window.prompt("Refund reason: not_delivered, spoiled, wrong_order, missing_item", "not_delivered");
+  if (!reason) return;
+  const details = window.prompt("Describe the issue for admin review", "");
+  try {
+    state = await api("/api/refunds", {
+      method: "POST",
+      body: JSON.stringify({ orderId, reason, details })
+    });
+    toast("Refund request sent to admin.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function subscribePlan(planId) {
+  try {
+    state = await api("/api/subscriptions", {
+      method: "POST",
+      body: JSON.stringify({ planId })
+    });
+    toast("Meal subscription started.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function socialAction(input) {
+  try {
+    state = await api("/api/social", { method: "POST", body: JSON.stringify(input) });
+    toast(input.type === "follow" ? "Cook followed." : "Dish liked.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function commentDish(dishId, cookId) {
+  const text = window.prompt("Write your comment");
+  if (!text) return;
+  await socialAction({ type: "comment", dishId, cookId, text });
+}
+
+async function photoDish(dishId, cookId) {
+  const photo = window.prompt("Paste a photo URL to share");
+  if (!photo) return;
+  await socialAction({ type: "photo", dishId, cookId, photo });
 }
 
 async function setUserRole(userId, role) {
