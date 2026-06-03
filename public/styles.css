@@ -15,10 +15,11 @@
 }
 
 * { box-sizing: border-box; }
-html, body { max-width: 100%; overflow-x: hidden; }
+html, body { max-width: 100%; min-height: 100%; overflow-x: hidden; }
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
@@ -863,6 +864,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .role-panel { border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; }
 }
 @media (max-width: 720px) {
+  html, body, #app { width: 100%; max-width: 100%; min-height: 100dvh; overflow-x: hidden; }
   body { font-size: 14px; }
   .topbar { flex-direction: column; gap: 10px; margin-bottom: 16px; }
   .title h2 { font-size: 22px; line-height: 1.15; }
@@ -890,7 +892,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
     display: flex;
     align-items: stretch;
     justify-content: center;
-    padding: 12px;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
     background:
       radial-gradient(circle at 8% 14%, rgba(224,98,21,.26), transparent 16%),
       radial-gradient(circle at 95% 8%, rgba(30,116,63,.22), transparent 18%),
@@ -900,10 +902,11 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   .auth-hero { display: none; }
   .auth-card {
-    width: min(420px, 100%);
-    min-height: calc(100dvh - 24px);
+    width: 100%;
+    max-width: 420px;
+    min-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     margin: 0;
-    padding: 24px 20px 22px;
+    padding: 22px 18px 20px;
     justify-content: center;
     color: #f7efe4;
     background:
@@ -1060,7 +1063,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
       "brand user"
       "location location";
     gap: 8px;
-    padding: 8px 10px;
+    padding: max(8px, env(safe-area-inset-top)) 10px 8px;
   }
   .brand.compact { grid-area: brand; }
   .market-user { grid-area: user; gap: 6px; }
@@ -1081,6 +1084,9 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .market-content,
   .market-frame,
   .role-panel { min-width: 0; max-width: 100%; }
+  .market-shell { width: 100dvw; max-width: 100dvw; height: 100dvh; grid-template-rows: auto minmax(0,1fr); overflow: hidden; }
+  .market-content { min-height: 0; overflow: hidden; }
+  .market-frame { width: 100%; height: 100%; }
   .language-menu { right: -44px; }
   .location-card { padding: 20px; border-radius: 16px; }
   .location-title { margin-bottom: 16px; }
@@ -1096,4 +1102,27 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .popular-title { font-size: 15px; }
   .popular-locations button { flex: 1 1 108px; font-size: 12px; padding: 9px 10px; }
   #locationMap { height: 180px; }
+}
+@media (max-width: 360px) {
+  body { font-size: 13px; }
+  .auth-wrap { padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); }
+  .auth-card {
+    min-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 18px 14px;
+    border-radius: 24px;
+  }
+  .mobile-auth-logo { margin-bottom: 12px; gap: 8px; }
+  .chef-badge { width: 48px; height: 48px; }
+  .auth-card h2 { font-size: 24px; }
+  .auth-subtitle { font-size: 13px; margin-bottom: 14px; }
+  .auth-card .input,
+  .auth-card textarea,
+  .auth-card select { min-height: 46px; }
+  .auth-submit { min-height: 46px; }
+  .market-top { padding-left: 8px; padding-right: 8px; }
+  .brand.compact h1 { font-size: 16px; }
+  .mark { width: 34px; height: 34px; }
+  .market-location { font-size: 12px; min-height: 32px; }
+  .icon-action { width: 27px; height: 27px; }
+  .button.small { padding: 7px 6px; font-size: 10px; }
 }
