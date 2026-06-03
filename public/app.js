@@ -75,8 +75,7 @@ const refundLabels = {
   none: "No refund"
 };
 const oauthProviderLabels = {
-  google: "Google",
-  apple: "Apple"
+  google: "Google"
 };
 
 function toast(message, error = false) {
@@ -265,17 +264,16 @@ function oauthProviderLabel(provider) {
 async function getAuthProviderStatus() {
   if (authProviderStatus) return authProviderStatus;
   if (useStaticApi) {
-    authProviderStatus = { google: false, apple: false };
+    authProviderStatus = { google: false };
     return authProviderStatus;
   }
   try {
     const health = await api("/api/health");
     authProviderStatus = {
-      google: Boolean(health.auth?.google),
-      apple: Boolean(health.auth?.apple)
+      google: Boolean(health.auth?.google)
     };
   } catch {
-    authProviderStatus = { google: false, apple: false };
+    authProviderStatus = { google: false };
   }
   return authProviderStatus;
 }
@@ -772,7 +770,6 @@ function renderAuth(error = "") {
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <div class="oauth-grid">
           <button class="button secondary" type="button" data-oauth="google">Continue with Google</button>
-          <button class="button secondary" type="button" data-oauth="apple">Continue with Apple</button>
         </div>
         <form class="form" id="authForm">
           <div class="field">
@@ -1656,7 +1653,6 @@ function renderSettings() {
         <div class="toolbar">
           <button class="button small secondary" data-email-verify>Send email verification</button>
           <button class="button small secondary" data-oauth="google">Connect Google</button>
-          <button class="button small secondary" data-oauth="apple">Connect Apple</button>
         </div>
         ${state.user.pendingEmailVerificationUrl ? `<div class="notice">Email verification URL: <a href="${state.user.pendingEmailVerificationUrl}" target="_blank" rel="noreferrer">${state.user.pendingEmailVerificationUrl}</a></div>` : ""}
         <form class="form" id="phoneRequestForm" style="margin-top:12px">
