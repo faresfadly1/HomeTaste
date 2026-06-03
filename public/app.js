@@ -2133,6 +2133,7 @@ async function handleAuthLinkParams() {
       history.replaceState({}, "", location.pathname);
     }
     if (authToken) {
+      token = authToken;
       localStorage.setItem(storageKey, authToken);
       toast("Signed in successfully.");
       history.replaceState({}, "", location.pathname);
