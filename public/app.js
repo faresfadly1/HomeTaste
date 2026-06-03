@@ -673,26 +673,45 @@ function setPage(next) {
 
 function renderAuth(error = "") {
   applyAppearance();
+  const isLogin = mode === "login";
+  const chefIcon = `
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
+      <path d="M14 35c-5.8-1.2-9-4.7-9-9.2 0-4.7 3.7-8.2 8.3-8.2 1.8-5 6-8 10.7-8 4.8 0 8.9 3 10.7 8 4.6 0 8.3 3.5 8.3 8.2 0 4.5-3.2 8-9 9.2"></path>
+      <path d="M17 29c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8"></path>
+    </svg>`;
   app.innerHTML = `
     <main class="auth-wrap">
       <section class="auth-hero">
-        <div class="brand" style="border:0;padding:0;margin-bottom:18px">
-          <div class="mark">H</div>
-          <div><h1 style="font-size:24px">HomeTaste</h1></div>
+        <div class="auth-brand">
+          <div class="chef-mark">${chefIcon}</div>
+          <strong>Home<span>Taste</span></strong>
         </div>
-        <h1>Homemade food marketplace, ready to operate.</h1>
+        <div class="auth-hero-copy">
+          <p class="script-line">Welcome Back to</p>
+          <h1>Home<span>Taste</span></h1>
+          <div class="chef-divider"><span></span><b>${chefIcon}</b><span></span></div>
+          <p>Sign in to continue discovering delicious homemade meals made with love.</p>
+        </div>
+        <div class="auth-trust">
+          <div><b>♙</b><span>Secure<br>Login</span></div>
+          <div><b>♡</b><span>Trusted<br>Platform</span></div>
+          <div><b>♚</b><span>Home Cooks<br>Community</span></div>
+        </div>
       </section>
       <section class="auth-card">
+        <div class="auth-doodle" aria-hidden="true">✧ ⌂ ✧</div>
         <div class="auth-switch">
           <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">Sign in</button>
           <button class="auth-switch-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">Create account</button>
         </div>
-        <h2>${mode === "login" ? "Sign in" : "Create account"}</h2>
-        <p class="auth-subtitle">${mode === "login" ? "Use your account to open your HomeTaste dashboard." : "Create your customer account in a few seconds."}</p>
-        ${error ? `<div class="notice error">${error}</div>` : ""}
-        <div class="oauth-grid">
-          <button class="button secondary" type="button" data-oauth="google">Continue with Google</button>
+        <div class="mobile-auth-logo">
+          <div class="chef-badge">${chefIcon}</div>
+          <strong>Home<span>Taste</span></strong>
         </div>
+        <h2>${isLogin ? "Sign In" : "Sign Up"}</h2>
+        <p class="auth-subtitle">${isLogin ? "Login to your HomeTaste account" : "Create your HomeTaste account"}</p>
+        ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
           <div class="field">
             <label>Country</label>
@@ -705,12 +724,22 @@ function renderAuth(error = "") {
             <div class="field"><label>Full name</label><input class="input" name="name" placeholder="Your name"></div>
             <div class="field"><label>Phone</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
-          <div class="field"><label>Email</label><input class="input" type="email" name="email" placeholder="name@email.com" required></div>
-          <div class="field"><label>Password</label><input class="input" type="password" name="password" placeholder="At least 8 characters" required></div>
-          <button class="button" type="submit">${mode === "login" ? "Sign in" : "Sign up"}</button>
+          <div class="field auth-input-field"><label>Email Address</label><span>✉</span><input class="input" type="email" name="email" placeholder="Enter your email" required></div>
+          <div class="field auth-input-field"><label>Password</label><span>▣</span><input class="input" type="password" name="password" placeholder="Enter your password" required></div>
+          <div class="auth-row">
+            <label class="remember"><input type="checkbox" checked> <span>Remember me</span></label>
+            <button class="link-button" type="button" id="forgotInline">Forgot password?</button>
+          </div>
+          <button class="button auth-submit" type="submit"><span>${isLogin ? "Sign In" : "Sign Up"}</span><b>→</b></button>
         </form>
-        <button class="button secondary" style="width:100%;margin-top:12px" id="switchMode">
-          ${mode === "login" ? "Need a new account?" : "I already have an account"}
+        <div class="auth-separator"><span></span><small>or continue with</small><span></span></div>
+        <div class="oauth-grid">
+          <button class="button secondary oauth-button" type="button" data-oauth="google"><b>G</b><span>Google</span></button>
+          <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>f</b><span>Facebook</span></button>
+          <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>●</b><span>Apple</span></button>
+        </div>
+        <button class="auth-mode-link" type="button" id="switchMode">
+          ${isLogin ? "Don't have an account?" : "Already have an account?"} <strong>${isLogin ? "Sign up" : "Sign in"}</strong> <span>→</span>
         </button>
         <form class="form mini-form" id="resetRequestForm">
           <div class="field"><label>Password reset</label><input class="input" type="email" name="email" placeholder="email for reset link"></div>
@@ -731,6 +760,9 @@ function renderAuth(error = "") {
   document.querySelector("#switchMode").onclick = () => {
     mode = mode === "login" ? "signup" : "login";
     renderAuth();
+  };
+  document.querySelector("#forgotInline").onclick = () => {
+    document.querySelector("#resetRequestForm")?.classList.toggle("open");
   };
   document.querySelector("#authCountry")?.addEventListener("change", (event) => {
     authCountry = event.target.value;

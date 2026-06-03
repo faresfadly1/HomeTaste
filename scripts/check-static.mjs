@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
@@ -40,6 +41,16 @@ for (const route of routes) {
 
 const appJs = await readFile(path.join(publicDir, "app.js"), "utf8");
 new Function(appJs);
+
+const security = spawnSync(process.execPath, ["scripts/check-security.mjs"], {
+  cwd: root,
+  encoding: "utf8"
+});
+if (security.status !== 0) {
+  process.stdout.write(security.stdout || "");
+  process.stderr.write(security.stderr || "");
+  fail("public security scan failed");
+}
 
 if (!marketplace.includes("page-track-order")) fail("marketplace tracking page is missing");
 if (!marketplace.includes("orders-tabs")) fail("mobile orders tabs are missing");

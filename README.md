@@ -40,18 +40,26 @@ npm run check:prod
 
 The production check verifies the GitHub Pages routes, the routed marketplace pages, and the live API health endpoint.
 
+After real Railway provider keys are added, verify full live activation:
+
+```bash
+npm run check:live
+```
+
+`check:live` fails until Stripe, iyzico, PayTR, at least one push provider, OpenStreetMap tracking, and Supabase are active in the live Railway health response.
+
 ## System accounts
 
 Production admin, cook, and driver accounts must be created through the app or seeded from private backend environment variables. Do not publish operational emails or passwords in README files, browser JavaScript, screenshots, or GitHub Pages artifacts.
 
-Optional local/Railway seed variables are documented in [`.env.example`](/Users/faresfadly/Desktop/HomeTaste/.env.example). Use strong private values and rotate any credential that was previously shared publicly.
+Optional local/Railway seed variables are documented in [`.env.example`](.env.example). Use strong private values and rotate any credential that was previously shared publicly.
 
 ## Production database with Supabase
 
 1. Create a Supabase project.
 2. Open the SQL Editor in Supabase.
-3. Run [`supabase/schema.sql`](/Users/faresfadly/Desktop/HomeTaste/supabase/schema.sql).
-4. Copy [`.env.example`](/Users/faresfadly/Desktop/HomeTaste/.env.example) to `.env` for local testing.
+3. Run [`supabase/schema.sql`](supabase/schema.sql).
+4. Copy [`.env.example`](.env.example) to `.env` for local testing.
 5. Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`.
 6. Restart the backend.
 
@@ -65,7 +73,7 @@ When those environment variables exist, the backend uses Supabase instead of `da
 
 ## Production backend
 
-The live frontend in [`public/config.js`](/Users/faresfadly/Desktop/HomeTaste/public/config.js) points to:
+The live frontend in [`public/config.js`](public/config.js) points to:
 
 ```text
 https://hometaste-api-production.up.railway.app
@@ -81,9 +89,21 @@ Set these backend environment variables in the production host:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REDIRECT_URI`
-- `APPLE_CLIENT_ID`
-- `APPLE_CLIENT_SECRET`
-- `APPLE_REDIRECT_URI`
+- `STRIPE_SECRET_KEY`
+- `IYZICO_API_KEY`
+- `IYZICO_SECRET_KEY`
+- `IYZICO_BASE_URL`
+- `PAYTR_MERCHANT_ID`
+- `PAYTR_MERCHANT_KEY`
+- `PAYTR_MERCHANT_SALT`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `ONESIGNAL_APP_ID`
+- `ONESIGNAL_REST_API_KEY`
+- `MAP_PROVIDER`
+- `MAPBOX_PUBLIC_TOKEN`
+- `GOOGLE_MAPS_BROWSER_KEY`
 
 Recommended `ALLOWED_ORIGINS`:
 
@@ -93,7 +113,7 @@ https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173,http:/
 
 ## Alternative Render deploy
 
-This repo also includes [`render.yaml`](/Users/faresfadly/Desktop/HomeTaste/render.yaml) for a Render web service.
+This repo also includes [`render.yaml`](render.yaml) for a Render web service.
 
 Create a Render web service from this GitHub repo and set:
 
@@ -107,7 +127,7 @@ After Render gives you a backend URL such as:
 https://your-service-name.onrender.com
 ```
 
-set that URL in [`public/config.js`](/Users/faresfadly/Desktop/HomeTaste/public/config.js):
+set that URL in [`public/config.js`](public/config.js):
 
 ```js
 window.HOMETASTE_API_BASE = "https://your-service-name.onrender.com";
@@ -133,7 +153,7 @@ Once Supabase and the hosted backend are connected:
 - push notification device registration exists for Firebase FCM and OneSignal; order accepted, food ready, driver near, and delivered updates use the same notification pipeline
 - live tracking stores route provider, ETA, driver/customer coordinates, and location history for Google Maps, Mapbox, or OpenStreetMap clients
 - customers can report refund issues for food not delivered, spoiled food, wrong orders, or missing items
-- mobile app planning starts in [docs/mobile-flutter-plan.md](/Users/faresfadly/Desktop/HomeTaste/docs/mobile-flutter-plan.md)
+- mobile app planning starts in [docs/mobile-flutter-plan.md](docs/mobile-flutter-plan.md)
 
 ## Important
 
