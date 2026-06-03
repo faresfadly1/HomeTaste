@@ -6,12 +6,6 @@ const isGitHubPages = window.location.hostname.endsWith("github.io");
 const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
 const useStaticApi = isGitHubPages && !configuredApiBase;
 const staticDbKey = "hometaste_static_db";
-const staticOwnerEmail = "firstproj77@gmail.com";
-const staticOwnerPassword = "HomeTasteadmin77$";
-const staticCookEmail = "cook1@hometaste.local";
-const staticCookPassword = "CookTaste$$7";
-const staticDriverEmail = "drive1k202@gmail.com";
-const staticDriverPassword = "DriveTaste$$7";
 
 let token = localStorage.getItem(storageKey);
 let state = null;
@@ -58,6 +52,9 @@ const statusLabels = {
 const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered"];
 const paymentLabels = {
   cash: "Cash on delivery",
+  stripe: "Stripe",
+  iyzico: "iyzico",
+  paytr: "PayTR",
   visa: "Visa",
   mastercard: "Mastercard",
   troy: "Troy",
@@ -309,45 +306,11 @@ async function refresh() {
 function staticSeedDb() {
   const createdAt = new Date().toISOString();
   return {
-    users: [
-      {
-        id: "usr_owner",
-        name: "HomeTaste Admin",
-        email: staticOwnerEmail,
-        passwordHash: staticOwnerPassword,
-        role: "owner",
-        city: "Istanbul",
-        country: "TR",
-        phone: "+90 555 000 0000",
-        createdAt
-      },
-      {
-        id: "usr_cook_1",
-        name: "Aylin Demir",
-        email: staticCookEmail,
-        passwordHash: staticCookPassword,
-        role: "cook",
-        city: "Kadikoy",
-        country: "TR",
-        phone: "+90 555 202 0000",
-        createdAt
-      },
-      {
-        id: "usr_driver_1",
-        name: "HomeTaste Driver",
-        email: staticDriverEmail,
-        passwordHash: staticDriverPassword,
-        role: "driver",
-        city: "Bursa",
-        country: "TR",
-        phone: "+90 555 101 0000",
-        createdAt
-      }
-    ],
+    users: [],
     cooks: [
       {
         id: "cook_2",
-        userId: "usr_cook_1",
+        userId: null,
         name: "Aylin Demir",
         cuisine: "Turkish Classics",
         city: "Kadikoy",
@@ -412,53 +375,12 @@ function staticSeedDb() {
 function loadStaticDb() {
   const seeded = JSON.parse(localStorage.getItem(staticDbKey) || "null") || staticSeedDb();
   let changed = false;
-  const ensureUser = ({ id, name, email, passwordHash, role, city, country, phone }) => {
-    let user = seeded.users.find((item) => item.id === id || item.email === email);
-    if (!user) {
-      seeded.users.push({ id, name, email, passwordHash, role, city, country, phone, createdAt: new Date().toISOString() });
-      changed = true;
-      return;
-    }
-    for (const [key, value] of Object.entries({ id, name, email, passwordHash, role, city, country, phone })) {
-      if (user[key] !== value) {
-        user[key] = value;
-        changed = true;
-      }
-    }
-  };
-  ensureUser({
-    id: "usr_owner",
-    name: "HomeTaste Admin",
-    email: staticOwnerEmail,
-    passwordHash: staticOwnerPassword,
-    role: "owner",
-    city: "Istanbul",
-    country: "TR",
-    phone: "+90 555 000 0000"
-  });
-  ensureUser({
-    id: "usr_cook_1",
-    name: "Aylin Demir",
-    email: staticCookEmail,
-    passwordHash: staticCookPassword,
-    role: "cook",
-    city: "Kadikoy",
-    country: "TR",
-    phone: "+90 555 202 0000"
-  });
-  ensureUser({
-    id: "usr_driver_1",
-    name: "HomeTaste Driver",
-    email: staticDriverEmail,
-    passwordHash: staticDriverPassword,
-    role: "driver",
-    city: "Bursa",
-    country: "TR",
-    phone: "+90 555 101 0000"
-  });
+  const beforeCount = seeded.users.length;
+  seeded.users = seeded.users.filter((user) => !["usr_owner", "usr_cook_1", "usr_driver_1"].includes(user.id));
+  if (seeded.users.length !== beforeCount) changed = true;
   const primaryCook = seeded.cooks.find((cook) => cook.id === "cook_2");
-  if (primaryCook && primaryCook.userId !== "usr_cook_1") {
-    primaryCook.userId = "usr_cook_1";
+  if (primaryCook && primaryCook.userId) {
+    primaryCook.userId = null;
     changed = true;
   }
   if (changed || !localStorage.getItem(staticDbKey)) saveStaticDb(seeded);
@@ -1298,13 +1220,15 @@ function renderCart() {
         <div class="field"><label>Delivery address</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
         <div class="field"><label>Schedule order</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>Payment method</label><select name="paymentMethod">
-          <option value="visa">Visa</option>
-          <option value="mastercard">Mastercard</option>
-          <option value="troy">Troy</option>
-          <option value="apple_pay">Apple Pay</option>
-          <option value="google_pay">Google Pay</option>
-          <option value="turkish_bank_card">Turkish bank card</option>
           <option value="cash">Cash on delivery</option>
+          <option value="iyzico">iyzico hosted checkout</option>
+          <option value="stripe">Stripe card / wallet</option>
+          <option value="paytr">PayTR secure checkout</option>
+          <option value="visa">Visa via Stripe</option>
+          <option value="mastercard">Mastercard via Stripe</option>
+          <option value="troy">Troy via iyzico</option>
+          <option value="google_pay">Google Pay via Stripe</option>
+          <option value="turkish_bank_card">Turkish bank card via iyzico</option>
         </select></div>
         <div class="field"><label>Notes</label><textarea name="notes" placeholder="Allergies, spice level, delivery notes"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>Place order</button>
@@ -1378,12 +1302,16 @@ function driverOrderCard(order) {
 
 function routeMap(order) {
   const route = order.route || {};
+  const points = route.polyline || [];
+  const center = points[1] || points[0] || order.customerLocation || order.driverLocation || {};
+  const mapSrc = center.lat && center.lng ? `https://www.openstreetmap.org/export/embed.html?bbox=${center.lng - 0.035}%2C${center.lat - 0.025}%2C${center.lng + 0.035}%2C${center.lat + 0.025}&layer=mapnik&marker=${center.lat}%2C${center.lng}` : "";
   return `
     <div class="mini-map">
+      ${mapSrc ? `<iframe title="Live delivery map" src="${mapSrc}" loading="lazy" referrerpolicy="no-referrer"></iframe>` : ""}
       <span class="map-dot pickup"></span>
       <span class="map-line"></span>
       <span class="map-dot dropoff"></span>
-      <strong>${route.distanceKm || "-"} km</strong>
+      <strong>${route.provider || "openstreetmap"} · ${route.distanceKm || "-"} km · ETA ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
     </div>
   `;
 }
@@ -1674,8 +1602,18 @@ function renderSettings() {
         ${state.user.pendingPasswordResetUrl ? `<div class="notice">Password reset URL: <a href="${state.user.pendingPasswordResetUrl}" target="_blank" rel="noreferrer">${state.user.pendingPasswordResetUrl}</a></div>` : ""}
       </div>
       <div class="panel">
+        <h3>Push notifications</h3>
+        <form class="form" id="pushDeviceForm">
+          <div class="field"><label>Provider</label><select name="provider"><option value="firebase">Firebase FCM</option><option value="onesignal">OneSignal</option></select></div>
+          <div class="field"><label>Device token / subscription ID</label><input class="input" name="token" placeholder="Paste device token from the mobile app or web SDK"></div>
+          <div class="field"><label>Platform</label><select name="platform"><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option></select></div>
+          <button class="button secondary" type="submit">Register device</button>
+        </form>
+        <div class="notice" style="margin-top:12px">Push events: order accepted, food ready, driver near, and delivered.</div>
+      </div>
+      <div class="panel">
         <h3>System status</h3>
-        <div class="notice success">Backend, authentication verification, database persistence, orders, driver tracking, meal plans, and account views are active.</div>
+        <div class="notice success">Backend, authentication verification, database persistence, payment gateway hooks, push registration, live tracking, meal plans, and account views are active.</div>
       </div>
     </section>
   `;
@@ -1770,6 +1708,8 @@ function bindPage() {
   if (phoneRequest) phoneRequest.onsubmit = requestPhoneVerification;
   const phoneConfirm = document.querySelector("#phoneConfirmForm");
   if (phoneConfirm) phoneConfirm.onsubmit = confirmPhoneVerification;
+  const pushDeviceForm = document.querySelector("#pushDeviceForm");
+  if (pushDeviceForm) pushDeviceForm.onsubmit = registerPushDevice;
   document.querySelectorAll("[data-subscription]").forEach((button) => {
     button.onclick = () => subscriptionAction(button.dataset.subscription, button.dataset.action);
   });
@@ -1849,6 +1789,17 @@ async function confirmPhoneVerification(event) {
   }
 }
 
+async function registerPushDevice(event) {
+  event.preventDefault();
+  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  try {
+    const result = await api("/api/notifications/devices", { method: "POST", body: JSON.stringify(input) });
+    toast(result.push?.firebase || result.push?.oneSignal ? "Push device registered." : "Device saved. Configure provider keys to send pushes.");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 function openMarketplacePage(marketPage) {
   const frame = document.querySelector(".market-frame");
   const win = frame?.contentWindow;
@@ -1889,14 +1840,23 @@ async function placeOrder(event) {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
   try {
-    state = await api("/api/orders", {
+    const result = await api("/api/orders", {
       method: "POST",
       body: JSON.stringify({ ...input, items: cart })
     });
+    state = result.state || result;
     cart = [];
     saveCart();
     page = "orders";
-    toast("Order placed and saved.");
+    if (result.checkout?.checkoutUrl) {
+      window.open(result.checkout.checkoutUrl, "_blank", "noopener,noreferrer");
+      toast(`${result.checkout.provider} checkout opened.`);
+    } else if (result.checkout?.clientSecret) {
+      window.prompt("Stripe PaymentIntent client secret", result.checkout.clientSecret);
+      toast("Stripe PaymentIntent created.");
+    } else {
+      toast("Order placed and saved.");
+    }
     renderApp();
   } catch (err) {
     toast(err.message, true);

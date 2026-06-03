@@ -64,6 +64,7 @@ create table if not exists orders (
   customer_location jsonb,
   cook_location jsonb,
   driver_location jsonb,
+  location_history jsonb not null default '[]'::jsonb,
   route jsonb,
   eta_minutes integer,
   notes text,
@@ -85,6 +86,7 @@ create table if not exists notifications (
   id text primary key,
   user_id text references app_users(id) on delete cascade,
   text text not null,
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   read boolean not null default false
 );
@@ -149,14 +151,28 @@ create table if not exists payments (
   customer_id text not null references app_users(id) on delete restrict,
   cook_id text not null references cook_profiles(id) on delete restrict,
   method text not null,
-  status text not null default 'held' check (status in ('held', 'released', 'refunded', 'failed')),
+  status text not null default 'held' check (status in ('pending', 'held', 'released', 'refunded', 'failed')),
   gross numeric not null default 0,
   commission_rate numeric not null default 0.15,
   commission numeric not null default 0,
   cook_payout numeric not null default 0,
   provider text not null default 'manual',
+  external_payment_id text,
+  checkout_url text,
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   released_at timestamptz
+);
+
+create table if not exists notification_devices (
+  id text primary key,
+  user_id text not null references app_users(id) on delete cascade,
+  provider text not null check (provider in ('firebase', 'onesignal')),
+  token text not null unique,
+  platform text,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists refunds (
@@ -192,6 +208,7 @@ create index if not exists idx_orders_driver_id on orders(driver_id);
 create index if not exists idx_orders_status on orders(status);
 create index if not exists idx_messages_order_id on messages(order_id);
 create index if not exists idx_notifications_user_id on notifications(user_id);
+create index if not exists idx_notification_devices_user_id on notification_devices(user_id);
 create index if not exists idx_sessions_user_id on app_sessions(user_id);
 create index if not exists idx_auth_tokens_token on auth_tokens(token);
 create index if not exists idx_auth_tokens_user_id on auth_tokens(user_id);
@@ -218,10 +235,17 @@ alter table orders add column if not exists scheduled_for timestamptz;
 alter table orders add column if not exists customer_location jsonb;
 alter table orders add column if not exists cook_location jsonb;
 alter table orders add column if not exists driver_location jsonb;
+alter table orders add column if not exists location_history jsonb not null default '[]'::jsonb;
 alter table orders add column if not exists route jsonb;
 alter table orders add column if not exists eta_minutes integer;
 alter table orders drop constraint if exists orders_status_check;
 alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
+alter table notifications add column if not exists data jsonb not null default '{}'::jsonb;
+alter table payments add column if not exists external_payment_id text;
+alter table payments add column if not exists checkout_url text;
+alter table payments add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table payments drop constraint if exists payments_status_check;
+alter table payments add constraint payments_status_check check (status in ('pending', 'held', 'released', 'refunded', 'failed'));
 
 alter table subscriptions add column if not exists skip_weeks jsonb not null default '[]'::jsonb;
 alter table subscriptions add column if not exists paused_at timestamptz;
@@ -240,6 +264,7 @@ alter table subscriptions enable row level security;
 alter table payments enable row level security;
 alter table refunds enable row level security;
 alter table social_actions enable row level security;
+alter table notification_devices enable row level security;
 
 drop policy if exists "server can manage app_users" on app_users;
 drop policy if exists "server can manage cook_profiles" on cook_profiles;
@@ -255,6 +280,7 @@ drop policy if exists "server can manage subscriptions" on subscriptions;
 drop policy if exists "server can manage payments" on payments;
 drop policy if exists "server can manage refunds" on refunds;
 drop policy if exists "server can manage social_actions" on social_actions;
+drop policy if exists "server can manage notification_devices" on notification_devices;
 
 create policy "server can manage app_users" on app_users for all to service_role using (true) with check (true);
 create policy "server can manage cook_profiles" on cook_profiles for all to service_role using (true) with check (true);
@@ -270,6 +296,7 @@ create policy "server can manage subscriptions" on subscriptions for all to serv
 create policy "server can manage payments" on payments for all to service_role using (true) with check (true);
 create policy "server can manage refunds" on refunds for all to service_role using (true) with check (true);
 create policy "server can manage social_actions" on social_actions for all to service_role using (true) with check (true);
+create policy "server can manage notification_devices" on notification_devices for all to service_role using (true) with check (true);
 
 grant usage on schema public to service_role;
 grant all privileges on all tables in schema public to service_role;

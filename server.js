@@ -35,6 +35,21 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
 const appleClientSecret = process.env.APPLE_CLIENT_SECRET || "";
 const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/google/callback`;
 const appleRedirectUri = process.env.APPLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/apple/callback`;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const iyzicoApiKey = process.env.IYZICO_API_KEY || "";
+const iyzicoSecretKey = process.env.IYZICO_SECRET_KEY || "";
+const iyzicoBaseUrl = (process.env.IYZICO_BASE_URL || "https://sandbox-api.iyzipay.com").replace(/\/$/, "");
+const paytrMerchantId = process.env.PAYTR_MERCHANT_ID || "";
+const paytrMerchantKey = process.env.PAYTR_MERCHANT_KEY || "";
+const paytrMerchantSalt = process.env.PAYTR_MERCHANT_SALT || "";
+const oneSignalAppId = process.env.ONESIGNAL_APP_ID || "";
+const oneSignalRestApiKey = process.env.ONESIGNAL_REST_API_KEY || "";
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || "";
+const firebaseClientEmail = process.env.FIREBASE_CLIENT_EMAIL || "";
+const firebasePrivateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+const mapProvider = process.env.MAP_PROVIDER || "openstreetmap";
+const mapboxPublicToken = process.env.MAPBOX_PUBLIC_TOKEN || "";
+const googleMapsBrowserKey = process.env.GOOGLE_MAPS_BROWSER_KEY || "";
 
 const json = (res, status, body) => {
   res.writeHead(status, {
@@ -69,12 +84,6 @@ const verifyPassword = (password, stored) => {
 const id = (prefix) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
 
 const now = () => new Date().toISOString();
-const ownerEmail = "firstproj77@gmail.com";
-const ownerPassword = "HomeTasteadmin77$";
-const cookEmail = "cook1@hometaste.local";
-const cookPassword = "CookTaste$$7";
-const driverEmail = "drive1k202@gmail.com";
-const driverPassword = "DriveTaste$$7";
 const commissionRate = 0.15;
 
 const defaultVerification = (status = "pending") => ({
@@ -85,7 +94,40 @@ const defaultVerification = (status = "pending") => ({
   notes: ""
 });
 
-const paymentMethods = ["cash", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
+const seedAccounts = [
+  process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD ? {
+    id: "usr_owner",
+    name: process.env.SEED_OWNER_NAME || "HomeTaste Admin",
+    email: process.env.SEED_OWNER_EMAIL,
+    password: process.env.SEED_OWNER_PASSWORD,
+    role: "owner",
+    city: process.env.SEED_OWNER_CITY || "Istanbul",
+    country: "TR",
+    phone: process.env.SEED_OWNER_PHONE || ""
+  } : null,
+  process.env.SEED_COOK_EMAIL && process.env.SEED_COOK_PASSWORD ? {
+    id: "usr_cook_1",
+    name: process.env.SEED_COOK_NAME || "Aylin Demir",
+    email: process.env.SEED_COOK_EMAIL,
+    password: process.env.SEED_COOK_PASSWORD,
+    role: "cook",
+    city: process.env.SEED_COOK_CITY || "Kadikoy",
+    country: "TR",
+    phone: process.env.SEED_COOK_PHONE || ""
+  } : null,
+  process.env.SEED_DRIVER_EMAIL && process.env.SEED_DRIVER_PASSWORD ? {
+    id: "usr_driver_1",
+    name: process.env.SEED_DRIVER_NAME || "HomeTaste Driver",
+    email: process.env.SEED_DRIVER_EMAIL,
+    password: process.env.SEED_DRIVER_PASSWORD,
+    role: "driver",
+    city: process.env.SEED_DRIVER_CITY || "Bursa",
+    country: "TR",
+    phone: process.env.SEED_DRIVER_PHONE || ""
+  } : null
+].filter(Boolean);
+
+const paymentMethods = ["cash", "stripe", "iyzico", "paytr", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
 const refundReasons = ["not_delivered", "spoiled", "wrong_order", "missing_item"];
 const refundOutcomes = ["full", "half", "none"];
 const subscriptionActions = ["pause", "resume", "skip_week", "cancel"];
@@ -142,11 +184,246 @@ function redirect(res, url) {
   res.end();
 }
 
+function base64url(input) {
+  return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 function jwtPayload(token) {
   const payload = String(token || "").split(".")[1];
   if (!payload) return {};
   const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
   return JSON.parse(Buffer.from(normalized, "base64url").toString("utf8"));
+}
+
+function maskEmail(email) {
+  const [name = "", domain = ""] = String(email || "").split("@");
+  if (!domain) return "";
+  const head = name.length <= 2 ? `${name[0] || ""}*` : `${name.slice(0, 2)}***${name.slice(-1)}`;
+  return `${head}@${domain}`;
+}
+
+function listUser(user) {
+  const safe = safeUser(user);
+  if (!safe) return null;
+  return { ...safe, email: maskEmail(safe.email), phone: safe.phone ? "Hidden" : "" };
+}
+
+function configuredGateways() {
+  return {
+    stripe: Boolean(stripeSecretKey),
+    iyzico: Boolean(iyzicoApiKey && iyzicoSecretKey),
+    paytr: Boolean(paytrMerchantId && paytrMerchantKey && paytrMerchantSalt)
+  };
+}
+
+function paymentProviderFor(method) {
+  if (["stripe", "iyzico", "paytr", "cash"].includes(method)) return method;
+  if (["visa", "mastercard", "google_pay"].includes(method)) return "stripe";
+  if (["troy", "turkish_bank_card", "apple_pay"].includes(method)) return "iyzico";
+  return "cash";
+}
+
+function iyzicoAuth(pathname, rawBody) {
+  const randomKey = `${Date.now()}${crypto.randomBytes(6).toString("hex")}`;
+  const signature = crypto.createHmac("sha256", iyzicoSecretKey).update(`${randomKey}${pathname}${rawBody}`).digest("hex");
+  const authorization = Buffer.from(`apiKey:${iyzicoApiKey}&randomKey:${randomKey}&signature:${signature}`).toString("base64");
+  return { authorization: `IYZWSv2 ${authorization}`, randomKey };
+}
+
+async function createStripePaymentIntent(payment, order) {
+  if (!stripeSecretKey) throw new Error("Stripe is not configured.");
+  const params = new URLSearchParams();
+  params.set("amount", String(Math.max(50, Math.round(Number(payment.gross || 0) * 100))));
+  params.set("currency", "try");
+  params.set("automatic_payment_methods[enabled]", "true");
+  params.set("metadata[order_id]", order.id);
+  params.set("metadata[payment_id]", payment.id);
+  const res = await fetch("https://api.stripe.com/v1/payment_intents", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${stripeSecretKey}`,
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    body: params
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error?.message || "Stripe payment intent failed.");
+  return {
+    provider: "stripe",
+    externalPaymentId: data.id,
+    clientSecret: data.client_secret,
+    status: data.status
+  };
+}
+
+async function createIyzicoFastLink(payment, order) {
+  if (!iyzicoApiKey || !iyzicoSecretKey) throw new Error("iyzico is not configured.");
+  const pathname = "/v2/iyzilink/fast-link/products";
+  const payload = {
+    conversationId: payment.id,
+    locale: "en",
+    description: `HomeTaste order ${order.id}`,
+    price: Number(payment.gross || 0).toFixed(2),
+    currencyCode: "TRY"
+  };
+  const raw = JSON.stringify(payload);
+  const auth = iyzicoAuth(pathname, raw);
+  const res = await fetch(`${iyzicoBaseUrl}${pathname}`, {
+    method: "POST",
+    headers: {
+      authorization: auth.authorization,
+      "x-iyzi-rnd": auth.randomKey,
+      "content-type": "application/json"
+    },
+    body: raw
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.status === "failure") throw new Error(data.errorMessage || "iyzico checkout link failed.");
+  return {
+    provider: "iyzico",
+    externalPaymentId: data.data?.token,
+    checkoutUrl: data.data?.url,
+    status: data.status
+  };
+}
+
+async function createPaytrToken(payment, order, user, req) {
+  if (!paytrMerchantId || !paytrMerchantKey || !paytrMerchantSalt) throw new Error("PayTR is not configured.");
+  const userIp = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
+  const merchantOid = payment.id.replace(/[^A-Za-z0-9]/g, "");
+  const amount = String(Math.round(Number(payment.gross || 0) * 100));
+  const basket = Buffer.from(JSON.stringify(order.items.map((item) => [item.name, item.price.toFixed(2), item.qty]))).toString("base64");
+  const successUrl = publicUrl(`/orders/?payment=success&order=${encodeURIComponent(order.id)}`);
+  const failUrl = publicUrl(`/orders/?payment=failed&order=${encodeURIComponent(order.id)}`);
+  const userName = user.name || "HomeTaste User";
+  const address = order.deliveryAddress || user.city || "Istanbul";
+  const hashString = `${paytrMerchantId}${userIp}${merchantOid}${user.email}${amount}${basket}0TL0${successUrl}${failUrl}`;
+  const paytrToken = crypto.createHmac("sha256", paytrMerchantKey).update(`${hashString}${paytrMerchantSalt}`).digest("base64");
+  const form = new URLSearchParams({
+    merchant_id: paytrMerchantId,
+    user_ip: userIp,
+    merchant_oid: merchantOid,
+    email: user.email,
+    payment_amount: amount,
+    paytr_token: paytrToken,
+    user_basket: basket,
+    debug_on: process.env.PAYTR_DEBUG_ON || "0",
+    no_installment: "0",
+    max_installment: "0",
+    user_name: userName,
+    user_address: address,
+    user_phone: user.phone || "0000000000",
+    merchant_ok_url: successUrl,
+    merchant_fail_url: failUrl,
+    timeout_limit: "30",
+    currency: "TL",
+    test_mode: process.env.PAYTR_TEST_MODE || "0"
+  });
+  const res = await fetch("https://www.paytr.com/odeme/api/get-token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.status !== "success") throw new Error(data.reason || "PayTR token request failed.");
+  return {
+    provider: "paytr",
+    externalPaymentId: merchantOid,
+    checkoutUrl: `https://www.paytr.com/odeme/guvenli/${data.token}`,
+    token: data.token,
+    status: data.status
+  };
+}
+
+async function createGatewayCheckout(payment, order, user, req) {
+  const provider = payment.provider;
+  if (provider === "cash_on_delivery") return null;
+  if (provider === "stripe") return createStripePaymentIntent(payment, order);
+  if (provider === "iyzico") return createIyzicoFastLink(payment, order);
+  if (provider === "paytr") return createPaytrToken(payment, order, user, req);
+  throw new Error(`${provider} payment is not configured.`);
+}
+
+function notification(db, userId, text, data = {}) {
+  if (!userId) return null;
+  const note = { id: id("not"), userId, text, data, createdAt: now(), read: false };
+  db.notifications.push(note);
+  return note;
+}
+
+async function firebaseAccessToken() {
+  if (!firebaseProjectId || !firebaseClientEmail || !firebasePrivateKey) return "";
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const claim = {
+    iss: firebaseClientEmail,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: nowSeconds,
+    exp: nowSeconds + 3600
+  };
+  const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claim))}`;
+  const signature = crypto.createSign("RSA-SHA256").update(unsigned).sign(firebasePrivateKey);
+  const assertion = `${unsigned}.${base64url(signature)}`;
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error_description || "Firebase token request failed.");
+  return data.access_token || "";
+}
+
+async function sendPush(db, note) {
+  const devices = (db.notificationDevices || []).filter((device) => device.userId === note.userId && device.enabled !== false);
+  if (!devices.length) return;
+  const fcmTokens = devices.filter((device) => device.provider === "firebase").map((device) => device.token);
+  const oneSignalIds = devices.filter((device) => device.provider === "onesignal").map((device) => device.token);
+
+  if (fcmTokens.length && firebaseProjectId && firebaseClientEmail && firebasePrivateKey) {
+    const accessToken = await firebaseAccessToken();
+    for (const token of fcmTokens) {
+      await fetch(`https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: { title: "HomeTaste", body: note.text },
+            data: Object.fromEntries(Object.entries(note.data || {}).map(([key, value]) => [key, String(value)]))
+          }
+        })
+      }).catch(() => null);
+    }
+  }
+
+  if (oneSignalIds.length && oneSignalAppId && oneSignalRestApiKey) {
+    await fetch("https://api.onesignal.com/notifications", {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${oneSignalRestApiKey}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        app_id: oneSignalAppId,
+        include_subscription_ids: oneSignalIds,
+        headings: { en: "HomeTaste" },
+        contents: { en: note.text },
+        data: note.data || {}
+      })
+    }).catch(() => null);
+  }
+}
+
+async function sendPushBatch(db, notes) {
+  await Promise.all(notes.filter(Boolean).map((note) => sendPush(db, note)));
 }
 
 function findOrCreateOAuthUser(db, { provider, providerId, email, name, emailVerified }) {
@@ -222,6 +499,7 @@ function routeForOrder(order) {
   const km = Math.max(0.5, distanceKm(driver, customer));
   const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
   return {
+    provider: mapProvider,
     driver,
     customer,
     distanceKm: Math.round(km * 10) / 10,
@@ -232,54 +510,24 @@ function routeForOrder(order) {
 }
 
 const seedDb = () => ({
-  users: [
-    {
-      id: "usr_owner",
-      name: "HomeTaste Admin",
-      email: ownerEmail,
-      passwordHash: hashPassword(ownerPassword),
-      role: "owner",
-      city: "Istanbul",
-      country: "TR",
-      phone: "+90 555 000 0000",
-      emailVerified: true,
-      phoneVerified: true,
-      authProvider: "password",
-      createdAt: now()
-    },
-    {
-      id: "usr_cook_1",
-      name: "Aylin Demir",
-      email: cookEmail,
-      passwordHash: hashPassword(cookPassword),
-      role: "cook",
-      city: "Kadikoy",
-      country: "TR",
-      phone: "+90 555 202 0000",
-      emailVerified: true,
-      phoneVerified: true,
-      authProvider: "password",
-      createdAt: now()
-    },
-    {
-      id: "usr_driver_1",
-      name: "HomeTaste Driver",
-      email: driverEmail,
-      passwordHash: hashPassword(driverPassword),
-      role: "driver",
-      city: "Bursa",
-      country: "TR",
-      phone: "+90 555 101 0000",
-      emailVerified: true,
-      phoneVerified: true,
-      authProvider: "password",
-      createdAt: now()
-    }
-  ],
+  users: seedAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    email: account.email.trim().toLowerCase(),
+    passwordHash: hashPassword(account.password),
+    role: account.role,
+    city: account.city,
+    country: account.country,
+    phone: account.phone,
+    emailVerified: true,
+    phoneVerified: true,
+    authProvider: "password",
+    createdAt: now()
+  })),
   cooks: [
     {
       id: "cook_2",
-      userId: "usr_cook_1",
+      userId: seedAccounts.some((account) => account.id === "usr_cook_1") ? "usr_cook_1" : null,
       name: "Aylin Demir",
       cuisine: "Turkish Classics",
       city: "Kadikoy",
@@ -426,38 +674,9 @@ function ensureSystemUsers(db) {
     }
   };
 
-  ensureUser({
-    id: "usr_owner",
-    name: "HomeTaste Admin",
-    email: ownerEmail,
-    password: ownerPassword,
-    role: "owner",
-    city: "Istanbul",
-    country: "TR",
-    phone: "+90 555 000 0000"
-  });
-  ensureUser({
-    id: "usr_cook_1",
-    name: "Aylin Demir",
-    email: cookEmail,
-    password: cookPassword,
-    role: "cook",
-    city: "Kadikoy",
-    country: "TR",
-    phone: "+90 555 202 0000"
-  });
-  ensureUser({
-    id: "usr_driver_1",
-    name: "HomeTaste Driver",
-    email: driverEmail,
-    password: driverPassword,
-    role: "driver",
-    city: "Bursa",
-    country: "TR",
-    phone: "+90 555 101 0000"
-  });
+  for (const account of seedAccounts) ensureUser(account);
   const primaryCook = db.cooks.find((cook) => cook.id === "cook_2");
-  if (primaryCook && primaryCook.userId !== "usr_cook_1") {
+  if (primaryCook && seedAccounts.some((account) => account.id === "usr_cook_1") && primaryCook.userId !== "usr_cook_1") {
     primaryCook.userId = "usr_cook_1";
     changed = true;
   }
@@ -498,6 +717,7 @@ function normalizeDb(db) {
   db.refunds ||= [];
   db.socialActions ||= [];
   db.authTokens ||= [];
+  db.notificationDevices ||= [];
 
   for (const user of db.users) {
     user.emailVerified ??= ["owner", "cook", "driver"].includes(user.role);
@@ -700,6 +920,7 @@ const toOrder = (row) => ({
   customerLocation: row.customer_location || null,
   cookLocation: row.cook_location || null,
   driverLocation: row.driver_location || null,
+  locationHistory: row.location_history || [],
   route: row.route || null,
   etaMinutes: Number(row.eta_minutes || 0),
   notes: row.notes,
@@ -726,6 +947,7 @@ const fromOrder = (order) => ({
   customer_location: order.customerLocation || null,
   cook_location: order.cookLocation || null,
   driver_location: order.driverLocation || null,
+  location_history: order.locationHistory || [],
   route: order.route || routeForOrder(order),
   eta_minutes: order.etaMinutes || order.route?.etaMinutes || null,
   notes: order.notes || "",
@@ -752,6 +974,7 @@ const fromOrderLegacy = (order) => ({
     customerLocation: order.customerLocation || null,
     cookLocation: order.cookLocation || null,
     driverLocation: order.driverLocation || null,
+    locationHistory: order.locationHistory || [],
     route: order.route || routeForOrder(order),
     etaMinutes: order.etaMinutes || order.route?.etaMinutes || null
   },
@@ -785,11 +1008,21 @@ const toNotification = (row) => ({
   id: row.id,
   userId: row.user_id,
   text: row.text,
+  data: row.data || {},
   createdAt: row.created_at,
   read: row.read
 });
 
 const fromNotification = (note) => ({
+  id: note.id,
+  user_id: note.userId,
+  text: note.text,
+  data: note.data || {},
+  created_at: note.createdAt || now(),
+  read: Boolean(note.read)
+});
+
+const fromNotificationLegacy = (note) => ({
   id: note.id,
   user_id: note.userId,
   text: note.text,
@@ -897,6 +1130,9 @@ const toPayment = (row) => ({
   commission: Number(row.commission || 0),
   cookPayout: Number(row.cook_payout || 0),
   provider: row.provider || "manual",
+  externalPaymentId: row.external_payment_id || "",
+  checkoutUrl: row.checkout_url || "",
+  metadata: row.metadata || {},
   createdAt: row.created_at,
   releasedAt: row.released_at
 });
@@ -913,8 +1149,49 @@ const fromPayment = (payment) => ({
   commission: payment.commission || 0,
   cook_payout: payment.cookPayout || 0,
   provider: payment.provider || "manual",
+  external_payment_id: payment.externalPaymentId || "",
+  checkout_url: payment.checkoutUrl || "",
+  metadata: payment.metadata || {},
   created_at: payment.createdAt || now(),
   released_at: payment.releasedAt || null
+});
+
+const fromPaymentLegacy = (payment) => ({
+  id: payment.id,
+  order_id: payment.orderId,
+  customer_id: payment.customerId,
+  cook_id: payment.cookId,
+  method: payment.method || "cash",
+  status: payment.status || "held",
+  gross: payment.gross || 0,
+  commission_rate: payment.commissionRate || commissionRate,
+  commission: payment.commission || 0,
+  cook_payout: payment.cookPayout || 0,
+  provider: payment.provider || "manual",
+  created_at: payment.createdAt || now(),
+  released_at: payment.releasedAt || null
+});
+
+const toNotificationDevice = (row) => ({
+  id: row.id,
+  userId: row.user_id,
+  provider: row.provider,
+  token: row.token,
+  platform: row.platform || "",
+  enabled: row.enabled !== false,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at
+});
+
+const fromNotificationDevice = (device) => ({
+  id: device.id,
+  user_id: device.userId,
+  provider: device.provider,
+  token: device.token,
+  platform: device.platform || "",
+  enabled: device.enabled !== false,
+  created_at: device.createdAt || now(),
+  updated_at: device.updatedAt || now()
 });
 
 const toRefund = (row) => ({
@@ -968,7 +1245,7 @@ const fromSocialAction = (action) => ({
 });
 
 async function loadSupabaseDb() {
-  const [users, cooks, dishes, orders, messages, notifications, sessions, mealPlans, subscriptions, payments, refunds, socialActions, authTokens] = await Promise.all([
+  const [users, cooks, dishes, orders, messages, notifications, sessions, mealPlans, subscriptions, payments, refunds, socialActions, authTokens, notificationDevices] = await Promise.all([
     supabaseRequest("app_users", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("cook_profiles", { query: "?select=*&order=created_at.asc" }),
     supabaseRequest("dishes", { query: "?select=*" }),
@@ -981,7 +1258,8 @@ async function loadSupabaseDb() {
     supabaseRequest("payments", { query: "?select=*&order=created_at.desc" }),
     supabaseRequest("refunds", { query: "?select=*&order=created_at.desc" }),
     supabaseRequest("social_actions", { query: "?select=*&order=created_at.desc" }),
-    supabaseRequest("auth_tokens", { query: "?select=*&order=created_at.desc" }).catch(() => [])
+    supabaseRequest("auth_tokens", { query: "?select=*&order=created_at.desc" }).catch(() => []),
+    supabaseRequest("notification_devices", { query: "?select=*&order=created_at.desc" }).catch(() => [])
   ]);
 
   if (!users.length) {
@@ -1003,6 +1281,7 @@ async function loadSupabaseDb() {
     refunds: refunds.map(toRefund),
     socialActions: socialActions.map(toSocialAction),
     authTokens: authTokens.map(toAuthToken),
+    notificationDevices: notificationDevices.map(toNotificationDevice),
     sessions: Object.fromEntries(sessions.map((session) => [session.token, { userId: session.user_id, createdAt: session.created_at }]))
   });
 }
@@ -1033,13 +1312,14 @@ async function saveSupabaseDb(db) {
   await upsert("dishes", db.dishes.map(fromDish));
   await compatibleUpsert("orders", db.orders.map(fromOrder), db.orders.map(fromOrderLegacy));
   await upsert("messages", db.messages.map(fromMessage));
-  await upsert("notifications", db.notifications.map(fromNotification));
+  await compatibleUpsert("notifications", db.notifications.map(fromNotification), db.notifications.map(fromNotificationLegacy));
   await upsert("meal_plans", db.mealPlans.map(fromMealPlan));
   await compatibleUpsert("subscriptions", db.subscriptions.map(fromSubscription), db.subscriptions.map(fromSubscriptionLegacy));
-  await upsert("payments", db.payments.map(fromPayment));
+  await compatibleUpsert("payments", db.payments.map(fromPayment), db.payments.map(fromPaymentLegacy));
   await upsert("refunds", db.refunds.map(fromRefund));
   await upsert("social_actions", db.socialActions.map(fromSocialAction));
   await upsert("auth_tokens", db.authTokens.map(fromAuthToken)).catch(() => []);
+  await upsert("notification_devices", db.notificationDevices.map(fromNotificationDevice)).catch(() => []);
   await supabaseRequest("app_sessions", {
     method: "DELETE",
     query: "?token=neq.__never_match__",
@@ -1157,7 +1437,7 @@ function publicState(db, user = null) {
     refunds: user ? visibleRefunds(db, user) : [],
     socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
     social: socialSummary(db),
-    users: user?.role === "owner" ? db.users.map(safeUser) : [],
+    users: user?.role === "owner" ? db.users.map(listUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
     stats: user?.role === "owner"
       ? {
@@ -1189,6 +1469,17 @@ async function api(req, res, pathname) {
         passwordReset: true,
         google: Boolean(googleClientId && googleClientSecret),
         apple: Boolean(appleClientId && appleClientSecret)
+      },
+      payments: configuredGateways(),
+      push: {
+        firebase: Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey),
+        oneSignal: Boolean(oneSignalAppId && oneSignalRestApiKey)
+      },
+      tracking: {
+        provider: mapProvider,
+        mapbox: Boolean(mapboxPublicToken),
+        googleMaps: Boolean(googleMapsBrowserKey),
+        openStreetMap: true
       },
       time: now()
     });
@@ -1431,6 +1722,36 @@ async function api(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/state") return json(res, 200, publicState(db, user));
 
+  if (req.method === "POST" && pathname === "/api/notifications/devices") {
+    const input = await body(req);
+    const provider = String(input.provider || "").trim().toLowerCase();
+    const tokenValue = String(input.token || "").trim();
+    if (!["firebase", "onesignal"].includes(provider)) return json(res, 400, { error: "Provider must be firebase or onesignal." });
+    if (!tokenValue) return json(res, 400, { error: "Device token is required." });
+    db.notificationDevices ||= [];
+    let device = db.notificationDevices.find((item) => item.provider === provider && item.token === tokenValue);
+    if (!device) {
+      device = {
+        id: id("dev"),
+        userId: user.id,
+        provider,
+        token: tokenValue,
+        platform: String(input.platform || "web").trim(),
+        enabled: true,
+        createdAt: now(),
+        updatedAt: now()
+      };
+      db.notificationDevices.push(device);
+    } else {
+      device.userId = user.id;
+      device.platform = String(input.platform || device.platform || "web").trim();
+      device.enabled = input.enabled !== false;
+      device.updatedAt = now();
+    }
+    await saveDb(db);
+    return json(res, 200, { ok: true, push: { firebase: Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey), oneSignal: Boolean(oneSignalAppId && oneSignalRestApiKey) } });
+  }
+
   if (req.method === "POST" && pathname === "/api/auth/phone/request") {
     const input = await body(req);
     const phone = String(input.phone || user.phone || "").trim();
@@ -1585,8 +1906,10 @@ async function api(req, res, pathname) {
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
     order.payment = paymentLedgerForOrder(order);
-    db.orders.unshift(order);
-    db.payments.unshift({
+    const provider = paymentProviderFor(paymentMethod);
+    order.payment.provider = provider === "cash" ? "cash_on_delivery" : provider;
+    order.payment.status = provider === "cash" ? "held" : "pending";
+    const payment = {
       id: id("pay"),
       orderId: order.id,
       customerId: order.customerId,
@@ -1597,17 +1920,34 @@ async function api(req, res, pathname) {
       commissionRate,
       commission: order.payment.commission,
       cookPayout: order.payment.cookPayout,
-      provider: paymentMethod === "cash" ? "cash_on_delivery" : "manual_gateway_ready",
+      provider: order.payment.provider,
+      externalPaymentId: "",
+      checkoutUrl: "",
+      metadata: {},
       createdAt: now(),
       releasedAt: null
-    });
+    };
+    let checkout = null;
+    if (provider !== "cash") {
+      checkout = await createGatewayCheckout(payment, order, user, req);
+      payment.externalPaymentId = checkout.externalPaymentId || checkout.token || "";
+      payment.checkoutUrl = checkout.checkoutUrl || "";
+      payment.metadata = checkout;
+      order.payment.externalPaymentId = payment.externalPaymentId;
+      order.payment.checkoutUrl = payment.checkoutUrl;
+      order.payment.metadata = checkout;
+    }
+    db.orders.unshift(order);
+    db.payments.unshift(payment);
+    const pushNotes = [];
     const cook = db.cooks.find((item) => item.id === order.cookId);
-    if (cook?.userId) db.notifications.push({ id: id("not"), userId: cook.userId, text: `New order ${order.id} received.`, createdAt: now(), read: false });
+    if (cook?.userId) pushNotes.push(notification(db, cook.userId, `New order ${order.id} received.`, { orderId: order.id, status: order.status }));
     for (const driver of db.users.filter((item) => item.role === "driver")) {
-      db.notifications.push({ id: id("not"), userId: driver.id, text: `Available delivery: ${order.id}.`, createdAt: now(), read: false });
+      pushNotes.push(notification(db, driver.id, `Available delivery: ${order.id}.`, { orderId: order.id, status: order.status }));
     }
     await saveDb(db);
-    return json(res, 201, publicState(db, user));
+    await sendPushBatch(db, pushNotes);
+    return json(res, 201, { state: publicState(db, user), checkout });
   }
 
   if (req.method === "PATCH" && pathname.startsWith("/api/orders/") && pathname.endsWith("/location")) {
@@ -1622,6 +1962,15 @@ async function api(req, res, pathname) {
     if (input.customerLocation && isOrderCustomer) order.customerLocation = normalizeLocation(input.customerLocation, order.deliveryAddress);
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
+    order.locationHistory ||= [];
+    order.locationHistory.push({
+      driverLocation: order.driverLocation,
+      customerLocation: order.customerLocation,
+      etaMinutes: order.etaMinutes,
+      provider: order.route.provider,
+      at: now(),
+      byUserId: user.id
+    });
     order.updatedAt = now();
     await saveDb(db);
     return json(res, 200, publicState(db, user));
@@ -1667,16 +2016,12 @@ async function api(req, res, pathname) {
     const notifyIds = [order.customerId, order.driverId];
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
     if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
+    const pushNotes = [];
     for (const userId of new Set(notifyIds.filter(Boolean))) {
-      db.notifications.push({
-        id: id("not"),
-        userId,
-        text: `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`,
-        createdAt: now(),
-        read: false
-      });
+      pushNotes.push(notification(db, userId, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { orderId: order.id, status: order.status }));
     }
     await saveDb(db);
+    await sendPushBatch(db, pushNotes);
     return json(res, 200, publicState(db, user));
   }
 
@@ -1694,8 +2039,9 @@ async function api(req, res, pathname) {
     order.updatedAt = now();
     order.statusHistory ||= [];
     order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
-    db.notifications.push({ id: id("not"), userId: order.customerId, text: `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, createdAt: now(), read: false });
+    const pushNote = notification(db, order.customerId, `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { orderId: order.id, status: order.status, etaMinutes: order.etaMinutes });
     await saveDb(db);
+    await sendPushBatch(db, [pushNote]);
     return json(res, 200, publicState(db, user));
   }
 

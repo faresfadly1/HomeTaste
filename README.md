@@ -42,26 +42,9 @@ The production check verifies the GitHub Pages routes, the routed marketplace pa
 
 ## System accounts
 
-Admin:
+Production admin, cook, and driver accounts must be created through the app or seeded from private backend environment variables. Do not publish operational emails or passwords in README files, browser JavaScript, screenshots, or GitHub Pages artifacts.
 
-```text
-FirstProj77@gmail.com
-HomeTasteadmin77$
-```
-
-Driver:
-
-```text
-Drive1K202@gmail.com
-DriveTaste$$7
-```
-
-Cook:
-
-```text
-cook1@hometaste.local
-CookTaste$$7
-```
+Optional local/Railway seed variables are documented in [`.env.example`](/Users/faresfadly/Desktop/HomeTaste/.env.example). Use strong private values and rotate any credential that was previously shared publicly.
 
 ## Production database with Supabase
 
@@ -137,7 +120,7 @@ Then push again so the GitHub Pages frontend talks to the live backend.
 Once Supabase and the hosted backend are connected:
 
 - customers can create accounts with email verification, request password reset links, and verify phone numbers
-- Google and Apple login buttons use provider OAuth callbacks when provider client IDs and secrets are configured
+- Google login uses the provider OAuth callback when Google client ID and secret are configured
 - customers place orders
 - customers can schedule orders for later times such as tomorrow at 8 PM or Friday at 6 PM
 - cooks accept and finish food
@@ -146,7 +129,11 @@ Once Supabase and the hosted backend are connected:
 - customers can subscribe to weekly meal plans from a dedicated dashboard, then pause, resume, skip a week, or cancel
 - customers can follow cooks, like dishes, comment, and share food photos
 - HomeTaste records 15% commission and the cook payout after delivery
+- real payment gateway hooks exist for Stripe, iyzico, and PayTR; provider secrets must be configured on the backend host
+- push notification device registration exists for Firebase FCM and OneSignal; order accepted, food ready, driver near, and delivered updates use the same notification pipeline
+- live tracking stores route provider, ETA, driver/customer coordinates, and location history for Google Maps, Mapbox, or OpenStreetMap clients
 - customers can report refund issues for food not delivered, spoiled food, wrong orders, or missing items
+- mobile app planning starts in [docs/mobile-flutter-plan.md](/Users/faresfadly/Desktop/HomeTaste/docs/mobile-flutter-plan.md)
 
 ## Important
 
