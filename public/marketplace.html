@@ -1243,6 +1243,21 @@ ul{list-style:none}
   .welcome-grid,.cook-form,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
   .welcome-actions{display:grid;grid-template-columns:1fr;gap:10px}
   .btn-apply,.btn-secondary{width:100%;text-align:center}
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"],
+  input:not([type]),
+  textarea,
+  select,
+  .form-input,
+  .welcome-select,
+  .cook-input,
+  .chat-input,
+  .country-search{
+    font-size:16px;
+  }
   .hero{margin:10px 12px 12px;border-radius:16px;height:196px;min-height:0}
   .hero-content{padding:20px;max-width:100%}
   .hero-content h1{font-size:28px;line-height:1.08;margin-bottom:8px}
@@ -1252,11 +1267,12 @@ ul{list-style:none}
   .search-section{padding:14px 12px 0}
   .search-bar{display:grid;grid-template-columns:1fr auto;border-radius:14px;overflow:visible}
   .search-input{min-width:0}
-  .search-input input{font-size:13px}
+  .search-input input{font-size:16px}
   .search-divider,.search-city{display:none}
   .btn-search{border-radius:0 14px 14px 0;padding:11px 12px;font-size:12px}
   .filter-chips{grid-template-columns:1fr;padding:10px 12px 4px;gap:8px}
-  .chip,.country-search{min-height:38px;font-size:12px;border-radius:10px}
+  .chip{min-height:38px;font-size:12px;border-radius:10px}
+  .country-search{min-height:38px;font-size:16px;border-radius:10px}
   .country-menu{max-height:230px}
   .section,.help-layout,.cook-profile-body{padding:16px 12px}
   .section-header{align-items:center;gap:12px}

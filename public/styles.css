@@ -990,6 +990,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .auth-card textarea,
   .auth-card select {
     min-height: 50px;
+    font-size: 16px;
     border-radius: 8px;
     border-color: rgba(255,255,255,.08);
     background: rgba(255,255,255,.09);
@@ -1089,7 +1090,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
     gap: 10px;
     padding: 18px 12px 12px;
   }
-  .address-box input { font-size: 15px; }
+  .address-box input { font-size: 16px; }
   .locate-me { justify-content: center; font-size: 13px; }
   .address-submit { height: 44px; font-size: 24px; }
   .popular-title { font-size: 15px; }
