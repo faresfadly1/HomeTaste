@@ -24,7 +24,7 @@ const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id)
 const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
 const isDriver = () => state?.user?.role === "driver";
-const roleLabel = (role) => role === "owner" ? "admin" : role;
+const roleLabel = (role) => t(`role_${role}`, role === "owner" ? "admin" : role);
 const marketplaceRoutes = new Set(["home", "browse", "dishes", "orders", "favorites", "messages", "become", "help", "settings"]);
 const routePageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "home";
@@ -74,6 +74,97 @@ const refundLabels = {
 const oauthProviderLabels = {
   google: "Google"
 };
+const languageMeta = {
+  EN: { label: "English", html: "en", dir: "ltr" },
+  TR: { label: "Turkish", html: "tr", dir: "ltr" },
+  DE: { label: "German", html: "de", dir: "ltr" },
+  AR: { label: "Arabic", html: "ar", dir: "rtl" }
+};
+const appTranslations = {
+  EN: {
+    role_owner: "admin", role_customer: "customer", role_cook: "cook", role_driver: "driver",
+    view: "view", signedInAs: "Signed in as", signOut: "Sign out", languageChanged: "Language changed to", darkOn: "Dark mode on.", darkOff: "Light mode on.",
+    changeLanguage: "Change website language", darkMode: "Dark mode", selectAddress: "Select your address", enterAddress: "Enter a city or address first.", addressSaved: "Address saved.", locationUnavailable: "Location is not available in this browser.", locationBlocked: "Location permission was blocked. Type your area instead.",
+    nav_driver_dashboard: "Driver Hub", nav_driver_orders: "Deliveries", nav_driver_chat: "Order chat", nav_driver_settings: "Profile",
+    nav_dashboard: "Dashboard", nav_admin: "Admin control", nav_orders: "Orders", nav_chat: "Chat", nav_settings: "Profile", nav_browse: "Browse food", nav_subscriptions: "Meal plans", nav_become: "Become a cook", nav_cook: "Cook studio",
+    auth_script: "Welcome Back to", auth_hero: "Sign in to continue discovering delicious homemade meals made with love.", auth_secure: "Secure<br>Login", auth_trusted: "Trusted<br>Platform", auth_cooks: "Home Cooks<br>Community",
+    signIn: "Sign In", signUp: "Sign Up", createAccount: "Create account", loginSubtitle: "Login to your HomeTaste account", signupSubtitle: "Create your HomeTaste account", country: "Country", turkey: "Turkey", germany: "Germany", fullName: "Full name", yourName: "Your name", phone: "Phone", emailAddress: "Email Address", emailPlaceholder: "Enter your email", password: "Password", passwordPlaceholder: "Enter your password", rememberMe: "Remember me", forgotPassword: "Forgot password?", continueWith: "or continue with", noAccount: "Don't have an account?", hasAccount: "Already have an account?", passwordReset: "Password reset", resetPlaceholder: "email for reset link", sendReset: "Send reset link",
+    dashboardTitle: "Dashboard", dashboardOwnerSubtitle: "Full operating view for the admin.", dashboardSubtitle: "Your live HomeTaste workspace.", driverHubTitle: "Driver Hub", driverHubSubtitle: "Available orders, navigation, live location, delivery status, and daily earnings.", available: "Available", assigned: "Assigned", onRoad: "On the road", dailyEarning: "Daily earning", availableOrders: "Available orders", noAvailableOrders: "No available orders yet.", yourDeliveries: "Your deliveries", acceptToStart: "Accept an order to start delivery.",
+    dishes: "Dishes", cooks: "Cooks", yourOrders: "Your orders", orderValue: "Order value", whatYouCanDo: "What you can do", browseOrderFood: "Browse and order food", trackOrders: "Track orders", messageAroundOrders: "Message around orders", openAdmin: "Open admin control", openCookStudio: "Open cook studio", applyAsCook: "Apply as cook", featuredDishes: "Featured dishes", noFeatured: "No featured dishes yet.",
+    subscriptionsTitle: "Meal Plan Dashboard", subscriptionsSubtitle: "Active plan, pause, resume, and skip-week controls for weekly subscriptions.", activeSubscriptions: "Active subscriptions", noSubscriptions: "No subscriptions yet. Pick a weekly plan below.", weeklyPlans: "Available weekly plans", noMealPlans: "No meal plans are available.", subscribe: "Subscribe", mealsWeekly: "meals weekly", nextDelivery: "Next delivery", notScheduled: "Not scheduled", skippedWeeks: "Skipped weeks", pause: "Pause", resume: "Resume", skipWeek: "Skip week", cancel: "Cancel",
+    adminTitle: "Admin Control", adminSubtitle: "All users, registrations, cooks, orders, revenue, and marketplace controls.", users: "Users", drivers: "Drivers", pendingCooks: "Pending cooks", revenue: "Revenue", commission15: "15% commission", refundReview: "Refund review", cookVerification: "Cook verification", approve: "Approve", pending: "Pending", suspend: "Suspend", verifyId: "Verify ID", verifyAddress: "Verify address", verifyPhone: "Verify phone", dishControls: "Dish controls", availableLower: "available", hidden: "hidden", feature: "Feature", unfeature: "Unfeature", hide: "Hide", show: "Show", registrationData: "All registration data", person: "Person", contact: "Contact", registration: "Registration", cookProfile: "Cook profile", changeRole: "Change role", noPhone: "No phone", noCity: "No city", verified: "verified", notVerified: "not verified", eaterAccount: "Eater account", fulfillmentControl: "All orders and fulfillment control", noOrders: "No orders yet.", paymentEscrow: "Payment escrow and payouts", noPaymentRecords: "No payment records yet.", cookPayout: "Cook payout", customerNoteEmpty: "No customer note", outcome: "Outcome", noRefundRequests: "No refund requests yet.",
+    browseTitle: "Browse Food", browseSubtitle: "Search real dishes, add them to a cart, and place persisted orders.", searchPlaceholder: "Search dish, cook, city, tag", allCities: "All cities", noDishMatches: "No dishes match your search.", subscriptionMeals: "Subscription meals", cart: "Cart", cartEmpty: "Your cart is empty.", subtotal: "Subtotal", delivery: "Delivery", commissionAfterDelivery: "HomeTaste commission after delivery", payoutAfterCommission: "Cook payout after commission", totalPaid: "Total paid to HomeTaste", deliveryAddress: "Delivery address", scheduleOrder: "Schedule order", paymentMethod: "Payment method", notes: "Notes", notesPlaceholder: "Allergies, spice level, delivery notes", placeOrder: "Place order", cookFallback: "Cook", add: "Add", followCook: "Follow cook", like: "Like", comment: "Comment", sharePhoto: "Share photo",
+    deliveriesTitle: "Deliveries", ordersTitle: "Orders", deliveriesSubtitle: "Receive food from cooks, start delivery, and mark handoff updates live.", ordersSubtitle: "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.", order: "Order", items: "Items", driver: "Driver", total: "Total", status: "Status", actions: "Actions", pickup: "Pickup", dropoff: "Dropoff", customerAddress: "Customer address", eta: "ETA", scheduled: "Scheduled", asap: "ASAP", acceptOrder: "Accept order", navigate: "Navigate", updateLocation: "Update location", customer: "Customer", commission: "Commission", payout: "payout", openChat: "Open chat", lastUpdate: "Last update", noHistory: "No history yet", noActionNeeded: "No action needed", receiveFood: "Receive food", startDelivery: "Start delivery", nearCustomer: "Near customer", markDelivered: "Mark delivered", waitingForCook: "Waiting for cook", startPreparing: "Start preparing", foodFinished: "Food finished", waitingForDriver: "Waiting for driver", waiting: "Waiting", confirmReceived: "Confirm received", driverQueue: "Driver queue", driverQueueBody: "See ready orders, receive them from cooks, then update delivery progress for the customer and admin.", noAssignedDeliveries: "No assigned deliveries yet.", cookOrderFlow: "Cook order flow", cookOrderBody: "Use these buttons when the customer order moves forward. When food is finished, press Food finished.", noActiveCookOrders: "No active cook orders yet.", reportIssue: "Report issue",
+    chatTitle: "Chat", chatSubtitle: "Every message is saved and tied to an order.", conversations: "Conversations", startChatEmpty: "Create an order to start chat.", noChatSelected: "No chat selected.", noMessages: "No messages yet.", message: "Message", messagePlaceholder: "Ask about timing, spice, pickup, delivery", sendMessage: "Send message",
+    cookStudioTitle: "Cook Studio", cookStudioSubtitle: "Manage your profile, dishes, availability, and incoming orders.", businessSummary: "Business summary", popularDish: "Popular dish", noOrdersYet: "No orders yet", likes: "Likes", comments: "Comments", customerPhotos: "Customer photos", createSubscriptionPlan: "Create subscription plan", name: "Name", mealsPerWeek: "Meals per week", priceTl: "Price TL", description: "Description", createPlan: "Create plan", addDish: "Add dish", prepMinutes: "Prep minutes", imageUrl: "Image URL", tagsComma: "Tags, comma separated", createDish: "Create dish", yourDishes: "Your dishes", noDishesYet: "No dishes yet.",
+    cookApplicationTitle: "Cook Application", cookApplicationSubtitle: "Your cook profile exists and is waiting for admin action if not approved.", cookApplicationNotice: "The admin can approve it in Admin Control.", becomeCookTitle: "Become a Cook", becomeCookSubtitle: "Apply with real profile data. Owner approval controls marketplace visibility.", displayName: "Display name", cuisine: "Cuisine", city: "City", availability: "Availability", bio: "Bio", submitCookApplication: "Submit cook application",
+    profileTitle: "Profile", profileSubtitle: "Account details and current access level.", email: "Email", emailVerified: "Email verified", needsVerification: "Needs verification", role: "Role", phoneVerified: "Phone verified", loginProvider: "Login provider", realAuth: "Real authentication", sendEmailVerification: "Send email verification", connectGoogle: "Connect Google", emailVerificationUrl: "Email verification URL", phoneVerification: "Phone verification", sendSmsCode: "Send SMS code", demoSmsCode: "Demo SMS code", confirmPhoneCode: "Confirm phone code", verifyPhoneAction: "Verify phone", passwordResetTitle: "Password reset", createResetLink: "Create reset link", passwordResetUrl: "Password reset URL", pushNotifications: "Push notifications", provider: "Provider", deviceToken: "Device token / subscription ID", platform: "Platform", registerDevice: "Register device", pushEvents: "Push events: order accepted, food ready, driver near, and delivered.", systemStatus: "System status", systemStatusBody: "Backend, authentication verification, database persistence, payment gateway hooks, push registration, live tracking, meal plans, and account views are active.",
+    status_placed: "Order placed", status_accepted: "Order received", status_preparing: "Cooking", status_ready: "Finished by cook", status_picked_up: "Driver picked up", status_out_for_delivery: "On the way", status_near_you: "Near you", status_delivered: "Delivered", status_cancelled: "Cancelled",
+    refund_not_delivered: "Food not delivered", refund_spoiled: "Food spoiled", refund_wrong_order: "Wrong order", refund_missing_item: "Missing item", refund_full: "100% refund", refund_half: "50% refund", refund_none: "No refund"
+  },
+  TR: {
+    role_owner: "admin", role_customer: "musteri", role_cook: "asci", role_driver: "kurye",
+    view: "gorunumu", signedInAs: "Giris yapan", signOut: "Cikis yap", languageChanged: "Dil degisti:", darkOn: "Koyu mod acik.", darkOff: "Acik mod acik.",
+    changeLanguage: "Site dilini degistir", darkMode: "Koyu mod", selectAddress: "Adresinizi secin", enterAddress: "Once sehir veya adres girin.", addressSaved: "Adres kaydedildi.", locationUnavailable: "Konum bu tarayicida yok.", locationBlocked: "Konum izni engellendi. Bolgenizi yazin.",
+    nav_driver_dashboard: "Kurye merkezi", nav_driver_orders: "Teslimatlar", nav_driver_chat: "Siparis sohbeti", nav_driver_settings: "Profil",
+    nav_dashboard: "Panel", nav_admin: "Admin kontrol", nav_orders: "Siparisler", nav_chat: "Sohbet", nav_settings: "Profil", nav_browse: "Yemeklere bak", nav_subscriptions: "Yemek planlari", nav_become: "Asci ol", nav_cook: "Asci studiosu",
+    auth_script: "Tekrar hos geldiniz", auth_hero: "Sevgiyle yapilmis lezzetli ev yemeklerini kesfetmeye devam etmek icin giris yapin.", auth_secure: "Guvenli<br>Giris", auth_trusted: "Guvenilir<br>Platform", auth_cooks: "Ev Ascisi<br>Toplulugu",
+    signIn: "Giris Yap", signUp: "Kayit Ol", createAccount: "Hesap olustur", loginSubtitle: "HomeTaste hesabina giris yap", signupSubtitle: "HomeTaste hesabini olustur", country: "Ulke", turkey: "Turkiye", germany: "Almanya", fullName: "Ad soyad", yourName: "Adiniz", phone: "Telefon", emailAddress: "E-posta", emailPlaceholder: "E-postanizi girin", password: "Sifre", passwordPlaceholder: "Sifrenizi girin", rememberMe: "Beni hatirla", forgotPassword: "Sifremi unuttum?", continueWith: "veya bununla devam et", noAccount: "Hesabin yok mu?", hasAccount: "Zaten hesabin var mi?", passwordReset: "Sifre sifirlama", resetPlaceholder: "sifirlama e-postasi", sendReset: "Sifirlama baglantisi gonder",
+    dashboardTitle: "Panel", dashboardOwnerSubtitle: "Admin icin tam operasyon gorunumu.", dashboardSubtitle: "Canli HomeTaste calisma alani.", driverHubTitle: "Kurye merkezi", driverHubSubtitle: "Mevcut siparisler, navigasyon, canli konum, teslimat durumu ve gunluk kazanc.", available: "Mevcut", assigned: "Atandi", onRoad: "Yolda", dailyEarning: "Gunluk kazanc", availableOrders: "Mevcut siparisler", noAvailableOrders: "Henuz mevcut siparis yok.", yourDeliveries: "Teslimatlariniz", acceptToStart: "Teslimata baslamak icin siparis kabul edin.",
+    dishes: "Yemekler", cooks: "Ascilar", yourOrders: "Siparisleriniz", orderValue: "Siparis degeri", whatYouCanDo: "Yapabilecekleriniz", browseOrderFood: "Yemek sec ve siparis ver", trackOrders: "Siparisleri takip et", messageAroundOrders: "Siparis hakkinda mesajlas", openAdmin: "Admin kontrolu ac", openCookStudio: "Asci studiosunu ac", applyAsCook: "Asci olarak basvur", featuredDishes: "One cikan yemekler", noFeatured: "Henuz one cikan yemek yok.",
+    profileTitle: "Profil", profileSubtitle: "Hesap detaylari ve mevcut yetki seviyesi.", ordersTitle: "Siparisler", deliveriesTitle: "Teslimatlar", browseTitle: "Yemeklere Bak", chatTitle: "Sohbet", cookStudioTitle: "Asci Studiosu", adminTitle: "Admin Kontrol", becomeCookTitle: "Asci Ol", subscriptionsTitle: "Yemek Plani Paneli",
+    cart: "Sepet", add: "Ekle", subscribe: "Abone ol", noOrders: "Henuz siparis yok.", status: "Durum", actions: "Islemler", customer: "Musteri", driver: "Kurye", total: "Toplam", order: "Siparis", items: "Urunler", openChat: "Sohbeti ac", chat: "Sohbet",
+    status_placed: "Siparis verildi", status_accepted: "Siparis alindi", status_preparing: "Pisiriliyor", status_ready: "Asci tamamladi", status_picked_up: "Kurye aldi", status_out_for_delivery: "Yolda", status_near_you: "Size yakin", status_delivered: "Teslim edildi", status_cancelled: "Iptal edildi"
+  },
+  DE: {
+    role_owner: "Admin", role_customer: "Kunde", role_cook: "Koch", role_driver: "Fahrer",
+    view: "Ansicht", signedInAs: "Angemeldet als", signOut: "Abmelden", languageChanged: "Sprache geandert:", darkOn: "Dunkelmodus an.", darkOff: "Hellmodus an.",
+    changeLanguage: "Website-Sprache andern", darkMode: "Dunkelmodus", selectAddress: "Adresse auswahlen", enterAddress: "Bitte zuerst Stadt oder Adresse eingeben.", addressSaved: "Adresse gespeichert.", locationUnavailable: "Standort ist in diesem Browser nicht verfugbar.", locationBlocked: "Standortberechtigung blockiert. Bitte Bereich eingeben.",
+    nav_driver_dashboard: "Fahrerbereich", nav_driver_orders: "Lieferungen", nav_driver_chat: "Bestellchat", nav_driver_settings: "Profil",
+    nav_dashboard: "Dashboard", nav_admin: "Adminbereich", nav_orders: "Bestellungen", nav_chat: "Chat", nav_settings: "Profil", nav_browse: "Essen suchen", nav_subscriptions: "Essensplane", nav_become: "Koch werden", nav_cook: "Kochstudio",
+    auth_script: "Willkommen zuruck bei", auth_hero: "Melde dich an, um weiter leckere hausgemachte Mahlzeiten mit Liebe zu entdecken.", auth_secure: "Sicherer<br>Login", auth_trusted: "Vertrauensvolle<br>Plattform", auth_cooks: "Home Cooks<br>Community",
+    signIn: "Anmelden", signUp: "Registrieren", createAccount: "Konto erstellen", loginSubtitle: "Melde dich bei deinem HomeTaste-Konto an", signupSubtitle: "Erstelle dein HomeTaste-Konto", country: "Land", turkey: "Turkei", germany: "Deutschland", fullName: "Vollstandiger Name", yourName: "Dein Name", phone: "Telefon", emailAddress: "E-Mail-Adresse", emailPlaceholder: "E-Mail eingeben", password: "Passwort", passwordPlaceholder: "Passwort eingeben", rememberMe: "Angemeldet bleiben", forgotPassword: "Passwort vergessen?", continueWith: "oder weiter mit", noAccount: "Noch kein Konto?", hasAccount: "Schon ein Konto?", passwordReset: "Passwort zurucksetzen", resetPlaceholder: "E-Mail fur Reset-Link", sendReset: "Reset-Link senden",
+    dashboardTitle: "Dashboard", dashboardOwnerSubtitle: "Vollstandige Betriebsansicht fur Admins.", dashboardSubtitle: "Dein Live-HomeTaste-Arbeitsbereich.", driverHubTitle: "Fahrerbereich", driverHubSubtitle: "Verfugbare Bestellungen, Navigation, Live-Standort, Lieferstatus und Tagesumsatz.", available: "Verfugbar", assigned: "Zugewiesen", onRoad: "Unterwegs", dailyEarning: "Tagesverdienst", availableOrders: "Verfugbare Bestellungen", noAvailableOrders: "Noch keine verfugbaren Bestellungen.", yourDeliveries: "Deine Lieferungen", acceptToStart: "Nimm eine Bestellung an, um die Lieferung zu starten.",
+    dishes: "Gerichte", cooks: "Koche", yourOrders: "Deine Bestellungen", orderValue: "Bestellwert", whatYouCanDo: "Was du tun kannst", browseOrderFood: "Essen suchen und bestellen", trackOrders: "Bestellungen verfolgen", messageAroundOrders: "Zu Bestellungen schreiben", openAdmin: "Adminbereich offnen", openCookStudio: "Kochstudio offnen", applyAsCook: "Als Koch bewerben", featuredDishes: "Empfohlene Gerichte", noFeatured: "Noch keine empfohlenen Gerichte.",
+    profileTitle: "Profil", profileSubtitle: "Kontodetails und aktuelle Zugriffsebene.", ordersTitle: "Bestellungen", deliveriesTitle: "Lieferungen", browseTitle: "Essen Suchen", chatTitle: "Chat", cookStudioTitle: "Kochstudio", adminTitle: "Adminbereich", becomeCookTitle: "Koch Werden", subscriptionsTitle: "Essensplan-Dashboard",
+    cart: "Warenkorb", add: "Hinzufugen", subscribe: "Abonnieren", noOrders: "Noch keine Bestellungen.", status: "Status", actions: "Aktionen", customer: "Kunde", driver: "Fahrer", total: "Gesamt", order: "Bestellung", items: "Artikel", openChat: "Chat offnen", chat: "Chat",
+    status_placed: "Bestellung aufgegeben", status_accepted: "Bestellung angenommen", status_preparing: "Wird gekocht", status_ready: "Vom Koch fertig", status_picked_up: "Fahrer hat abgeholt", status_out_for_delivery: "Unterwegs", status_near_you: "In deiner Nahe", status_delivered: "Geliefert", status_cancelled: "Storniert"
+  },
+  AR: {
+    role_owner: "مدير", role_customer: "عميل", role_cook: "طاه", role_driver: "سائق",
+    view: "عرض", signedInAs: "مسجل باسم", signOut: "تسجيل الخروج", languageChanged: "تم تغيير اللغة إلى", darkOn: "تم تشغيل الوضع الداكن.", darkOff: "تم تشغيل الوضع الفاتح.",
+    changeLanguage: "تغيير لغة الموقع", darkMode: "الوضع الداكن", selectAddress: "اختر عنوانك", enterAddress: "ادخل مدينة أو عنوانا أولا.", addressSaved: "تم حفظ العنوان.", locationUnavailable: "الموقع غير متاح في هذا المتصفح.", locationBlocked: "تم حظر إذن الموقع. اكتب منطقتك بدلا من ذلك.",
+    nav_driver_dashboard: "مركز السائق", nav_driver_orders: "التوصيلات", nav_driver_chat: "دردشة الطلب", nav_driver_settings: "الملف الشخصي",
+    nav_dashboard: "لوحة التحكم", nav_admin: "تحكم المدير", nav_orders: "الطلبات", nav_chat: "الدردشة", nav_settings: "الملف الشخصي", nav_browse: "تصفح الطعام", nav_subscriptions: "خطط الوجبات", nav_become: "كن طاهيا", nav_cook: "استوديو الطاهي",
+    auth_script: "مرحبا بعودتك إلى", auth_hero: "سجل الدخول لمتابعة اكتشاف وجبات منزلية لذيذة مصنوعة بحب.", auth_secure: "تسجيل<br>آمن", auth_trusted: "منصة<br>موثوقة", auth_cooks: "مجتمع<br>طهاة المنزل",
+    signIn: "تسجيل الدخول", signUp: "إنشاء حساب", createAccount: "إنشاء حساب", loginSubtitle: "سجل الدخول إلى حساب HomeTaste", signupSubtitle: "أنشئ حساب HomeTaste", country: "الدولة", turkey: "تركيا", germany: "ألمانيا", fullName: "الاسم الكامل", yourName: "اسمك", phone: "الهاتف", emailAddress: "البريد الإلكتروني", emailPlaceholder: "ادخل بريدك الإلكتروني", password: "كلمة المرور", passwordPlaceholder: "ادخل كلمة المرور", rememberMe: "تذكرني", forgotPassword: "نسيت كلمة المرور؟", continueWith: "أو تابع باستخدام", noAccount: "ليس لديك حساب؟", hasAccount: "لديك حساب بالفعل؟", passwordReset: "إعادة تعيين كلمة المرور", resetPlaceholder: "بريد رابط الإعادة", sendReset: "إرسال رابط الإعادة",
+    dashboardTitle: "لوحة التحكم", dashboardOwnerSubtitle: "عرض تشغيل كامل للمدير.", dashboardSubtitle: "مساحة عمل HomeTaste المباشرة.", driverHubTitle: "مركز السائق", driverHubSubtitle: "الطلبات المتاحة والملاحة والموقع المباشر وحالة التوصيل والأرباح اليومية.", available: "متاح", assigned: "معين", onRoad: "على الطريق", dailyEarning: "الأرباح اليومية", availableOrders: "الطلبات المتاحة", noAvailableOrders: "لا توجد طلبات متاحة بعد.", yourDeliveries: "توصيلاتك", acceptToStart: "اقبل طلبا لبدء التوصيل.",
+    dishes: "الأطباق", cooks: "الطهاة", yourOrders: "طلباتك", orderValue: "قيمة الطلبات", whatYouCanDo: "ما يمكنك فعله", browseOrderFood: "تصفح الطعام واطلب", trackOrders: "تتبع الطلبات", messageAroundOrders: "راسل حول الطلبات", openAdmin: "افتح تحكم المدير", openCookStudio: "افتح استوديو الطاهي", applyAsCook: "قدم كطاه", featuredDishes: "أطباق مميزة", noFeatured: "لا توجد أطباق مميزة بعد.",
+    profileTitle: "الملف الشخصي", profileSubtitle: "تفاصيل الحساب ومستوى الوصول الحالي.", ordersTitle: "الطلبات", deliveriesTitle: "التوصيلات", browseTitle: "تصفح الطعام", chatTitle: "الدردشة", cookStudioTitle: "استوديو الطاهي", adminTitle: "تحكم المدير", becomeCookTitle: "كن طاهيا", subscriptionsTitle: "لوحة خطط الوجبات",
+    cart: "السلة", add: "إضافة", subscribe: "اشترك", noOrders: "لا توجد طلبات بعد.", status: "الحالة", actions: "الإجراءات", customer: "العميل", driver: "السائق", total: "الإجمالي", order: "الطلب", items: "العناصر", openChat: "افتح الدردشة", chat: "الدردشة",
+    status_placed: "تم إنشاء الطلب", status_accepted: "تم قبول الطلب", status_preparing: "قيد الطبخ", status_ready: "انتهى الطاهي", status_picked_up: "استلم السائق", status_out_for_delivery: "في الطريق", status_near_you: "قريب منك", status_delivered: "تم التوصيل", status_cancelled: "ملغي"
+  }
+};
+
+function t(key, fallback = key) {
+  return (appTranslations[appLanguage] && appTranslations[appLanguage][key]) || appTranslations.EN[key] || fallback;
+}
+
+function statusLabel(status) {
+  return t(`status_${status}`, statusLabels[status] || status);
+}
+
+function paymentLabel(method) {
+  return paymentLabels[method] || method;
+}
+
+function refundLabel(value) {
+  return t(`refund_${value}`, refundLabels[value] || value);
+}
+
+function oauthProviderLabel(provider) {
+  return oauthProviderLabels[provider] || provider;
+}
 
 function toast(message, error = false) {
   const old = document.querySelector(".toast");
@@ -87,6 +178,11 @@ function toast(message, error = false) {
 
 function applyAppearance() {
   document.body.classList.toggle("app-dark", appDarkMode);
+  document.body.classList.toggle("app-light", !appDarkMode);
+  const meta = languageMeta[appLanguage] || languageMeta.EN;
+  document.documentElement.lang = meta.html;
+  document.documentElement.dir = meta.dir;
+  document.body.dir = meta.dir;
 }
 
 function marketplaceFrame() {
@@ -138,11 +234,15 @@ function toggleLanguageMenu(event) {
 }
 
 function setAppLanguage(language) {
+  if (!languageMeta[language]) return;
   appLanguage = language;
   localStorage.setItem("hometaste_language", appLanguage);
   document.querySelector("#languageMenu")?.classList.remove("open");
+  applyAppearance();
   sendPreferenceToMarketplace("language", appLanguage);
-  toast(`Language: ${appLanguage}`);
+  if (state?.user) renderApp();
+  else renderAuth();
+  toast(`${t("languageChanged")} ${languageMeta[appLanguage].label}`);
 }
 
 function toggleDarkMode() {
@@ -150,7 +250,28 @@ function toggleDarkMode() {
   localStorage.setItem("hometaste_theme", appDarkMode ? "dark" : "light");
   applyAppearance();
   sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
-  toast(appDarkMode ? "Dark mode on." : "Dark mode off.");
+  if (state?.user) renderApp();
+  else renderAuth();
+  toast(appDarkMode ? t("darkOn") : t("darkOff"));
+}
+
+function languageMenuHtml() {
+  return `
+    <div class="language-control">
+      <button class="icon-action" id="languageToggle" type="button" aria-label="${t("changeLanguage")}" title="${t("changeLanguage")}">🌐</button>
+      <div class="language-menu" id="languageMenu">
+        ${Object.entries(languageMeta).map(([code, meta]) => `<button type="button" data-language="${code}">${meta.label}</button>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function bindPreferenceControls() {
+  document.querySelector("#languageToggle")?.addEventListener("click", toggleLanguageMenu);
+  document.querySelectorAll("[data-language]").forEach((button) => {
+    button.onclick = () => setAppLanguage(button.dataset.language);
+  });
+  document.querySelector("#darkToggle")?.addEventListener("click", toggleDarkMode);
 }
 
 function locationOverlay() {
@@ -158,20 +279,20 @@ function locationOverlay() {
   document.body.insertAdjacentHTML("beforeend", `
     <div class="location-overlay" id="locationOverlay">
       <div class="location-card">
-        <button class="location-close" id="closeLocation">Close</button>
+        <button class="location-close" id="closeLocation">${t("close", "Close")}</button>
         <div class="location-title">
           <span class="pin-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
           </span>
-          <h2>Select your address</h2>
+          <h2>${t("selectAddress")}</h2>
         </div>
         <div class="address-box">
-          <label>Enter your street address</label>
-          <input id="locationInput" placeholder="Street, Postal Code">
-          <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> Locate me</button>
+          <label>${t("enterStreet", "Enter your street address")}</label>
+          <input id="locationInput" placeholder="${t("streetPostal", "Street, Postal Code")}">
+          <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> ${t("locateMe", "Locate me")}</button>
           <button class="address-submit" id="searchLocation" type="button">→</button>
         </div>
-        <h3 class="popular-title">Popular locations</h3>
+        <h3 class="popular-title">${t("popularLocations", "Popular locations")}</h3>
         <div class="popular-locations">
           ${["Istanbul", "Izmir", "Ankara", "Antalya", "Bursa"].map(city => `<button type="button" data-location-city="${city}">${city}</button>`).join("")}
         </div>
@@ -182,7 +303,7 @@ function locationOverlay() {
   document.querySelector("#closeLocation").onclick = closeLocation;
   document.querySelector("#searchLocation").onclick = () => {
     const value = document.querySelector("#locationInput").value.trim();
-    if (!value) return toast("Enter a city or address first.", true);
+    if (!value) return toast(t("enterAddress"), true);
     confirmLocation(value);
   };
   document.querySelector("#useBrowserLocation").onclick = useBrowserLocation;
@@ -207,17 +328,17 @@ function currentSavedAddress() {
 
 function updateAddressButton(value = currentSavedAddress()) {
   const label = document.querySelector("#openLocation .market-location-text");
-  if (label) label.textContent = value || "Select your address";
+  if (label) label.textContent = value || t("selectAddress");
 }
 
 function confirmLocation(value) {
   const clean = value.trim();
-  if (!clean) return toast("Enter a city or address first.", true);
+  if (!clean) return toast(t("enterAddress"), true);
   localStorage.setItem(userAddressKey(), clean);
   setLocationMap(clean);
   updateAddressButton(clean);
   closeLocation();
-  toast("Address saved.");
+  toast(t("addressSaved"));
 }
 
 function openLocation() {
@@ -231,10 +352,10 @@ function closeLocation() {
 }
 
 function useBrowserLocation() {
-  if (!navigator.geolocation) return toast("Location is not available in this browser.", true);
+  if (!navigator.geolocation) return toast(t("locationUnavailable"), true);
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => setLocationMap(`${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`),
-    () => toast("Location permission was blocked. Type your area instead.", true),
+    () => toast(t("locationBlocked"), true),
     { enableHighAccuracy: true, timeout: 10000 }
   );
 }
@@ -252,10 +373,6 @@ async function api(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Something went wrong.");
   return data;
-}
-
-function oauthProviderLabel(provider) {
-  return oauthProviderLabels[provider] || provider;
 }
 
 async function getAuthProviderStatus() {
@@ -701,54 +818,65 @@ function renderAuth(error = "") {
       </section>
       <section class="auth-card">
         <div class="auth-doodle" aria-hidden="true">✧ ⌂ ✧</div>
+        <div class="auth-tools">
+          ${languageMenuHtml()}
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+        </div>
         <div class="auth-switch">
-          <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">Sign in</button>
-          <button class="auth-switch-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">Create account</button>
+          <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">${t("signIn")}</button>
+          <button class="auth-switch-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">${t("createAccount")}</button>
         </div>
         <div class="mobile-auth-logo">
           <div class="chef-badge">${chefIcon}</div>
           <strong>Home<span>Taste</span></strong>
         </div>
-        <h2>${isLogin ? "Sign In" : "Sign Up"}</h2>
-        <p class="auth-subtitle">${isLogin ? "Login to your HomeTaste account" : "Create your HomeTaste account"}</p>
+        <h2>${isLogin ? t("signIn") : t("signUp")}</h2>
+        <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
           <div class="field">
-            <label>Country</label>
+            <label>${t("country")}</label>
             <select class="input" id="authCountry" name="country">
-              <option value="TR" ${authCountry === "TR" ? "selected" : ""}>Turkey</option>
-              <option value="DE" ${authCountry === "DE" ? "selected" : ""}>Germany</option>
+              <option value="TR" ${authCountry === "TR" ? "selected" : ""}>${t("turkey")}</option>
+              <option value="DE" ${authCountry === "DE" ? "selected" : ""}>${t("germany")}</option>
             </select>
           </div>
           ${mode === "signup" ? `
-            <div class="field"><label>Full name</label><input class="input" name="name" placeholder="Your name"></div>
-            <div class="field"><label>Phone</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
+            <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
+            <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
-          <div class="field auth-input-field"><label>Email Address</label><span>✉</span><input class="input" type="email" name="email" placeholder="Enter your email" required></div>
-          <div class="field auth-input-field"><label>Password</label><span>▣</span><input class="input" type="password" name="password" placeholder="Enter your password" required></div>
+          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span>✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" required></div>
+          <div class="field auth-input-field"><label>${t("password")}</label><span>▣</span><input class="input" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required></div>
           <div class="auth-row">
-            <label class="remember"><input type="checkbox" checked> <span>Remember me</span></label>
-            <button class="link-button" type="button" id="forgotInline">Forgot password?</button>
+            <label class="remember"><input type="checkbox" checked> <span>${t("rememberMe")}</span></label>
+            <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
           </div>
-          <button class="button auth-submit" type="submit"><span>${isLogin ? "Sign In" : "Sign Up"}</span><b>→</b></button>
+          <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span><b>→</b></button>
         </form>
-        <div class="auth-separator"><span></span><small>or continue with</small><span></span></div>
+        <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
         <div class="oauth-grid">
           <button class="button secondary oauth-button" type="button" data-oauth="google"><b>G</b><span>Google</span></button>
           <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>f</b><span>Facebook</span></button>
           <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>●</b><span>Apple</span></button>
         </div>
         <button class="auth-mode-link" type="button" id="switchMode">
-          ${isLogin ? "Don't have an account?" : "Already have an account?"} <strong>${isLogin ? "Sign up" : "Sign in"}</strong> <span>→</span>
+          ${isLogin ? t("noAccount") : t("hasAccount")} <strong>${isLogin ? t("signUp") : t("signIn")}</strong> <span>→</span>
         </button>
         <form class="form mini-form" id="resetRequestForm">
-          <div class="field"><label>Password reset</label><input class="input" type="email" name="email" placeholder="email for reset link"></div>
-          <button class="button secondary" type="submit">Send reset link</button>
+          <div class="field"><label>${t("passwordReset")}</label><input class="input" type="email" name="email" placeholder="${t("resetPlaceholder")}"></div>
+          <button class="button secondary" type="submit">${t("sendReset")}</button>
         </form>
       </section>
     </main>
   `;
 
+  document.querySelector(".script-line").textContent = t("auth_script");
+  document.querySelector(".auth-hero-copy p:last-child").textContent = t("auth_hero");
+  const trust = document.querySelectorAll(".auth-trust span");
+  if (trust[0]) trust[0].innerHTML = t("auth_secure");
+  if (trust[1]) trust[1].innerHTML = t("auth_trusted");
+  if (trust[2]) trust[2].innerHTML = t("auth_cooks");
+  bindPreferenceControls();
   document.querySelector("#showLogin").onclick = () => {
     mode = "login";
     renderAuth();
@@ -807,32 +935,32 @@ function renderAuth(error = "") {
 function navItems() {
   if (isDriver()) {
     return [
-      ["dashboard", "Driver Hub"],
-      ["orders", "Deliveries"],
-      ["chat", "Order chat"],
-      ["settings", "Profile"]
+      ["dashboard", t("nav_driver_dashboard")],
+      ["orders", t("nav_driver_orders")],
+      ["chat", t("nav_driver_chat")],
+      ["settings", t("nav_driver_settings")]
     ];
   }
   if (isOwner()) {
     return [
-      ["dashboard", "Dashboard"],
-      ["admin", "Admin control"],
-      ["orders", "Orders"],
-      ["chat", "Chat"],
-      ["settings", "Profile"]
+      ["dashboard", t("nav_dashboard")],
+      ["admin", t("nav_admin")],
+      ["orders", t("nav_orders")],
+      ["chat", t("nav_chat")],
+      ["settings", t("nav_settings")]
     ];
   }
   const base = [
-    ["dashboard", "Dashboard"],
-    ["browse", "Browse food"],
-    ["orders", "Orders"],
-    ["subscriptions", "Meal plans"],
-    ["chat", "Chat"],
-    ["become", "Become a cook"]
+    ["dashboard", t("nav_dashboard")],
+    ["browse", t("nav_browse")],
+    ["orders", t("nav_orders")],
+    ["subscriptions", t("nav_subscriptions")],
+    ["chat", t("nav_chat")],
+    ["become", t("nav_become")]
   ];
-  if (isCook()) base.splice(4, 0, ["cook", "Cook studio"]);
-  if (isOwner()) base.splice(1, 0, ["admin", "Admin control"]);
-  base.push(["settings", "Profile"]);
+  if (isCook()) base.splice(4, 0, ["cook", t("nav_cook")]);
+  if (isOwner()) base.splice(1, 0, ["admin", t("nav_admin")]);
+  base.push(["settings", t("nav_settings")]);
   return base;
 }
 
@@ -845,15 +973,19 @@ function renderApp() {
       <aside class="sidebar">
         <div class="brand">
           <div class="mark">H</div>
-          <div><h1>HomeTaste</h1><span>${roleLabel(state.user.role)} view</span></div>
+          <div><h1>HomeTaste</h1><span>${roleLabel(state.user.role)} ${t("view")}</span></div>
         </div>
         <nav class="nav">
           ${navItems().map(([key, label]) => `<button class="${page === key ? "active" : ""}" data-page="${key}">${label}</button>`).join("")}
         </nav>
+        <div class="shell-preferences">
+          ${languageMenuHtml()}
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+        </div>
         <div class="sidebar-footer">
-          Signed in as <strong>${state.user.name}</strong><br>
+          ${t("signedInAs")} <strong>${state.user.name}</strong><br>
           ${state.user.email}
-          <button class="logout" id="logout">Sign out</button>
+          <button class="logout" id="logout">${t("signOut")}</button>
         </div>
       </aside>
       <main class="main">${renderPage()}</main>
@@ -862,6 +994,7 @@ function renderApp() {
   document.querySelectorAll("[data-page]").forEach((button) => {
     button.onclick = () => setPage(button.dataset.page);
   });
+  bindPreferenceControls();
   document.querySelector("#logout").onclick = logout;
   bindPage();
 }
@@ -883,20 +1016,12 @@ function renderMarketplaceFrame() {
           <span class="market-location-pin">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
           </span>
-          <span class="market-location-text">${currentSavedAddress() || "Select your address"}</span>
+          <span class="market-location-text">${currentSavedAddress() || t("selectAddress")}</span>
         </button>
         <div class="market-user">
-          <div class="language-control">
-            <button class="icon-action" id="languageToggle" type="button" aria-label="Change website language" title="Change website language">🌐</button>
-            <div class="language-menu" id="languageMenu">
-              <button type="button" data-language="AR">Arabic</button>
-              <button type="button" data-language="EN">English</button>
-              <button type="button" data-language="DE">German</button>
-              <button type="button" data-language="TR">Turkish</button>
-            </div>
-          </div>
-          <button class="icon-action" id="darkToggle" type="button" aria-label="Dark mode" title="Dark mode">🌙</button>
-          <button class="button secondary small" id="logout">Sign out</button>
+          ${languageMenuHtml()}
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+          <button class="button secondary small" id="logout">${t("signOut")}</button>
         </div>
       </header>
       <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
@@ -909,11 +1034,7 @@ function renderMarketplaceFrame() {
   `;
   document.querySelector("#openLocation").onclick = openLocation;
   updateAddressButton();
-  document.querySelector("#languageToggle").onclick = toggleLanguageMenu;
-  document.querySelectorAll("[data-language]").forEach((button) => {
-    button.onclick = () => setAppLanguage(button.dataset.language);
-  });
-  document.querySelector("#darkToggle").onclick = toggleDarkMode;
+  bindPreferenceControls();
   document.querySelector("#logout").onclick = logout;
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
@@ -963,21 +1084,21 @@ function renderDashboard() {
     const deliveredToday = assignedOrders.filter((order) => order.status === "delivered" && new Date(order.updatedAt || order.createdAt).toDateString() === new Date().toDateString());
     const dailyEarning = deliveredToday.reduce((sum, order) => sum + Number(order.deliveryFee || 0), 0);
     return `
-      ${header("Driver Hub", "Available orders, navigation, live location, delivery status, and daily earnings.")}
+      ${header(t("driverHubTitle"), t("driverHubSubtitle"))}
       <section class="grid cols-4">
-        <div class="stat"><small>Available</small><strong>${availableOrders.length}</strong></div>
-        <div class="stat"><small>Assigned</small><strong>${assignedOrders.length}</strong></div>
-        <div class="stat"><small>On the road</small><strong>${onRoad}</strong></div>
-        <div class="stat"><small>Daily earning</small><strong>${money(dailyEarning)}</strong></div>
+        <div class="stat"><small>${t("available")}</small><strong>${availableOrders.length}</strong></div>
+        <div class="stat"><small>${t("assigned")}</small><strong>${assignedOrders.length}</strong></div>
+        <div class="stat"><small>${t("onRoad")}</small><strong>${onRoad}</strong></div>
+        <div class="stat"><small>${t("dailyEarning")}</small><strong>${money(dailyEarning)}</strong></div>
       </section>
       <section class="grid cols-2" style="margin-top:18px">
         <div class="panel">
-          <h3>Available orders</h3>
-          ${availableOrders.map(driverOrderCard).join("") || `<div class="empty">No available orders yet.</div>`}
+          <h3>${t("availableOrders")}</h3>
+          ${availableOrders.map(driverOrderCard).join("") || `<div class="empty">${t("noAvailableOrders")}</div>`}
         </div>
         <div class="panel">
-          <h3>Your deliveries</h3>
-          ${assignedOrders.map(driverOrderCard).join("") || `<div class="empty">Accept an order to start delivery.</div>`}
+          <h3>${t("yourDeliveries")}</h3>
+          ${assignedOrders.map(driverOrderCard).join("") || `<div class="empty">${t("acceptToStart")}</div>`}
         </div>
       </section>
     `;
@@ -986,28 +1107,28 @@ function renderDashboard() {
   const revenue = orders.reduce((sum, order) => sum + order.total, 0);
   const featured = state.dishes.filter((dish) => dish.featured && dish.available).slice(0, 3);
   return `
-    ${header("Dashboard", isOwner() ? "Full operating view for the admin." : "Your live HomeTaste workspace.")}
+    ${header(t("dashboardTitle"), isOwner() ? t("dashboardOwnerSubtitle") : t("dashboardSubtitle"))}
     <section class="grid cols-4">
-      <div class="stat"><small>Dishes</small><strong>${state.dishes.length}</strong></div>
-      <div class="stat"><small>Cooks</small><strong>${state.cooks.length}</strong></div>
-      <div class="stat"><small>Your orders</small><strong>${orders.length}</strong></div>
-      <div class="stat"><small>Order value</small><strong>${money(isOwner() ? state.stats.revenue : revenue)}</strong></div>
+      <div class="stat"><small>${t("dishes")}</small><strong>${state.dishes.length}</strong></div>
+      <div class="stat"><small>${t("cooks")}</small><strong>${state.cooks.length}</strong></div>
+      <div class="stat"><small>${t("yourOrders")}</small><strong>${orders.length}</strong></div>
+      <div class="stat"><small>${t("orderValue")}</small><strong>${money(isOwner() ? state.stats.revenue : revenue)}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
-        <h3>What you can do</h3>
+        <h3>${t("whatYouCanDo")}</h3>
         <div class="grid">
-          <button class="button secondary" data-page="browse">Browse and order food</button>
-          <button class="button secondary" data-page="orders">Track orders</button>
-          <button class="button secondary" data-page="chat">Message around orders</button>
-          ${isOwner() ? `<button class="button" data-page="admin">Open admin control</button>` : ""}
-          ${isCook() ? `<button class="button" data-page="cook">Open cook studio</button>` : `<button class="button" data-page="become">Apply as cook</button>`}
+          <button class="button secondary" data-page="browse">${t("browseOrderFood")}</button>
+          <button class="button secondary" data-page="orders">${t("trackOrders")}</button>
+          <button class="button secondary" data-page="chat">${t("messageAroundOrders")}</button>
+          ${isOwner() ? `<button class="button" data-page="admin">${t("openAdmin")}</button>` : ""}
+          ${isCook() ? `<button class="button" data-page="cook">${t("openCookStudio")}</button>` : `<button class="button" data-page="become">${t("applyAsCook")}</button>`}
         </div>
       </div>
       <div class="panel">
-        <h3>Featured dishes</h3>
+        <h3>${t("featuredDishes")}</h3>
         <div class="grid">
-          ${featured.length ? featured.map(dishMini).join("") : `<div class="empty">No featured dishes yet.</div>`}
+          ${featured.length ? featured.map(dishMini).join("") : `<div class="empty">${t("noFeatured")}</div>`}
         </div>
       </div>
     </section>
@@ -1018,22 +1139,22 @@ function renderSubscriptions() {
   const subs = state.subscriptions || [];
   const plans = state.mealPlans || [];
   return `
-    ${header("Meal Plan Dashboard", "Active plan, pause, resume, and skip-week controls for weekly subscriptions.")}
+    ${header(t("subscriptionsTitle"), t("subscriptionsSubtitle"))}
     <section class="grid cols-2">
       <div class="panel">
-        <h3>Active subscriptions</h3>
-        ${subs.length ? subs.map(subscriptionCard).join("") : `<div class="empty">No subscriptions yet. Pick a weekly plan below.</div>`}
+        <h3>${t("activeSubscriptions")}</h3>
+        ${subs.length ? subs.map(subscriptionCard).join("") : `<div class="empty">${t("noSubscriptions")}</div>`}
       </div>
       <div class="panel">
-        <h3>Available weekly plans</h3>
+        <h3>${t("weeklyPlans")}</h3>
         ${plans.map((plan) => `
           <div class="operation-card">
             <strong>${plan.name}</strong>
-            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} meals weekly - ${money(plan.price)}</div>
+            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} ${t("mealsWeekly")} - ${money(plan.price)}</div>
             <div class="meta">${plan.description}</div>
-            <button class="button small" data-subscribe="${plan.id}">Subscribe</button>
+            <button class="button small" data-subscribe="${plan.id}">${t("subscribe")}</button>
           </div>
-        `).join("") || `<div class="empty">No meal plans are available.</div>`}
+        `).join("") || `<div class="empty">${t("noMealPlans")}</div>`}
       </div>
     </section>
   `;
@@ -1044,14 +1165,14 @@ function subscriptionCard(subscription) {
   return `
     <div class="operation-card">
       <div class="price-row"><strong>${plan?.name || subscription.planId}</strong><span class="status">${subscription.status}</span></div>
-      <div class="meta">${cookName(subscription.cookId)} - ${subscription.mealsPerWeek} meals weekly - ${money(subscription.price)}</div>
-      <div class="meta">Next delivery: ${subscription.nextDeliveryAt ? new Date(subscription.nextDeliveryAt).toLocaleString() : "Not scheduled"}</div>
-      <div class="meta">Skipped weeks: ${(subscription.skipWeeks || []).length}</div>
+      <div class="meta">${cookName(subscription.cookId)} - ${subscription.mealsPerWeek} ${t("mealsWeekly")} - ${money(subscription.price)}</div>
+      <div class="meta">${t("nextDelivery")}: ${subscription.nextDeliveryAt ? new Date(subscription.nextDeliveryAt).toLocaleString() : t("notScheduled")}</div>
+      <div class="meta">${t("skippedWeeks")}: ${(subscription.skipWeeks || []).length}</div>
       <div class="toolbar" style="margin:10px 0 0">
-        ${subscription.status === "active" ? `<button class="button small secondary" data-subscription="${subscription.id}" data-action="pause">Pause</button>` : ""}
-        ${subscription.status === "paused" ? `<button class="button small good" data-subscription="${subscription.id}" data-action="resume">Resume</button>` : ""}
-        <button class="button small secondary" data-subscription="${subscription.id}" data-action="skip_week">Skip week</button>
-        <button class="button small bad" data-subscription="${subscription.id}" data-action="cancel">Cancel</button>
+        ${subscription.status === "active" ? `<button class="button small secondary" data-subscription="${subscription.id}" data-action="pause">${t("pause")}</button>` : ""}
+        ${subscription.status === "paused" ? `<button class="button small good" data-subscription="${subscription.id}" data-action="resume">${t("resume")}</button>` : ""}
+        <button class="button small secondary" data-subscription="${subscription.id}" data-action="skip_week">${t("skipWeek")}</button>
+        <button class="button small bad" data-subscription="${subscription.id}" data-action="cancel">${t("cancel")}</button>
       </div>
     </div>
   `;
@@ -1060,20 +1181,20 @@ function subscriptionCard(subscription) {
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   return `
-    ${header("Admin Control", "All users, registrations, cooks, orders, revenue, and marketplace controls.")}
+    ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-      <div class="stat"><small>Users</small><strong>${state.stats.users}</strong></div>
-      <div class="stat"><small>Cooks</small><strong>${state.stats.cooks}</strong></div>
-      <div class="stat"><small>Drivers</small><strong>${state.stats.drivers || 0}</strong></div>
-      <div class="stat"><small>Pending cooks</small><strong>${state.stats.pendingCooks}</strong></div>
-      <div class="stat"><small>Revenue</small><strong>${money(state.stats.revenue)}</strong></div>
-      <div class="stat"><small>15% commission</small><strong>${money(state.stats.commission || 0)}</strong></div>
-      <div class="stat"><small>Subscriptions</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
-      <div class="stat"><small>Refund review</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
+      <div class="stat"><small>${t("users")}</small><strong>${state.stats.users}</strong></div>
+      <div class="stat"><small>${t("cooks")}</small><strong>${state.stats.cooks}</strong></div>
+      <div class="stat"><small>${t("drivers")}</small><strong>${state.stats.drivers || 0}</strong></div>
+      <div class="stat"><small>${t("pendingCooks")}</small><strong>${state.stats.pendingCooks}</strong></div>
+      <div class="stat"><small>${t("revenue")}</small><strong>${money(state.stats.revenue)}</strong></div>
+      <div class="stat"><small>${t("commission15")}</small><strong>${money(state.stats.commission || 0)}</strong></div>
+      <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
+      <div class="stat"><small>${t("refundReview")}</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
-        <h3>Cook verification</h3>
+        <h3>${t("cookVerification")}</h3>
         ${state.cooks.map((cook) => `
           <div class="row">
             <div>
@@ -1084,41 +1205,41 @@ function renderAdmin() {
               </div>
             </div>
             <div class="toolbar" style="margin:0;justify-content:flex-end">
-              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">Approve</button>
-              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">Pending</button>
-              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">Suspend</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">Verify ID</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">Verify address</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">Verify phone</button>
+              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
+              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">${t("verifyAddress")}</button>
+              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
             </div>
           </div>
         `).join("")}
       </div>
       <div class="panel">
-        <h3>Dish controls</h3>
+        <h3>${t("dishControls")}</h3>
         ${state.dishes.map((dish) => `
           <div class="row">
-            <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.available ? "available" : "hidden"}</div></div>
+            <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.available ? t("availableLower") : t("hidden")}</div></div>
             <div class="toolbar" style="margin:0">
-              <button class="button small secondary" data-feature="${dish.id}">${dish.featured ? "Unfeature" : "Feature"}</button>
-              <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? "Hide" : "Show"}</button>
+              <button class="button small secondary" data-feature="${dish.id}">${dish.featured ? t("unfeature") : t("feature")}</button>
+              <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
             </div>
           </div>
         `).join("")}
       </div>
     </section>
     <section class="panel" style="margin-top:18px">
-      <h3>All registration data</h3>
+      <h3>${t("registrationData")}</h3>
       <table class="table">
-        <thead><tr><th>Person</th><th>Contact</th><th>Registration</th><th>Cook profile</th><th>Change role</th></tr></thead>
+        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th></tr></thead>
         <tbody>${state.users.map((user) => {
           const cook = state.cooks.find((item) => item.userId === user.id);
           return `
           <tr>
             <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
-            <td>${user.email}<div class="meta">${user.phone || "No phone"} - ${user.city || "No city"}</div></td>
+            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
             <td>${new Date(user.createdAt).toLocaleString()}</td>
-            <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? "verified" : "not verified"}</div>` : `<span class="meta">Eater account</span>`}</td>
+            <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
             <td>
               <select data-role-user="${user.id}">
                 ${["customer", "cook", "driver", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
@@ -1129,50 +1250,50 @@ function renderAdmin() {
       </table>
     </section>
     <section class="panel" style="margin-top:18px">
-      <h3>All orders and fulfillment control</h3>
+      <h3>${t("fulfillmentControl")}</h3>
       ${state.orders.length ? `
         <table class="table">
-          <thead><tr><th>Order</th><th>Customer</th><th>Cook</th><th>Driver</th><th>Items</th><th>Status</th><th>Admin action</th></tr></thead>
+          <thead><tr><th>${t("order")}</th><th>${t("customer")}</th><th>${t("cookFallback")}</th><th>${t("driver")}</th><th>${t("items")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead>
           <tbody>${state.orders.map(orderRow).join("")}</tbody>
         </table>
-      ` : `<div class="empty">No orders yet.</div>`}
+      ` : `<div class="empty">${t("noOrders")}</div>`}
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
-        <h3>Payment escrow and payouts</h3>
+        <h3>${t("paymentEscrow")}</h3>
         ${state.payments?.length ? state.payments.map((payment) => `
           <div class="row">
-            <div><strong>${payment.orderId}</strong><div class="meta">${paymentLabels[payment.method] || payment.method} - ${payment.status}</div></div>
-            <div class="meta">HomeTaste ${money(payment.commission)}<br>Cook payout ${money(payment.cookPayout)}</div>
+            <div><strong>${payment.orderId}</strong><div class="meta">${paymentLabel(payment.method)} - ${payment.status}</div></div>
+            <div class="meta">HomeTaste ${money(payment.commission)}<br>${t("cookPayout")} ${money(payment.cookPayout)}</div>
           </div>
-        `).join("") : `<div class="empty">No payment records yet.</div>`}
+        `).join("") : `<div class="empty">${t("noPaymentRecords")}</div>`}
       </div>
       <div class="panel">
-        <h3>Refund review</h3>
+        <h3>${t("refundReview")}</h3>
         ${state.refunds?.length ? state.refunds.map((refund) => `
           <div class="operation-card">
             <strong>${refund.id}</strong>
-            <div class="meta">${refund.orderId} - ${refundLabels[refund.reason] || refund.reason} - ${refund.status}</div>
-            <div class="meta">${refund.details || "No customer note"}</div>
+            <div class="meta">${refund.orderId} - ${refundLabel(refund.reason)} - ${refund.status}</div>
+            <div class="meta">${refund.details || t("customerNoteEmpty")}</div>
             ${refund.status === "pending" ? `
               <div class="toolbar" style="margin:10px 0 0">
-                <button class="button small good" data-refund="${refund.id}" data-outcome="full">100% refund</button>
-                <button class="button small secondary" data-refund="${refund.id}" data-outcome="half">50% refund</button>
-                <button class="button small bad" data-refund="${refund.id}" data-outcome="none">No refund</button>
+                <button class="button small good" data-refund="${refund.id}" data-outcome="full">${refundLabel("full")}</button>
+                <button class="button small secondary" data-refund="${refund.id}" data-outcome="half">${refundLabel("half")}</button>
+                <button class="button small bad" data-refund="${refund.id}" data-outcome="none">${refundLabel("none")}</button>
               </div>
-            ` : `<div class="notice">Outcome: ${refundLabels[refund.outcome] || refund.outcome} - ${money(refund.amount)}</div>`}
+            ` : `<div class="notice">${t("outcome")}: ${refundLabel(refund.outcome)} - ${money(refund.amount)}</div>`}
           </div>
-        `).join("") : `<div class="empty">No refund requests yet.</div>`}
+        `).join("") : `<div class="empty">${t("noRefundRequests")}</div>`}
       </div>
     </section>
     <section class="panel" style="margin-top:18px">
-      <h3>Meal subscriptions</h3>
+      <h3>${t("activeSubscriptions")}</h3>
       ${state.subscriptions?.length ? `
         <table class="table">
           <thead><tr><th>Subscription</th><th>Customer</th><th>Cook</th><th>Plan</th><th>Status</th></tr></thead>
           <tbody>${state.subscriptions.map((subscription) => `
             <tr>
-              <td><strong>${subscription.id}</strong><div class="meta">${subscription.mealsPerWeek} meals weekly</div></td>
+              <td><strong>${subscription.id}</strong><div class="meta">${subscription.mealsPerWeek} ${t("mealsWeekly")}</div></td>
               <td>${state.users.find((user) => user.id === subscription.customerId)?.name || subscription.customerId}</td>
               <td>${cookName(subscription.cookId)}</td>
               <td>${money(subscription.price)}</td>
@@ -1180,7 +1301,7 @@ function renderAdmin() {
             </tr>
           `).join("")}</tbody>
         </table>
-      ` : `<div class="empty">No subscriptions yet.</div>`}
+      ` : `<div class="empty">${t("noSubscriptions")}</div>`}
     </section>
   `;
 }
@@ -1193,16 +1314,16 @@ function renderBrowse() {
   });
   const cities = [...new Set(state.cooks.map((cook) => cook.city))];
   return `
-    ${header("Browse Food", "Search real dishes, add them to a cart, and place persisted orders.")}
+    ${header(t("browseTitle"), t("browseSubtitle"))}
     <div class="split">
       <section>
         <div class="toolbar">
-          <input class="input" id="search" placeholder="Search dish, cook, city, tag" value="${filters.q}">
-          <select id="cityFilter"><option value="">All cities</option>${cities.map((city) => `<option ${filters.city === city ? "selected" : ""}>${city}</option>`).join("")}</select>
+          <input class="input" id="search" placeholder="${t("searchPlaceholder")}" value="${filters.q}">
+          <select id="cityFilter"><option value="">${t("allCities")}</option>${cities.map((city) => `<option ${filters.city === city ? "selected" : ""}>${city}</option>`).join("")}</select>
         </div>
         ${renderMealPlans()}
         <div class="grid cols-3">
-          ${dishes.map(dishCard).join("") || `<div class="empty">No dishes match your search.</div>`}
+          ${dishes.map(dishCard).join("") || `<div class="empty">${t("noDishMatches")}</div>`}
         </div>
       </section>
       ${renderCart()}
@@ -1215,13 +1336,13 @@ function renderMealPlans() {
   if (!plans.length) return "";
   return `
     <section class="panel" style="margin-bottom:18px">
-      <h3>Subscription meals</h3>
+      <h3>${t("subscriptionMeals")}</h3>
       <div class="grid cols-3">
         ${plans.map((plan) => `
           <div class="operation-card">
             <strong>${plan.name}</strong>
-            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} meals weekly</div>
-            <div class="price-row"><span class="price">${money(plan.price)}</span><button class="button small" data-subscribe="${plan.id}">Subscribe</button></div>
+            <div class="meta">${cookName(plan.cookId)} - ${plan.mealsPerWeek} ${t("mealsWeekly")}</div>
+            <div class="price-row"><span class="price">${money(plan.price)}</span><button class="button small" data-subscribe="${plan.id}">${t("subscribe")}</button></div>
             <div class="meta">${plan.description}</div>
           </div>
         `).join("")}
@@ -1236,23 +1357,23 @@ function renderCart() {
   const deliveryFee = cart.length ? 30 : 0;
   return `
     <aside class="panel cart">
-      <h3>Cart</h3>
+      <h3>${t("cart")}</h3>
       ${cart.length ? cart.map((item) => `
         <div class="cart-item">
           <div><strong>${item.name}</strong><div class="meta">${cookName(item.cookId)} - ${money(item.price)}</div></div>
           <div class="qty"><button data-qty="${item.dishId}" data-delta="-1">-</button><strong>${item.qty}</strong><button data-qty="${item.dishId}" data-delta="1">+</button></div>
         </div>
-      `).join("") : `<div class="empty">Your cart is empty.</div>`}
-      <div class="row"><span>Subtotal</span><strong>${money(subtotal)}</strong></div>
-      <div class="row"><span>Delivery</span><strong>${money(deliveryFee)}</strong></div>
-      <div class="row"><span>HomeTaste commission after delivery</span><strong>${money(commission)}</strong></div>
-      <div class="row"><span>Cook payout after commission</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
-      <div class="row"><span>Total paid to HomeTaste</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
+      `).join("") : `<div class="empty">${t("cartEmpty")}</div>`}
+      <div class="row"><span>${t("subtotal")}</span><strong>${money(subtotal)}</strong></div>
+      <div class="row"><span>${t("delivery")}</span><strong>${money(deliveryFee)}</strong></div>
+      <div class="row"><span>${t("commissionAfterDelivery")}</span><strong>${money(commission)}</strong></div>
+      <div class="row"><span>${t("payoutAfterCommission")}</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
+      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
       <form class="form" id="checkoutForm">
-        <div class="field"><label>Delivery address</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
-        <div class="field"><label>Schedule order</label><input class="input" type="datetime-local" name="scheduledFor"></div>
-        <div class="field"><label>Payment method</label><select name="paymentMethod">
-          <option value="cash">Cash on delivery</option>
+        <div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
+        <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
+        <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
+          <option value="cash">${paymentLabel("cash")}</option>
           <option value="iyzico">iyzico hosted checkout</option>
           <option value="stripe">Stripe card / wallet</option>
           <option value="paytr">PayTR secure checkout</option>
@@ -1262,8 +1383,8 @@ function renderCart() {
           <option value="google_pay">Google Pay via Stripe</option>
           <option value="turkish_bank_card">Turkish bank card via iyzico</option>
         </select></div>
-        <div class="field"><label>Notes</label><textarea name="notes" placeholder="Allergies, spice level, delivery notes"></textarea></div>
-        <button class="button" ${cart.length ? "" : "disabled"}>Place order</button>
+        <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
+        <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>
       </form>
     </aside>
   `;
@@ -1278,13 +1399,13 @@ function dishCard(dish) {
         <h3>${dish.name}</h3>
         <div class="meta">${dish.description}</div>
         <div class="tag-row">${dish.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>
-        <div class="meta">${cook?.name || "Cook"} - ${cook?.city || ""} - ${dish.prepMinutes} min</div>
-        <div class="price-row"><span class="price">${money(dish.price)}</span><button class="button small" data-add="${dish.id}">Add</button></div>
+        <div class="meta">${cook?.name || t("cookFallback")} - ${cook?.city || ""} - ${dish.prepMinutes} min</div>
+        <div class="price-row"><span class="price">${money(dish.price)}</span><button class="button small" data-add="${dish.id}">${t("add")}</button></div>
         <div class="toolbar" style="margin:0">
-          <button class="button small secondary" data-social="follow" data-cook="${dish.cookId}">Follow cook</button>
-          <button class="button small secondary" data-social="like" data-dish="${dish.id}" data-cook="${dish.cookId}">Like</button>
-          <button class="button small secondary" data-comment="${dish.id}" data-cook="${dish.cookId}">Comment</button>
-          <button class="button small secondary" data-photo="${dish.id}" data-cook="${dish.cookId}">Share photo</button>
+          <button class="button small secondary" data-social="follow" data-cook="${dish.cookId}">${t("followCook")}</button>
+          <button class="button small secondary" data-social="like" data-dish="${dish.id}" data-cook="${dish.cookId}">${t("like")}</button>
+          <button class="button small secondary" data-comment="${dish.id}" data-cook="${dish.cookId}">${t("comment")}</button>
+          <button class="button small secondary" data-photo="${dish.id}" data-cook="${dish.cookId}">${t("sharePhoto")}</button>
         </div>
       </div>
     </article>
@@ -1292,19 +1413,19 @@ function dishCard(dish) {
 }
 
 function dishMini(dish) {
-  return `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)}</div></div><button class="button small secondary" data-add="${dish.id}">Add</button></div>`;
+  return `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)}</div></div><button class="button small secondary" data-add="${dish.id}">${t("add")}</button></div>`;
 }
 
 function renderOrders() {
   return `
-    ${header(isDriver() ? "Deliveries" : "Orders", isDriver() ? "Receive food from cooks, start delivery, and mark handoff updates live." : "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.")}
+    ${header(isDriver() ? t("deliveriesTitle") : t("ordersTitle"), isDriver() ? t("deliveriesSubtitle") : t("ordersSubtitle"))}
     <section class="panel">
       ${state.orders.length ? `
         <table class="table">
-          <thead><tr><th>Order</th><th>Items</th><th>Cook</th><th>Driver</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>${t("order")}</th><th>${t("items")}</th><th>${t("cookFallback")}</th><th>${t("driver")}</th><th>${t("total")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead>
           <tbody>${state.orders.map(orderRow).join("")}</tbody>
         </table>
-      ` : `<div class="empty">No orders yet.</div>`}
+      ` : `<div class="empty">${t("noOrders")}</div>`}
     </section>
   `;
 }
@@ -1320,13 +1441,13 @@ function driverOrderCard(order) {
         <span class="price">${money(order.deliveryFee || 0)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
-      <div class="meta">Pickup: ${cookName(order.cookId)} · Dropoff: ${order.deliveryAddress || "Customer address"}</div>
-      <div class="meta">ETA ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `Scheduled ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP"}</div>
+      <div class="meta">${t("pickup")}: ${cookName(order.cookId)} · ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
+      <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
       ${routeMap(order)}
       <div class="toolbar" style="margin:10px 0 0">
-        ${!assigned ? `<button class="button small" data-driver-accept="${order.id}">Accept order</button>` : orderActionButtons(order)}
-        <a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">Navigate</a>
-        ${assigned ? `<button class="button small secondary" data-driver-location="${order.id}">Update location</button>` : ""}
+        ${!assigned ? `<button class="button small" data-driver-accept="${order.id}">${t("acceptOrder")}</button>` : orderActionButtons(order)}
+        <a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>
+        ${assigned ? `<button class="button small secondary" data-driver-location="${order.id}">${t("updateLocation")}</button>` : ""}
       </div>
     </article>
   `;
@@ -1343,7 +1464,7 @@ function routeMap(order) {
       <span class="map-dot pickup"></span>
       <span class="map-line"></span>
       <span class="map-dot dropoff"></span>
-      <strong>${route.provider || "openstreetmap"} · ${route.distanceKm || "-"} km · ETA ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
+    <strong>${route.provider || "openstreetmap"} · ${route.distanceKm || "-"} km · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
     </div>
   `;
 }
@@ -1360,16 +1481,16 @@ function orderRow(order) {
   const driver = state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null);
   return `
     <tr>
-      <td><strong>${order.id}</strong><div class="meta">${new Date(order.createdAt).toLocaleString()}</div>${order.scheduledFor ? `<div class="tag">Scheduled ${new Date(order.scheduledFor).toLocaleString()}</div>` : `<div class="tag">ASAP</div>`}</td>
+      <td><strong>${order.id}</strong><div class="meta">${new Date(order.createdAt).toLocaleString()}</div>${order.scheduledFor ? `<div class="tag">${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}</div>` : `<div class="tag">${t("asap")}</div>`}</td>
       <td>${order.items.map((item) => `${item.qty}x ${item.name}`).join("<br>")}</td>
-      <td>${cookName(order.cookId)}${customer ? `<div class="meta">Customer: ${customer.name}</div>` : ""}</td>
-      <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div><div class="meta">ETA ${order.etaMinutes || "-"} min</div>` : `<span class="meta">Available</span>`}</td>
-      <td>${money(order.total)}<div class="meta">${paymentLabels[order.paymentMethod] || order.paymentMethod}</div><div class="meta">Commission ${money(order.payment?.commission || 0)} / payout ${money(order.payment?.cookPayout || 0)}</div></td>
+      <td>${cookName(order.cookId)}${customer ? `<div class="meta">${t("customer")}: ${customer.name}</div>` : ""}</td>
+      <td>${driver ? `${driver.name}<div class="meta">${driver.city || ""}</div><div class="meta">${t("eta")} ${order.etaMinutes || "-"} min</div>` : `<span class="meta">${t("available")}</span>`}</td>
+      <td>${money(order.total)}<div class="meta">${paymentLabel(order.paymentMethod)}</div><div class="meta">${t("commission")} ${money(order.payment?.commission || 0)} / ${t("payout")} ${money(order.payment?.cookPayout || 0)}</div></td>
       <td>${orderProgress(order)}</td>
       <td>
         ${canUpdate ? `
           ${orderActionButtons(order)}
-        ` : customerReceiveButton(order) || `<button class="button small secondary" data-page="chat">Open chat</button>`}
+        ` : customerReceiveButton(order) || `<button class="button small secondary" data-page="chat">${t("openChat")}</button>`}
       </td>
     </tr>
   `;
@@ -1378,41 +1499,41 @@ function orderRow(order) {
 function orderProgress(order) {
   const activeIndex = statusSteps.indexOf(order.status);
   return `
-    <div><span class="status">${statusLabels[order.status] || order.status}</span></div>
+    <div><span class="status">${statusLabel(order.status)}</span></div>
     <div class="order-steps">
-      ${statusSteps.map((status, index) => `<span class="${index <= activeIndex ? "done" : ""}" title="${statusLabels[status]}"></span>`).join("")}
+      ${statusSteps.map((status, index) => `<span class="${index <= activeIndex ? "done" : ""}" title="${statusLabel(status)}"></span>`).join("")}
     </div>
-    <div class="meta">${order.statusHistory?.length ? `Last update: ${new Date(order.statusHistory[order.statusHistory.length - 1].at).toLocaleString()}` : "No history yet"}</div>
+    <div class="meta">${order.statusHistory?.length ? `${t("lastUpdate")}: ${new Date(order.statusHistory[order.statusHistory.length - 1].at).toLocaleString()}` : t("noHistory")}</div>
   `;
 }
 
 function orderActionButtons(order) {
-  if (order.status === "cancelled" || order.status === "delivered") return `<span class="meta">No action needed</span>`;
+  if (order.status === "cancelled" || order.status === "delivered") return `<span class="meta">${t("noActionNeeded")}</span>`;
   if (isOwner()) {
     return `
       <select data-order-status="${order.id}">
-        ${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabels[status]}</option>`).join("")}
+        ${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"].map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${statusLabel(status)}</option>`).join("")}
       </select>
     `;
   }
   if (isDriver()) {
-    if (!order.driverId) return `<button class="button small" data-driver-accept="${order.id}">Accept order</button>`;
+    if (!order.driverId) return `<button class="button small" data-driver-accept="${order.id}">${t("acceptOrder")}</button>`;
     const nextDriver = {
-      ready: ["picked_up", "Receive food"],
-      picked_up: ["out_for_delivery", "Start delivery"],
-      out_for_delivery: ["near_you", "Near customer"],
-      near_you: ["delivered", "Mark delivered"]
+      ready: ["picked_up", t("receiveFood")],
+      picked_up: ["out_for_delivery", t("startDelivery")],
+      out_for_delivery: ["near_you", t("nearCustomer")],
+      near_you: ["delivered", t("markDelivered")]
     }[order.status];
-    if (!nextDriver) return `<span class="meta">Waiting for cook</span>`;
+    if (!nextDriver) return `<span class="meta">${t("waitingForCook")}</span>`;
     return `<button class="button small good" data-order-action="${order.id}" data-status="${nextDriver[0]}">${nextDriver[1]}</button>`;
   }
   const next = {
-    placed: ["accepted", "Accept order"],
-    accepted: ["preparing", "Start preparing"],
-    preparing: ["ready", "Food finished"],
-    ready: ["ready", "Waiting for driver"]
+    placed: ["accepted", t("acceptOrder")],
+    accepted: ["preparing", t("startPreparing")],
+    preparing: ["ready", t("foodFinished")],
+    ready: ["ready", t("waitingForDriver")]
   }[order.status];
-  if (!next) return `<span class="meta">Waiting</span>`;
+  if (!next) return `<span class="meta">${t("waiting")}</span>`;
   if (next[0] === order.status) return `<span class="meta">${next[1]}</span>`;
   return `<button class="button small" data-order-action="${order.id}" data-status="${next[0]}">${next[1]}</button>`;
 }
@@ -1420,7 +1541,7 @@ function orderActionButtons(order) {
 function customerReceiveButton(order) {
   if (state.user?.id !== order.customerId) return "";
   if (["near_you", "out_for_delivery"].includes(order.status)) {
-    return `<button class="button small good" data-order-action="${order.id}" data-status="delivered">Confirm received</button>`;
+    return `<button class="button small good" data-order-action="${order.id}" data-status="delivered">${t("confirmReceived")}</button>`;
   }
   return "";
 }
@@ -1433,9 +1554,9 @@ function renderRoleOperations() {
 
 function renderDriverOperations() {
   return `
-    <h3>Driver queue</h3>
-    <p class="meta">See ready orders, receive them from cooks, then update delivery progress for the customer and admin.</p>
-    ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">No assigned deliveries yet.</div>`}
+    <h3>${t("driverQueue")}</h3>
+    <p class="meta">${t("driverQueueBody")}</p>
+    ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">${t("noAssignedDeliveries")}</div>`}
   `;
 }
 
@@ -1443,9 +1564,9 @@ function renderCookOperations() {
   const cook = myCook();
   const orders = cook ? state.orders.filter((order) => order.cookId === cook.id) : [];
   return `
-    <h3>Cook order flow</h3>
-    <p class="meta">Use these buttons when the customer order moves forward. When food is finished, press <strong>Food finished</strong>.</p>
-    ${orders.length ? orders.map(orderOperationCard).join("") : `<div class="empty">No active cook orders yet.</div>`}
+    <h3>${t("cookOrderFlow")}</h3>
+    <p class="meta">${t("cookOrderBody")}</p>
+    ${orders.length ? orders.map(orderOperationCard).join("") : `<div class="empty">${t("noActiveCookOrders")}</div>`}
   `;
 }
 
@@ -1461,13 +1582,13 @@ function orderOperationCard(order) {
         <span class="price">${money(order.total)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
-      <div class="meta">Cook: ${cookName(order.cookId)}</div>
-      ${order.driverId ? `<div class="meta">Driver: ${(state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null))?.name || "Assigned"}</div>` : ""}
+      <div class="meta">${t("cookFallback")}: ${cookName(order.cookId)}</div>
+      ${order.driverId ? `<div class="meta">${t("driver")}: ${(state.users?.find((user) => user.id === order.driverId) || (order.driverId === state.user?.id ? state.user : null))?.name || t("assigned")}</div>` : ""}
       ${orderProgress(order)}
       <div class="toolbar" style="margin:10px 0 0">
-        ${(isCook() || isDriver()) ? orderActionButtons(order) : customerReceiveButton(order) || `<span class="meta">${statusLabels[order.status] || order.status}</span>`}
-        ${state.user?.id === order.customerId ? `<button class="button small secondary" data-refund-order="${order.id}">Report issue</button>` : ""}
-        ${isDriver() ? `<button class="button small secondary" data-page="chat">Chat</button>` : `<button class="button small secondary" data-market-page="messages">Chat</button>`}
+        ${(isCook() || isDriver()) ? orderActionButtons(order) : customerReceiveButton(order) || `<span class="meta">${statusLabel(order.status)}</span>`}
+        ${state.user?.id === order.customerId ? `<button class="button small secondary" data-refund-order="${order.id}">${t("reportIssue")}</button>` : ""}
+        ${isDriver() ? `<button class="button small secondary" data-page="chat">${t("chat")}</button>` : `<button class="button small secondary" data-market-page="messages">${t("chat")}</button>`}
       </div>
     </article>
   `;
@@ -1477,13 +1598,13 @@ function renderChat() {
   const orders = state.orders;
   const active = orders[0];
   return `
-    ${header("Chat", "Every message is saved and tied to an order.")}
+    ${header(t("chatTitle"), t("chatSubtitle"))}
     <section class="grid cols-2">
       <div class="panel">
-        <h3>Conversations</h3>
-        ${orders.map((order) => `<button class="button secondary" style="width:100%;margin-bottom:8px" data-chat-order="${order.id}">${order.id} - ${cookName(order.cookId)}</button>`).join("") || `<div class="empty">Create an order to start chat.</div>`}
+        <h3>${t("conversations")}</h3>
+        ${orders.map((order) => `<button class="button secondary" style="width:100%;margin-bottom:8px" data-chat-order="${order.id}">${order.id} - ${cookName(order.cookId)}</button>`).join("") || `<div class="empty">${t("startChatEmpty")}</div>`}
       </div>
-      <div class="panel" id="chatPanel">${active ? chatThread(active.id) : `<div class="empty">No chat selected.</div>`}</div>
+      <div class="panel" id="chatPanel">${active ? chatThread(active.id) : `<div class="empty">${t("noChatSelected")}</div>`}</div>
     </section>
   `;
 }
@@ -1491,13 +1612,13 @@ function renderChat() {
 function chatThread(orderId) {
   const messages = state.messages.filter((msg) => msg.orderId === orderId);
   return `
-    <h3>Order ${orderId}</h3>
+    <h3>${t("order")} ${orderId}</h3>
     <div class="chat">
-      ${messages.map((msg) => `<div class="bubble ${msg.fromUserId === state.user.id ? "mine" : ""}">${msg.text}<div class="meta">${new Date(msg.createdAt).toLocaleTimeString()}</div></div>`).join("") || `<div class="empty">No messages yet.</div>`}
+      ${messages.map((msg) => `<div class="bubble ${msg.fromUserId === state.user.id ? "mine" : ""}">${msg.text}<div class="meta">${new Date(msg.createdAt).toLocaleTimeString()}</div></div>`).join("") || `<div class="empty">${t("noMessages")}</div>`}
     </div>
     <form class="form" id="messageForm" data-order="${orderId}" style="margin-top:14px">
-      <div class="field"><label>Message</label><input class="input" name="text" placeholder="Ask about timing, spice, pickup, delivery"></div>
-      <button class="button">Send message</button>
+      <div class="field"><label>${t("message")}</label><input class="input" name="text" placeholder="${t("messagePlaceholder")}"></div>
+      <button class="button">${t("sendMessage")}</button>
     </form>
   `;
 }
@@ -1518,50 +1639,50 @@ function renderCookStudio() {
   })[0];
   const subscriptions = state.subscriptions?.filter((subscription) => subscription.cookId === cook.id && subscription.status === "active") || [];
   return `
-    ${header("Cook Studio", "Manage your profile, dishes, availability, and incoming orders.")}
+    ${header(t("cookStudioTitle"), t("cookStudioSubtitle"))}
     <section class="grid cols-4">
-      <div class="stat"><small>Status</small><strong>${cook.status}</strong></div>
-      <div class="stat"><small>Dishes</small><strong>${dishes.length}</strong></div>
-      <div class="stat"><small>Orders</small><strong>${orders.length}</strong></div>
-      <div class="stat"><small>Revenue</small><strong>${money(revenue)}</strong></div>
-      <div class="stat"><small>Cook payout</small><strong>${money(payout)}</strong></div>
-      <div class="stat"><small>Rating</small><strong>${cook.rating || 5}</strong></div>
-      <div class="stat"><small>Followers</small><strong>${social.filter((action) => action.type === "follow").length}</strong></div>
-      <div class="stat"><small>Subscriptions</small><strong>${subscriptions.length}</strong></div>
+      <div class="stat"><small>${t("status")}</small><strong>${cook.status}</strong></div>
+      <div class="stat"><small>${t("dishes")}</small><strong>${dishes.length}</strong></div>
+      <div class="stat"><small>${t("ordersTitle")}</small><strong>${orders.length}</strong></div>
+      <div class="stat"><small>${t("revenue")}</small><strong>${money(revenue)}</strong></div>
+      <div class="stat"><small>${t("cookPayout")}</small><strong>${money(payout)}</strong></div>
+      <div class="stat"><small>${t("rating", "Rating")}</small><strong>${cook.rating || 5}</strong></div>
+      <div class="stat"><small>${t("followers", "Followers")}</small><strong>${social.filter((action) => action.type === "follow").length}</strong></div>
+      <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${subscriptions.length}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
-        <h3>Business summary</h3>
-        <div class="row"><span>Popular dish</span><strong>${popularDish?.name || "No orders yet"}</strong></div>
-        <div class="row"><span>Likes</span><strong>${social.filter((action) => action.type === "like").length}</strong></div>
-        <div class="row"><span>Comments</span><strong>${social.filter((action) => action.type === "comment").length}</strong></div>
-        <div class="row"><span>Customer photos</span><strong>${social.filter((action) => action.type === "photo").length}</strong></div>
+        <h3>${t("businessSummary")}</h3>
+        <div class="row"><span>${t("popularDish")}</span><strong>${popularDish?.name || t("noOrdersYet")}</strong></div>
+        <div class="row"><span>${t("likes")}</span><strong>${social.filter((action) => action.type === "like").length}</strong></div>
+        <div class="row"><span>${t("comments")}</span><strong>${social.filter((action) => action.type === "comment").length}</strong></div>
+        <div class="row"><span>${t("customerPhotos")}</span><strong>${social.filter((action) => action.type === "photo").length}</strong></div>
       </div>
       <div class="panel">
-        <h3>Create subscription plan</h3>
+        <h3>${t("createSubscriptionPlan")}</h3>
         <form class="form" id="mealPlanForm">
-          <div class="field"><label>Name</label><input class="input" name="name" value="5 meals weekly"></div>
-          <div class="field"><label>Meals per week</label><input class="input" type="number" name="mealsPerWeek" value="5"></div>
-          <div class="field"><label>Price TL</label><input class="input" type="number" name="price" value="1500"></div>
-          <div class="field"><label>Description</label><textarea name="description">Five homemade meals delivered weekly.</textarea></div>
-          <button class="button">Create plan</button>
+          <div class="field"><label>${t("name")}</label><input class="input" name="name" value="5 meals weekly"></div>
+          <div class="field"><label>${t("mealsPerWeek")}</label><input class="input" type="number" name="mealsPerWeek" value="5"></div>
+          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" value="1500"></div>
+          <div class="field"><label>${t("description")}</label><textarea name="description">Five homemade meals delivered weekly.</textarea></div>
+          <button class="button">${t("createPlan")}</button>
         </form>
       </div>
       <div class="panel">
-        <h3>Add dish</h3>
+        <h3>${t("addDish")}</h3>
         <form class="form" id="dishForm">
-          <div class="field"><label>Name</label><input class="input" name="name" required placeholder="Homemade special"></div>
-          <div class="field"><label>Description</label><textarea name="description" required></textarea></div>
-          <div class="field"><label>Price TL</label><input class="input" type="number" name="price" required value="180"></div>
-          <div class="field"><label>Prep minutes</label><input class="input" type="number" name="prepMinutes" value="35"></div>
-          <div class="field"><label>Image URL</label><input class="input" name="image" value="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80"></div>
-          <div class="field"><label>Tags, comma separated</label><input class="input" name="tags" value="homemade,fresh"></div>
-          <button class="button">Create dish</button>
+          <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Homemade special"></div>
+          <div class="field"><label>${t("description")}</label><textarea name="description" required></textarea></div>
+          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
+          <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
+          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" value="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80"></div>
+          <div class="field"><label>${t("tagsComma")}</label><input class="input" name="tags" value="homemade,fresh"></div>
+          <button class="button">${t("createDish")}</button>
         </form>
       </div>
       <div class="panel">
-        <h3>Your dishes</h3>
-        ${dishes.map((dish) => `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${money(dish.price)} - ${dish.available ? "available" : "hidden"}</div></div><button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? "Hide" : "Show"}</button></div>`).join("") || `<div class="empty">No dishes yet.</div>`}
+        <h3>${t("yourDishes")}</h3>
+        ${dishes.map((dish) => `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${money(dish.price)} - ${dish.available ? t("availableLower") : t("hidden")}</div></div><button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button></div>`).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
       </div>
     </section>
   `;
@@ -1571,24 +1692,24 @@ function renderBecomeCook() {
   const cook = myCook();
   if (cook) {
     return `
-      ${header("Cook Application", "Your cook profile exists and is waiting for admin action if not approved.")}
+      ${header(t("cookApplicationTitle"), t("cookApplicationSubtitle"))}
       <section class="panel">
         <h3>${cook.name}</h3>
         <p class="meta">${cook.bio}</p>
-        <div class="notice">Status: ${cook.status}. The admin can approve it in Admin Control.</div>
+        <div class="notice">${t("status")}: ${cook.status}. ${t("cookApplicationNotice")}</div>
       </section>
     `;
   }
   return `
-    ${header("Become a Cook", "Apply with real profile data. Owner approval controls marketplace visibility.")}
+    ${header(t("becomeCookTitle"), t("becomeCookSubtitle"))}
     <section class="panel">
       <form class="form" id="cookApplyForm">
-        <div class="field"><label>Display name</label><input class="input" name="name" required value="${state.user.name}"></div>
-        <div class="field"><label>Cuisine</label><input class="input" name="cuisine" required value="Home Kitchen"></div>
-        <div class="field"><label>City</label><input class="input" name="city" required value="${state.user.city || "Istanbul"}"></div>
-        <div class="field"><label>Availability</label><input class="input" name="availability" value="Today 6 PM to 10 PM"></div>
-        <div class="field"><label>Bio</label><textarea name="bio">Fresh homemade dishes prepared in small batches.</textarea></div>
-        <button class="button">Submit cook application</button>
+        <div class="field"><label>${t("displayName")}</label><input class="input" name="name" required value="${state.user.name}"></div>
+        <div class="field"><label>${t("cuisine")}</label><input class="input" name="cuisine" required value="Home Kitchen"></div>
+        <div class="field"><label>${t("city")}</label><input class="input" name="city" required value="${state.user.city || "Istanbul"}"></div>
+        <div class="field"><label>${t("availability")}</label><input class="input" name="availability" value="Today 6 PM to 10 PM"></div>
+        <div class="field"><label>${t("bio")}</label><textarea name="bio">Fresh homemade dishes prepared in small batches.</textarea></div>
+        <button class="button">${t("submitCookApplication")}</button>
       </form>
     </section>
   `;
@@ -1596,56 +1717,56 @@ function renderBecomeCook() {
 
 function renderSettings() {
   return `
-    ${header("Profile", "Account details and current access level.")}
+    ${header(t("profileTitle"), t("profileSubtitle"))}
     <section class="grid cols-2">
       <div class="panel">
         <h3>${state.user.name}</h3>
-        <div class="row"><span>Email</span><strong>${state.user.email}</strong></div>
-        <div class="row"><span>Email verified</span><strong>${state.user.emailVerified ? "Verified" : "Needs verification"}</strong></div>
-        <div class="row"><span>Role</span><strong>${roleLabel(state.user.role)}</strong></div>
-        <div class="row"><span>City</span><strong>${state.user.city || ""}</strong></div>
-        <div class="row"><span>Phone</span><strong>${state.user.phone || ""}</strong></div>
-        <div class="row"><span>Phone verified</span><strong>${state.user.phoneVerified ? "Verified" : "Needs verification"}</strong></div>
-        <div class="row"><span>Login provider</span><strong>${state.user.authProvider || "password"}</strong></div>
+        <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
+        <div class="row"><span>${t("emailVerified")}</span><strong>${state.user.emailVerified ? t("verified") : t("needsVerification")}</strong></div>
+        <div class="row"><span>${t("role")}</span><strong>${roleLabel(state.user.role)}</strong></div>
+        <div class="row"><span>${t("city")}</span><strong>${state.user.city || ""}</strong></div>
+        <div class="row"><span>${t("phone")}</span><strong>${state.user.phone || ""}</strong></div>
+        <div class="row"><span>${t("phoneVerified")}</span><strong>${state.user.phoneVerified ? t("verified") : t("needsVerification")}</strong></div>
+        <div class="row"><span>${t("loginProvider")}</span><strong>${state.user.authProvider || "password"}</strong></div>
       </div>
       <div class="panel">
-        <h3>Real authentication</h3>
+        <h3>${t("realAuth")}</h3>
         <div class="toolbar">
-          <button class="button small secondary" data-email-verify>Send email verification</button>
-          <button class="button small secondary" data-oauth="google">Connect Google</button>
+          <button class="button small secondary" data-email-verify>${t("sendEmailVerification")}</button>
+          <button class="button small secondary" data-oauth="google">${t("connectGoogle")}</button>
         </div>
-        ${state.user.pendingEmailVerificationUrl ? `<div class="notice">Email verification URL: <a href="${state.user.pendingEmailVerificationUrl}" target="_blank" rel="noreferrer">${state.user.pendingEmailVerificationUrl}</a></div>` : ""}
+        ${state.user.pendingEmailVerificationUrl ? `<div class="notice">${t("emailVerificationUrl")}: <a href="${state.user.pendingEmailVerificationUrl}" target="_blank" rel="noreferrer">${state.user.pendingEmailVerificationUrl}</a></div>` : ""}
         <form class="form" id="phoneRequestForm" style="margin-top:12px">
-          <div class="field"><label>Phone verification</label><input class="input" name="phone" value="${state.user.phone || ""}" placeholder="+90 555 000 0000"></div>
-          <button class="button secondary" type="submit">Send SMS code</button>
+          <div class="field"><label>${t("phoneVerification")}</label><input class="input" name="phone" value="${state.user.phone || ""}" placeholder="+90 555 000 0000"></div>
+          <button class="button secondary" type="submit">${t("sendSmsCode")}</button>
         </form>
-        ${state.user.pendingPhoneCode ? `<div class="notice">Demo SMS code: <strong>${state.user.pendingPhoneCode}</strong></div>` : ""}
+        ${state.user.pendingPhoneCode ? `<div class="notice">${t("demoSmsCode")}: <strong>${state.user.pendingPhoneCode}</strong></div>` : ""}
         <form class="form" id="phoneConfirmForm" style="margin-top:12px">
-          <div class="field"><label>Confirm phone code</label><input class="input" name="code" placeholder="6 digit code"></div>
-          <button class="button" type="submit">Verify phone</button>
+          <div class="field"><label>${t("confirmPhoneCode")}</label><input class="input" name="code" placeholder="6 digit code"></div>
+          <button class="button" type="submit">${t("verifyPhoneAction")}</button>
         </form>
       </div>
       <div class="panel">
-        <h3>Password reset</h3>
+        <h3>${t("passwordResetTitle")}</h3>
         <form class="form" id="profileResetRequestForm">
-          <div class="field"><label>Email</label><input class="input" type="email" name="email" value="${state.user.email}"></div>
-          <button class="button secondary" type="submit">Create reset link</button>
+          <div class="field"><label>${t("email")}</label><input class="input" type="email" name="email" value="${state.user.email}"></div>
+          <button class="button secondary" type="submit">${t("createResetLink")}</button>
         </form>
-        ${state.user.pendingPasswordResetUrl ? `<div class="notice">Password reset URL: <a href="${state.user.pendingPasswordResetUrl}" target="_blank" rel="noreferrer">${state.user.pendingPasswordResetUrl}</a></div>` : ""}
+        ${state.user.pendingPasswordResetUrl ? `<div class="notice">${t("passwordResetUrl")}: <a href="${state.user.pendingPasswordResetUrl}" target="_blank" rel="noreferrer">${state.user.pendingPasswordResetUrl}</a></div>` : ""}
       </div>
       <div class="panel">
-        <h3>Push notifications</h3>
+        <h3>${t("pushNotifications")}</h3>
         <form class="form" id="pushDeviceForm">
-          <div class="field"><label>Provider</label><select name="provider"><option value="firebase">Firebase FCM</option><option value="onesignal">OneSignal</option></select></div>
-          <div class="field"><label>Device token / subscription ID</label><input class="input" name="token" placeholder="Paste device token from the mobile app or web SDK"></div>
-          <div class="field"><label>Platform</label><select name="platform"><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option></select></div>
-          <button class="button secondary" type="submit">Register device</button>
+          <div class="field"><label>${t("provider")}</label><select name="provider"><option value="firebase">Firebase FCM</option><option value="onesignal">OneSignal</option></select></div>
+          <div class="field"><label>${t("deviceToken")}</label><input class="input" name="token" placeholder="Paste device token from the mobile app or web SDK"></div>
+          <div class="field"><label>${t("platform")}</label><select name="platform"><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option></select></div>
+          <button class="button secondary" type="submit">${t("registerDevice")}</button>
         </form>
-        <div class="notice" style="margin-top:12px">Push events: order accepted, food ready, driver near, and delivered.</div>
+        <div class="notice" style="margin-top:12px">${t("pushEvents")}</div>
       </div>
       <div class="panel">
-        <h3>System status</h3>
-        <div class="notice success">Backend, authentication verification, database persistence, payment gateway hooks, push registration, live tracking, meal plans, and account views are active.</div>
+        <h3>${t("systemStatus")}</h3>
+        <div class="notice success">${t("systemStatusBody")}</div>
       </div>
     </section>
   `;
