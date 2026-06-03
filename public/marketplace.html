@@ -1217,7 +1217,7 @@ ul{list-style:none}
   }
   body.light-mode .sidebar{background:rgba(255,255,255,.96)}
   .sidebar-nav{
-    height:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;gap:3px;
+    height:100%;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;gap:2px;
     padding:5px;overflow:hidden;scrollbar-width:none;
   }
   .sidebar-nav::-webkit-scrollbar{display:none}
@@ -1225,7 +1225,7 @@ ul{list-style:none}
   .nav-item{
     min-width:0;max-width:100%;justify-content:center;
     flex-direction:column;gap:3px;margin:0;padding:6px 2px;
-    font-size:8.5px;line-height:1.05;text-align:center;border-radius:10px;
+    font-size:8px;line-height:1.05;text-align:center;border-radius:10px;
     overflow:hidden;
     color:rgba(255,246,236,.64);
   }
@@ -1632,7 +1632,7 @@ ul{list-style:none}
       Messages
       <span class="nav-badge">2</span>
     </div>
-    <div class="nav-item mobile-secondary" onclick="showPage('become',this)">
+    <div class="nav-item" onclick="showPage('become',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Become a Cook
     </div>
@@ -1728,34 +1728,6 @@ ul{list-style:none}
       </div>
     </div>
 
-    <div class="how-section">
-      <div class="section-header">
-        <h2>How it works</h2>
-      </div>
-      <div class="how-grid">
-        <div class="how-item">
-          <div class="how-icon">🔍</div>
-          <div class="how-text">
-            <h4>1. Search</h4>
-            <p>Find dishes or cooks you love from hundreds of home chefs in your area.</p>
-          </div>
-        </div>
-        <div class="how-item">
-          <div class="how-icon">🛍️</div>
-          <div class="how-text">
-            <h4>2. Order</h4>
-            <p>Place your order directly with the cook and choose delivery or pickup.</p>
-          </div>
-        </div>
-        <div class="how-item">
-          <div class="how-icon">🍽️</div>
-          <div class="how-text">
-            <h4>3. Enjoy</h4>
-            <p>Get authentic homemade food delivered to your door, fresh and delicious.</p>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- BROWSE COOKS PAGE -->
@@ -2410,6 +2382,7 @@ const translations = {
     favorites: 'Favorites',
     messages: 'Messages',
     becomeCook: 'Become a Cook',
+    cookNavMobile: 'Cook',
     help: 'Help & Support',
     settings: 'Settings',
     profile: 'Profile',
@@ -2470,6 +2443,7 @@ const translations = {
     favorites: 'Favoriler',
     messages: 'Mesajlar',
     becomeCook: 'Aşçı ol',
+    cookNavMobile: 'Aşçı',
     help: 'Yardım ve destek',
     settings: 'Ayarlar',
     profile: 'Profil',
@@ -2530,6 +2504,7 @@ const translations = {
     favorites: 'Favoriten',
     messages: 'Nachrichten',
     becomeCook: 'Koch werden',
+    cookNavMobile: 'Koch',
     help: 'Hilfe & Support',
     settings: 'Einstellungen',
     profile: 'Profil',
@@ -2590,6 +2565,7 @@ const translations = {
     favorites: 'المفضلة',
     messages: 'الرسائل',
     becomeCook: 'كن طباخاً',
+    cookNavMobile: 'طاه',
     help: 'المساعدة والدعم',
     settings: 'الإعدادات',
     profile: 'الملف الشخصي',
@@ -2866,7 +2842,7 @@ function applyTranslations() {
   setNav('orders', tr('myOrders'));
   setNav('favorites', tr('favorites'));
   setNav('messages', tr('messages'));
-  setNav('become', tr('becomeCook'));
+  setNav('become', tr('becomeCook'), tr('cookNavMobile'));
   setNav('help', tr('help'));
   setNav('settings', tr('settings'), tr('profile'));
 
