@@ -1283,6 +1283,7 @@ ul{list-style:none}
     -webkit-box-orient:vertical;
     overflow:hidden;
   }
+  .hero-content p:empty{display:none}
   .hero-cta{
     display:inline-flex;
     align-items:center;
@@ -2412,8 +2413,8 @@ const translations = {
     help: 'Help & Support',
     settings: 'Settings',
     profile: 'Profile',
-    heroTitle: 'Discover authentic <span>homemade food</span> from real people',
-    heroBody: 'From Turkish kebabs to Egyptian koshari,<br>home-cooked flavors from around the world.',
+    heroTitle: 'Homemade meals, <span>made with love</span>',
+    heroBody: '',
     heroCta: 'Find meals',
     searchPlaceholder: 'Search by dish name or cook name...',
     search: 'Search',
@@ -2472,8 +2473,8 @@ const translations = {
     help: 'Yardım ve destek',
     settings: 'Ayarlar',
     profile: 'Profil',
-    heroTitle: 'Gerçek insanlardan <span>ev yapımı yemek</span> keşfet',
-    heroBody: 'Bulunduğun ülkeyi ve istediğin mutfağı seç,<br>yakındaki ev aşçılarını bul.',
+    heroTitle: 'Sevgiyle yapılan <span>ev yemekleri</span>',
+    heroBody: '',
     heroCta: 'Yemek bul',
     searchPlaceholder: 'Yemek veya aşçı adıyla ara...',
     search: 'Ara',
@@ -2532,8 +2533,8 @@ const translations = {
     help: 'Hilfe & Support',
     settings: 'Einstellungen',
     profile: 'Profil',
-    heroTitle: 'Entdecke authentisches <span>hausgemachtes Essen</span> von echten Menschen',
-    heroBody: 'Wahle dein Land und das Essen, das du mochtest,<br>und bestelle bei Kochinnen und Kochen in deiner Nahe.',
+    heroTitle: 'Hausgemachte Mahlzeiten, <span>mit Liebe gemacht</span>',
+    heroBody: '',
     heroCta: 'Essen finden',
     searchPlaceholder: 'Nach Gericht oder Koch suchen...',
     search: 'Suchen',
@@ -2592,8 +2593,8 @@ const translations = {
     help: 'المساعدة والدعم',
     settings: 'الإعدادات',
     profile: 'الملف الشخصي',
-    heroTitle: 'اكتشف <span>أكلاً بيتياً أصيلاً</span> من ناس حقيقيين',
-    heroBody: 'اختر البلد الذي أنت فيه والأكل الذي تريده،<br>واطلب من طهاة قريبين منك.',
+    heroTitle: 'وجبات منزلية <span>مصنوعة بحب</span>',
+    heroBody: '',
     heroCta: 'ابحث عن وجبات',
     searchPlaceholder: 'ابحث باسم الطبق أو الطباخ...',
     search: 'بحث',
@@ -2634,7 +2635,12 @@ const translations = {
     languageChanged: 'تم تغيير اللغة إلى العربية'
   }
 };
-function tr(key) { return (translations[selectedLanguage] || translations.EN)[key] || translations.EN[key] || key; }
+function tr(key) {
+  const active = translations[selectedLanguage] || translations.EN;
+  if (Object.prototype.hasOwnProperty.call(active, key)) return active[key];
+  if (Object.prototype.hasOwnProperty.call(translations.EN, key)) return translations.EN[key];
+  return key;
+}
 const paymentMethodsByCountry = {
   TR: ['💳 Bank / credit card', '🏦 EFT / Havale', '📱 Papara', '📱 Paycell', '📱 iyzico', '💵 Cash on delivery'],
   DE: ['💳 Card', '🏦 SEPA transfer', '📱 PayPal', '📱 Apple Pay', '📱 Google Pay', '💵 Cash'],
@@ -2841,7 +2847,7 @@ function setNav(pageId, text, mobileText = text) {
   node.innerHTML = `${svg}<span class="nav-label-desktop">${text}</span><span class="nav-label-mobile">${mobileText}</span>${badge}`;
 }
 function applyTranslations() {
-  document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ')}`;
+  document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ') || tr('heroTitle').replace(/<[^>]+>/g, '')}`;
   setText('#welcomeOverlay h1', tr('welcomeTitle'));
   setText('#welcomeOverlay p', tr('welcomeBody'));
   const welcomeLabels = document.querySelectorAll('#welcomeOverlay .welcome-label');
