@@ -825,6 +825,11 @@ function renderAuth(error = "") {
       <path d="M14 35c-5.8-1.2-9-4.7-9-9.2 0-4.7 3.7-8.2 8.3-8.2 1.8-5 6-8 10.7-8 4.8 0 8.9 3 10.7 8 4.6 0 8.3 3.5 8.3 8.2 0 4.5-3.2 8-9 9.2"></path>
       <path d="M17 29c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8"></path>
     </svg>`;
+  const eyeIcon = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </svg>`;
   app.innerHTML = `
     <main class="auth-wrap">
       <section class="auth-hero">
@@ -877,7 +882,7 @@ function renderAuth(error = "") {
           <div class="field auth-input-field password-field">
             <label>${t("password")}</label>
             <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required>
-            <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">👁</button>
+            <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
           </div>
           <div class="auth-row">
             <label class="remember"><input type="checkbox" checked> <span>${t("rememberMe")}</span></label>
@@ -895,6 +900,7 @@ function renderAuth(error = "") {
         <form class="form mini-form" id="resetRequestForm">
           <div class="field"><label>${t("passwordReset")}</label><input class="input" type="email" name="email" placeholder="${t("resetPlaceholder")}"></div>
           <button class="button secondary" type="submit">${t("sendReset")}</button>
+          <div class="reset-result" id="resetResult" aria-live="polite"></div>
         </form>
       </section>
     </main>
@@ -920,7 +926,11 @@ function renderAuth(error = "") {
     renderAuth();
   };
   document.querySelector("#forgotInline").onclick = () => {
-    document.querySelector("#resetRequestForm")?.classList.toggle("open");
+    const resetForm = document.querySelector("#resetRequestForm");
+    resetForm?.classList.toggle("open");
+    const authEmail = document.querySelector("#authForm [name='email']")?.value.trim();
+    const resetEmail = resetForm?.querySelector("[name='email']");
+    if (authEmail && resetEmail && !resetEmail.value) resetEmail.value = authEmail;
   };
   document.querySelector("#passwordToggle").onclick = () => {
     const passwordInput = document.querySelector("#authPassword");
@@ -1947,14 +1957,29 @@ async function startOAuth(provider) {
 
 async function requestPasswordReset(event) {
   event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector("[type='submit']");
+  const result = form.querySelector(".reset-result") || form.parentElement?.querySelector(".reset-result");
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  setButtonBusy(submitButton, true);
   try {
     const data = await api("/api/auth/password/request", { method: "POST", body: JSON.stringify(input) });
     toast(data.resetUrl ? "Password reset link created." : "Password reset request handled.");
-    if (data.resetUrl) window.prompt("Password reset URL", data.resetUrl);
-    await refresh();
+    if (result) {
+      result.className = "reset-result success";
+      result.innerHTML = data.resetUrl
+        ? `Password reset link is ready. <a href="${data.resetUrl}">Open reset page</a>`
+        : "If this email exists, a password reset link was created.";
+    }
+    if (state?.user) await refresh();
   } catch (err) {
+    if (result) {
+      result.className = "reset-result error";
+      result.textContent = err.message;
+    }
     toast(err.message, true);
+  } finally {
+    setButtonBusy(submitButton, false);
   }
 }
 
