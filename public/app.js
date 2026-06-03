@@ -1,6 +1,7 @@
 const app = document.querySelector("#app");
+const APP_BUILD = "20260604-mobile-fit-2";
 const storageKey = "hometaste_token";
-const currentScript = document.querySelector('script[src$="app.js"]');
+const currentScript = document.querySelector('script[src*="app.js"]');
 const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
 const isGitHubPages = window.location.hostname.endsWith("github.io");
 const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
@@ -1076,7 +1077,7 @@ function renderMarketplaceFrame() {
         </div>
       </header>
       <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
-        <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}"></iframe>
+        <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}&v=${APP_BUILD}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
         </aside>
