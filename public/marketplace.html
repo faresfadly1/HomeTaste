@@ -130,6 +130,7 @@ ul{list-style:none}
 }
 .nav-item:hover{background:var(--bg3);color:var(--text)}
 .nav-item.active{background:var(--orange-light);color:var(--orange)}
+.mobile-profile,.nav-label-mobile{display:none}
 .nav-item.active::before{
   content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
   width:3px;height:60%;background:var(--orange);border-radius:0 3px 3px 0;
@@ -1213,7 +1214,7 @@ ul{list-style:none}
   }
   body.light-mode .sidebar{background:rgba(255,255,255,.96)}
   .sidebar-nav{
-    height:100%;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;gap:2px;
+    height:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;gap:3px;
     padding:5px;overflow:hidden;scrollbar-width:none;
   }
   .sidebar-nav::-webkit-scrollbar{display:none}
@@ -1225,6 +1226,10 @@ ul{list-style:none}
     overflow:hidden;
     color:rgba(255,246,236,.64);
   }
+  .mobile-secondary{display:none}
+  .mobile-profile{display:flex}
+  .nav-label-desktop{display:none}
+  .nav-label-mobile{display:inline}
   body.light-mode .sidebar .nav-item{color:#6d6258}
   body.light-mode .sidebar .nav-item.active{color:var(--orange)}
   .nav-item svg{width:15px;height:15px}
@@ -1238,11 +1243,11 @@ ul{list-style:none}
   .welcome-grid,.cook-form,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
   .welcome-actions{display:grid;grid-template-columns:1fr;gap:10px}
   .btn-apply,.btn-secondary{width:100%;text-align:center}
-  .hero{margin:12px;border-radius:16px;min-height:238px}
+  .hero{margin:10px 12px 12px;border-radius:16px;height:196px;min-height:0}
   .hero-content{padding:20px;max-width:100%}
-  .hero-content h1{font-size:25px;line-height:1.12}
+  .hero-content h1{font-size:28px;line-height:1.08;margin-bottom:8px}
   .hero-content p{font-size:12.5px;line-height:1.45;color:rgba(255,246,236,.84)}
-  .hero-social{font-size:11px;padding:7px 10px;color:rgba(255,246,236,.9)}
+  .hero-social{display:none}
   .hero-food-img{display:none}
   .search-section{padding:14px 12px 0}
   .search-bar{display:grid;grid-template-columns:1fr auto;border-radius:14px;overflow:visible}
@@ -1257,14 +1262,40 @@ ul{list-style:none}
   .section-header{align-items:center;gap:12px}
   .section-header h2,.page-header h1{font-size:20px;line-height:1.15}
   .view-all{font-size:12px;white-space:nowrap}
-  .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{grid-template-columns:1fr;padding:0 12px 16px;gap:12px}
-  .cook-card-img{height:138px}
-  .cook-card-body,.dish-body{padding:12px}
-  .dish-img{height:154px}
+  .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{grid-template-columns:1fr;padding:0 12px 16px;gap:10px}
+  .cook-card,
+  .dish-card {
+    display:grid;
+    grid-template-columns:104px minmax(0,1fr);
+    align-items:stretch;
+    min-height:118px;
+    border-radius:14px;
+  }
+  .cook-card-img,
+  .dish-img{
+    width:100%;
+    height:100%;
+    min-height:118px;
+    border-radius:14px 0 0 14px;
+  }
+  .fav-btn{width:28px;height:28px;font-size:13px;top:8px;right:8px}
+  .cook-card-body,.dish-body{padding:10px;min-width:0}
+  .cook-meta{gap:7px;margin-bottom:5px}
+  .cook-avatar{width:26px;height:26px;font-size:12px}
+  .cook-name{font-size:13px;line-height:1.15}
+  .cook-cuisine,.cook-location,.cook-rating{font-size:10.5px}
+  .info-pill{font-size:9.5px;padding:3px 6px;margin-top:4px}
+  .cook-footer{gap:8px;margin-top:6px;padding-top:6px}
+  .cook-dish{font-size:12px}
+  .cook-price{font-size:13px;white-space:nowrap}
+  .dish-tag{font-size:9px;padding:3px 7px;top:8px;left:8px}
   .dish-body h3{font-size:14px}
-  .dish-body p{font-size:11px;margin-bottom:10px}
+  .dish-body p{font-size:11px;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .dish-body > div:first-of-type{font-size:10px!important;margin-bottom:7px!important}
+  .dish-footer{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+  .dish-cook{font-size:10.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dish-price{font-size:14px}
-  .btn-add{padding:8px 12px;font-size:11px}
+  .btn-add{padding:7px 10px;font-size:11px;min-height:34px}
   .page-header{padding:18px 12px 12px}
   .messages-layout{display:grid;grid-template-rows:auto minmax(420px,1fr);height:auto;margin:0 14px 90px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
   .chat-list{width:100%;display:grid;grid-template-columns:1fr;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:8px}
@@ -1415,7 +1446,7 @@ ul{list-style:none}
   }
   #profileDishesGrid.dishes-grid::-webkit-scrollbar{display:none}
   #profileDishesGrid .dish-card{
-    min-width:0;border:0;background:transparent;box-shadow:none;
+    display:block;min-width:0;border:0;background:transparent;box-shadow:none;
   }
   #profileDishesGrid .dish-img{height:132px;border-radius:10px}
   #profileDishesGrid .dish-body{padding:8px 0}
@@ -1426,10 +1457,12 @@ ul{list-style:none}
 }
 @media(max-width:420px){
   body{font-size:12.5px}
-  .hero-content h1{font-size:23px}
+  .hero{height:184px}
+  .hero-content h1{font-size:28px}
   .page-header h1{font-size:19px}
-  .nav-item{font-size:7.5px;padding-inline:1px}
-  .nav-item svg{width:14px;height:14px}
+  .nav-item{font-size:9px;padding-inline:1px}
+  .nav-item svg{width:16px;height:16px}
+  .cook-card,.dish-card{grid-template-columns:96px minmax(0,1fr)}
   .orders-tab{font-size:9px;padding:8px 4px}
   .cook-stats{grid-template-columns:1fr}
   .order-card{display:grid}
@@ -1488,9 +1521,9 @@ ul{list-style:none}
     </div>
     <div class="nav-item" onclick="showPage('browse',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      Browse Cooks
+      <span class="nav-label-desktop">Browse Cooks</span><span class="nav-label-mobile">Search</span>
     </div>
-    <div class="nav-item" onclick="showPage('dishes',this)">
+    <div class="nav-item mobile-secondary" onclick="showPage('dishes',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12h8M12 8v8"/></svg>
       Popular Dishes
     </div>
@@ -1503,14 +1536,18 @@ ul{list-style:none}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Favorites
     </div>
-    <div class="nav-item" onclick="showPage('messages',this)">
+    <div class="nav-item mobile-secondary" onclick="showPage('messages',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Messages
       <span class="nav-badge">2</span>
     </div>
-    <div class="nav-item" onclick="showPage('become',this)">
+    <div class="nav-item mobile-secondary" onclick="showPage('become',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Become a Cook
+    </div>
+    <div class="nav-item mobile-profile" onclick="showPage('settings',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
     </div>
   </nav>
 
@@ -2283,6 +2320,7 @@ const translations = {
     becomeCook: 'Become a Cook',
     help: 'Help & Support',
     settings: 'Settings',
+    profile: 'Profile',
     heroTitle: 'Discover authentic <span>homemade food</span> from real people',
     heroBody: 'From Turkish kebabs to Egyptian koshari,<br>home-cooked flavors from around the world.',
     searchPlaceholder: 'Search by dish name or cook name...',
@@ -2341,6 +2379,7 @@ const translations = {
     becomeCook: 'Aşçı ol',
     help: 'Yardım ve destek',
     settings: 'Ayarlar',
+    profile: 'Profil',
     heroTitle: 'Gerçek insanlardan <span>ev yapımı yemek</span> keşfet',
     heroBody: 'Bulunduğun ülkeyi ve istediğin mutfağı seç,<br>yakındaki ev aşçılarını bul.',
     searchPlaceholder: 'Yemek veya aşçı adıyla ara...',
@@ -2399,6 +2438,7 @@ const translations = {
     becomeCook: 'Koch werden',
     help: 'Hilfe & Support',
     settings: 'Einstellungen',
+    profile: 'Profil',
     heroTitle: 'Entdecke authentisches <span>hausgemachtes Essen</span> von echten Menschen',
     heroBody: 'Wahle dein Land und das Essen, das du mochtest,<br>und bestelle bei Kochinnen und Kochen in deiner Nahe.',
     searchPlaceholder: 'Nach Gericht oder Koch suchen...',
@@ -2457,6 +2497,7 @@ const translations = {
     becomeCook: 'كن طباخاً',
     help: 'المساعدة والدعم',
     settings: 'الإعدادات',
+    profile: 'الملف الشخصي',
     heroTitle: 'اكتشف <span>أكلاً بيتياً أصيلاً</span> من ناس حقيقيين',
     heroBody: 'اختر البلد الذي أنت فيه والأكل الذي تريده،<br>واطلب من طهاة قريبين منك.',
     searchPlaceholder: 'ابحث باسم الطبق أو الطباخ...',
@@ -2668,7 +2709,8 @@ function toggleCart(force){
 function updateCartButtonVisibility(pageId) {
   const currentPage = pageId || document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
   const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
-  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', ['messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
+  const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', cartCount === 0 || ['messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
 }
 function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMenu').classList.toggle('open'); }
 function setLanguage(lang,e,silent=false){
@@ -2696,12 +2738,12 @@ function setOption(selectId, value, text) {
   const option = document.querySelector(`#${selectId} option[value="${value}"]`);
   if (option) option.textContent = text;
 }
-function setNav(pageId, text) {
+function setNav(pageId, text, mobileText = text) {
   const node = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
   if (!node) return;
   const svg = node.querySelector('svg')?.outerHTML || '';
   const badge = node.querySelector('.nav-badge')?.outerHTML || '';
-  node.innerHTML = `${svg}${text}${badge}`;
+  node.innerHTML = `${svg}<span class="nav-label-desktop">${text}</span><span class="nav-label-mobile">${mobileText}</span>${badge}`;
 }
 function applyTranslations() {
   document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ')}`;
@@ -2718,14 +2760,14 @@ function applyTranslations() {
   const floatingCart = document.querySelector('.cart-floating-btn');
   if (floatingCart) floatingCart.innerHTML = `🛒 ${tr('cart')} <span id="cartFloatingCount">${cartCount}</span>`;
   setNav('home', tr('home'));
-  setNav('browse', tr('browseCooks'));
+  setNav('browse', tr('browseCooks'), tr('search'));
   setNav('dishes', tr('popularDishes'));
   setNav('orders', tr('myOrders'));
   setNav('favorites', tr('favorites'));
   setNav('messages', tr('messages'));
   setNav('become', tr('becomeCook'));
   setNav('help', tr('help'));
-  setNav('settings', tr('settings'));
+  setNav('settings', tr('settings'), tr('profile'));
 
   setHTML('.hero-content h1', tr('heroTitle'));
   setHTML('.hero-content p', tr('heroBody'));
@@ -3118,6 +3160,7 @@ function updateCartBadge() {
   const count = cart.reduce((s, i) => s + i.qty, 0);
   document.getElementById('cartBadge').textContent = count;
   document.getElementById('cartFloatingCount').textContent = count;
+  updateCartButtonVisibility();
 }
 function cartTab(btn, type) {
   document.querySelectorAll('.cart-tab').forEach(b => b.classList.remove('active'));
