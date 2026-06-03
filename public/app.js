@@ -888,8 +888,6 @@ function renderAuth(error = "") {
         <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
         <div class="oauth-grid">
           <button class="button secondary oauth-button" type="button" data-oauth="google"><b>G</b><span>Google</span></button>
-          <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>f</b><span>Facebook</span></button>
-          <button class="button secondary oauth-button muted-oauth" type="button" disabled><b>●</b><span>Apple</span></button>
         </div>
         <button class="auth-mode-link" type="button" id="switchMode">
           ${isLogin ? t("noAccount") : t("hasAccount")} <strong>${isLogin ? t("signUp") : t("signIn")}</strong> <span>→</span>
