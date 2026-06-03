@@ -173,7 +173,7 @@ function toast(message, error = false) {
   el.className = `toast ${error ? "error" : ""}`;
   el.textContent = message;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(() => el.remove(), 1800);
 }
 
 function applyAppearance() {
@@ -235,6 +235,10 @@ function toggleLanguageMenu(event) {
 
 function setAppLanguage(language) {
   if (!languageMeta[language]) return;
+  if (language === appLanguage) {
+    document.querySelector("#languageMenu")?.classList.remove("open");
+    return;
+  }
   appLanguage = language;
   localStorage.setItem("hometaste_language", appLanguage);
   document.querySelector("#languageMenu")?.classList.remove("open");
@@ -784,8 +788,26 @@ function saveCart() {
 }
 
 function setPage(next) {
+  if (page === next) return;
   page = next;
   renderApp();
+}
+
+function setButtonBusy(button, busy, label = "") {
+  if (!button) return;
+  if (busy) {
+    button.dataset.originalText = button.textContent;
+    button.disabled = true;
+    button.classList.add("is-busy");
+    if (label) button.textContent = label;
+    return;
+  }
+  button.disabled = false;
+  button.classList.remove("is-busy");
+  if (button.dataset.originalText) {
+    button.textContent = button.dataset.originalText;
+    delete button.dataset.originalText;
+  }
 }
 
 function renderAuth(error = "") {
@@ -845,8 +867,12 @@ function renderAuth(error = "") {
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
-          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span>✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" required></div>
-          <div class="field auth-input-field"><label>${t("password")}</label><span>▣</span><input class="input" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required></div>
+          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" required></div>
+          <div class="field auth-input-field password-field">
+            <label>${t("password")}</label>
+            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required>
+            <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">👁</button>
+          </div>
           <div class="auth-row">
             <label class="remember"><input type="checkbox" checked> <span>${t("rememberMe")}</span></label>
             <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
@@ -892,6 +918,13 @@ function renderAuth(error = "") {
   document.querySelector("#forgotInline").onclick = () => {
     document.querySelector("#resetRequestForm")?.classList.toggle("open");
   };
+  document.querySelector("#passwordToggle").onclick = () => {
+    const passwordInput = document.querySelector("#authPassword");
+    const show = passwordInput.type === "password";
+    passwordInput.type = show ? "text" : "password";
+    document.querySelector("#passwordToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
+    document.querySelector("#passwordToggle").title = show ? "Hide password" : "Show password";
+  };
   document.querySelector("#authCountry")?.addEventListener("change", (event) => {
     authCountry = event.target.value;
     localStorage.setItem("hometaste_country", authCountry);
@@ -904,6 +937,8 @@ function renderAuth(error = "") {
   document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
+    const submitButton = event.currentTarget.querySelector("[type='submit']");
+    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
     const input = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
       if (useStaticApi) {
@@ -928,6 +963,8 @@ function renderAuth(error = "") {
       renderApp();
     } catch (err) {
       renderAuth(err.message);
+    } finally {
+      setButtonBusy(submitButton, false);
     }
   };
 }
@@ -979,7 +1016,6 @@ function renderApp() {
           ${navItems().map(([key, label]) => `<button class="${page === key ? "active" : ""}" data-page="${key}">${label}</button>`).join("")}
         </nav>
         <div class="shell-preferences">
-          ${languageMenuHtml()}
           <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
         </div>
         <div class="sidebar-footer">

@@ -41,7 +41,9 @@ body.app-light {
   background: var(--bg);
 }
 button, input, textarea, select { font: inherit; }
-button { cursor: pointer; }
+button { cursor: pointer; touch-action: manipulation; }
+button:active { transform: translateY(1px); }
+button.is-busy { opacity: .72; cursor: wait; }
 .app-shell { display: grid; grid-template-columns: 244px 1fr; min-height: 100vh; }
 .sidebar {
   position: sticky;
@@ -344,8 +346,31 @@ html[dir="rtl"] .auth-tools .language-menu { left: 0; right: auto; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 10px 28px rgba(76,48,18,.08);
 }
 .auth-input-field { position: relative; }
-.auth-input-field span { position: absolute; left: 22px; bottom: 12px; color: #7a7168; z-index: 1; }
+.auth-field-icon { position: absolute; left: 22px; bottom: 12px; color: #7a7168; z-index: 1; }
 .auth-input-field .input { padding-left: 66px; }
+.password-field .input { padding-left: 24px; padding-right: 64px; }
+.password-toggle {
+  position: absolute;
+  right: 18px;
+  bottom: 9px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #7a7168;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: none;
+}
+.password-toggle:hover { background: rgba(224,162,52,.16); color: #bd741b; }
+html[dir="rtl"] .auth-field-icon { right: 22px; left: auto; }
+html[dir="rtl"] .auth-input-field .input { padding-right: 66px; padding-left: 12px; }
+html[dir="rtl"] .password-field .input { padding-right: 24px; padding-left: 64px; }
+html[dir="rtl"] .password-toggle { left: 18px; right: auto; }
 .auth-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #5e544a; font-weight: 800; }
 .remember { display: inline-flex; align-items: center; gap: 8px; }
 .remember input { width: 18px; height: 18px; accent-color: #e5a23a; }
@@ -436,7 +461,7 @@ body.app-light .auth-wrap {
   }
   body.app-light .auth-card .input::placeholder { color: rgba(44,35,28,.45); }
   body.app-light .auth-card .field label { color: #241a12; }
-  body.app-light .auth-input-field span { color: #7a7168; }
+  body.app-light .auth-field-icon { color: #7a7168; }
   .auth-doodle { top: 28px; right: 34px; font-size: 28px; }
   .auth-switch { margin-bottom: 12px; }
   .auth-card h2 { font-size: 46px; }
@@ -445,7 +470,7 @@ body.app-light .auth-wrap {
   .auth-card .field { gap: 5px; }
   .auth-card .field label { font-size: 14px; }
   .auth-card .input, .auth-card textarea, .auth-card select { min-height: 44px; }
-  .auth-input-field span { bottom: 9px; }
+  .auth-field-icon { bottom: 9px; }
   .auth-row { font-size: 14px; }
   .auth-submit { min-height: 52px; font-size: 20px; }
   .auth-submit b { width: 40px; height: 40px; font-size: 23px; }
@@ -634,7 +659,7 @@ body.app-light .auth-wrap {
   place-items: center;
   font-size: 15px;
   box-shadow: 0 3px 10px rgba(0,0,0,.12);
-  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+  transition: transform .08s ease, border-color .08s ease, background .08s ease;
 }
 .icon-action:hover {
   transform: translateY(-1px);
@@ -853,7 +878,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   body.app-light .auth-card .input::placeholder { color: rgba(44,35,28,.45); }
   body.app-light .auth-card .field label { color: #241a12; }
-  body.app-light .auth-input-field span { color: #7a7168; }
+  body.app-light .auth-field-icon { color: #7a7168; }
   .auth-card::before,
   .auth-card::after {
     content: "";
@@ -909,8 +934,18 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
     box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
   }
   .auth-card .input::placeholder { color: rgba(247,239,228,.52); }
-  .auth-input-field span { bottom: 13px; color: rgba(247,239,228,.56); }
+  .auth-field-icon { bottom: 13px; color: rgba(247,239,228,.56); }
   .auth-input-field .input { padding-left: 48px; }
+  .password-field .input { padding-left: 14px; padding-right: 48px; }
+  html[dir="rtl"] .password-field .input { padding-right: 14px; padding-left: 48px; }
+  .password-toggle {
+    right: 11px;
+    bottom: 7px;
+    width: 36px;
+    height: 36px;
+    color: rgba(247,239,228,.7);
+  }
+  html[dir="rtl"] .password-toggle { left: 11px; right: auto; }
   .auth-row {
     font-size: 12px;
     color: rgba(247,239,228,.82);
