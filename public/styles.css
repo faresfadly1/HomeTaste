@@ -15,6 +15,7 @@
 }
 
 * { box-sizing: border-box; }
+html, body { max-width: 100%; overflow-x: hidden; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -22,6 +23,8 @@ body {
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
 }
+img, svg, video, iframe { max-width: 100%; }
+button, input, textarea, select { min-width: 0; }
 body.app-dark {
   --bg: #080809;
   --panel: #141416;
@@ -822,6 +825,28 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .role-panel { border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; }
 }
 @media (max-width: 720px) {
+  body { font-size: 14px; }
+  .topbar { flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .title h2 { font-size: 22px; line-height: 1.15; }
+  .title p { font-size: 13px; line-height: 1.4; }
+  .panel { padding: 14px; }
+  .stat { padding: 14px; }
+  .stat strong { font-size: 22px; }
+  .toolbar { gap: 8px; }
+  .toolbar .button,
+  .price-row .button,
+  .row .button,
+  .cart-item .button {
+    flex: 1 1 130px;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+  .button { padding: 10px 12px; font-size: 13px; line-height: 1.2; }
+  .row, .cart-item, .price-row { align-items: flex-start; flex-wrap: wrap; }
+  .table { display: block; overflow-x: auto; max-width: 100%; }
+  .table th, .table td { padding: 10px 8px; font-size: 12px; }
+  .order-steps { min-width: 140px; }
   .auth-wrap {
     min-height: 100dvh;
     display: flex;
@@ -969,9 +994,9 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   .auth-separator span { background: rgba(255,255,255,.13); }
   .oauth-grid {
-    grid-template-columns: repeat(3, 48px);
+    grid-template-columns: 48px;
     justify-content: center;
-    gap: 18px;
+    gap: 12px;
     margin-bottom: 24px;
   }
   .oauth-button {
@@ -1013,7 +1038,10 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   .market-location-pin { width: 18px; height: 18px; }
   .icon-action { width: 28px; height: 28px; font-size: 14px; }
-  .button.small { padding: 7px 9px; font-size: 11px; }
+  .button.small { padding: 7px 8px; font-size: 11px; }
+  .market-content,
+  .market-frame,
+  .role-panel { min-width: 0; max-width: 100%; }
   .language-menu { right: -44px; }
   .location-card { padding: 20px; border-radius: 16px; }
   .location-title h2 { font-size: 21px; }

@@ -31,7 +31,7 @@
   --shadow:0 4px 24px rgba(0,0,0,0.5);
   --transition:0.25s ease;
 }
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}
 body{
   font-family:'DM Sans',sans-serif;
   background:var(--bg);
@@ -39,6 +39,9 @@ body{
   min-height:100vh;
   overflow-x:hidden;
 }
+button,input,select,textarea{min-width:0}
+button{touch-action:manipulation}
+img,svg,video,iframe{max-width:100%}
 body.light-mode{
   --bg:#f8f5f0;
   --bg2:#ffffff;
@@ -1172,8 +1175,10 @@ ul{list-style:none}
 }
 @media(max-width:760px){
   :root{--sidebar:0px;--cart:100vw}
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
   body{
     padding-bottom:76px;
+    font-size:13px;
     --bg:#fffaf4;
     --bg2:#ffffff;
     --bg3:#f7f1ea;
@@ -1188,64 +1193,90 @@ ul{list-style:none}
     background:#fffaf4;
   }
   .layout{display:block;min-height:100vh}
+  .main,.page,.section,.page-header,.orders-list,.track-page,.settings-layout,.help-layout,.checkout-layout,.cook-profile-body{
+    max-width:100%;
+    overflow-x:hidden;
+  }
+  button,.btn-search,.btn-add,.btn-reorder,.btn-apply,.btn-secondary,.btn-checkout,.btn-continue,.btn-place-order,.track-back-btn,.account-cancel{
+    max-width:100%;
+    min-height:40px;
+    line-height:1.15;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
   .sidebar{
     position:fixed;left:0;right:0;top:auto;bottom:0;
-    width:100%;height:76px;z-index:700;
+    width:100%;height:68px;z-index:700;
     border-right:0;border-top:1px solid var(--border);
     background:rgba(22,22,22,.96);backdrop-filter:blur(14px);
     overflow:hidden;
   }
   body.light-mode .sidebar{background:rgba(255,255,255,.96)}
   .sidebar-nav{
-    height:100%;display:flex;align-items:stretch;gap:2px;
-    padding:6px;overflow-x:auto;scrollbar-width:none;
+    height:100%;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;gap:2px;
+    padding:5px;overflow:hidden;scrollbar-width:none;
   }
   .sidebar-nav::-webkit-scrollbar{display:none}
   .sidebar-bottom{display:none}
   .nav-item{
-    min-width:76px;flex:1 0 76px;justify-content:center;
-    flex-direction:column;gap:4px;margin:0;padding:8px 6px;
-    font-size:10px;text-align:center;border-radius:12px;
+    min-width:0;max-width:100%;justify-content:center;
+    flex-direction:column;gap:3px;margin:0;padding:6px 2px;
+    font-size:8.5px;line-height:1.05;text-align:center;border-radius:10px;
+    overflow:hidden;
+    color:rgba(255,246,236,.64);
   }
-  .nav-item svg{width:18px;height:18px}
+  body.light-mode .sidebar .nav-item{color:#6d6258}
+  body.light-mode .sidebar .nav-item.active{color:var(--orange)}
+  .nav-item svg{width:15px;height:15px}
   .nav-item.active::before{left:50%;top:0;transform:translateX(-50%);width:32px;height:3px;border-radius:0 0 3px 3px}
-  .nav-badge{position:absolute;right:10px;top:7px;margin:0}
+  .nav-badge{position:absolute;right:4px;top:4px;margin:0;font-size:8px;min-width:15px;height:15px;padding:1px 4px}
   .main{margin-left:0;padding-bottom:0}
   .welcome-overlay{align-items:flex-start;overflow:auto;padding:16px}
-  .welcome-card{padding:20px;border-radius:18px;margin:12px 0 96px}
-  .welcome-card h1{font-size:28px}
-  .welcome-card p{font-size:14px}
+  .welcome-card{padding:18px;border-radius:18px;margin:12px 0 88px}
+  .welcome-card h1{font-size:24px}
+  .welcome-card p{font-size:13px;line-height:1.45}
   .welcome-grid,.cook-form,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
   .welcome-actions{display:grid;grid-template-columns:1fr;gap:10px}
   .btn-apply,.btn-secondary{width:100%;text-align:center}
-  .hero{margin:14px;border-radius:18px;min-height:280px}
-  .hero-content{padding:24px;max-width:100%}
-  .hero-content h1{font-size:34px}
-  .hero-content p{font-size:14px}
+  .hero{margin:12px;border-radius:16px;min-height:238px}
+  .hero-content{padding:20px;max-width:100%}
+  .hero-content h1{font-size:25px;line-height:1.12}
+  .hero-content p{font-size:12.5px;line-height:1.45;color:rgba(255,246,236,.84)}
+  .hero-social{font-size:11px;padding:7px 10px;color:rgba(255,246,236,.9)}
   .hero-food-img{display:none}
-  .search-section{padding:16px 14px 0}
+  .search-section{padding:14px 12px 0}
   .search-bar{display:grid;grid-template-columns:1fr auto;border-radius:14px;overflow:visible}
   .search-input{min-width:0}
+  .search-input input{font-size:13px}
   .search-divider,.search-city{display:none}
-  .btn-search{border-radius:0 14px 14px 0;padding:12px 16px}
-  .filter-chips{grid-template-columns:1fr;padding:12px 14px 4px}
+  .btn-search{border-radius:0 14px 14px 0;padding:11px 12px;font-size:12px}
+  .filter-chips{grid-template-columns:1fr;padding:10px 12px 4px;gap:8px}
+  .chip,.country-search{min-height:38px;font-size:12px;border-radius:10px}
   .country-menu{max-height:230px}
-  .section,.help-layout,.cook-profile-body{padding:18px 14px}
+  .section,.help-layout,.cook-profile-body{padding:16px 12px}
   .section-header{align-items:center;gap:12px}
-  .section-header h2,.page-header h1{font-size:24px}
-  .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{grid-template-columns:1fr;padding:0 14px 18px;gap:14px}
-  .page-header{padding:22px 14px 16px}
+  .section-header h2,.page-header h1{font-size:20px;line-height:1.15}
+  .view-all{font-size:12px;white-space:nowrap}
+  .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{grid-template-columns:1fr;padding:0 12px 16px;gap:12px}
+  .cook-card-img{height:138px}
+  .cook-card-body,.dish-body{padding:12px}
+  .dish-img{height:154px}
+  .dish-body h3{font-size:14px}
+  .dish-body p{font-size:11px;margin-bottom:10px}
+  .dish-price{font-size:14px}
+  .btn-add{padding:8px 12px;font-size:11px}
+  .page-header{padding:18px 12px 12px}
   .messages-layout{display:grid;grid-template-rows:auto minmax(420px,1fr);height:auto;margin:0 14px 90px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
-  .chat-list{width:100%;display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}
-  .chat-item{min-width:220px;border-radius:12px}
+  .chat-list{width:100%;display:grid;grid-template-columns:1fr;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:8px}
+  .chat-item{min-width:0;border-radius:12px}
   .chat-item.active::before{height:3px;width:50%;left:25%;top:0;bottom:auto}
   .chat-window{min-height:430px}
   .chat-messages{padding:14px}
   .msg{max-width:86%}
   .chat-input-bar{padding:10px}
   .chat-action-btn{width:34px;height:34px}
-  .cart-panel{width:100vw;max-width:none;z-index:800}
-  .cart-floating-btn{right:16px;bottom:92px;padding:12px 15px}
+  .cart-panel{width:100dvw;max-width:100dvw;z-index:800}
+  .cart-floating-btn{right:14px;bottom:82px;padding:10px 12px;font-size:12px}
   .checkout-layout{padding:14px}
   .checkout-section{padding:16px}
   .payment-methods{grid-template-columns:1fr}
@@ -1255,14 +1286,15 @@ ul{list-style:none}
   .cook-profile-info{padding:24px 14px;align-items:center;flex-direction:column;text-align:center}
   .cook-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .cook-form{padding:18px 14px}
-  .become-hero{padding:34px 14px}
-  .become-hero h1{font-size:34px}
+  .become-hero{padding:30px 12px}
+  .become-hero h1{font-size:28px}
+  .become-hero p{font-size:13px;line-height:1.45}
   .policy-confirm{align-items:flex-start}
   .photo-action{padding:18px}
   .modal{width:min(94vw,520px);max-height:86vh}
   .modal-body{padding:18px}
   .success-overlay{padding:18px}
-  .toast-container{left:14px;right:14px;bottom:92px;transform:none}
+  .toast-container{left:12px;right:12px;bottom:84px;transform:none}
   .toast{width:100%;justify-content:center}
   #page-orders .page-header,#page-track-order .page-header{padding:18px 14px 10px;text-align:center;margin:0}
   #page-orders .page-header h1,#page-track-order .page-header h1{font-family:'DM Sans',sans-serif;font-size:16px;font-weight:900}
@@ -1276,16 +1308,16 @@ ul{list-style:none}
     color:#6f6358;background:transparent;
   }
   .orders-tab.active{background:#f4efe8;color:#1d1712}
-  .orders-list{padding:0 12px 96px}
+  .orders-list{padding:0 12px 88px}
   .order-card{
-    display:grid;grid-template-columns:72px 1fr auto;gap:12px;
+    display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:10px;
     align-items:center;padding:12px;margin-bottom:14px;border-radius:10px;
     box-shadow:0 8px 26px rgba(69,42,21,.08);border-color:#efe5da;
   }
   .order-card-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .order-id{font-size:12px;font-weight:900;color:#29211b}
   .order-date{font-size:10px;color:#94897e;margin-top:2px}
-  .order-img{width:72px;height:72px;border-radius:9px;overflow:hidden;font-size:0}
+  .order-img{width:66px;height:66px;border-radius:9px;overflow:hidden;font-size:0}
   .order-img img{width:100%;height:100%;object-fit:cover}
   .order-info h3{font-family:'DM Sans',sans-serif;font-size:13px;margin-bottom:2px}
   .order-info p{font-size:11px;margin-bottom:8px}
@@ -1299,13 +1331,13 @@ ul{list-style:none}
     grid-column:1/-1;width:100%;background:#fff;border:0;border-top:1px solid #f0e6db;
     color:#237a45;border-radius:0;padding:12px 0 2px;font-size:12px;
   }
-  .track-page{padding:0 12px 96px;max-width:none}
+  .track-page{padding:0 12px 88px;max-width:none}
   .track-card{padding:0;border:0;background:transparent;box-shadow:none;margin:0 0 12px}
   .track-header{padding:4px 0 12px;margin:0;align-items:flex-start}
   .track-title h2{font-size:18px}
   .track-title p{font-size:12px}
   .track-timeline{padding:0}
-  .track-step{grid-template-columns:28px 1fr auto;gap:10px;min-height:58px}
+  .track-step{grid-template-columns:28px minmax(0,1fr) auto;gap:10px;min-height:58px}
   .track-step::before{left:13px;top:26px;background:#23824a}
   .track-step:not(.done):not(.active)::before{background:#ddd4ca}
   .track-step-dot{width:26px;height:26px;font-size:10px;background:#fff;border-color:#ddd4ca}
@@ -1378,12 +1410,12 @@ ul{list-style:none}
   .profile-about small{display:block;color:#8f8378;font-size:11px;margin-top:8px}
   #profileDishesTitle{font-family:'DM Sans',sans-serif;font-size:13px}
   #profileDishesGrid.dishes-grid{
-    display:flex;overflow-x:auto;gap:14px;padding:0 0 10px!important;scroll-snap-type:x mandatory;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:12px;padding:0 0 10px!important;
     scrollbar-width:none;
   }
   #profileDishesGrid.dishes-grid::-webkit-scrollbar{display:none}
   #profileDishesGrid .dish-card{
-    flex:0 0 160px;border:0;background:transparent;box-shadow:none;scroll-snap-align:start;
+    min-width:0;border:0;background:transparent;box-shadow:none;
   }
   #profileDishesGrid .dish-img{height:132px;border-radius:10px}
   #profileDishesGrid .dish-body{padding:8px 0}
@@ -1393,8 +1425,12 @@ ul{list-style:none}
   #profileDishesGrid .btn-add{display:none}
 }
 @media(max-width:420px){
-  .hero-content h1{font-size:29px}
-  .page-header h1{font-size:22px}
+  body{font-size:12.5px}
+  .hero-content h1{font-size:23px}
+  .page-header h1{font-size:19px}
+  .nav-item{font-size:7.5px;padding-inline:1px}
+  .nav-item svg{width:14px;height:14px}
+  .orders-tab{font-size:9px;padding:8px 4px}
   .cook-stats{grid-template-columns:1fr}
   .order-card{display:grid}
   .cart-item{align-items:flex-start}
