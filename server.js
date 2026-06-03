@@ -59,6 +59,30 @@ const json = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
+const healthPayload = () => ({
+  ok: true,
+  database: useSupabase ? "supabase" : "local-json",
+  auth: {
+    emailVerification: true,
+    phoneVerification: true,
+    passwordReset: true,
+    google: Boolean(googleClientId && googleClientSecret),
+    apple: Boolean(appleClientId && appleClientSecret)
+  },
+  payments: configuredGateways(),
+  push: {
+    firebase: Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey),
+    oneSignal: Boolean(oneSignalAppId && oneSignalRestApiKey)
+  },
+  tracking: {
+    provider: mapProvider,
+    mapbox: Boolean(mapboxPublicToken),
+    googleMaps: Boolean(googleMapsBrowserKey),
+    openStreetMap: true
+  },
+  time: now()
+});
+
 function applyCors(req, res) {
   const origin = req.headers.origin;
   if (!origin) return;
@@ -1455,34 +1479,105 @@ function publicState(db, user = null) {
   };
 }
 
+function partialPublicState(user) {
+  return {
+    user: safeUser(user),
+    cooks: [],
+    dishes: [],
+    orders: [],
+    messages: [],
+    mealPlans: [],
+    subscriptions: [],
+    payments: [],
+    refunds: [],
+    socialActions: [],
+    social: { followers: 0, likes: 0, comments: 0, photos: 0 },
+    users: user?.role === "owner" ? [listUser(user)] : [],
+    notifications: [],
+    stats: user?.role === "owner"
+      ? { users: 1, cooks: 0, drivers: user.role === "driver" ? 1 : 0, pendingCooks: 0, orders: 0, revenue: 0, commission: 0, pendingRefunds: 0, activeSubscriptions: 0 }
+      : null
+  };
+}
+
+async function fastSupabaseLogin(req, res) {
+  const input = await body(req);
+  const email = String(input.email || "").trim().toLowerCase();
+  const rows = await supabaseRequest("app_users", {
+    query: `?email=eq.${encodeURIComponent(email)}&select=*&limit=1`
+  });
+  const user = rows[0] ? toUser(rows[0]) : null;
+  if (!user || !verifyPassword(String(input.password || ""), user.passwordHash)) {
+    return json(res, 401, { error: "Invalid email or password." });
+  }
+  const token = id("ses");
+  await upsert("app_sessions", [{ token, user_id: user.id, created_at: now() }], "token");
+  return json(res, 200, { token, state: partialPublicState(user), partial: true });
+}
+
+async function fastSupabaseLogout(req, res) {
+  const token = getToken(req);
+  if (token) {
+    await supabaseRequest("app_sessions", {
+      method: "DELETE",
+      query: `?token=eq.${encodeURIComponent(token)}`,
+      prefer: "return=minimal"
+    });
+  }
+  return json(res, 200, { ok: true });
+}
+
+async function fastSupabaseOAuthStart(req, res) {
+  const input = await body(req);
+  const provider = String(input.provider || "").trim();
+  if (provider === "google" && (!googleClientId || !googleClientSecret)) return json(res, 501, { error: "Google login needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in production." });
+  if (provider === "apple" && (!appleClientId || !appleClientSecret)) return json(res, 501, { error: "Apple login needs APPLE_CLIENT_ID and APPLE_CLIENT_SECRET in production." });
+  if (!["google", "apple"].includes(provider)) return json(res, 400, { error: "Provider must be google or apple." });
+
+  const stateToken = authToken("oau");
+  await upsert("auth_tokens", [{
+    id: id("aut"),
+    token: stateToken,
+    user_id: null,
+    email: "",
+    phone: "",
+    type: "oauth_state",
+    meta: { provider },
+    consumed_at: null,
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    created_at: now()
+  }]);
+
+  if (provider === "google") {
+    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    url.searchParams.set("client_id", googleClientId);
+    url.searchParams.set("redirect_uri", googleRedirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", "openid email profile");
+    url.searchParams.set("state", stateToken);
+    return json(res, 200, { provider, url: url.toString() });
+  }
+
+  const url = new URL("https://appleid.apple.com/auth/authorize");
+  url.searchParams.set("client_id", appleClientId);
+  url.searchParams.set("redirect_uri", appleRedirectUri);
+  url.searchParams.set("response_type", "code id_token");
+  url.searchParams.set("scope", "name email");
+  url.searchParams.set("state", stateToken);
+  return json(res, 200, { provider, url: url.toString() });
+}
+
 async function api(req, res, pathname) {
+  if (req.method === "GET" && pathname === "/api/health") return json(res, 200, healthPayload());
+  if (useSupabase && req.method === "POST" && pathname === "/api/auth/login") return fastSupabaseLogin(req, res);
+  if (useSupabase && req.method === "POST" && pathname === "/api/auth/logout") return fastSupabaseLogout(req, res);
+  if (useSupabase && req.method === "POST" && pathname === "/api/auth/oauth/start") return fastSupabaseOAuthStart(req, res);
+
   const db = await loadDb();
   if (ensureSystemUsers(db)) await saveDb(db);
 
   if (req.method === "GET" && pathname === "/api/health") {
-    return json(res, 200, {
-      ok: true,
-      database: useSupabase ? "supabase" : "local-json",
-      auth: {
-        emailVerification: true,
-        phoneVerification: true,
-        passwordReset: true,
-        google: Boolean(googleClientId && googleClientSecret),
-        apple: Boolean(appleClientId && appleClientSecret)
-      },
-      payments: configuredGateways(),
-      push: {
-        firebase: Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey),
-        oneSignal: Boolean(oneSignalAppId && oneSignalRestApiKey)
-      },
-      tracking: {
-        provider: mapProvider,
-        mapbox: Boolean(mapboxPublicToken),
-        googleMaps: Boolean(googleMapsBrowserKey),
-        openStreetMap: true
-      },
-      time: now()
-    });
+    return json(res, 200, healthPayload());
   }
 
   if (req.method === "POST" && pathname === "/api/auth/verify-email/request") {

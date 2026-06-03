@@ -17,6 +17,7 @@ let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
 let authProviderStatus = null;
+let authProviderStatusPromise = null;
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -381,19 +382,24 @@ async function api(path, options = {}) {
 
 async function getAuthProviderStatus() {
   if (authProviderStatus) return authProviderStatus;
+  if (authProviderStatusPromise) return authProviderStatusPromise;
   if (useStaticApi) {
     authProviderStatus = { google: false };
     return authProviderStatus;
   }
-  try {
-    const health = await api("/api/health");
-    authProviderStatus = {
-      google: Boolean(health.auth?.google)
-    };
-  } catch {
-    authProviderStatus = { google: false };
-  }
-  return authProviderStatus;
+  authProviderStatusPromise = api("/api/health")
+    .then((health) => {
+      authProviderStatus = { google: Boolean(health.auth?.google) };
+      return authProviderStatus;
+    })
+    .catch(() => {
+      authProviderStatus = { google: false };
+      return authProviderStatus;
+    })
+    .finally(() => {
+      authProviderStatusPromise = null;
+    });
+  return authProviderStatusPromise;
 }
 
 async function refreshOAuthButtons(root = document) {
@@ -961,6 +967,7 @@ function renderAuth(error = "") {
       if (data.verificationUrl) toast("Account created. Email verification link is ready in Profile.");
       page = "dashboard";
       renderApp();
+      if (data.partial) refresh();
     } catch (err) {
       renderAuth(err.message);
     } finally {
@@ -1081,13 +1088,21 @@ function renderMarketplaceFrame() {
 }
 
 async function logout() {
-  if (!useStaticApi) {
-    try { await api("/api/auth/logout", { method: "POST" }); } catch {}
-  }
+  const previousToken = token;
   token = null;
   state = null;
   localStorage.removeItem(storageKey);
   renderAuth();
+  if (!useStaticApi && previousToken) {
+    fetch(configuredApiBase ? `${configuredApiBase}/api/auth/logout` : "/api/auth/logout", {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${previousToken}`
+      }
+    }).catch(() => {});
+  }
 }
 
 function header(title, subtitle, extra = "") {
@@ -1911,9 +1926,10 @@ function bindPage() {
 }
 
 async function startOAuth(provider) {
+  const button = document.querySelector(`[data-oauth="${provider}"]`);
+  setButtonBusy(button, true, oauthProviderLabel(provider));
   try {
-    const status = await getAuthProviderStatus();
-    if (!status[provider]) {
+    if (authProviderStatus && !authProviderStatus[provider]) {
       refreshOAuthButtons();
       toast(`${oauthProviderLabel(provider)} login is not configured yet.`, true);
       return;
@@ -1926,6 +1942,8 @@ async function startOAuth(provider) {
     toast(`${provider} login started.`);
   } catch (err) {
     toast(err.message, true);
+  } finally {
+    setButtonBusy(button, false);
   }
 }
 
