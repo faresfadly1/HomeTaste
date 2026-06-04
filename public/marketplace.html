@@ -2601,15 +2601,16 @@ function tr(key) {
   if (Object.prototype.hasOwnProperty.call(translations.EN, key)) return translations.EN[key];
   return key;
 }
+const checkoutPaymentMethods = ['💳 Bank / credit card', '🏦 Iban', '💵 Cash on delivery'];
 const paymentMethodsByCountry = {
-  TR: ['💳 Bank / credit card', '🏦 EFT / Havale', '📱 Papara', '📱 Paycell', '📱 iyzico', '💵 Cash on delivery'],
-  DE: ['💳 Card', '🏦 SEPA transfer', '📱 PayPal', '📱 Apple Pay', '📱 Google Pay', '💵 Cash'],
-  ES: ['💳 Card', '🏦 Bank transfer', '📱 Bizum', '📱 PayPal', '📱 Apple Pay', '💵 Cash'],
-  EG: ['💳 Card', '📱 Vodafone Cash', '📱 Instapay', '🏦 Bank transfer', '💵 Cash on delivery'],
-  FR: ['💳 Card', '🏦 Bank transfer', '📱 PayPal', '📱 Apple Pay', '💵 Cash'],
-  NL: ['💳 Card', '🏦 iDEAL', '📱 PayPal', '📱 Apple Pay', '💵 Cash']
+  TR: checkoutPaymentMethods,
+  DE: checkoutPaymentMethods,
+  ES: checkoutPaymentMethods,
+  EG: checkoutPaymentMethods,
+  FR: checkoutPaymentMethods,
+  NL: checkoutPaymentMethods
 };
-const allPaymentMethods = [...new Set(Object.values(paymentMethodsByCountry).flat())];
+const allPaymentMethods = checkoutPaymentMethods;
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
 const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
@@ -3489,13 +3490,13 @@ function userPaymentKey() {
 function getSavedPaymentMethods() {
   try {
     const methods = JSON.parse(localStorage.getItem(userPaymentKey()) || '[]');
-    return Array.isArray(methods) ? methods.filter(Boolean) : [];
+    return Array.isArray(methods) ? methods.filter(method => allPaymentMethods.includes(method)) : [];
   } catch {
     return [];
   }
 }
 function setSavedPaymentMethods(methods) {
-  localStorage.setItem(userPaymentKey(), JSON.stringify(methods));
+  localStorage.setItem(userPaymentKey(), JSON.stringify(methods.filter(method => allPaymentMethods.includes(method))));
 }
 function userProfilePictureKey() {
   return `hometaste_profile_picture_${currentUserName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'user'}`;
