@@ -2152,10 +2152,11 @@ ul{list-style:none}
 
         <div class="checkout-section">
           <h3>⏰ Delivery Time</h3>
-          <div style="display:flex;gap:10px">
-            <div class="payment-method active" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>⚡</div><span>ASAP (~30 min)</span></div>
-            <div class="payment-method" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>🕐</div><span>Schedule</span></div>
+          <div id="deliveryTimeOptions" style="display:flex;gap:10px">
+            <div class="payment-method active" data-delivery-time="asap" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>⚡</div><span>ASAP (~30 min)</span></div>
+            <div class="payment-method" data-delivery-time="schedule" onclick="selectPayment(this)" style="flex:unset;padding:12px 20px"><div>🕐</div><span>Schedule</span></div>
           </div>
+          <div class="payment-details empty" id="deliveryTimeDetails"></div>
         </div>
       </div>
 
@@ -3740,10 +3741,45 @@ function renderPaymentDetails(method) {
 function saveCardDetails() {
   showToast('Card details saved for this checkout.', 'success');
 }
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+function renderDeliveryTimeDetails(mode) {
+  const panel = document.getElementById('deliveryTimeDetails');
+  if (!panel) return;
+  panel.classList.toggle('empty', mode !== 'schedule');
+  if (mode !== 'schedule') {
+    panel.innerHTML = '';
+    return;
+  }
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem('hometaste_delivery_schedule') || '{}') || {};
+  } catch {
+    saved = {};
+  }
+  panel.innerHTML = `
+    <p class="payment-details-title">Schedule delivery</p>
+    <p class="payment-details-hint">Choose when you want to receive this order.</p>
+    <div class="form-row">
+      <div class="form-group"><label>Delivery Date</label><input class="form-input" id="scheduleDateInput" type="date" min="${todayInputValue()}" value="${saved.date || todayInputValue()}"></div>
+      <div class="form-group"><label>Delivery Time</label><input class="form-input" id="scheduleTimeInput" type="time" value="${saved.time || ''}"></div>
+    </div>
+    <button class="payment-save" type="button" onclick="saveDeliverySchedule()">Save time</button>
+  `;
+}
+function saveDeliverySchedule() {
+  const date = document.getElementById('scheduleDateInput')?.value || '';
+  const time = document.getElementById('scheduleTimeInput')?.value || '';
+  if (!date || !time) return showToast('Choose delivery date and time.', 'error');
+  localStorage.setItem('hometaste_delivery_schedule', JSON.stringify({ date, time }));
+  showToast(`Delivery scheduled for ${date} at ${time}.`, 'success');
+}
 function selectPayment(el) {
   el.closest('.payment-methods,.checkout-section').querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
   el.classList.add('active');
   if (el.closest('#paymentMethods')) renderPaymentDetails(el.dataset.paymentLabel || el.textContent);
+  if (el.closest('#deliveryTimeOptions')) renderDeliveryTimeDetails(el.dataset.deliveryTime || 'asap');
 }
 function placeOrder() {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
