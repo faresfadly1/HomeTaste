@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260604-mobile-dark-10";
+const APP_BUILD = "20260604-readable-location-11";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -92,7 +92,7 @@ const appTranslations = {
   EN: {
     role_owner: "admin", role_customer: "customer", role_cook: "cook", role_driver: "driver",
     view: "view", signedInAs: "Signed in as", signOut: "Sign out", languageChanged: "Language changed to", darkOn: "Dark mode on.", darkOff: "Light mode on.",
-    changeLanguage: "Change website language", darkMode: "Dark mode", selectAddress: "Select your address", enterAddress: "Enter a city or address first.", addressSaved: "Address saved.", locationUnavailable: "Location is not available in this browser.", locationBlocked: "Location permission was blocked. Type your area instead.",
+    changeLanguage: "Change website language", darkMode: "Dark mode", selectAddress: "Select your address", enterAddress: "Enter a city or address first.", addressSaved: "Address saved.", locationUnavailable: "Location is not available in this browser.", locationBlocked: "Location permission was blocked. Type your area instead.", locatingAddress: "Finding your address...", locationFound: "Address found.", currentLocation: "Current location", addressLookupFailed: "Could not find the street name. You can type the address.",
     nav_driver_dashboard: "Driver Hub", nav_driver_orders: "Deliveries", nav_driver_chat: "Order chat", nav_driver_settings: "Profile",
     nav_dashboard: "Dashboard", nav_admin: "Admin control", nav_orders: "Orders", nav_chat: "Chat", nav_settings: "Profile", nav_browse: "Browse food", nav_subscriptions: "Meal plans", nav_become: "Become a cook", nav_cook: "Cook studio",
     auth_script: "Welcome Back to", auth_hero: "Sign in to continue discovering delicious homemade meals made with love.", auth_secure: "Secure<br>Login", auth_trusted: "Trusted<br>Platform", auth_cooks: "Home Cooks<br>Community",
@@ -113,7 +113,7 @@ const appTranslations = {
   TR: {
     role_owner: "admin", role_customer: "musteri", role_cook: "asci", role_driver: "kurye",
     view: "gorunumu", signedInAs: "Giris yapan", signOut: "Cikis yap", languageChanged: "Dil degisti:", darkOn: "Koyu mod acik.", darkOff: "Acik mod acik.",
-    changeLanguage: "Site dilini degistir", darkMode: "Koyu mod", selectAddress: "Adresinizi secin", enterAddress: "Once sehir veya adres girin.", addressSaved: "Adres kaydedildi.", locationUnavailable: "Konum bu tarayicida yok.", locationBlocked: "Konum izni engellendi. Bolgenizi yazin.",
+    changeLanguage: "Site dilini degistir", darkMode: "Koyu mod", selectAddress: "Adresinizi secin", enterAddress: "Once sehir veya adres girin.", addressSaved: "Adres kaydedildi.", locationUnavailable: "Konum bu tarayicida yok.", locationBlocked: "Konum izni engellendi. Bolgenizi yazin.", locatingAddress: "Adresiniz bulunuyor...", locationFound: "Adres bulundu.", currentLocation: "Mevcut konum", addressLookupFailed: "Sokak adi bulunamadi. Adresi yazabilirsiniz.",
     nav_driver_dashboard: "Kurye merkezi", nav_driver_orders: "Teslimatlar", nav_driver_chat: "Siparis sohbeti", nav_driver_settings: "Profil",
     nav_dashboard: "Panel", nav_admin: "Admin kontrol", nav_orders: "Siparisler", nav_chat: "Sohbet", nav_settings: "Profil", nav_browse: "Yemeklere bak", nav_subscriptions: "Yemek planlari", nav_become: "Asci ol", nav_cook: "Asci studiosu",
     auth_script: "Tekrar hos geldiniz", auth_hero: "Sevgiyle yapilmis lezzetli ev yemeklerini kesfetmeye devam etmek icin giris yapin.", auth_secure: "Guvenli<br>Giris", auth_trusted: "Guvenilir<br>Platform", auth_cooks: "Ev Ascisi<br>Toplulugu",
@@ -127,7 +127,7 @@ const appTranslations = {
   DE: {
     role_owner: "Admin", role_customer: "Kunde", role_cook: "Koch", role_driver: "Fahrer",
     view: "Ansicht", signedInAs: "Angemeldet als", signOut: "Abmelden", languageChanged: "Sprache geandert:", darkOn: "Dunkelmodus an.", darkOff: "Hellmodus an.",
-    changeLanguage: "Website-Sprache andern", darkMode: "Dunkelmodus", selectAddress: "Adresse auswahlen", enterAddress: "Bitte zuerst Stadt oder Adresse eingeben.", addressSaved: "Adresse gespeichert.", locationUnavailable: "Standort ist in diesem Browser nicht verfugbar.", locationBlocked: "Standortberechtigung blockiert. Bitte Bereich eingeben.",
+    changeLanguage: "Website-Sprache andern", darkMode: "Dunkelmodus", selectAddress: "Adresse auswahlen", enterAddress: "Bitte zuerst Stadt oder Adresse eingeben.", addressSaved: "Adresse gespeichert.", locationUnavailable: "Standort ist in diesem Browser nicht verfugbar.", locationBlocked: "Standortberechtigung blockiert. Bitte Bereich eingeben.", locatingAddress: "Adresse wird gesucht...", locationFound: "Adresse gefunden.", currentLocation: "Aktueller Standort", addressLookupFailed: "Strassenname nicht gefunden. Du kannst die Adresse eingeben.",
     nav_driver_dashboard: "Fahrerbereich", nav_driver_orders: "Lieferungen", nav_driver_chat: "Bestellchat", nav_driver_settings: "Profil",
     nav_dashboard: "Dashboard", nav_admin: "Adminbereich", nav_orders: "Bestellungen", nav_chat: "Chat", nav_settings: "Profil", nav_browse: "Essen suchen", nav_subscriptions: "Essensplane", nav_become: "Koch werden", nav_cook: "Kochstudio",
     auth_script: "Willkommen zuruck bei", auth_hero: "Melde dich an, um weiter leckere hausgemachte Mahlzeiten mit Liebe zu entdecken.", auth_secure: "Sicherer<br>Login", auth_trusted: "Vertrauensvolle<br>Plattform", auth_cooks: "Home Cooks<br>Community",
@@ -141,7 +141,7 @@ const appTranslations = {
   AR: {
     role_owner: "مدير", role_customer: "عميل", role_cook: "طاه", role_driver: "سائق",
     view: "عرض", signedInAs: "مسجل باسم", signOut: "تسجيل الخروج", languageChanged: "تم تغيير اللغة إلى", darkOn: "تم تشغيل الوضع الداكن.", darkOff: "تم تشغيل الوضع الفاتح.",
-    changeLanguage: "تغيير لغة الموقع", darkMode: "الوضع الداكن", selectAddress: "اختر عنوانك", enterAddress: "ادخل مدينة أو عنوانا أولا.", addressSaved: "تم حفظ العنوان.", locationUnavailable: "الموقع غير متاح في هذا المتصفح.", locationBlocked: "تم حظر إذن الموقع. اكتب منطقتك بدلا من ذلك.",
+    changeLanguage: "تغيير لغة الموقع", darkMode: "الوضع الداكن", selectAddress: "اختر عنوانك", enterAddress: "ادخل مدينة أو عنوانا أولا.", addressSaved: "تم حفظ العنوان.", locationUnavailable: "الموقع غير متاح في هذا المتصفح.", locationBlocked: "تم حظر إذن الموقع. اكتب منطقتك بدلا من ذلك.", locatingAddress: "جاري العثور على عنوانك...", locationFound: "تم العثور على العنوان.", currentLocation: "الموقع الحالي", addressLookupFailed: "تعذر العثور على اسم الشارع. يمكنك كتابة العنوان.",
     nav_driver_dashboard: "مركز السائق", nav_driver_orders: "التوصيلات", nav_driver_chat: "دردشة الطلب", nav_driver_settings: "الملف الشخصي",
     nav_dashboard: "لوحة التحكم", nav_admin: "تحكم المدير", nav_orders: "الطلبات", nav_chat: "الدردشة", nav_settings: "الملف الشخصي", nav_browse: "تصفح الطعام", nav_subscriptions: "خطط الوجبات", nav_become: "كن طاهيا", nav_cook: "استوديو الطاهي",
     auth_script: "مرحبا بعودتك إلى", auth_hero: "سجل الدخول لمتابعة اكتشاف وجبات منزلية لذيذة مصنوعة بحب.", auth_secure: "تسجيل<br>آمن", auth_trusted: "منصة<br>موثوقة", auth_cooks: "مجتمع<br>طهاة المنزل",
@@ -314,20 +314,40 @@ function locationOverlay() {
   `);
   document.querySelector("#closeLocation").onclick = closeLocation;
   document.querySelector("#searchLocation").onclick = () => {
-    const value = document.querySelector("#locationInput").value.trim();
+    const input = document.querySelector("#locationInput");
+    const value = input.value.trim();
     if (!value) return toast(t("enterAddress"), true);
-    confirmLocation(value);
+    confirmLocation(value, input.dataset.mapQuery || value);
   };
   document.querySelector("#useBrowserLocation").onclick = useBrowserLocation;
+  document.querySelector("#locationInput").addEventListener("input", (event) => {
+    event.currentTarget.dataset.mapQuery = event.currentTarget.value;
+  });
   document.querySelectorAll("[data-location-city]").forEach((button) => {
     button.onclick = () => setLocationMap(`${button.dataset.locationCity}, Turkey`);
   });
 }
 
-function setLocationMap(value) {
-  localStorage.setItem("hometaste_location_label", value);
-  document.querySelector("#locationInput").value = value;
-  document.querySelector("#locationMap").src = `https://maps.google.com/maps?q=${encodeURIComponent(value)}&z=14&output=embed`;
+function isCoordinateLabel(value) {
+  return /^-?\d{1,3}(?:\.\d+)?,\s*-?\d{1,3}(?:\.\d+)?$/.test(String(value || "").trim());
+}
+
+function readableLocationLabel(value) {
+  const clean = String(value || "").trim();
+  return clean && !isCoordinateLabel(clean) ? clean : "";
+}
+
+function setLocationMap(query, label = query) {
+  const cleanQuery = String(query || label || "").trim();
+  const cleanLabel = readableLocationLabel(label) || t("currentLocation");
+  localStorage.setItem("hometaste_location_label", cleanLabel);
+  const input = document.querySelector("#locationInput");
+  if (input) {
+    input.value = cleanLabel;
+    input.dataset.mapQuery = cleanQuery || cleanLabel;
+  }
+  const map = document.querySelector("#locationMap");
+  if (map) map.src = `https://maps.google.com/maps?q=${encodeURIComponent(cleanQuery || cleanLabel)}&z=14&output=embed`;
 }
 
 function userAddressKey() {
@@ -335,7 +355,7 @@ function userAddressKey() {
 }
 
 function currentSavedAddress() {
-  return localStorage.getItem(userAddressKey()) || localStorage.getItem("hometaste_location_label") || "";
+  return readableLocationLabel(localStorage.getItem(userAddressKey())) || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -343,12 +363,13 @@ function updateAddressButton(value = currentSavedAddress()) {
   if (label) label.textContent = value || t("selectAddress");
 }
 
-function confirmLocation(value) {
+function confirmLocation(value, mapQuery = value) {
   const clean = value.trim();
   if (!clean) return toast(t("enterAddress"), true);
-  localStorage.setItem(userAddressKey(), clean);
-  setLocationMap(clean);
-  updateAddressButton(clean);
+  const label = readableLocationLabel(clean) || t("currentLocation");
+  localStorage.setItem(userAddressKey(), label);
+  setLocationMap(mapQuery, label);
+  updateAddressButton(label);
   closeLocation();
   toast(t("addressSaved"));
 }
@@ -363,11 +384,75 @@ function closeLocation() {
   document.querySelector("#locationOverlay")?.classList.remove("open");
 }
 
+function compactAddressParts(parts) {
+  const seen = new Set();
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const key = part.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatReverseAddress(data) {
+  const address = data?.address || {};
+  const streetName = address.road || address.pedestrian || address.footway || address.path || address.neighbourhood;
+  const street = compactAddressParts([streetName, address.house_number]).join(" ");
+  const district = address.suburb || address.neighbourhood || address.quarter || address.city_district || address.town;
+  const city = address.city || address.town || address.municipality || address.province || address.state;
+  const parts = compactAddressParts([street, district, city, address.postcode, address.country]);
+  if (parts.length) return parts.slice(0, 5).join(", ");
+  return String(data?.display_name || "").split(",").slice(0, 5).map((part) => part.trim()).filter(Boolean).join(", ");
+}
+
+async function reverseGeocodeCoords(coords) {
+  const lat = Number(coords.latitude);
+  const lon = Number(coords.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+  const language = (languageMeta[appLanguage] || languageMeta.EN).html;
+  const url = new URL("https://nominatim.openstreetmap.org/reverse");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("lat", String(lat));
+  url.searchParams.set("lon", String(lon));
+  url.searchParams.set("zoom", "18");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("accept-language", language);
+  const res = await fetch(url.toString(), { headers: { accept: "application/json" } });
+  if (!res.ok) throw new Error("Address lookup failed.");
+  return formatReverseAddress(await res.json());
+}
+
+function setLocateButtonLoading(loading) {
+  const button = document.querySelector("#useBrowserLocation");
+  if (!button) return;
+  button.disabled = loading;
+  button.innerHTML = `<span>◎</span> ${loading ? t("locatingAddress") : t("locateMe", "Locate me")}`;
+}
+
 function useBrowserLocation() {
   if (!navigator.geolocation) return toast(t("locationUnavailable"), true);
+  setLocateButtonLoading(true);
   navigator.geolocation.getCurrentPosition(
-    ({ coords }) => setLocationMap(`${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`),
-    () => toast(t("locationBlocked"), true),
+    async ({ coords }) => {
+      const mapQuery = `${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
+      try {
+        const address = await reverseGeocodeCoords(coords);
+        setLocationMap(mapQuery, address || t("currentLocation"));
+        toast(address ? t("locationFound") : t("addressLookupFailed"), !address);
+      } catch {
+        setLocationMap(mapQuery, t("currentLocation"));
+        toast(t("addressLookupFailed"), true);
+      } finally {
+        setLocateButtonLoading(false);
+      }
+    },
+    () => {
+      setLocateButtonLoading(false);
+      toast(t("locationBlocked"), true);
+    },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 }
