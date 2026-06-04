@@ -1,5 +1,11 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260604-hero-lower-8";
+const APP_BUILD = "20260604-chef-logo-9";
+const chefLogoIcon = `
+  <svg viewBox="0 0 48 48" aria-hidden="true">
+    <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
+    <path d="M14 35c-5.8-1.2-9-4.7-9-9.2 0-4.7 3.7-8.2 8.3-8.2 1.8-5 6-8 10.7-8 4.8 0 8.9 3 10.7 8 4.6 0 8.3 3.5 8.3 8.2 0 4.5-3.2 8-9 9.2"></path>
+    <path d="M17 29c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8"></path>
+  </svg>`;
 const storageKey = "hometaste_token";
 const currentScript = document.querySelector('script[src*="app.js"]');
 const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
@@ -1025,7 +1031,7 @@ function renderApp() {
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="mark">H</div>
+          <div class="mark">${chefLogoIcon}</div>
           <div><h1>HomeTaste</h1><span>${roleLabel(state.user.role)} ${t("view")}</span></div>
         </div>
         <nav class="nav">
@@ -1061,7 +1067,7 @@ function renderMarketplaceFrame() {
     <div class="market-shell">
       <header class="market-top">
         <div class="brand compact">
-          <div class="mark">H</div>
+          <div class="mark">${chefLogoIcon}</div>
           <div><h1>HomeTaste</h1></div>
         </div>
         <button class="market-location" type="button" id="openLocation">
