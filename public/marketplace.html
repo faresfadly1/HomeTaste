@@ -1020,6 +1020,63 @@ ul{list-style:none}
 .payment-method.active{border-color:var(--orange);background:var(--orange-light)}
 .payment-method div{font-size:20px;margin-bottom:4px}
 .payment-method span{font-size:12px;font-weight:600}
+.payment-details{
+  margin-top:14px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--bg2);
+  box-shadow:0 12px 30px rgba(0,0,0,.08);
+}
+.payment-details.empty{display:none}
+.payment-details-title{
+  margin:0 0 12px;
+  font-size:14px;
+  font-weight:800;
+  color:var(--text);
+}
+.payment-details-hint{
+  margin:-4px 0 14px;
+  font-size:12px;
+  line-height:1.5;
+  color:var(--text3);
+}
+.payment-save{
+  width:100%;
+  height:44px;
+  border:0;
+  border-radius:12px;
+  background:var(--orange);
+  color:white;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 10px 24px var(--orange-glow);
+}
+.iban-card{
+  display:grid;
+  gap:12px;
+}
+.iban-field{
+  padding:13px 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--bg3);
+}
+.iban-field span{
+  display:block;
+  margin-bottom:6px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--text3);
+  font-weight:700;
+}
+.iban-field strong{
+  display:block;
+  color:var(--text);
+  font-size:14px;
+  overflow-wrap:anywhere;
+}
 .order-summary{position:sticky;top:20px}
 .summary-items{margin-bottom:16px}
 .summary-item{
@@ -2090,13 +2147,7 @@ ul{list-style:none}
           <h3>💳 Payment Method</h3>
           <div class="payment-methods" id="paymentMethods"></div>
           <div class="payment-note" id="paymentNote">Payment methods change depending on the selected country.</div>
-          <div style="margin-top:14px">
-            <div class="form-group"><label>Card Number</label><input class="form-input" type="text" placeholder="1234 5678 9012 3456"></div>
-            <div class="form-row">
-              <div class="form-group"><label>Expiry</label><input class="form-input" type="text" placeholder="MM/YY"></div>
-              <div class="form-group"><label>CVV</label><input class="form-input" type="text" placeholder="123"></div>
-            </div>
-          </div>
+          <div class="payment-details" id="paymentDetails"></div>
         </div>
 
         <div class="checkout-section">
@@ -2757,11 +2808,12 @@ function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
   const saved = getSavedPaymentMethods();
   const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
-  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
+  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" data-payment-label="${m}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
     ? `Your saved payment methods: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`
     : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`;
+  renderPaymentDetails(methods[0]);
 }
 function toggleCart(force){
   const panel = document.getElementById('cartPanel');
@@ -3652,9 +3704,46 @@ function updateCheckoutItems() {
   document.getElementById('checkoutSubtotal').textContent = sub + ' ₺';
   document.getElementById('checkoutTotal').textContent = (sub + 30 + 15) + ' ₺';
 }
+function paymentName(method) {
+  return String(method || '').replace(/^\S+\s/, '').trim();
+}
+function renderPaymentDetails(method) {
+  const panel = document.getElementById('paymentDetails');
+  if (!panel) return;
+  const name = paymentName(method);
+  panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
+  if (name === 'Bank / credit card') {
+    panel.innerHTML = `
+      <p class="payment-details-title">Card details</p>
+      <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Expiry</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY"></div>
+        <div class="form-group"><label>CVV</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></div>
+      </div>
+      <button class="payment-save" type="button" onclick="saveCardDetails()">Save card</button>
+    `;
+    return;
+  }
+  if (name === 'Iban') {
+    panel.innerHTML = `
+      <p class="payment-details-title">IBAN transfer details</p>
+      <p class="payment-details-hint">Add the real IBAN number and receiver full name here before launch.</p>
+      <div class="iban-card">
+        <div class="iban-field"><span>IBAN Number</span><strong>TR00 0000 0000 0000 0000 0000 00</strong></div>
+        <div class="iban-field"><span>Receiver Full Name</span><strong>HomeTaste Receiver Name</strong></div>
+      </div>
+    `;
+    return;
+  }
+  panel.innerHTML = '';
+}
+function saveCardDetails() {
+  showToast('Card details saved for this checkout.', 'success');
+}
 function selectPayment(el) {
   el.closest('.payment-methods,.checkout-section').querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
   el.classList.add('active');
+  if (el.closest('#paymentMethods')) renderPaymentDetails(el.dataset.paymentLabel || el.textContent);
 }
 function placeOrder() {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
