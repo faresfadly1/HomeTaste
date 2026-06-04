@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260604-readable-location-11";
+const APP_BUILD = "20260604-theme-stays-page-12";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -257,13 +257,20 @@ function setAppLanguage(language) {
   toast(`${t("languageChanged")} ${languageMeta[appLanguage].label}`);
 }
 
+function refreshDarkToggleButtons() {
+  document.querySelectorAll("#darkToggle").forEach((button) => {
+    button.textContent = appDarkMode ? "🌙" : "☀";
+    button.setAttribute("aria-label", t("darkMode"));
+    button.setAttribute("title", t("darkMode"));
+  });
+}
+
 function toggleDarkMode() {
   appDarkMode = !appDarkMode;
   localStorage.setItem("hometaste_theme", appDarkMode ? "dark" : "light");
   applyAppearance();
   sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
-  if (state?.user) renderApp();
-  else renderAuth();
+  refreshDarkToggleButtons();
   toast(appDarkMode ? t("darkOn") : t("darkOff"));
 }
 
@@ -1145,7 +1152,6 @@ function renderApp() {
 function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
-  currentMarketPage = routePageFromLocation();
   const hideCustomerPanel = !isCook() && !isDriver();
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
