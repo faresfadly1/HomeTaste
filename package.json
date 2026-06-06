@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "check:security": "node scripts/check-security.mjs",
+    "check:flow": "node scripts/check-flow.mjs",
     "check:static": "node scripts/check-static.mjs",
     "check:prod": "node scripts/check-production.mjs",
     "check:live": "node scripts/check-live-integrations.mjs",

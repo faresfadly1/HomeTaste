@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
-const dataDir = path.join(__dirname, "data");
+const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETASTE_DATA_DIR) : path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
@@ -23,7 +23,7 @@ if (existsSync(envPath)) {
 
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
 const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const useSupabase = Boolean(supabaseUrl && supabaseKey);
+const useSupabase = process.env.HOMETASTE_DISABLE_SUPABASE === "1" ? false : Boolean(supabaseUrl && supabaseKey);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173,http://127.0.0.1:4174,http://127.0.0.1:4173")
   .split(",")
   .map((item) => item.trim())
