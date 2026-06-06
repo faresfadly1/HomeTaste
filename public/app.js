@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260606-profile-admin-flow-01";
+const APP_BUILD = "20260606-real-data-flow-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -26,6 +26,8 @@ let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
 let authProviderStatus = null;
 let authProviderStatusPromise = null;
+let ownerRefreshTimer = null;
+let refreshInFlight = false;
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -637,7 +639,9 @@ async function refreshOAuthButtons(root = document) {
 }
 
 async function refresh() {
+  if (refreshInFlight) return;
   if (!token) return renderAuth();
+  refreshInFlight = true;
   try {
     state = await api("/api/state");
     renderApp();
@@ -645,6 +649,18 @@ async function refresh() {
     token = null;
     localStorage.removeItem(storageKey);
     renderAuth();
+  } finally {
+    refreshInFlight = false;
+  }
+}
+
+function scheduleOwnerRefresh() {
+  if (ownerRefreshTimer) {
+    clearInterval(ownerRefreshTimer);
+    ownerRefreshTimer = null;
+  }
+  if (state?.user?.role === "owner" && page === "admin") {
+    ownerRefreshTimer = setInterval(() => refresh(), 10000);
   }
 }
 
@@ -708,6 +724,51 @@ function staticSafeUser(user) {
 
 function staticCookForUser(db, userId) {
   return db.cooks.find((cook) => cook.userId === userId) || null;
+}
+
+function staticNotifyOwners(db, text, data = {}) {
+  const owners = db.users.filter((user) => user.role === "owner");
+  const targets = owners.length ? owners : db.users.filter((user) => user.id === "usr_owner");
+  targets.forEach((owner) => {
+    db.notifications.push({ id: `not_${Date.now()}_${owner.id}`, userId: owner.id, text, data, createdAt: new Date().toISOString(), read: false });
+  });
+}
+
+function staticIsDemoUser(user) {
+  if (!user || user.role === "owner") return false;
+  const email = String(user.email || "").toLowerCase();
+  const name = String(user.name || "").trim().toLowerCase();
+  return email.endsWith("@hometaste.local")
+    || email.endsWith("@hometaste.test")
+    || /^flow[_-]/.test(email)
+    || /^easy_/.test(email)
+    || /^deploy_/.test(email)
+    || /^qa-/.test(email)
+    || /^prod-/.test(email)
+    || /^codex\./.test(email)
+    || ["button tester", "flow customer", "flow user", "flow live", "live check", "live qa", "aylin demir", "hometaste driver"].includes(name);
+}
+
+function staticCleanupDemoData(db) {
+  const userIds = new Set(db.users.filter(staticIsDemoUser).map((user) => user.id));
+  const cookIds = new Set(db.cooks.filter((cook) => userIds.has(cook.userId) || ["aylin demir", "ravi patel"].includes(String(cook.name || "").trim().toLowerCase())).map((cook) => cook.id));
+  const dishIds = new Set(db.dishes.filter((dish) => cookIds.has(dish.cookId) || String(dish.name || "").trim().toLowerCase() === "dolma plate").map((dish) => dish.id));
+  const orderIds = new Set(db.orders.filter((order) => userIds.has(order.customerId) || userIds.has(order.driverId) || cookIds.has(order.cookId) || (order.items || []).some((item) => dishIds.has(item.dishId) || String(item.name || "").trim().toLowerCase() === "dolma plate")).map((order) => order.id));
+  db.socialActions = (db.socialActions || []).filter((item) => !userIds.has(item.userId) && !cookIds.has(item.cookId) && !dishIds.has(item.dishId));
+  db.messages = db.messages.filter((item) => !orderIds.has(item.orderId) && !userIds.has(item.fromUserId));
+  db.refunds = (db.refunds || []).filter((item) => !orderIds.has(item.orderId) && !userIds.has(item.customerId));
+  db.payments = (db.payments || []).filter((item) => !orderIds.has(item.orderId) && !userIds.has(item.customerId) && !cookIds.has(item.cookId));
+  db.subscriptions = (db.subscriptions || []).filter((item) => !userIds.has(item.customerId) && !cookIds.has(item.cookId));
+  db.mealPlans = (db.mealPlans || []).filter((item) => !cookIds.has(item.cookId));
+  db.notifications = db.notifications.filter((item) => !userIds.has(item.userId) && !/test|demo|flow|codex|dolma/i.test(item.text || ""));
+  db.orders = db.orders.filter((item) => !orderIds.has(item.id));
+  db.dishes = db.dishes.filter((item) => !dishIds.has(item.id));
+  db.cooks = db.cooks.filter((item) => !cookIds.has(item.id));
+  db.users = db.users.filter((item) => !userIds.has(item.id));
+  Object.entries(db.sessions || {}).forEach(([sessionToken, session]) => {
+    if (userIds.has(session.userId)) delete db.sessions[sessionToken];
+  });
+  return { users: userIds.size, cooks: cookIds.size, dishes: dishIds.size, orders: orderIds.size };
 }
 
 function staticVisibleOrders(db, user) {
@@ -823,7 +884,7 @@ async function staticApi(path, options = {}) {
     };
     user.role = "cook";
     db.cooks.push(cook);
-    db.notifications.push({ id: `not_${Date.now()}`, userId: "usr_owner", text: `${cook.name} applied to become a cook.`, createdAt: new Date().toISOString(), read: false });
+    staticNotifyOwners(db, `${cook.name} applied to become a cook.`, { type: "cook_application", cookId: cook.id, userId: user.id });
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1003,6 +1064,13 @@ async function staticApi(path, options = {}) {
     return staticPublicState(db, user);
   }
 
+  if (user.role === "owner" && method === "POST" && path === "/api/admin/cleanup-demo-data") {
+    if (input.confirm !== "clean-demo-data") throw new Error("Cleanup confirmation is required.");
+    const cleanup = staticCleanupDemoData(db);
+    saveStaticDb(db);
+    return { ...staticPublicState(db, user), cleanup };
+  }
+
   if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/users/")) {
     const target = db.users.find((item) => item.id === path.split("/").pop());
     if (!target) throw new Error("User not found.");
@@ -1169,6 +1237,7 @@ function adminCookRequestHtml(cook) {
           </div>
           <div class="toolbar" style="margin:0;justify-content:flex-end">
             <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+            <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
             <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
             <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
           </div>
@@ -1428,8 +1497,12 @@ function navItems() {
 
 function renderApp() {
   applyAppearance();
-  if (!state?.user) return renderAuth();
+  if (!state?.user) {
+    scheduleOwnerRefresh();
+    return renderAuth();
+  }
   if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
+  scheduleOwnerRefresh();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -1649,7 +1722,7 @@ function subscriptionCard(subscription) {
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
-  const verificationCooks = state.cooks.filter((cook) => cook.status !== "suspended");
+  const verificationCooks = state.cooks.filter((cook) => !["suspended", "rejected"].includes(cook.status));
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -1661,8 +1734,17 @@ function renderAdmin() {
       <div class="stat"><small>${t("commission15")}</small><strong>${money(state.stats.commission || 0)}</strong></div>
       <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
       <div class="stat"><small>${t("refundReview")}</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
-    </section>
-    <section class="grid cols-2" style="margin-top:18px">
+	    </section>
+	    <section class="panel" style="margin-top:18px">
+	      <div class="price-row">
+	        <div>
+	          <h3 style="margin:0">Real data cleanup</h3>
+	          <div class="meta">Remove old test/demo accounts, duplicate test dishes, and linked test orders from admin data.</div>
+	        </div>
+	        <button class="button secondary" type="button" id="cleanupDemoData">Clean test data</button>
+	      </div>
+	    </section>
+	    <section class="grid cols-2" style="margin-top:18px">
 	      <div class="panel">
 	        <h3>Become a cook requests</h3>
 	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
@@ -1680,9 +1762,10 @@ function renderAdmin() {
               </div>
             </div>
             <div class="toolbar" style="margin:0;justify-content:flex-end">
-              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
-              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
-              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
+	              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+	              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
+	              <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
+	              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
               <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
               <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
@@ -2307,6 +2390,7 @@ function bindPage() {
   if (mealPlanForm) mealPlanForm.onsubmit = createMealPlan;
   const cookApply = document.querySelector("#cookApplyForm");
   if (cookApply) cookApply.onsubmit = applyCook;
+  document.querySelector("#cleanupDemoData")?.addEventListener("click", cleanupDemoData);
   document.querySelectorAll("[data-toggle-dish]").forEach((button) => {
     button.onclick = () => toggleDish(button.dataset.toggleDish);
   });
@@ -2660,6 +2744,17 @@ async function cookStatus(cookId, status) {
   try {
     state = await api(`/api/admin/cooks/${cookId}`, { method: "PATCH", body: JSON.stringify({ status, verified: status === "approved", online: status === "suspended" ? false : undefined }) });
     toast("Cook status updated.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function cleanupDemoData() {
+  if (!window.confirm("Remove old test/demo users, dishes, orders, and linked records from admin data? Real owner/admin accounts are preserved.")) return;
+  try {
+    state = await api("/api/admin/cleanup-demo-data", { method: "POST", body: JSON.stringify({ confirm: "clean-demo-data" }) });
+    toast("Test/demo data cleaned.");
     renderApp();
   } catch (err) {
     toast(err.message, true);

@@ -11,7 +11,7 @@ const dataDir = path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260606-admin-actions-01";
+const backendBuild = "20260606-real-data-flow-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -236,6 +236,113 @@ function listUser(user) {
 
 function dishMatchKey(dish) {
   return `${dish?.cookId || ""}::${String(dish?.name || "").trim().toLowerCase()}`;
+}
+
+function ownerUsers(db) {
+  return db.users.filter((user) => user.role === "owner");
+}
+
+function notifyOwners(db, text, data = {}) {
+  const owners = ownerUsers(db);
+  const targets = owners.length ? owners : db.users.filter((user) => user.id === "usr_owner");
+  for (const owner of targets) {
+    db.notifications.push({ id: id("not"), userId: owner.id, text, data, createdAt: now(), read: false });
+  }
+}
+
+function isDemoUser(user) {
+  if (!user || user.role === "owner") return false;
+  const email = String(user.email || "").toLowerCase();
+  const name = String(user.name || "").trim().toLowerCase();
+  return email.endsWith("@hometaste.local")
+    || email.endsWith("@hometaste.test")
+    || /^flow[_-]/.test(email)
+    || /^easy_/.test(email)
+    || /^deploy_/.test(email)
+    || /^qa-/.test(email)
+    || /^prod-/.test(email)
+    || /^codex\./.test(email)
+    || ["button tester", "flow customer", "flow user", "flow live", "live check", "live qa", "aylin demir", "hometaste driver"].includes(name);
+}
+
+function isDemoCook(cook, demoUserIds) {
+  const name = String(cook.name || "").trim().toLowerCase();
+  return demoUserIds.has(cook.userId)
+    || String(cook.id || "").startsWith("cook_seed_")
+    || ["aylin demir", "ravi patel"].includes(name)
+    || (["cook_2", "cook_3"].includes(cook.id) && !cook.userId);
+}
+
+function isDemoDish(dish, demoCookIds) {
+  const name = String(dish.name || "").trim().toLowerCase();
+  return demoCookIds.has(dish.cookId)
+    || ["dolma plate", "test dish", "homemade special"].includes(name)
+    || String(dish.id || "").startsWith("dish_seed_");
+}
+
+function cleanupDemoDataInMemory(db) {
+  const demoUserIds = new Set(db.users.filter(isDemoUser).map((user) => user.id));
+  const demoCookIds = new Set(db.cooks.filter((cook) => isDemoCook(cook, demoUserIds)).map((cook) => cook.id));
+  const demoDishIds = new Set(db.dishes.filter((dish) => isDemoDish(dish, demoCookIds)).map((dish) => dish.id));
+  const demoOrderIds = new Set(db.orders.filter((order) =>
+    demoUserIds.has(order.customerId)
+    || demoUserIds.has(order.driverId)
+    || demoCookIds.has(order.cookId)
+    || (order.items || []).some((item) => demoDishIds.has(item.dishId) || String(item.name || "").trim().toLowerCase() === "dolma plate")
+  ).map((order) => order.id));
+  const demoMealPlanIds = new Set(db.mealPlans.filter((plan) => demoCookIds.has(plan.cookId)).map((plan) => plan.id));
+  const demoSubscriptionIds = new Set(db.subscriptions.filter((subscription) =>
+    demoUserIds.has(subscription.customerId) || demoCookIds.has(subscription.cookId) || demoMealPlanIds.has(subscription.planId)
+  ).map((subscription) => subscription.id));
+  const demoPaymentIds = new Set(db.payments.filter((payment) =>
+    demoOrderIds.has(payment.orderId) || demoUserIds.has(payment.customerId) || demoCookIds.has(payment.cookId)
+  ).map((payment) => payment.id));
+  const demoRefundIds = new Set(db.refunds.filter((refund) => demoOrderIds.has(refund.orderId) || demoUserIds.has(refund.customerId)).map((refund) => refund.id));
+  const demoMessageIds = new Set(db.messages.filter((message) =>
+    demoOrderIds.has(message.orderId) || demoUserIds.has(message.fromUserId) || demoCookIds.has(message.toCookId) || demoUserIds.has(message.toUserId)
+  ).map((message) => message.id));
+  const demoSocialIds = new Set(db.socialActions.filter((action) =>
+    demoUserIds.has(action.userId) || demoCookIds.has(action.cookId) || demoDishIds.has(action.dishId)
+  ).map((action) => action.id));
+  const demoNotificationIds = new Set(db.notifications.filter((note) =>
+    demoUserIds.has(note.userId) || /test|demo|flow|codex|dolma/i.test(note.text || "")
+  ).map((note) => note.id));
+  const demoTokenIds = new Set((db.authTokens || []).filter((token) => demoUserIds.has(token.userId) || /hometaste\.local|hometaste\.test|example\.com/i.test(token.email || "")).map((token) => token.id));
+  const demoDeviceIds = new Set((db.notificationDevices || []).filter((device) => demoUserIds.has(device.userId)).map((device) => device.id));
+  const demoSessionTokens = new Set(Object.entries(db.sessions || {}).filter(([, session]) => demoUserIds.has(session.userId)).map(([token]) => token));
+
+  db.socialActions = db.socialActions.filter((item) => !demoSocialIds.has(item.id));
+  db.messages = db.messages.filter((item) => !demoMessageIds.has(item.id));
+  db.refunds = db.refunds.filter((item) => !demoRefundIds.has(item.id));
+  db.payments = db.payments.filter((item) => !demoPaymentIds.has(item.id));
+  db.subscriptions = db.subscriptions.filter((item) => !demoSubscriptionIds.has(item.id));
+  db.mealPlans = db.mealPlans.filter((item) => !demoMealPlanIds.has(item.id));
+  db.notifications = db.notifications.filter((item) => !demoNotificationIds.has(item.id));
+  db.messages = db.messages.filter((item) => !demoMessageIds.has(item.id));
+  db.orders = db.orders.filter((item) => !demoOrderIds.has(item.id));
+  db.dishes = db.dishes.filter((item) => !demoDishIds.has(item.id));
+  db.cooks = db.cooks.filter((item) => !demoCookIds.has(item.id));
+  db.users = db.users.filter((item) => !demoUserIds.has(item.id));
+  db.authTokens = (db.authTokens || []).filter((item) => !demoTokenIds.has(item.id));
+  db.notificationDevices = (db.notificationDevices || []).filter((item) => !demoDeviceIds.has(item.id));
+  for (const token of demoSessionTokens) delete db.sessions[token];
+
+  return {
+    users: demoUserIds,
+    cooks: demoCookIds,
+    dishes: demoDishIds,
+    orders: demoOrderIds,
+    messages: demoMessageIds,
+    notifications: demoNotificationIds,
+    sessions: demoSessionTokens,
+    mealPlans: demoMealPlanIds,
+    subscriptions: demoSubscriptionIds,
+    payments: demoPaymentIds,
+    refunds: demoRefundIds,
+    socialActions: demoSocialIds,
+    authTokens: demoTokenIds,
+    notificationDevices: demoDeviceIds
+  };
 }
 
 function configuredGateways() {
@@ -1322,6 +1429,35 @@ async function upsert(table, rows, conflict = "id") {
   });
 }
 
+async function deleteSupabaseValues(table, column, values) {
+  const unique = [...new Set([...values].filter(Boolean))];
+  for (let i = 0; i < unique.length; i += 50) {
+    const chunk = unique.slice(i, i + 50).map((value) => `"${String(value).replace(/"/g, '\\"')}"`).join(",");
+    await supabaseRequest(table, {
+      method: "DELETE",
+      query: `?${column}=in.(${encodeURIComponent(chunk)})`,
+      prefer: "return=minimal"
+    });
+  }
+}
+
+async function deleteSupabaseDemoData(removed) {
+  await deleteSupabaseValues("social_actions", "id", removed.socialActions);
+  await deleteSupabaseValues("messages", "id", removed.messages);
+  await deleteSupabaseValues("refunds", "id", removed.refunds);
+  await deleteSupabaseValues("payments", "id", removed.payments);
+  await deleteSupabaseValues("subscriptions", "id", removed.subscriptions);
+  await deleteSupabaseValues("meal_plans", "id", removed.mealPlans);
+  await deleteSupabaseValues("notifications", "id", removed.notifications);
+  await deleteSupabaseValues("auth_tokens", "id", removed.authTokens);
+  await deleteSupabaseValues("notification_devices", "id", removed.notificationDevices);
+  await deleteSupabaseValues("app_sessions", "token", removed.sessions);
+  await deleteSupabaseValues("orders", "id", removed.orders);
+  await deleteSupabaseValues("dishes", "id", removed.dishes);
+  await deleteSupabaseValues("cook_profiles", "id", removed.cooks);
+  await deleteSupabaseValues("app_users", "id", removed.users);
+}
+
 async function saveSupabaseDb(db) {
   async function compatibleUpsert(table, rows, fallbackRows) {
     try {
@@ -1965,7 +2101,7 @@ async function api(req, res, pathname) {
     };
     user.role = "cook";
     db.cooks.push(cook);
-    db.notifications.push({ id: id("not"), userId: "usr_owner", text: `${cook.name} applied to become a cook.`, createdAt: now(), read: false });
+    notifyOwners(db, `${cook.name} applied to become a cook.`, { type: "cook_application", cookId: cook.id, userId: user.id });
     await saveDb(db);
     return json(res, 201, publicState(db, user));
   }
@@ -2365,9 +2501,19 @@ async function api(req, res, pathname) {
       reviewedAt: null
     };
     db.refunds.unshift(refund);
-    db.notifications.push({ id: id("not"), userId: "usr_owner", text: `Refund request ${refund.id} opened for ${order.id}.`, createdAt: now(), read: false });
+    notifyOwners(db, `Refund request ${refund.id} opened for ${order.id}.`, { type: "refund_request", refundId: refund.id, orderId: order.id });
     await saveDb(db);
     return json(res, 201, publicState(db, user));
+  }
+
+  if (user.role === "owner" && req.method === "POST" && pathname === "/api/admin/cleanup-demo-data") {
+    const input = await body(req);
+    if (input.confirm !== "clean-demo-data") return json(res, 400, { error: "Cleanup confirmation is required." });
+    const removed = cleanupDemoDataInMemory(db);
+    if (useSupabase) await deleteSupabaseDemoData(removed);
+    else await saveDb(db);
+    const freshDb = useSupabase ? await loadDb() : db;
+    return json(res, 200, { ...publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user), cleanup: Object.fromEntries(Object.entries(removed).map(([key, value]) => [key, value.size])) });
   }
 
   if (user.role === "owner" && req.method === "PATCH" && pathname.startsWith("/api/admin/cooks/")) {
