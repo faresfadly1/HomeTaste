@@ -11,7 +11,7 @@ const dataDir = path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260606-real-data-flow-01";
+const backendBuild = "20260606-admin-remove-real-flow-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -343,6 +343,83 @@ function cleanupDemoDataInMemory(db) {
     authTokens: demoTokenIds,
     notificationDevices: demoDeviceIds
   };
+}
+
+function collectCascadeForCooks(db, cookIdsInput, bucket = null) {
+  const cookIds = bucket?.cooks || new Set(cookIdsInput);
+  for (const idValue of cookIdsInput) cookIds.add(idValue);
+  const dishIds = bucket?.dishes || new Set();
+  const orderIds = bucket?.orders || new Set();
+  const mealPlanIds = bucket?.mealPlans || new Set();
+  const subscriptionIds = bucket?.subscriptions || new Set();
+  const paymentIds = bucket?.payments || new Set();
+  const refundIds = bucket?.refunds || new Set();
+  const messageIds = bucket?.messages || new Set();
+  const socialIds = bucket?.socialActions || new Set();
+  const notificationIds = bucket?.notifications || new Set();
+
+  db.dishes.filter((dish) => cookIds.has(dish.cookId)).forEach((dish) => dishIds.add(dish.id));
+  db.orders.filter((order) => cookIds.has(order.cookId) || (order.items || []).some((item) => dishIds.has(item.dishId))).forEach((order) => orderIds.add(order.id));
+  db.mealPlans.filter((plan) => cookIds.has(plan.cookId)).forEach((plan) => mealPlanIds.add(plan.id));
+  db.subscriptions.filter((subscription) => cookIds.has(subscription.cookId) || mealPlanIds.has(subscription.planId)).forEach((subscription) => subscriptionIds.add(subscription.id));
+  db.payments.filter((payment) => orderIds.has(payment.orderId) || cookIds.has(payment.cookId)).forEach((payment) => paymentIds.add(payment.id));
+  db.refunds.filter((refund) => orderIds.has(refund.orderId)).forEach((refund) => refundIds.add(refund.id));
+  db.messages.filter((message) => orderIds.has(message.orderId) || cookIds.has(message.toCookId)).forEach((message) => messageIds.add(message.id));
+  db.socialActions.filter((action) => cookIds.has(action.cookId) || dishIds.has(action.dishId)).forEach((action) => socialIds.add(action.id));
+  db.notifications.filter((note) => cookIds.has(note.data?.cookId)).forEach((note) => notificationIds.add(note.id));
+
+  return { users: bucket?.users || new Set(), cooks: cookIds, dishes: dishIds, orders: orderIds, messages: messageIds, notifications: notificationIds, sessions: bucket?.sessions || new Set(), mealPlans: mealPlanIds, subscriptions: subscriptionIds, payments: paymentIds, refunds: refundIds, socialActions: socialIds, authTokens: bucket?.authTokens || new Set(), notificationDevices: bucket?.notificationDevices || new Set() };
+}
+
+function collectCascadeForUsers(db, userIdsInput) {
+  const removed = {
+    users: new Set(userIdsInput),
+    cooks: new Set(),
+    dishes: new Set(),
+    orders: new Set(),
+    messages: new Set(),
+    notifications: new Set(),
+    sessions: new Set(),
+    mealPlans: new Set(),
+    subscriptions: new Set(),
+    payments: new Set(),
+    refunds: new Set(),
+    socialActions: new Set(),
+    authTokens: new Set(),
+    notificationDevices: new Set()
+  };
+  db.cooks.filter((cook) => removed.users.has(cook.userId)).forEach((cook) => removed.cooks.add(cook.id));
+  collectCascadeForCooks(db, removed.cooks, removed);
+  db.orders.filter((order) => removed.users.has(order.customerId) || removed.users.has(order.driverId)).forEach((order) => removed.orders.add(order.id));
+  db.messages.filter((message) => removed.orders.has(message.orderId) || removed.users.has(message.fromUserId) || removed.users.has(message.toUserId)).forEach((message) => removed.messages.add(message.id));
+  db.subscriptions.filter((subscription) => removed.users.has(subscription.customerId)).forEach((subscription) => removed.subscriptions.add(subscription.id));
+  db.payments.filter((payment) => removed.orders.has(payment.orderId) || removed.users.has(payment.customerId)).forEach((payment) => removed.payments.add(payment.id));
+  db.refunds.filter((refund) => removed.orders.has(refund.orderId) || removed.users.has(refund.customerId)).forEach((refund) => removed.refunds.add(refund.id));
+  db.socialActions.filter((action) => removed.users.has(action.userId) || removed.cooks.has(action.cookId) || removed.dishes.has(action.dishId)).forEach((action) => removed.socialActions.add(action.id));
+  db.notifications.filter((note) => removed.users.has(note.userId)).forEach((note) => removed.notifications.add(note.id));
+  (db.authTokens || []).filter((token) => removed.users.has(token.userId)).forEach((token) => removed.authTokens.add(token.id));
+  (db.notificationDevices || []).filter((device) => removed.users.has(device.userId)).forEach((device) => removed.notificationDevices.add(device.id));
+  Object.entries(db.sessions || {}).forEach(([sessionToken, session]) => {
+    if (removed.users.has(session.userId)) removed.sessions.add(sessionToken);
+  });
+  return removed;
+}
+
+function applyCascadeRemoval(db, removed) {
+  db.socialActions = db.socialActions.filter((item) => !removed.socialActions.has(item.id));
+  db.messages = db.messages.filter((item) => !removed.messages.has(item.id));
+  db.refunds = db.refunds.filter((item) => !removed.refunds.has(item.id));
+  db.payments = db.payments.filter((item) => !removed.payments.has(item.id));
+  db.subscriptions = db.subscriptions.filter((item) => !removed.subscriptions.has(item.id));
+  db.mealPlans = db.mealPlans.filter((item) => !removed.mealPlans.has(item.id));
+  db.notifications = db.notifications.filter((item) => !removed.notifications.has(item.id));
+  db.orders = db.orders.filter((item) => !removed.orders.has(item.id));
+  db.dishes = db.dishes.filter((item) => !removed.dishes.has(item.id));
+  db.cooks = db.cooks.filter((item) => !removed.cooks.has(item.id));
+  db.users = db.users.filter((item) => !removed.users.has(item.id));
+  db.authTokens = (db.authTokens || []).filter((item) => !removed.authTokens.has(item.id));
+  db.notificationDevices = (db.notificationDevices || []).filter((item) => !removed.notificationDevices.has(item.id));
+  for (const sessionToken of removed.sessions) delete db.sessions[sessionToken];
 }
 
 function configuredGateways() {
@@ -2516,6 +2593,26 @@ async function api(req, res, pathname) {
     return json(res, 200, { ...publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user), cleanup: Object.fromEntries(Object.entries(removed).map(([key, value]) => [key, value.size])) });
   }
 
+  if (user.role === "owner" && req.method === "DELETE" && pathname.startsWith("/api/admin/cooks/")) {
+    const cookId = pathname.split("/").pop();
+    const cook = db.cooks.find((item) => item.id === cookId);
+    if (!cook) return json(res, 404, { error: "Cook not found." });
+    const removed = collectCascadeForCooks(db, new Set([cookId]));
+    applyCascadeRemoval(db, removed);
+    if (cook.userId) {
+      const cookUser = db.users.find((item) => item.id === cook.userId);
+      if (cookUser && cookUser.role === "cook") cookUser.role = "customer";
+    }
+    if (useSupabase) {
+      await deleteSupabaseDemoData(removed);
+      await saveDb(db);
+    } else {
+      await saveDb(db);
+    }
+    const freshDb = useSupabase ? await loadDb() : db;
+    return json(res, 200, publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user));
+  }
+
   if (user.role === "owner" && req.method === "PATCH" && pathname.startsWith("/api/admin/cooks/")) {
     const cook = db.cooks.find((item) => item.id === pathname.split("/").pop());
     if (!cook) return json(res, 404, { error: "Cook not found." });
@@ -2564,6 +2661,20 @@ async function api(req, res, pathname) {
     db.notifications.push({ id: id("not"), userId: refund.customerId, text: `Refund ${refund.id} reviewed: ${input.outcome}.`, createdAt: now(), read: false });
     await saveDb(db);
     return json(res, 200, publicState(db, user));
+  }
+
+  if (user.role === "owner" && req.method === "DELETE" && pathname.startsWith("/api/admin/users/")) {
+    const userId = pathname.split("/").pop();
+    const target = db.users.find((item) => item.id === userId);
+    if (!target) return json(res, 404, { error: "User not found." });
+    if (target.id === user.id) return json(res, 400, { error: "You cannot remove your own admin account." });
+    if (target.role === "owner") return json(res, 400, { error: "Owner accounts cannot be removed from this screen." });
+    const removed = collectCascadeForUsers(db, new Set([userId]));
+    applyCascadeRemoval(db, removed);
+    if (useSupabase) await deleteSupabaseDemoData(removed);
+    else await saveDb(db);
+    const freshDb = useSupabase ? await loadDb() : db;
+    return json(res, 200, publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user));
   }
 
   if (user.role === "owner" && req.method === "PATCH" && pathname.startsWith("/api/admin/users/")) {

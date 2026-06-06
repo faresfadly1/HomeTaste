@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260606-real-data-flow-01";
+const APP_BUILD = "20260606-admin-remove-real-flow-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -771,6 +771,38 @@ function staticCleanupDemoData(db) {
   return { users: userIds.size, cooks: cookIds.size, dishes: dishIds.size, orders: orderIds.size };
 }
 
+function staticRemoveCook(db, cookId) {
+  const dishIds = new Set(db.dishes.filter((dish) => dish.cookId === cookId).map((dish) => dish.id));
+  const orderIds = new Set(db.orders.filter((order) => order.cookId === cookId || (order.items || []).some((item) => dishIds.has(item.dishId))).map((order) => order.id));
+  db.socialActions = (db.socialActions || []).filter((item) => item.cookId !== cookId && !dishIds.has(item.dishId));
+  db.messages = db.messages.filter((item) => !orderIds.has(item.orderId) && item.toCookId !== cookId);
+  db.refunds = (db.refunds || []).filter((item) => !orderIds.has(item.orderId));
+  db.payments = (db.payments || []).filter((item) => !orderIds.has(item.orderId) && item.cookId !== cookId);
+  db.subscriptions = (db.subscriptions || []).filter((item) => item.cookId !== cookId);
+  db.mealPlans = (db.mealPlans || []).filter((item) => item.cookId !== cookId);
+  db.orders = db.orders.filter((item) => !orderIds.has(item.id));
+  db.dishes = db.dishes.filter((item) => !dishIds.has(item.id));
+  const cook = db.cooks.find((item) => item.id === cookId);
+  db.cooks = db.cooks.filter((item) => item.id !== cookId);
+  const cookUser = cook ? db.users.find((user) => user.id === cook.userId) : null;
+  if (cookUser && cookUser.role === "cook") cookUser.role = "customer";
+}
+
+function staticRemoveUser(db, userId) {
+  db.cooks.filter((cook) => cook.userId === userId).forEach((cook) => staticRemoveCook(db, cook.id));
+  const orderIds = new Set(db.orders.filter((order) => order.customerId === userId || order.driverId === userId).map((order) => order.id));
+  db.messages = db.messages.filter((item) => !orderIds.has(item.orderId) && item.fromUserId !== userId && item.toUserId !== userId);
+  db.refunds = (db.refunds || []).filter((item) => !orderIds.has(item.orderId) && item.customerId !== userId);
+  db.payments = (db.payments || []).filter((item) => !orderIds.has(item.orderId) && item.customerId !== userId);
+  db.orders = db.orders.filter((item) => !orderIds.has(item.id));
+  db.socialActions = (db.socialActions || []).filter((item) => item.userId !== userId);
+  db.notifications = db.notifications.filter((item) => item.userId !== userId);
+  db.users = db.users.filter((item) => item.id !== userId);
+  Object.entries(db.sessions || {}).forEach(([sessionToken, session]) => {
+    if (session.userId === userId) delete db.sessions[sessionToken];
+  });
+}
+
 function staticVisibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") return db.orders.filter((order) => order.driverId === user.id);
@@ -1064,11 +1096,30 @@ async function staticApi(path, options = {}) {
     return staticPublicState(db, user);
   }
 
+  if (user.role === "owner" && method === "DELETE" && path.startsWith("/api/admin/cooks/")) {
+    const cookId = path.split("/").pop();
+    if (!db.cooks.some((item) => item.id === cookId)) throw new Error("Cook not found.");
+    staticRemoveCook(db, cookId);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
   if (user.role === "owner" && method === "POST" && path === "/api/admin/cleanup-demo-data") {
     if (input.confirm !== "clean-demo-data") throw new Error("Cleanup confirmation is required.");
     const cleanup = staticCleanupDemoData(db);
     saveStaticDb(db);
     return { ...staticPublicState(db, user), cleanup };
+  }
+
+  if (user.role === "owner" && method === "DELETE" && path.startsWith("/api/admin/users/")) {
+    const userId = path.split("/").pop();
+    const target = db.users.find((item) => item.id === userId);
+    if (!target) throw new Error("User not found.");
+    if (target.id === user.id) throw new Error("You cannot remove your own admin account.");
+    if (target.role === "owner") throw new Error("Owner accounts cannot be removed from this screen.");
+    staticRemoveUser(db, userId);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
   }
 
   if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/users/")) {
@@ -1766,9 +1817,10 @@ function renderAdmin() {
 	              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
 	              <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
 	              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
-              <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
-              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
+	              <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
+	              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
+	              <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
+	              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">${t("verifyAddress")}</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
             </div>
@@ -1804,13 +1856,41 @@ function renderAdmin() {
         `).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
       </div>
     </section>
-    <section class="panel" style="margin-top:18px">
-      <h3>${t("registrationData")}</h3>
-      <table class="table">
-        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th></tr></thead>
-        <tbody>${state.users.map((user) => {
-          const cook = state.cooks.find((item) => item.userId === user.id);
-          return `
+	    <section class="panel" style="margin-top:18px">
+	      <h3>All cook profiles</h3>
+	      ${state.cooks.length ? `
+	        <table class="table">
+	          <thead><tr><th>Cook</th><th>User</th><th>Status</th><th>Dishes</th><th>Actions</th></tr></thead>
+	          <tbody>${state.cooks.map((cook) => {
+	            const cookUser = state.users.find((user) => user.id === cook.userId);
+	            const dishCount = state.dishes.filter((dish) => dish.cookId === cook.id).length;
+	            return `
+	              <tr>
+	                <td><strong>${cook.name}</strong><div class="meta">${cook.cuisine} - ${cook.city}</div></td>
+	                <td>${cookUser?.name || "No linked user"}<div class="meta">${cook.userId || "No user id"}</div></td>
+	                <td><span class="status">${cook.status}</span><div class="meta">${cook.online ? "online" : "offline"} - ${cook.verified ? t("verified") : t("notVerified")}</div></td>
+	                <td>${dishCount}</td>
+	                <td>
+	                  <div class="toolbar" style="margin:0">
+	                    <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+	                    <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
+	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
+	                    <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
+	                  </div>
+	                </td>
+	              </tr>
+	            `;
+	          }).join("")}</tbody>
+	        </table>
+	      ` : `<div class="empty">No cook profiles exist.</div>`}
+	    </section>
+	    <section class="panel" style="margin-top:18px">
+	      <h3>${t("registrationData")}</h3>
+	      <table class="table">
+	        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th><th>Remove</th></tr></thead>
+	        <tbody>${state.users.map((user) => {
+	          const cook = state.cooks.find((item) => item.userId === user.id);
+	          return `
           <tr>
             <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
             <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
@@ -1818,12 +1898,13 @@ function renderAdmin() {
             <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
             <td>
               <select data-role-user="${user.id}">
-                ${["customer", "cook", "driver", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
-              </select>
-            </td>
-          </tr>
-        `;}).join("")}</tbody>
-      </table>
+	                ${["customer", "cook", "driver", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
+	              </select>
+	            </td>
+	            <td><button class="button small bad" data-admin-delete-user="${user.id}" ${user.id === state.user.id || user.role === "owner" ? "disabled" : ""}>Remove user</button></td>
+	          </tr>
+	        `;}).join("")}</tbody>
+	      </table>
     </section>
     <section class="panel" style="margin-top:18px">
       <h3>${t("fulfillmentControl")}</h3>
@@ -2403,9 +2484,15 @@ function bindPage() {
   document.querySelectorAll("[data-admin-online-cook]").forEach((button) => {
     button.onclick = () => adminToggleCookOnline(button.dataset.adminOnlineCook);
   });
-  document.querySelectorAll("[data-admin-edit-cook]").forEach((button) => {
-    button.onclick = () => adminEditCook(button.dataset.adminEditCook);
-  });
+	  document.querySelectorAll("[data-admin-edit-cook]").forEach((button) => {
+	    button.onclick = () => adminEditCook(button.dataset.adminEditCook);
+	  });
+	  document.querySelectorAll("[data-admin-delete-cook]").forEach((button) => {
+	    button.onclick = () => adminDeleteCook(button.dataset.adminDeleteCook);
+	  });
+	  document.querySelectorAll("[data-admin-delete-user]").forEach((button) => {
+	    button.onclick = () => adminDeleteUser(button.dataset.adminDeleteUser);
+	  });
   document.querySelectorAll("[data-feature]").forEach((button) => {
     button.onclick = () => featureDish(button.dataset.feature);
   });
@@ -2803,6 +2890,32 @@ async function adminEditCook(cookId) {
       body: JSON.stringify({ name, cuisine, city, bio })
     });
     toast("Cook profile updated.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function adminDeleteCook(cookId) {
+  const cook = byId(state.cooks, cookId);
+  if (!cook) return;
+  if (!window.confirm(`Remove cook profile ${cook.name} and its dishes/orders from the system?`)) return;
+  try {
+    state = await api(`/api/admin/cooks/${cookId}`, { method: "DELETE" });
+    toast("Cook profile removed.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function adminDeleteUser(userId) {
+  const target = state.users.find((user) => user.id === userId);
+  if (!target) return;
+  if (!window.confirm(`Remove user ${target.name} and linked customer/cook data from the system?`)) return;
+  try {
+    state = await api(`/api/admin/users/${userId}`, { method: "DELETE" });
+    toast("User removed.");
     renderApp();
   } catch (err) {
     toast(err.message, true);

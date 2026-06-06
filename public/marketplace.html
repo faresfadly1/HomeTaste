@@ -3909,7 +3909,7 @@ function createCookDemo(){
   const profilePhoto = getSavedProfilePicture() || defaultCookProfilePhoto;
   const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
   const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
-  if (postHostAction('market-create-cook-dish', {
+	  if (postHostAction('market-create-cook-dish', {
     payload: {
       name: dish,
       description: bio,
@@ -3922,20 +3922,12 @@ function createCookDemo(){
       coverPhoto
     }
   })) {
-    showToast('Publishing your real dish for admin review...', 'info');
-    return;
-  }
-  const id = nextCookId();
-  const dishId = nextDishId();
-  const ownerKey = userSlug();
-  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',country:selectedCountry,city,rating:5.0,reviews:0,dish,price,verified:true,verifiedPhoto:Boolean(getSavedProfilePicture()),img:coverPhoto,profilePhoto,coverPhoto,bio,orders:0,followers:0,dishes:1,availability:'Offline',online:false,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0',isCustom:true,ownerKey});
-  dishes.unshift({id:dishId,name:dish,cookId:id,tag:country,country,desc:bio,price,img:dishPhoto,tags:[country],sauces:'',drinks:'',prepTime:prep,isCustom:true,ownerKey});
-  setMyCookId(id);
-  saveCustomCookData();
-  refreshCookAndDishViews();
-  showToast('✅ Your cook profile and first dish were created for review.', 'success');
-  openCookProfile(id);
-}
+	    showToast('Publishing your real dish for admin review...', 'info');
+	    return;
+	  }
+	  showToast('Please sign in on HomeTaste before publishing. Local cook requests are disabled so admin only sees real data.', 'error');
+	  window.top.location.href = './become/';
+	}
 function renderMyCookDishManager(){
   const manager = document.getElementById('myCookDishManager');
   const createForm = document.getElementById('cookCreateForm');
