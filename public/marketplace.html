@@ -2676,13 +2676,97 @@ function sameId(a, b) {
 function jsArg(value) {
   return JSON.stringify(String(value ?? ''));
 }
+let hostBridgeReady = false;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
 }
 function postHostAction(action, payload = {}) {
   if (!hasHostWindow()) return false;
+  if (action !== 'market-state-request' && !hostBridgeReady) return false;
   parent.postMessage({ source: 'HomeTaste', action, ...payload }, location.origin);
   return true;
+}
+function marketAuthToken() {
+  return localStorage.getItem('hometaste_token') || '';
+}
+async function marketApi(path, options = {}) {
+  const token = marketAuthToken();
+  if (!token) throw new Error('Please sign in first.');
+  const headers = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    ...(options.headers || {}),
+    authorization: `Bearer ${token}`
+  };
+  const res = await fetch(`${MARKET_API_BASE}${path}`, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'HomeTaste could not save this action.');
+  return data;
+}
+async function syncMarketplaceFromApi(stateOrResult = null) {
+  const nextState = stateOrResult?.state || stateOrResult || await marketApi('/api/state');
+  applyMarketplaceState(nextState);
+  return nextState;
+}
+async function runStandaloneMarketAction(action, payload = {}) {
+  switch (action) {
+    case 'market-state-request':
+      return syncMarketplaceFromApi();
+    case 'market-profile':
+      return syncMarketplaceFromApi(await marketApi('/api/users/profile', { method: 'PATCH', body: JSON.stringify(payload.profile || {}) }));
+    case 'market-online':
+      return syncMarketplaceFromApi(await marketApi('/api/cooks/online', { method: 'PATCH', body: JSON.stringify({ online: payload.online }) }));
+    case 'market-create-cook-dish': {
+      const data = payload.payload || {};
+      let state = null;
+      if (!getMyCook()) {
+        state = await marketApi('/api/cooks/apply', {
+          method: 'POST',
+          body: JSON.stringify({
+            cuisine: data.country || 'Home Kitchen',
+            bio: data.bio || 'Fresh home cooking.',
+            profilePhoto: data.profilePhoto || '',
+            profileCover: data.coverPhoto || '',
+            online: Boolean(data.online)
+          })
+        });
+        await syncMarketplaceFromApi(state);
+      }
+      if (data.online && getMyCook()?.online !== true) {
+        state = await marketApi('/api/cooks/online', { method: 'PATCH', body: JSON.stringify({ online: true }) });
+        await syncMarketplaceFromApi(state);
+      }
+      state = await marketApi('/api/dishes', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          prepMinutes: data.prepMinutes,
+          image: data.image,
+          country: data.country
+        })
+      });
+      return syncMarketplaceFromApi(state);
+    }
+    case 'market-add-dish':
+      return syncMarketplaceFromApi(await marketApi('/api/dishes', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+    case 'market-remove-dish':
+      return syncMarketplaceFromApi(await marketApi(`/api/dishes/${payload.dishId}`, { method: 'DELETE' }));
+    case 'market-place-order':
+      return syncMarketplaceFromApi(await marketApi('/api/orders', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+    case 'market-social':
+      return syncMarketplaceFromApi(await marketApi('/api/social', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+    case 'market-message':
+      return syncMarketplaceFromApi(await marketApi('/api/messages', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+    default:
+      throw new Error('This mobile action is not available.');
+  }
+}
+async function sendMarketAction(action, payload = {}) {
+  if (postHostAction(action, payload)) return { mode: 'host' };
+  const state = await runStandaloneMarketAction(action, payload);
+  return { mode: 'api', state };
 }
 function customCooksKey() { return 'hometaste_custom_cooks_v2'; }
 function customDishesKey() { return 'hometaste_custom_dishes_v2'; }
@@ -2880,6 +2964,7 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     country: cookCountry,
     rating: Number(cook.rating || 5),
     reviews: Number(cook.reviews || 0),
+    dishId: firstDish?.id || '',
     dish: firstDish?.name || 'No dishes yet',
     price: firstDish?.price || 0,
     verified: Boolean(cook.verified),
@@ -2984,7 +3069,16 @@ function applyMarketplaceState(rawState) {
 	  updateSettingsAccount();
 	}
 function requestMarketplaceState() {
-  postHostAction('market-state-request');
+  const posted = postHostAction('market-state-request');
+  if (marketAuthToken()) {
+    setTimeout(() => {
+      if (hostBridgeReady) return;
+      runStandaloneMarketAction('market-state-request').catch(error => {
+        console.warn(error);
+        loadPublicMarketplaceState();
+      });
+    }, posted ? 250 : 0);
+  }
 }
 async function loadPublicMarketplaceState() {
   if (hostStateReady) return;
@@ -3251,6 +3345,7 @@ window.addEventListener('message', (event) => {
   if (event.data.name === 'theme') document.body.classList.toggle('light-mode', event.data.value !== 'dark');
   if (event.data.action === 'password-result') handlePasswordResult(event.data);
   if (event.data.action === 'market-sync') {
+    hostBridgeReady = true;
     applyMarketplaceState(event.data.state);
     if (event.data.placedOrder || pendingOrderPlacement) {
       pendingOrderPlacement = false;
@@ -3402,10 +3497,10 @@ function cookCard(c, staggerClass) {
   const coverPhoto = getCookCoverPhoto(c);
   const profilePhoto = getCookProfilePhoto(c);
   return `
-  <div class="cook-card ${staggerClass}" onclick="openCookProfile(${jsArg(c.id)})">
+  <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
       <img src="${coverPhoto}" alt="${c.name}" onerror="this.src='${defaultCookCoverPhoto}'">
-      <button class="fav-btn ${isFav ? 'active' : ''}" onclick="toggleFav(event,${jsArg(c.id)},this)"></button>
+      <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
@@ -3426,7 +3521,10 @@ function cookCard(c, staggerClass) {
       </div>
       <div class="cook-footer">
         <div><div class="cook-dish">${c.dish}</div><div style="font-size:11px;color:var(--text3)">${c.orders} orders · speed ${c.speedRating}★</div></div>
-        <div class="cook-price">${c.price} ₺</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="cook-price">${c.price} ₺</div>
+          ${c.dishId ? `<button class="btn-add" type="button" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
+        </div>
       </div>
     </div>
   </div>`;
@@ -3445,11 +3543,11 @@ function dishCard(d, staggerClass, options = {}) {
   const cook = cooks.find(c => sameId(c.id, d.cookId));
   const canManage = options.manage && isMyCook(d.cookId);
   return `
-  <div class="dish-card ${staggerClass}" onclick="openDishModal(${jsArg(d.id)})">
+  <div class="dish-card ${staggerClass}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
       <img src="${d.img}" alt="${d.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
       <span class="dish-tag">${d.tag}</span>
-      ${canManage ? `<button class="dish-remove-btn" type="button" onclick="removeCookDish(event,${jsArg(d.id)})">Remove</button>` : ''}
+      ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
       <h3>${d.name}</h3>
@@ -3459,7 +3557,7 @@ function dishCard(d, staggerClass, options = {}) {
         <div class="dish-cook">${cook ? cook.emoji + ' ' + cook.name : ''}</div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dish-price">${d.price} ₺</div>
-          <button class="btn-add" onclick="event.stopPropagation();quickAddToCart(${jsArg(d.id)})">+ Add</button>
+          <button class="btn-add" onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>+ Add</button>
         </div>
       </div>
     </div>
@@ -3567,13 +3665,13 @@ function renderCart() {
         <div class="cart-item-name">${item.name}</div>
         <div class="cart-item-by">by ${item.by}</div>
         <div class="cart-qty">
-          <button class="qty-btn" onclick="changeQty(${jsArg(item.id)},-1)">−</button>
+          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
           <span class="qty-val">${item.qty}</span>
-          <button class="qty-btn" onclick="changeQty(${jsArg(item.id)},1)">+</button>
+          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
         </div>
       </div>
       <div class="cart-item-price">${item.price * item.qty} ₺</div>
-      <button class="cart-remove" onclick="removeFromCart(${jsArg(item.id)})">✕</button>
+      <button class="cart-remove" onclick='removeFromCart(${jsArg(item.id)})'>✕</button>
     </div>`).join('');
   }
   updateCartTotals();
@@ -3665,7 +3763,7 @@ function openDishModal(dishId) {
       <h4>${cook.name}</h4>
       <p>${cook.cuisine} · ⭐ ${cook.rating} (${cook.reviews} reviews) · ${cook.responseTime}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${cook.phone}</p>
     </div>
-    <button style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600" onclick="closeDishModal();openCookProfile(${jsArg(cook.id)})">View Profile →</button>
+    <button style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600" onclick='closeDishModal();openCookProfile(${jsArg(cook.id)})'>View Profile →</button>
   ` : '';
   document.getElementById('dishModal').classList.add('open');
 }
@@ -3712,7 +3810,7 @@ function openCookProfile(cookId) {
     : `<div class="empty-state" style="grid-column:1/-1;padding:28px 0"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>Add a dish from Become a Cook.</p></div>`;
 	  showPage('cook-profile', null);
 	}
-function followCookFromProfile() {
+async function followCookFromProfile() {
   if (!currentCook) return;
   if (isMyCook(currentCook.id)) {
     showToast('This is your cook profile.', 'info');
@@ -3728,11 +3826,13 @@ function followCookFromProfile() {
     if (button) button.textContent = 'Following';
     renderFavorites();
   }
-  if (postHostAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } })) {
+  try {
+    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
     showToast(alreadyFollowing ? 'Already following this cook.' : 'Following cook...', 'info');
-    return;
+    if (result.mode === 'api') showToast(alreadyFollowing ? 'Already following this cook.' : 'Cook saved to favorites.', alreadyFollowing ? 'info' : 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
-  showToast(alreadyFollowing ? 'Already following this cook.' : 'Cook saved to favorites.', alreadyFollowing ? 'info' : 'success');
 }
 
 // ===== CHAT =====
@@ -3750,7 +3850,7 @@ function renderChatList() {
     const cook = cooks.find(c => sameId(c.id, conv.cookId));
     const last = conv.messages[conv.messages.length - 1] || { text: 'No messages yet', time: '' };
     return `
-    <div class="chat-item ${sameId(conv.id, activeChatId) ? 'active' : ''}" onclick="openChat(${jsArg(conv.id)})">
+    <div class="chat-item ${sameId(conv.id, activeChatId) ? 'active' : ''}" onclick='openChat(${jsArg(conv.id)})'>
       <div class="chat-avatar">${cook ? cook.emoji : '👤'}<div class="chat-online"></div></div>
       <div class="chat-meta">
         <div class="chat-name">${cook ? cook.name : 'Cook'}</div>
@@ -3833,27 +3933,23 @@ function handleChatKey(e) {
     showToast('Message cleared', 'info');
   }
 }
-function sendChatMessage() {
+async function sendChatMessage() {
   const input = document.getElementById('chatInputField');
   const text = input.value.trim();
   if (!text) { input.focus(); return; }
 	  const conv = chatMessages.find(c => sameId(c.id, activeChatId));
 	  if (!conv) { showToast('No conversation selected yet.', 'info'); return; }
-	  if (postHostAction('market-message', { payload: { orderId: conv.id, text } })) {
+	  try {
+	    const result = await sendMarketAction('market-message', { payload: { orderId: conv.id, text } });
 	    input.value = '';
-	    showToast('Sending message...', 'info');
+	    showToast(result.mode === 'host' ? 'Sending message...' : 'Message sent.', 'info');
+	    if (result.mode === 'api') openChat(activeChatId);
+	    return;
+	  } catch (error) {
+	    showToast(error.message, 'error');
 	    return;
 	  }
-	  const now = new Date();
-  conv.messages.push({text, from:'user', time: now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')});
-  input.value = '';
-  openChat(activeChatId);
-  setTimeout(() => {
-    conv.messages.push({text:"Thanks for your message! I'll get back to you shortly 😊", from:'cook', time: now.getHours()+':'+String(now.getMinutes()+1).padStart(2,'0')});
-	    openChat(activeChatId);
-	    updateNavBadges();
-	  }, 1500);
-	}
+		}
 
 
 // ===== BECOME A COOK DEMO (FIXED: validation) =====
@@ -3898,7 +3994,7 @@ function handleCookDishPhoto(input, source='gallery'){
     showToast(value ? 'Dish photo added. It will appear under your dishes only.' : 'Dish photo removed', 'info');
   });
 }
-function createCookDemo(){
+async function createCookDemo(){
   const name = currentUserName || 'HomeTaste cook';
   const phone = document.getElementById('cookPhoneInput').value.trim();
   const policyConfirmed = document.getElementById('cookPolicyConfirm')?.checked;
@@ -3916,7 +4012,8 @@ function createCookDemo(){
   const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
   const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
   const online = getDesiredCookOnline();
-	  if (postHostAction('market-create-cook-dish', {
+	  try {
+	    const result = await sendMarketAction('market-create-cook-dish', {
     payload: {
       name: dish,
       description: bio,
@@ -3929,13 +4026,13 @@ function createCookDemo(){
       coverPhoto,
       online
     }
-  })) {
-	    showToast('Publishing your real dish for admin review...', 'info');
-	    return;
+  });
+	    cookDishPhotoPreviewUrl = '';
+	    showToast(result.mode === 'host' ? 'Publishing your real dish for admin review...' : 'Cook request sent to admin and dish saved.', result.mode === 'host' ? 'info' : 'success');
+	  } catch (error) {
+	    showToast(error.message, 'error');
 	  }
-	  showToast('Please sign in on HomeTaste before publishing. Local cook requests are disabled so admin only sees real data.', 'error');
-	  window.top.location.href = './become/';
-	}
+		}
 function renderMyCookDishManager(){
   const manager = document.getElementById('myCookDishManager');
   const createForm = document.getElementById('cookCreateForm');
@@ -3957,7 +4054,7 @@ function renderMyCookDishManager(){
         <h2>${cook.name}</h2>
         <p>${cookDishes.length} dish${cookDishes.length === 1 ? '' : 'es'} live on your profile. Add more dishes here anytime, or remove dishes you no longer want to show.</p>
       </div>
-      <button class="btn-apply" type="button" onclick="openCookProfile(${jsArg(cook.id)})">View Profile</button>
+      <button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View Profile</button>
     </div>
     <div class="manager-form">
       <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" placeholder="Example: Chicken Biryani"></div>
@@ -3980,7 +4077,7 @@ function renderMyCookDishManager(){
         <div class="manager-dish">
           <img src="${d.img}" alt="${d.name}" onerror="this.src='${defaultDishPhoto}'">
           <div><strong>${d.name}</strong><br><span>${d.price} ₺ · ${d.prepTime || '45 min'}</span></div>
-          <button class="manager-remove" type="button" onclick="removeCookDish(event,${jsArg(d.id)})">Remove</button>
+          <button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>
         </div>
       `).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}
     </div>
@@ -3994,7 +4091,7 @@ function handleExtraDishPhoto(input){
     if (value) showToast('Dish photo selected.', 'info');
   });
 }
-function publishExtraDish(){
+async function publishExtraDish(){
   const cook = getMyCook();
   if (!cook) { showToast('Create your cook profile first.', 'error'); return; }
   const name = document.getElementById('extraDishNameInput')?.value.trim();
@@ -4004,30 +4101,24 @@ function publishExtraDish(){
   const country = document.getElementById('extraDishCountryInput')?.value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
   const desc = document.getElementById('extraDishDescInput')?.value.trim() || cook.bio || 'Fresh homemade dish from this cook.';
-  if (postHostAction('market-add-dish', {
-    payload: {
-      name,
-      description: desc,
-      price,
-      prepMinutes: parsePrepMinutes(prepTime),
-      image: extraDishPhotoPreviewUrl || defaultDishPhoto,
-      country
-    }
-  })) {
-    showToast('Publishing dish...', 'info');
-    return;
+  try {
+    const result = await sendMarketAction('market-add-dish', {
+      payload: {
+        name,
+        description: desc,
+        price,
+        prepMinutes: parsePrepMinutes(prepTime),
+        image: extraDishPhotoPreviewUrl || defaultDishPhoto,
+        country
+      }
+    });
+    extraDishPhotoPreviewUrl = '';
+    showToast(result.mode === 'host' ? 'Publishing dish...' : 'Dish published on your cook profile.', result.mode === 'host' ? 'info' : 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
-  const id = nextDishId();
-  dishes.unshift({id,name,cookId:cook.id,tag:country,country,desc,price,img:extraDishPhotoPreviewUrl || defaultDishPhoto,tags:[country],sauces:'',drinks:'',prepTime,isCustom:true,ownerKey:userSlug()});
-  cook.dish = name;
-  cook.price = price;
-  cook.prepTime = prepTime;
-  extraDishPhotoPreviewUrl = '';
-  saveCustomCookData();
-  refreshCookAndDishViews();
-  showToast('Dish published on your cook profile.', 'success');
 }
-function removeCookDish(event, dishId){
+async function removeCookDish(event, dishId){
   event?.stopPropagation();
   const cook = getMyCook();
   const index = dishes.findIndex(d => sameId(d.id, dishId));
@@ -4036,30 +4127,18 @@ function removeCookDish(event, dishId){
     showToast('You can remove only dishes from your cook profile.', 'error');
     return;
   }
-  if (postHostAction('market-remove-dish', { dishId: dish.apiId || dish.id })) {
-    showToast('Removing dish...', 'info');
-    return;
+  try {
+    const result = await sendMarketAction('market-remove-dish', { dishId: dish.apiId || dish.id });
+    cart = cart.filter(item => !sameId(item.id, dishId));
+    if (currentDish && sameId(currentDish.id, dishId)) closeDishModal();
+    renderCart();
+    if (document.getElementById('page-cook-profile')?.classList.contains('active') && currentCook && sameId(currentCook.id, cook.id)) {
+      openCookProfile(cook.id);
+    }
+    showToast(result.mode === 'host' ? 'Removing dish...' : `${dish.name} removed from your profile.`, 'info');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
-  dishes.splice(index, 1);
-  cart = cart.filter(item => !sameId(item.id, dishId));
-  if (currentDish && sameId(currentDish.id, dishId)) closeDishModal();
-  const remaining = dishes.filter(d => sameId(d.cookId, cook.id));
-  cook.dishes = remaining.length;
-  if (remaining[0]) {
-    cook.dish = remaining[0].name;
-    cook.price = remaining[0].price;
-    cook.prepTime = remaining[0].prepTime || cook.prepTime;
-  } else {
-    cook.dish = 'No dishes yet';
-    cook.price = 0;
-  }
-  saveCustomCookData();
-  renderCart();
-  refreshCookAndDishViews();
-  if (document.getElementById('page-cook-profile')?.classList.contains('active') && currentCook && sameId(currentCook.id, cook.id)) {
-    openCookProfile(cook.id);
-  }
-  showToast(`${dish.name} removed from your profile.`, 'info');
 }
 
 // ===== FAQ =====
@@ -4085,7 +4164,7 @@ function toggleSetting(el) {
   el.classList.toggle('on');
   showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
 }
-function toggleOnlineSetting(el) {
+async function toggleOnlineSetting(el) {
   el.classList.toggle('on');
   const online = el.classList.contains('on');
   setDesiredCookOnline(online);
@@ -4093,9 +4172,18 @@ function toggleOnlineSetting(el) {
   if (cook) {
     cook.online = online;
     cook.availability = online ? 'Online now' : 'Offline';
-    if (!hostStateReady) saveCustomCookData();
     refreshCookAndDishViews();
-    postHostAction('market-online', { online });
+    try {
+      await sendMarketAction('market-online', { online });
+    } catch (error) {
+      cook.online = !online;
+      cook.availability = cook.online ? 'Online now' : 'Offline';
+      setDesiredCookOnline(cook.online);
+      el.classList.toggle('on', cook.online);
+      refreshCookAndDishViews();
+      showToast(error.message, 'error');
+      return;
+    }
   } else {
     showToast(online ? 'Online will be applied after your cook profile is created.' : 'Offline saved.', 'info');
     return;
@@ -4189,19 +4277,27 @@ function handleProfilePicture(input) {
     showToast('Picture selected. Press Save picture to confirm.', 'info');
   });
 }
-function saveProfilePicture() {
+async function saveProfilePicture() {
   if (!pendingProfilePicture) return showToast('Choose a photo first.', 'error');
   setSavedProfilePicture(pendingProfilePicture);
-  postHostAction('market-profile', { profile: { profilePhoto: pendingProfilePicture } });
+  try {
+    await sendMarketAction('market-profile', { profile: { profilePhoto: pendingProfilePicture } });
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
   pendingProfilePicture = '';
   updateSettingsAccount();
   refreshCookAndDishViews();
   document.getElementById('accountModal')?.classList.remove('open');
   showToast('Profile picture saved.', 'success');
 }
-function removeProfilePicture() {
+async function removeProfilePicture() {
   localStorage.removeItem(userProfilePictureKey());
-  postHostAction('market-profile', { profile: { profilePhoto: '' } });
+  try {
+    await sendMarketAction('market-profile', { profile: { profilePhoto: '' } });
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
   pendingProfilePicture = '';
   const cook = getMyCook();
   if (cook) {
@@ -4244,19 +4340,27 @@ function handleProfileCover(input) {
     showToast('Background selected. Press Save background to confirm.', 'info');
   });
 }
-function saveProfileCover() {
+async function saveProfileCover() {
   if (!pendingProfileCover) return showToast('Choose a background photo first.', 'error');
   setSavedProfileCover(pendingProfileCover);
-  postHostAction('market-profile', { profile: { profileCover: pendingProfileCover } });
+  try {
+    await sendMarketAction('market-profile', { profile: { profileCover: pendingProfileCover } });
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
   pendingProfileCover = '';
   updateSettingsAccount();
   refreshCookAndDishViews();
   document.getElementById('accountModal')?.classList.remove('open');
   showToast('Background photo saved.', 'success');
 }
-function removeProfileCover() {
+async function removeProfileCover() {
   localStorage.removeItem(userProfileCoverKey());
-  postHostAction('market-profile', { profile: { profileCover: '' } });
+  try {
+    await sendMarketAction('market-profile', { profile: { profileCover: '' } });
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
   pendingProfileCover = '';
   const cook = getMyCook();
   if (cook) {
@@ -4424,19 +4528,25 @@ function selectPayment(el) {
   if (el.closest('#paymentMethods')) renderPaymentDetails(el.dataset.paymentLabel || el.textContent);
   if (el.closest('#deliveryTimeOptions')) renderDeliveryTimeDetails(el.dataset.deliveryTime || 'asap');
 }
-function placeOrder() {
+async function placeOrder() {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
-  if (postHostAction('market-place-order', { payload: { items, paymentMethod: 'cash' } })) {
+  try {
+    const result = await sendMarketAction('market-place-order', { payload: { items, paymentMethod: 'cash' } });
     pendingOrderPlacement = true;
-    showToast('Placing your real order...', 'info');
-    return;
+    if (result.mode === 'host') {
+      showToast('Placing your real order...', 'info');
+      return;
+    }
+    cart = [];
+    renderCart();
+    updateCartBadge();
+    document.getElementById('successOverlay').classList.add('open');
+    updateNavBadges();
+    showToast('Order placed and saved.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
-  cart = [];
-  renderCart();
-  updateCartBadge();
-  document.getElementById('successOverlay').classList.add('open');
-  updateNavBadges();
 }
 
 // ===== COOK FILTERS =====

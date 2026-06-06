@@ -54,5 +54,6 @@ if (security.status !== 0) {
 
 if (!marketplace.includes("page-track-order")) fail("marketplace tracking page is missing");
 if (!marketplace.includes("orders-tabs")) fail("mobile orders tabs are missing");
+if (/onclick="[^"\n]*\$\{jsArg/.test(marketplace)) fail("dynamic marketplace onclick handlers must use single-quoted attributes around jsArg values");
 
 if (!process.exitCode) console.log("Static deployment artifact is valid.");
