@@ -157,6 +157,101 @@ textarea { min-height: 88px; resize: vertical; }
 .price { color: var(--brand-2); font-weight: 900; font-size: 18px; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; }
+.admin-review-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  overflow: hidden;
+  margin: 12px 0;
+}
+.admin-review-media { position: relative; min-height: 120px; }
+.admin-review-cover {
+  height: 120px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+  background: rgba(224,162,52,.12);
+}
+.admin-review-cover img,
+.admin-review-dish img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.admin-review-profile {
+  position: absolute;
+  left: 14px;
+  bottom: -22px;
+}
+.admin-review-profile .profile-avatar {
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--panel);
+}
+.admin-review-body {
+  padding: 32px 14px 14px;
+  display: grid;
+  gap: 12px;
+}
+.admin-review-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.admin-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.admin-review-grid > div,
+.admin-review-bio,
+.admin-review-dish {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 10px;
+}
+.admin-review-grid small,
+.admin-review-bio small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.admin-review-bio p,
+.admin-review-dish p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.admin-review-dishes {
+  display: grid;
+  gap: 10px;
+}
+.admin-review-dish {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.admin-review-dish img,
+.admin-review-dish-empty {
+  width: 82px;
+  height: 82px;
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.admin-review-dish-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 900;
+}
 .cook-card { padding: 16px; display: grid; gap: 10px; }
 .profile-avatar {
   width: 44px;
@@ -912,6 +1007,11 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .market-top { align-items: flex-start; }
   .market-content { grid-template-columns: 1fr; }
   .role-panel { border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; }
+  .admin-review-heading { display: grid; }
+  .admin-review-grid { grid-template-columns: 1fr; }
+  .admin-review-dish { grid-template-columns: 72px minmax(0, 1fr); }
+  .admin-review-dish img,
+  .admin-review-dish-empty { width: 72px; height: 72px; }
 }
 @media (max-width: 720px) {
   html, body, #app { width: 100%; max-width: 100%; min-height: 100dvh; overflow-x: hidden; }

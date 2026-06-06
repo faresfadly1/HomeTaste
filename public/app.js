@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260606-real-cook-dishes-01";
+const APP_BUILD = "20260606-profile-admin-flow-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -7,6 +7,7 @@ const chefLogoIcon = `
     <path d="M17 29c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8"></path>
   </svg>`;
 const storageKey = "hometaste_token";
+const savedLoginKey = "hometaste_saved_login";
 const currentScript = document.querySelector('script[src*="app.js"]');
 const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
 const isGitHubPages = window.location.hostname.endsWith("github.io");
@@ -292,6 +293,26 @@ async function handleMarketplaceMessage(event) {
       });
       state = result.state || result;
       reply({ action: "market-sync", ok: true, placedOrder: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-social") {
+    try {
+      state = await api("/api/social", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-message") {
+    try {
+      state = await api("/api/messages", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
+      reply({ action: "market-sync", ok: true, state });
       renderApp();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
@@ -633,15 +654,25 @@ function staticSeedDb() {
     cooks: [],
     dishes: [],
     orders: [],
-    messages: [],
-    notifications: [],
-    sessions: {}
+	    messages: [],
+	    notifications: [],
+	    socialActions: [],
+	    mealPlans: [],
+	    subscriptions: [],
+	    payments: [],
+	    refunds: [],
+	    sessions: {}
   };
 }
 
 function loadStaticDb() {
   const seeded = JSON.parse(localStorage.getItem(staticDbKey) || "null") || staticSeedDb();
   let changed = false;
+  seeded.socialActions ||= [];
+  seeded.mealPlans ||= [];
+  seeded.subscriptions ||= [];
+  seeded.payments ||= [];
+  seeded.refunds ||= [];
   const beforeCount = seeded.users.length;
   seeded.users = seeded.users.filter((user) => !["usr_owner", "usr_cook_1", "usr_driver_1"].includes(user.id));
   if (seeded.users.length !== beforeCount) changed = true;
@@ -700,6 +731,7 @@ function staticPublicState(db, user) {
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: visible,
     messages: user ? db.messages.filter((message) => visible.some((order) => order.id === message.orderId)) : [],
+    socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
     users: user?.role === "owner" ? db.users.map(staticSafeUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
     stats: user?.role === "owner" ? {
@@ -1034,6 +1066,43 @@ function setButtonBusy(button, busy, label = "") {
   }
 }
 
+function savedLoginCredentials() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(savedLoginKey) || "null");
+    if (!saved || typeof saved !== "object") return null;
+    return {
+      email: String(saved.email || ""),
+      password: String(saved.password || ""),
+      country: ["TR", "DE"].includes(saved.country) ? saved.country : authCountry
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveLoginCredentials(input) {
+  const email = String(input.email || "").trim();
+  const password = String(input.password || "");
+  if (!email || !password) return;
+  localStorage.setItem(savedLoginKey, JSON.stringify({
+    email,
+    password,
+    country: ["TR", "DE"].includes(input.country) ? input.country : authCountry
+  }));
+}
+
+function clearLoginCredentials() {
+  localStorage.removeItem(savedLoginKey);
+}
+
+function escapeAttr(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function readImageFile(file) {
   return new Promise((resolve, reject) => {
     if (!file) return resolve("");
@@ -1061,9 +1130,77 @@ function profilePhotoHtml(src, name, className = "profile-avatar") {
     : `<div class="${className} avatar-fallback">${profileInitials(name)}</div>`;
 }
 
+function userForCook(cook) {
+  return state.users?.find((user) => user.id === cook.userId) || null;
+}
+
+function dishesForCook(cookId) {
+  return state.dishes?.filter((dish) => dish.cookId === cookId) || [];
+}
+
+function verificationTags(cook) {
+  return ["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("");
+}
+
+function adminCookRequestHtml(cook) {
+  const user = userForCook(cook);
+  const cookDishes = dishesForCook(cook.id);
+  return `
+    <div class="admin-review-card">
+      <div class="admin-review-media">
+        <div class="admin-review-cover">${cook.coverPhoto ? `<img src="${cook.coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
+        <div class="admin-review-profile">${profilePhotoHtml(cook.profilePhoto || user?.profilePhoto, cook.name)}</div>
+      </div>
+      <div class="admin-review-body">
+        <div class="admin-review-heading">
+          <div>
+            <strong>${cook.name}</strong>
+            <div class="meta">${cook.cuisine || "Home Kitchen"} in ${cook.city || user?.city || "No city"} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
+          </div>
+          <div class="toolbar" style="margin:0;justify-content:flex-end">
+            <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+            <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
+            <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
+          </div>
+        </div>
+        <div class="admin-review-grid">
+          <div><small>Name</small><strong>${user?.name || cook.name}</strong></div>
+          <div><small>Email</small><strong>${user?.email || "No email"}</strong></div>
+          <div><small>Phone</small><strong>${cook.phone || user?.phone || "No phone"}</strong></div>
+          <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
+        </div>
+        <div class="admin-review-bio">
+          <small>Bio</small>
+          <p>${cook.bio || "No bio submitted."}</p>
+        </div>
+        <div class="tag-row">${verificationTags(cook)}</div>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
+          <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">${t("verifyAddress")}</button>
+          <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
+        </div>
+        <div class="admin-review-dishes">
+          ${cookDishes.map((dish) => `
+            <div class="admin-review-dish">
+              ${dish.image ? `<img src="${dish.image}" alt="${dish.name}">` : `<div class="admin-review-dish-empty">Dish</div>`}
+              <div>
+                <strong>${dish.name}</strong>
+                <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div>
+                <p>${dish.description || "No dish description."}</p>
+              </div>
+            </div>
+          `).join("") || `<div class="empty">No dish submitted yet.</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderAuth(error = "") {
   applyAppearance();
   const isLogin = mode === "login";
+  const rememberedLogin = isLogin ? savedLoginCredentials() : null;
+  const countryValue = rememberedLogin?.country || authCountry;
   const chefIcon = `
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1115,24 +1252,27 @@ function renderAuth(error = "") {
           <div class="field">
             <label>${t("country")}</label>
             <select class="input" id="authCountry" name="country">
-              <option value="TR" ${authCountry === "TR" ? "selected" : ""}>${t("turkey")}</option>
-              <option value="DE" ${authCountry === "DE" ? "selected" : ""}>${t("germany")}</option>
+              <option value="TR" ${countryValue === "TR" ? "selected" : ""}>${t("turkey")}</option>
+              <option value="DE" ${countryValue === "DE" ? "selected" : ""}>${t("germany")}</option>
             </select>
           </div>
           ${mode === "signup" ? `
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
-          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" required></div>
+          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
           <div class="field auth-input-field password-field">
             <label>${t("password")}</label>
-            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required>
+            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="${escapeAttr(rememberedLogin?.password)}" required>
             <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
           </div>
-          <div class="auth-row">
-            <label class="remember"><input type="checkbox" checked> <span>${t("rememberMe")}</span></label>
-            <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
-          </div>
+          ${isLogin ? `
+            <div class="auth-row">
+              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email and password on this device</span></label>
+              <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
+            </div>
+            ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
+          ` : ""}
           <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span><b>→</b></button>
         </form>
         <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
@@ -1170,13 +1310,18 @@ function renderAuth(error = "") {
     mode = mode === "login" ? "signup" : "login";
     renderAuth();
   };
-  document.querySelector("#forgotInline").onclick = () => {
+  document.querySelector("#forgotInline")?.addEventListener("click", () => {
     const resetForm = document.querySelector("#resetRequestForm");
     resetForm?.classList.toggle("open");
     const authEmail = document.querySelector("#authForm [name='email']")?.value.trim();
     const resetEmail = resetForm?.querySelector("[name='email']");
     if (authEmail && resetEmail && !resetEmail.value) resetEmail.value = authEmail;
-  };
+  });
+  document.querySelector("#clearSavedLogin")?.addEventListener("click", () => {
+    clearLoginCredentials();
+    toast("Saved login cleared.");
+    renderAuth();
+  });
   document.querySelector("#passwordToggle").onclick = () => {
     const passwordInput = document.querySelector("#authPassword");
     const show = passwordInput.type === "password";
@@ -1196,17 +1341,23 @@ function renderAuth(error = "") {
   document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
-    const submitButton = event.currentTarget.querySelector("[type='submit']");
-    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
-    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-    try {
-      if (useStaticApi) {
-        const data = staticAuth(input);
+	    const submitButton = event.currentTarget.querySelector("[type='submit']");
+	    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
+	    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+	    const rememberLogin = input.rememberLogin === "on";
+	    delete input.rememberLogin;
+	    try {
+	      if (useStaticApi) {
+	        const data = staticAuth(input);
         token = data.token;
         localStorage.setItem(storageKey, token);
         authCountry = input.country || authCountry;
-        localStorage.setItem("hometaste_country", authCountry);
-        state = data.state;
+	        localStorage.setItem("hometaste_country", authCountry);
+	        if (isLogin) {
+	          if (rememberLogin) saveLoginCredentials(input);
+	          else clearLoginCredentials();
+	        }
+	        state = data.state;
         page = "dashboard";
         renderApp();
         return;
@@ -1215,8 +1366,12 @@ function renderAuth(error = "") {
       token = data.token;
       localStorage.setItem(storageKey, token);
       authCountry = input.country || authCountry;
-      localStorage.setItem("hometaste_country", authCountry);
-      state = data.state;
+	      localStorage.setItem("hometaste_country", authCountry);
+	      if (isLogin) {
+	        if (rememberLogin) saveLoginCredentials(input);
+	        else clearLoginCredentials();
+	      }
+	      state = data.state;
       if (data.verificationUrl) toast("Account created. Email verification link is ready in Profile.");
       page = "dashboard";
       renderApp();
@@ -1497,38 +1652,20 @@ function renderAdmin() {
       <div class="stat"><small>${t("refundReview")}</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
-      <div class="panel">
-        <h3>Become a cook requests</h3>
-        ${pendingCooks.map((cook) => `
+	      <div class="panel">
+	        <h3>Become a cook requests</h3>
+	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
+	        <h3 style="margin-top:22px">${t("cookVerification")}</h3>
+	        ${state.cooks.map((cook) => `
           <div class="row">
             <div style="display:flex;gap:10px;align-items:center">
               ${profilePhotoHtml(cook.profilePhoto, cook.name)}
               <div>
-                <strong>${cook.name}</strong>
-                <div class="meta">${cook.cuisine} in ${cook.city} - ${cook.online ? "online" : "offline"}</div>
-                <div class="tag-row" style="margin-top:8px">
-                  ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
-                </div>
-              </div>
-            </div>
-            <div class="toolbar" style="margin:0;justify-content:flex-end">
-              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
-              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
-              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
-            </div>
-          </div>
-        `).join("") || `<div class="empty">No become a cook requests yet.</div>`}
-        <h3 style="margin-top:22px">${t("cookVerification")}</h3>
-        ${state.cooks.map((cook) => `
-          <div class="row">
-            <div style="display:flex;gap:10px;align-items:center">
-              ${profilePhotoHtml(cook.profilePhoto, cook.name)}
-              <div>
-                <strong>${cook.name}</strong>
-                <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
-                <div class="tag-row" style="margin-top:8px">
-                  ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
-                </div>
+	                <strong>${cook.name}</strong>
+	                <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
+	                <div class="tag-row" style="margin-top:8px">
+	                  ${verificationTags(cook)}
+	                </div>
               </div>
             </div>
             <div class="toolbar" style="margin:0;justify-content:flex-end">

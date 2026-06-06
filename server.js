@@ -1451,7 +1451,7 @@ function publicState(db, user = null) {
           return order && visibleOrders(db, user).some((item) => item.id === order.id);
         })
       : [],
-    mealPlans: db.mealPlans.filter((plan) => plan.active && cookIds.has(plan.cookId) || user?.role === "owner"),
+    mealPlans: db.mealPlans.filter((plan) => user?.role === "owner" || (plan.active && cookIds.has(plan.cookId))),
     subscriptions: user ? visibleSubscriptions(db, user) : [],
     payments: user ? visiblePayments(db, user) : [],
     refunds: user ? visibleRefunds(db, user) : [],
