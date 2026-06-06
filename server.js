@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260606-full-flow-check-01";
+const backendBuild = "20260607-online-request-fix-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -2173,7 +2173,7 @@ async function api(req, res, pathname) {
       responseTime: "New cook",
       profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
       coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
-      online: false,
+      online: Boolean(input.online),
       createdAt: now()
     };
     user.role = "cook";

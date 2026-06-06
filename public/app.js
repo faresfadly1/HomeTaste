@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260606-full-flow-check-02";
+const APP_BUILD = "20260607-online-request-fix-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -249,9 +249,13 @@ async function handleMarketplaceMessage(event) {
             cuisine: payload.country || "Home Kitchen",
             bio: payload.bio || "Fresh home cooking.",
             profilePhoto: payload.profilePhoto || "",
-            profileCover: payload.coverPhoto || ""
+            profileCover: payload.coverPhoto || "",
+            online: Boolean(payload.online)
           })
         });
+      }
+      if (payload.online && myCook()?.online !== true) {
+        state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: true }) });
       }
       state = await api("/api/dishes", {
         method: "POST",
@@ -922,7 +926,7 @@ async function staticApi(path, options = {}) {
       responseTime: "New cook",
       profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
       coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
-      online: false,
+      online: Boolean(input.online),
       createdAt: new Date().toISOString()
     };
     user.role = "cook";
@@ -1302,6 +1306,7 @@ function adminCookRequestHtml(cook) {
             <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
             <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
             <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
+            <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove request</button>
           </div>
         </div>
         <div class="admin-review-grid">
@@ -1784,7 +1789,6 @@ function subscriptionCard(subscription) {
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
-  const verificationCooks = state.cooks.filter((cook) => !["suspended", "rejected"].includes(cook.status));
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -1810,33 +1814,6 @@ function renderAdmin() {
 	      <div class="panel">
 	        <h3>Become a cook requests</h3>
 	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
-	        <h3 style="margin-top:22px">${t("cookVerification")}</h3>
-		        ${verificationCooks.map((cook) => `
-	          <div class="row">
-            <div style="display:flex;gap:10px;align-items:center">
-              ${profilePhotoHtml(cook.profilePhoto, cook.name)}
-              <div>
-	                <strong>${cook.name}</strong>
-	                <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
-	                <div class="tag-row" style="margin-top:8px">
-	                  ${verificationTags(cook)}
-	                </div>
-              </div>
-            </div>
-            <div class="toolbar" style="margin:0;justify-content:flex-end">
-	              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
-	              <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
-	              <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
-	              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
-	              <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
-	              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
-	              <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
-	              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">${t("verifyAddress")}</button>
-              <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
-            </div>
-          </div>
-		        `).join("") || `<div class="empty">No active cook verification profiles.</div>`}
       </div>
       <div class="panel">
         <h3>Add dish for any cook</h3>

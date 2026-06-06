@@ -2687,6 +2687,9 @@ function postHostAction(action, payload = {}) {
 function customCooksKey() { return 'hometaste_custom_cooks_v2'; }
 function customDishesKey() { return 'hometaste_custom_dishes_v2'; }
 function userCookIdKey() { return `hometaste_cook_id_${userSlug()}`; }
+function desiredCookOnlineKey() { return `hometaste_cook_online_${userSlug()}`; }
+function getDesiredCookOnline() { return localStorage.getItem(desiredCookOnlineKey()) === 'true'; }
+function setDesiredCookOnline(value) { localStorage.setItem(desiredCookOnlineKey(), value ? 'true' : 'false'); }
 function readSavedArray(key) {
   try {
     const value = JSON.parse(localStorage.getItem(key) || '[]');
@@ -2966,7 +2969,10 @@ function applyMarketplaceState(rawState) {
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
 	  const ownCook = cooks.find(cook => sameId(cook.userId, currentUserId));
-	  if (ownCook) setMyCookId(ownCook.id);
+	  if (ownCook) {
+	    setMyCookId(ownCook.id);
+	    setDesiredCookOnline(Boolean(ownCook.online));
+	  }
 	  demoOrders.splice(0, demoOrders.length, ...(rawState.orders || []).map(mapOrderForMobile));
 	  chatMessages = mapMessagesForMobile(rawState);
 	  renderCityFilterOptions();
@@ -3909,6 +3915,7 @@ function createCookDemo(){
   const profilePhoto = getSavedProfilePicture() || defaultCookProfilePhoto;
   const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
   const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
+  const online = getDesiredCookOnline();
 	  if (postHostAction('market-create-cook-dish', {
     payload: {
       name: dish,
@@ -3919,7 +3926,8 @@ function createCookDemo(){
       country,
       bio,
       profilePhoto,
-      coverPhoto
+      coverPhoto,
+      online
     }
   })) {
 	    showToast('Publishing your real dish for admin review...', 'info');
@@ -4080,14 +4088,18 @@ function toggleSetting(el) {
 function toggleOnlineSetting(el) {
   el.classList.toggle('on');
   const online = el.classList.contains('on');
+  setDesiredCookOnline(online);
   const cook = getMyCook();
   if (cook) {
     cook.online = online;
     cook.availability = online ? 'Online now' : 'Offline';
     if (!hostStateReady) saveCustomCookData();
     refreshCookAndDishViews();
+    postHostAction('market-online', { online });
+  } else {
+    showToast(online ? 'Online will be applied after your cook profile is created.' : 'Offline saved.', 'info');
+    return;
   }
-  postHostAction('market-online', { online });
   showToast(online ? '🟢 You are online and available to cook' : 'Offline: customers will see you are unavailable', 'info');
 }
 

@@ -128,10 +128,12 @@ try {
     cuisine: "Turkey",
     bio: "Real homemade flow-test dishes.",
     profilePhoto: "data:image/jpeg;base64,profile-photo",
-    profileCover: "data:image/jpeg;base64,cover-photo"
+    profileCover: "data:image/jpeg;base64,cover-photo",
+    online: true
   });
   const pendingCook = cookState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
+  assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/dishes", {
     name: `${baseName} Dish`,
@@ -159,6 +161,7 @@ try {
   });
   const approvedCook = ownerState.cooks.find((cook) => cook.id === ownerCook.id);
   assert(approvedCook.status === "approved" && approvedCook.online === true && approvedCook.verified === true, "admin approval, verification, and online state persist");
+  assert(ownerState.stats.pendingCooks === 0, "approved cook request disappears from pending admin requests");
 
   const market = await request(base, "", "GET", "/api/marketplace");
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
