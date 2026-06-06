@@ -145,6 +145,7 @@ try {
   });
   const dish = cookState.dishes.find((item) => item.name === `${baseName} Dish`);
   assert(dish?.image.includes("dish-photo") && dish.country === "Turkey", "published dish photo and country persist exactly");
+  assert(cookState.cooks.find((cook) => cook.id === pendingCook.id)?.online === true, "adding a dish does not turn an online cook offline");
 
   let ownerState = await request(base, owner.token, "GET", "/api/state");
   const ownerCook = ownerState.cooks.find((cook) => cook.userId === cookState.user.id);
@@ -162,10 +163,29 @@ try {
   const approvedCook = ownerState.cooks.find((cook) => cook.id === ownerCook.id);
   assert(approvedCook.status === "approved" && approvedCook.online === true && approvedCook.verified === true, "admin approval, verification, and online state persist");
   assert(ownerState.stats.pendingCooks === 0, "approved cook request disappears from pending admin requests");
+  ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "pending" });
+  assert(ownerState.cooks.find((cook) => cook.id === ownerCook.id)?.status === "pending" && ownerState.stats.pendingCooks === 1, "admin pending action moves cook back to request list");
+  ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "rejected" });
+  assert(ownerState.cooks.find((cook) => cook.id === ownerCook.id)?.status === "rejected" && ownerState.stats.pendingCooks === 0, "admin decline action removes cook from pending requests");
+  let hiddenMarket = await request(base, "", "GET", "/api/marketplace");
+  assert(!hiddenMarket.cooks.some((cook) => cook.id === ownerCook.id), "declined cook is not visible publicly");
+  ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
+    status: "approved",
+    verified: true,
+    online: true,
+    verification: { id: "verified", address: "verified", phone: "verified" }
+  });
 
   const market = await request(base, "", "GET", "/api/marketplace");
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
   assert(market.dishes.some((item) => item.id === dish.id && item.image.includes("dish-photo")), "approved dish is visible publicly with uploaded photo");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });
+  assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");
+  const offlineMarket = await request(base, "", "GET", "/api/marketplace");
+  assert(offlineMarket.cooks.some((cook) => cook.id === ownerCook.id && cook.online === false), "offline cook is offline across the public marketplace");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: true });
+  const onlineMarket = await request(base, "", "GET", "/api/marketplace");
+  assert(onlineMarket.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "online cook is online again across the public marketplace");
 
   let customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
@@ -229,7 +249,7 @@ try {
   assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === 140, "admin half refund outcome saves");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "suspended", online: false });
-  const hiddenMarket = await request(base, "", "GET", "/api/marketplace");
+  hiddenMarket = await request(base, "", "GET", "/api/marketplace");
   assert(!hiddenMarket.cooks.some((cook) => cook.id === ownerCook.id), "suspended cook disappears from public marketplace");
   assert(ownerState.cooks.some((cook) => cook.id === ownerCook.id && cook.status === "suspended"), "admin still sees suspended cook in all profiles");
 

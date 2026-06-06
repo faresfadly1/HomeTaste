@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260607-online-request-fix-01";
+const APP_BUILD = "20260607-admin-online-actions-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -358,7 +358,7 @@ window.addEventListener("message", handleMarketplaceMessage);
 function updateRolePanelVisibility() {
   const content = document.querySelector(".market-content");
   if (!content || !state?.user) return;
-  const hideCustomerPanel = !isCook() && !isDriver();
+  const hideCustomerPanel = !isDriver();
   content.classList.toggle("panel-hidden", hideCustomerPanel);
 }
 
@@ -1836,7 +1836,6 @@ function renderAdmin() {
           <div class="row">
             <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div></div>
             <div class="toolbar" style="margin:0">
-              <button class="button small secondary" data-feature="${dish.id}">${dish.featured ? t("unfeature") : t("feature")}</button>
               <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
               <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
             </div>
@@ -2193,7 +2192,6 @@ function customerReceiveButton(order) {
 
 function renderRoleOperations() {
   if (isDriver()) return renderDriverOperations();
-  if (isCook()) return renderCookOperations();
   return renderCustomerOperations();
 }
 
@@ -2202,16 +2200,6 @@ function renderDriverOperations() {
     <h3>${t("driverQueue")}</h3>
     <p class="meta">${t("driverQueueBody")}</p>
     ${state.orders.length ? state.orders.map(orderOperationCard).join("") : `<div class="empty">${t("noAssignedDeliveries")}</div>`}
-  `;
-}
-
-function renderCookOperations() {
-  const cook = myCook();
-  const orders = cook ? state.orders.filter((order) => order.cookId === cook.id) : [];
-  return `
-    <h3>${t("cookOrderFlow")}</h3>
-    <p class="meta">${t("cookOrderBody")}</p>
-    ${orders.length ? orders.map(orderOperationCard).join("") : `<div class="empty">${t("noActiveCookOrders")}</div>`}
   `;
 }
 
