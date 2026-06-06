@@ -496,7 +496,9 @@ ul{list-style:none}
   object-fit:cover;background:var(--bg3);
   border:2px solid var(--border2);
   font-size:14px;display:grid;place-items:center;
+  overflow:hidden;
 }
+.cook-avatar img{width:100%;height:100%;object-fit:cover}
 .cook-name{font-size:13px;font-weight:600}
 .cook-cuisine{font-size:11px;color:var(--orange);font-weight:500}
 .cook-verified{
@@ -597,6 +599,14 @@ ul{list-style:none}
   transition:all var(--transition);
 }
 .btn-add:hover{background:var(--orange-hover);transform:scale(1.03)}
+.dish-remove-btn{
+  position:absolute;right:10px;bottom:10px;z-index:3;
+  padding:8px 10px;border-radius:8px;
+  background:rgba(239,68,68,.92);color:#fff;
+  font-size:11px;font-weight:900;
+  box-shadow:0 8px 18px rgba(0,0,0,.22);
+}
+.dish-remove-btn:hover{background:#dc2626}
 
 /* ======== ORDERS ======== */
 .orders-list{padding:0 32px 32px}
@@ -1127,7 +1137,9 @@ ul{list-style:none}
   border:4px solid var(--orange);
   background:var(--bg3);font-size:36px;
   display:grid;place-items:center;flex-shrink:0;
+  overflow:hidden;
 }
+.cook-profile-avatar img{width:100%;height:100%;object-fit:cover}
 .cook-profile-details h1{font-size:26px;font-weight:900;margin-bottom:4px}
 .cook-profile-details p{font-size:14px;color:var(--text2)}
 .cook-profile-body{padding:24px 32px}
@@ -1231,6 +1243,29 @@ ul{list-style:none}
 .policy-confirm{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-weight:700;line-height:1.5}.policy-confirm input{width:18px;height:18px;accent-color:var(--orange);flex:0 0 auto}
 .profile-photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px}.photo-action{padding:22px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;text-align:left;color:var(--text);font-weight:900;font-size:16px}.photo-action small{display:block;margin-top:8px;color:var(--text3);font-weight:700;line-height:1.4}.photo-action:hover{border-color:var(--orange);background:var(--orange-light)}
 .photo-preview{min-height:110px;border:1px dashed var(--border2);border-radius:14px;display:grid;place-items:center;color:var(--text3);font-weight:800;overflow:hidden;background:rgba(255,255,255,.02);position:relative}.photo-preview img,.photo-preview video{width:100%;height:180px;object-fit:cover}.photo-preview.verified{border-color:rgba(34,197,94,.45);color:#22c55e}.photo-preview.gallery{border-color:var(--orange)}
+.cook-dish-manager{
+  margin:0 32px 32px;padding:22px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;display:none;
+}
+.cook-dish-manager.active{display:block}
+.manager-head{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:16px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border);
+}
+.manager-head h2{font-family:'DM Sans',sans-serif;font-size:20px;margin-bottom:5px}
+.manager-head p{font-size:13px;color:var(--text3);line-height:1.5}
+.manager-form{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+.manager-form .wide{grid-column:1/-1}
+.manager-dishes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.manager-dish{
+  display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;
+  padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);
+}
+.manager-dish img{width:56px;height:56px;border-radius:9px;object-fit:cover;background:var(--bg4)}
+.manager-dish strong{font-size:13px}.manager-dish span{font-size:11px;color:var(--text3)}
+.manager-remove{color:#ef4444;font-size:12px;font-weight:900;padding:8px;border-radius:8px}
+.manager-remove:hover{background:rgba(239,68,68,.12)}
 .tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
 .order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
 @media(max-width:1100px){
@@ -1294,7 +1329,7 @@ ul{list-style:none}
   .welcome-card{padding:18px;border-radius:18px;margin:12px 0 88px}
   .welcome-card h1{font-size:24px}
   .welcome-card p{font-size:13px;line-height:1.45}
-  .welcome-grid,.cook-form,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
+  .welcome-grid,.cook-form,.manager-form,.manager-dishes,.profile-extra,.profile-photo-actions{grid-template-columns:1fr}
   .welcome-actions{display:grid;grid-template-columns:1fr;gap:10px}
   .btn-apply,.btn-secondary{width:100%;text-align:center}
   input[type="text"],
@@ -1422,6 +1457,9 @@ ul{list-style:none}
   .cook-profile-info{padding:24px 14px;align-items:center;flex-direction:column;text-align:center}
   .cook-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .cook-form{padding:18px 14px}
+  .cook-dish-manager{margin:0 14px 18px;padding:16px}
+  .manager-head{display:grid;gap:12px}
+  .manager-dish{grid-template-columns:52px 1fr auto}
   .become-hero{padding:30px 12px}
   .become-hero h1{font-size:28px}
   .become-hero p{font-size:13px;line-height:1.45}
@@ -1964,12 +2002,13 @@ ul{list-style:none}
       <p>No long application. Create your cook profile, add your first dish, set your available time, and start receiving orders after quick phone/photo verification.</p>
       <button class="btn-apply" onclick="document.getElementById('cookNameInput').focus();showToast('Start with your cook name and first dish 👇','info')">Create my cook profile</button>
     </div>
-    <div class="cook-form">
+    <div class="cook-form" id="cookCreateForm">
       <div><div class="welcome-label">Cook display name</div><input id="cookNameInput" class="cook-input" placeholder="Example: Ahmed's Egyptian Kitchen"></div>
       <div><div class="welcome-label">Phone / WhatsApp</div><input id="cookPhoneInput" class="cook-input" placeholder="+90 ..."></div>
       <div><div class="welcome-label">Country & city</div><input id="cookCityInput" class="cook-input" placeholder="Türkiye, Istanbul"></div>
       <div><div class="welcome-label">Available times</div><input id="cookTimeInput" class="cook-input" placeholder="Today 6 PM - 11 PM"></div>
       <div><div class="welcome-label">First dish</div><input id="cookDishInput" class="cook-input" placeholder="Koshari, Molokhia, Mahshi..."></div>
+      <div><div class="welcome-label">Dish price (₺)</div><input id="cookPriceInput" class="cook-input" type="number" min="1" placeholder="150"></div>
       <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
       <div><div class="welcome-label">Sauces / sides</div><input id="cookSauceInput" class="cook-input" placeholder="Extra sauce, salad, bread..."></div>
       <div><div class="welcome-label">Drinks</div><input id="cookDrinkInput" class="cook-input" placeholder="Ayran, cola, tea..."></div>
@@ -1984,13 +2023,24 @@ ul{list-style:none}
           <button class="photo-action" type="button" onclick="document.getElementById('cookCameraInput').click()">📸 Take Photo (Verified)<small>Photos taken with your camera get a Verified badge</small></button>
           <button class="photo-action" type="button" onclick="document.getElementById('cookGalleryInput').click()">🖼️ Upload from Gallery<small>Choose an existing photo from your device</small></button>
         </div>
-        <input id="cookCameraInput" type="file" accept="image/*,video/*" capture="environment" hidden onchange="handleCookPhoto(this,'camera')">
-        <input id="cookGalleryInput" type="file" accept="image/*,video/*" hidden onchange="handleCookPhoto(this,'gallery')">
+        <input id="cookCameraInput" type="file" accept="image/*" capture="user" hidden onchange="handleCookPhoto(this,'camera')">
+        <input id="cookGalleryInput" type="file" accept="image/*" hidden onchange="handleCookPhoto(this,'gallery')">
       </div>
       <div class="wide photo-preview" id="cookPhotoPreview">No photo selected</div>
       <div class="wide live-preview-note">Photos taken with your camera get a Verified badge</div>
+      <div class="wide">
+        <div class="welcome-label">First dish photo</div>
+        <div class="profile-photo-actions">
+          <button class="photo-action" type="button" onclick="document.getElementById('cookDishCameraInput').click()">📸 Take Dish Photo<small>This photo appears only on the dish card</small></button>
+          <button class="photo-action" type="button" onclick="document.getElementById('cookDishGalleryInput').click()">🖼️ Upload Dish Photo<small>Choose the food photo for this dish</small></button>
+        </div>
+        <input id="cookDishCameraInput" type="file" accept="image/*" capture="environment" hidden onchange="handleCookDishPhoto(this,'camera')">
+        <input id="cookDishGalleryInput" type="file" accept="image/*" hidden onchange="handleCookDishPhoto(this,'gallery')">
+      </div>
+      <div class="wide photo-preview" id="cookDishPhotoPreview">No dish photo selected</div>
       <div class="wide"><button class="btn-apply" onclick="createCookDemo()">Publish my dish →</button></div>
     </div>
+    <div class="cook-dish-manager" id="myCookDishManager"></div>
     <div class="become-features">
       <div class="feature-card"><div class="feature-icon">⚡</div><h3>Fast setup</h3><p>No complicated application. Add your profile, dish, price, prep time, and availability.</p></div>
       <div class="feature-card"><div class="feature-icon">💬</div><h3>Chat first</h3><p>Customers can ask if you are free before ordering and can see your phone/WhatsApp if you allow it.</p></div>
@@ -2041,7 +2091,10 @@ ul{list-style:none}
         <div>
           <div id="settingsProfileName" style="font-size:18px;font-weight:700">Your account</div>
           <div id="settingsProfileRegion" style="font-size:13px;color:var(--text3)">HomeTaste customer</div>
-          <button style="font-size:12px;color:var(--orange);font-weight:600;margin-top:6px" onclick="openProfilePicturePanel()">Change pic →</button>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+            <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfilePicturePanel()">Change profile photo →</button>
+            <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfileCoverPanel()">Change background →</button>
+          </div>
         </div>
       </div>
 
@@ -2069,6 +2122,12 @@ ul{list-style:none}
         <h3>Account</h3>
         <div class="setting-item mobile-account-become">
           <button id="mobileBecomeCookSetting" class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="showPage('become',null)">Become a Cook</button>
+        </div>
+        <div class="setting-item">
+          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openProfilePicturePanel()">Change Profile Photo</button>
+        </div>
+        <div class="setting-item">
+          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openProfileCoverPanel()">Change Background Photo</button>
         </div>
         <div class="setting-item">
           <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPasswordPanel()">Change Password</button>
@@ -2399,7 +2458,10 @@ let currentUserName = 'User';
 let cameraPhotoVerified = false;
 let cookPhotoSelected = false;
 let cookPhotoPreviewUrl = '';
+let cookDishPhotoPreviewUrl = '';
+let extraDishPhotoPreviewUrl = '';
 let pendingProfilePicture = '';
+let pendingProfileCover = '';
 let lastCookFilterSummary = 'All cooks';
 const translations = {
   EN: {
@@ -2677,6 +2739,18 @@ const profilePhotos = [
   'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=900&q=75',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=75'
 ];
+const coverPhotos = [
+  'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=1200&q=75',
+  'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=1200&q=75',
+  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=75',
+  'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1200&q=75',
+  'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=1200&q=75',
+  'https://images.unsplash.com/photo-1528712306091-ed0763094c98?w=1200&q=75',
+  'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=1200&q=75'
+];
+const defaultCookProfilePhoto = profilePhotos[0];
+const defaultCookCoverPhoto = coverPhotos[0];
+const defaultDishPhoto = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=900&q=75';
 const allCountries = [
   'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
   'Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
@@ -2699,20 +2773,167 @@ const allCountries = [
   'Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City',
   'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
 ];
-cooks.forEach((c,i)=>Object.assign(c,{
-  availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
-  prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
-  responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
-  phone: c.phone || '+90 5XX XXX XX XX',
-  speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
-  verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
-  profilePhoto: c.profilePhoto || profilePhotos[i % profilePhotos.length]
-}));
+cooks.forEach((c,i)=>{
+  const profilePhoto = c.profilePhoto || profilePhotos[i % profilePhotos.length];
+  const coverPhoto = c.coverPhoto || coverPhotos[i % coverPhotos.length];
+  Object.assign(c,{
+    availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
+    prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
+    responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
+    phone: c.phone || '+90 5XX XXX XX XX',
+    speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
+    verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
+    profilePhoto,
+    coverPhoto,
+    img: c.cardPhoto || coverPhoto || profilePhoto || c.img
+  });
+});
 dishes.forEach((d,i)=>Object.assign(d,{
   sauces: d.sauces || ['Extra tomato sauce','Garlic yogurt','Spicy sauce'][i%3],
   drinks: d.drinks || ['Ayran','Cola','Mint tea'][i%3],
   prepTime: d.prepTime || (cooks.find(c=>c.id===d.cookId)?.prepTime || '35–45 min')
 }));
+
+function userSlug(name = currentUserName) {
+  return String(name || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'user';
+}
+function customCooksKey() { return 'hometaste_custom_cooks_v2'; }
+function customDishesKey() { return 'hometaste_custom_dishes_v2'; }
+function userCookIdKey() { return `hometaste_cook_id_${userSlug()}`; }
+function readSavedArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+function nextCookId() {
+  return Math.max(0, ...cooks.map(c => Number(c.id) || 0)) + 1;
+}
+function nextDishId() {
+  return Math.max(0, ...dishes.map(d => Number(d.id) || 0)) + 1;
+}
+function normalizeCustomCook(cook) {
+  const ownerKey = cook.ownerKey || userSlug();
+  const isOwner = ownerKey === userSlug();
+  const profilePhoto = cook.profilePhoto || (isOwner ? getSavedProfilePicture() : '') || defaultCookProfilePhoto;
+  const coverPhoto = cook.coverPhoto || (isOwner ? getSavedProfileCover() : '') || defaultCookCoverPhoto;
+  return {
+    ...cook,
+    id: Number(cook.id) || nextCookId(),
+    isCustom: true,
+    ownerKey,
+    country: cook.country || selectedCountry,
+    emoji: cook.emoji || '🧑‍🍳',
+    cuisine: cook.cuisine || 'Home Kitchen',
+    rating: cook.rating || 5,
+    reviews: cook.reviews || 0,
+    verified: cook.verified ?? true,
+    verifiedPhoto: cook.verifiedPhoto ?? false,
+    orders: cook.orders || 0,
+    followers: cook.followers || 0,
+    availability: cook.availability || 'Today 6 PM–10 PM',
+    prepTime: cook.prepTime || '45 min',
+    responseTime: cook.responseTime || 'New cook · replies soon',
+    speedRating: cook.speedRating || '5.0',
+    profilePhoto,
+    coverPhoto,
+    img: coverPhoto || profilePhoto
+  };
+}
+function loadCustomCookData() {
+  readSavedArray(customCooksKey()).map(normalizeCustomCook).forEach(cook => {
+    const existingIndex = cooks.findIndex(item => Number(item.id) === Number(cook.id));
+    if (existingIndex >= 0) cooks[existingIndex] = {...cooks[existingIndex], ...cook};
+    else cooks.unshift(cook);
+  });
+  readSavedArray(customDishesKey()).forEach(dish => {
+    if (!dish || !dish.name) return;
+    const normalizedDish = {
+      ...dish,
+      id: Number(dish.id) || nextDishId(),
+      cookId: Number(dish.cookId),
+      isCustom: true,
+      ownerKey: dish.ownerKey || userSlug(),
+      tag: dish.tag || 'Homemade',
+      img: dish.img || defaultDishPhoto,
+      tags: Array.isArray(dish.tags) ? dish.tags : ['Homemade'],
+      sauces: dish.sauces || 'House sauce',
+      drinks: dish.drinks || 'Ayran / cola',
+      prepTime: dish.prepTime || '45 min',
+      price: Number(dish.price) || 150
+    };
+    const existingIndex = dishes.findIndex(item => Number(item.id) === Number(normalizedDish.id));
+    if (existingIndex >= 0) dishes[existingIndex] = {...dishes[existingIndex], ...normalizedDish};
+    else dishes.unshift(normalizedDish);
+  });
+  updateCustomDishCounts();
+}
+function saveCustomCookData() {
+  try {
+    localStorage.setItem(customCooksKey(), JSON.stringify(cooks.filter(c => c.isCustom)));
+    localStorage.setItem(customDishesKey(), JSON.stringify(dishes.filter(d => d.isCustom)));
+  } catch (error) {
+    console.error(error);
+    showToast('Could not save photos on this device. Try smaller images.', 'error');
+  }
+}
+function setMyCookId(cookId) {
+  localStorage.setItem(userCookIdKey(), String(cookId));
+}
+function getMyCook() {
+  const savedId = Number(localStorage.getItem(userCookIdKey()) || 0);
+  return cooks.find(c => c.isCustom && Number(c.id) === savedId) || cooks.find(c => c.isCustom && c.ownerKey === userSlug()) || null;
+}
+function isMyCook(cookId) {
+  const cook = cooks.find(c => Number(c.id) === Number(cookId));
+  return !!cook && cook.isCustom && (cook.ownerKey === userSlug() || Number(localStorage.getItem(userCookIdKey()) || 0) === Number(cook.id));
+}
+function getCookProfilePhoto(cook) {
+  const saved = isMyCook(cook.id) ? getSavedProfilePicture() : '';
+  return saved || cook.profilePhoto || defaultCookProfilePhoto;
+}
+function getCookCoverPhoto(cook) {
+  const saved = isMyCook(cook.id) ? getSavedProfileCover() : '';
+  if (saved) return saved;
+  if (cook.coverPhoto) return cook.coverPhoto;
+  if (cook.isCustom) return defaultCookCoverPhoto;
+  return cook.img || cook.profilePhoto || defaultCookCoverPhoto;
+}
+function syncMyCookPhotos() {
+  const cook = getMyCook();
+  if (!cook) return;
+  const profilePhoto = getSavedProfilePicture();
+  const coverPhoto = getSavedProfileCover();
+  if (profilePhoto) {
+    cook.profilePhoto = profilePhoto;
+  }
+  if (coverPhoto) {
+    cook.coverPhoto = coverPhoto;
+  }
+  cook.img = getCookCoverPhoto(cook);
+  saveCustomCookData();
+}
+function updateCustomDishCounts() {
+  cooks.filter(c => c.isCustom).forEach(cook => {
+    const cookDishes = dishes.filter(d => Number(d.cookId) === Number(cook.id));
+    cook.dishes = cookDishes.length;
+    if (cookDishes[0]) {
+      cook.dish = cookDishes[0].name;
+      cook.price = cookDishes[0].price;
+      cook.prepTime = cookDishes[0].prepTime || cook.prepTime;
+    }
+  });
+}
+function refreshCookAndDishViews() {
+  updateCustomDishCounts();
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+  renderFavorites();
+  renderMyCookDishManager();
+}
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -2723,6 +2944,8 @@ document.addEventListener('DOMContentLoaded', () => {
   localStorage.setItem('hometaste_user_name', currentUserName);
   if (!['TR', 'DE'].includes(selectedCountry)) selectedCountry = 'TR';
   localStorage.setItem('hometaste_country', selectedCountry);
+  loadCustomCookData();
+  syncMyCookPhotos();
   document.getElementById('welcomeCountry').value = selectedCountry;
   document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
   document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
@@ -2742,6 +2965,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderChatList();
   renderFAQ();
   updateSettingsAccount();
+  renderMyCookDishManager();
   openChat(1);
   updatePaymentMethods();
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
@@ -2761,6 +2985,7 @@ function showPage(pageId, navEl) {
   if (navEl) navEl.classList.add('active');
   if (pageId === 'checkout') updateCheckoutItems();
   if (pageId === 'settings') updateSettingsAccount();
+  if (pageId === 'become') renderMyCookDishManager();
   updateCartButtonVisibility(pageId);
   document.getElementById('cityDropdown')?.classList.remove('open');
   applyTranslations();
@@ -3086,15 +3311,17 @@ function renderBrowseCooks() {
 }
 function cookCard(c, staggerClass) {
   const isFav = favorites.has(c.id);
+  const coverPhoto = getCookCoverPhoto(c);
+  const profilePhoto = getCookProfilePhoto(c);
   return `
   <div class="cook-card ${staggerClass}" onclick="openCookProfile(${c.id})">
     <div class="cook-card-img">
-      <img src="${c.img}" alt="${c.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
+      <img src="${coverPhoto}" alt="${c.name}" onerror="this.src='${defaultCookCoverPhoto}'">
       <button class="fav-btn ${isFav ? 'active' : ''}" onclick="toggleFav(event,${c.id},this)"></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
-        <div class="cook-avatar">${c.emoji}</div>
+        <div class="cook-avatar"><img src="${profilePhoto}" alt="${c.name} profile photo" onerror="this.parentElement.textContent='${c.emoji}'"></div>
         <div>
           <div class="cook-name">${c.name} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
           <div class="cook-cuisine">${c.cuisine}</div>
@@ -3124,13 +3351,15 @@ function renderDishes(container = 'dishesGrid') {
   const list = countryDishes().filter(d => activeChip.includes('all') || d.tag.toLowerCase() === activeChip);
   grid.innerHTML = list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
 }
-function dishCard(d, staggerClass) {
+function dishCard(d, staggerClass, options = {}) {
   const cook = cooks.find(c => c.id === d.cookId);
+  const canManage = options.manage && isMyCook(d.cookId);
   return `
   <div class="dish-card ${staggerClass}" onclick="openDishModal(${d.id})">
     <div class="dish-img">
       <img src="${d.img}" alt="${d.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
       <span class="dish-tag">${d.tag}</span>
+      ${canManage ? `<button class="dish-remove-btn" type="button" onclick="removeCookDish(event,${d.id})">Remove</button>` : ''}
     </div>
     <div class="dish-body">
       <h3>${d.name}</h3>
@@ -3340,9 +3569,11 @@ function closeModal(e) { if (e.target === document.getElementById('dishModal')) 
 function openCookProfile(cookId) {
   const cook = cooks.find(c => c.id === cookId);
   if (!cook) return;
+  if (isMyCook(cookId)) syncMyCookPhotos();
   currentCook = cook;
-  const profilePhoto = cook.profilePhoto || cook.img;
-  document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url('${profilePhoto}')`;
+  const profilePhoto = getCookProfilePhoto(cook);
+  const coverPhoto = getCookCoverPhoto(cook);
+  document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url('${coverPhoto}')`;
   document.getElementById('profileAvatar').innerHTML = `<img src="${profilePhoto}" alt="${cook.name}" onerror="this.parentElement.textContent='${cook.emoji}'">`;
   document.getElementById('profileName').textContent = cook.name;
   document.getElementById('profileCuisine').textContent = cook.cuisine;
@@ -3360,8 +3591,10 @@ function openCookProfile(cookId) {
   document.getElementById('profileBio').textContent = cook.bio;
   document.getElementById('profileAboutCity').textContent = `⊙ ${cook.city}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
   document.getElementById('profileDishesTitle').textContent = `Dishes by ${cook.name}`;
-  const cookDishes = dishes.filter(d => d.cookId === cookId);
-  document.getElementById('profileDishesGrid').innerHTML = cookDishes.map(d => dishCard(d, '')).join('');
+  const cookDishes = dishes.filter(d => Number(d.cookId) === Number(cookId));
+  document.getElementById('profileDishesGrid').innerHTML = cookDishes.length
+    ? cookDishes.map(d => dishCard(d, '', {manage:isMyCook(cookId)})).join('')
+    : `<div class="empty-state" style="grid-column:1/-1;padding:28px 0"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>Add a dish from Become a Cook.</p></div>`;
   showPage('cook-profile', null);
 }
 
@@ -3469,27 +3702,66 @@ function sendChatMessage() {
 
 
 // ===== BECOME A COOK DEMO (FIXED: validation) =====
-function handleCookPhoto(input, source='gallery'){
+function compressImageFile(file, onReady, maxSize = 1200, quality = 0.82) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const rawValue = String(reader.result || '');
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      onReady(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => onReady(rawValue);
+    img.src = rawValue;
+  };
+  reader.readAsDataURL(file);
+}
+function readImageAsDataUrl(input, onReady) {
   const file = input.files && input.files[0];
-  cameraPhotoVerified = !!file && source === 'camera';
-  cookPhotoSelected = !!file;
-  const preview = document.getElementById('cookPhotoPreview');
-  if (cookPhotoPreviewUrl) URL.revokeObjectURL(cookPhotoPreviewUrl);
-  cookPhotoPreviewUrl = file ? URL.createObjectURL(file) : '';
-  if (preview) {
-    preview.classList.toggle('verified', cameraPhotoVerified);
-    preview.classList.toggle('gallery', !!file && !cameraPhotoVerified);
-    const isVideo = file?.type?.startsWith('video/');
-    preview.innerHTML = file
-      ? `${isVideo ? `<video src="${cookPhotoPreviewUrl}" controls muted></video>` : `<img src="${cookPhotoPreviewUrl}" alt="Selected cook profile photo">`}`
-      : 'No photo selected';
+  if (!file) return onReady('');
+  if (!file.type.startsWith('image/')) {
+    input.value = '';
+    showToast('Please choose an image file.', 'error');
+    return onReady('');
   }
-  showToast(file ? (cameraPhotoVerified ? '📸 Camera photo added. Verified badge will be shown after review.' : '🖼️ Gallery photo added.') : 'Photo removed', 'info');
+  compressImageFile(file, onReady);
+}
+function handleCookPhoto(input, source='gallery'){
+  readImageAsDataUrl(input, value => {
+    cameraPhotoVerified = !!value && source === 'camera';
+    cookPhotoSelected = !!value;
+    cookPhotoPreviewUrl = value;
+    const preview = document.getElementById('cookPhotoPreview');
+    if (preview) {
+      preview.classList.toggle('verified', cameraPhotoVerified);
+      preview.classList.toggle('gallery', !!value && !cameraPhotoVerified);
+      preview.innerHTML = value ? `<img src="${value}" alt="Selected cook profile photo">` : 'No photo selected';
+    }
+    showToast(value ? (cameraPhotoVerified ? '📸 Profile photo added. Verified badge will be shown after review.' : '🖼️ Profile photo added.') : 'Photo removed', 'info');
+  });
+}
+function handleCookDishPhoto(input, source='gallery'){
+  readImageAsDataUrl(input, value => {
+    cookDishPhotoPreviewUrl = value;
+    const preview = document.getElementById('cookDishPhotoPreview');
+    if (preview) {
+      preview.classList.toggle('verified', !!value && source === 'camera');
+      preview.classList.toggle('gallery', !!value && source !== 'camera');
+      preview.innerHTML = value ? `<img src="${value}" alt="Selected dish photo">` : 'No dish photo selected';
+    }
+    showToast(value ? 'Dish photo added. It will appear under your dishes only.' : 'Dish photo removed', 'info');
+  });
 }
 function createCookDemo(){
   const name = document.getElementById('cookNameInput').value.trim();
   const phone = document.getElementById('cookPhoneInput').value.trim();
   const policyConfirmed = document.getElementById('cookPolicyConfirm')?.checked;
+  if (getMyCook()) { renderMyCookDishManager(); showToast('You already have a cook profile. Add another dish below.', 'info'); return; }
   if (!name) { showToast('Please enter a cook display name', 'error'); return; }
   if (!phone || !phone.match(/^[\+\d\s\-]+$/)) { showToast('Please enter a valid phone number', 'error'); return; }
   if (!policyConfirmed) { showToast('Please confirm the publishing policy before submitting.', 'error'); return; }
@@ -3500,13 +3772,131 @@ function createCookDemo(){
   const time = document.getElementById('cookTimeInput').value.trim() || 'Today 6 PM–10 PM';
   const sauces = document.getElementById('cookSauceInput').value.trim() || 'House sauce';
   const drinks = document.getElementById('cookDrinkInput').value.trim() || 'Ayran / cola';
-  const id = cooks.length + 1;
-  const image = cookPhotoPreviewUrl || 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=600&q=70';
-  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',city,rating:5.0,reviews:0,dish,price:150,verified:true,verifiedPhoto:cameraPhotoVerified,img:image,bio,orders:0,followers:0,dishes:1,availability:time,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0'});
-  dishes.unshift({id:dishes.length+1,name:dish,cookId:id,tag:'Homemade',desc:bio,price:150,img:image,tags:['New Cook','Homemade'],sauces,drinks,prepTime:prep});
-  renderHomeCooks();renderBrowseCooks();renderDishes();renderFavorites();
+  const price = Number(document.getElementById('cookPriceInput').value) || 150;
+  const id = nextCookId();
+  const dishId = nextDishId();
+  const ownerKey = userSlug();
+  const profilePhoto = getSavedProfilePicture() || cookPhotoPreviewUrl || defaultCookProfilePhoto;
+  const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
+  const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
+  cooks.unshift({id,name,emoji:'🧑‍🍳',cuisine:'Home Kitchen',country:selectedCountry,city,rating:5.0,reviews:0,dish,price,verified:true,verifiedPhoto:cameraPhotoVerified,img:coverPhoto,profilePhoto,coverPhoto,bio,orders:0,followers:0,dishes:1,availability:time,prepTime:prep,responseTime:'New cook · replies soon',phone,speedRating:'5.0',isCustom:true,ownerKey});
+  dishes.unshift({id:dishId,name:dish,cookId:id,tag:'Homemade',desc:bio,price,img:dishPhoto,tags:['New Cook','Homemade'],sauces,drinks,prepTime:prep,isCustom:true,ownerKey});
+  setMyCookId(id);
+  saveCustomCookData();
+  refreshCookAndDishViews();
   showToast('✅ Your cook profile and first dish were created for review.', 'success');
-  showPage('browse',document.querySelector('[onclick*="browse"]'));
+  openCookProfile(id);
+}
+function renderMyCookDishManager(){
+  const manager = document.getElementById('myCookDishManager');
+  const createForm = document.getElementById('cookCreateForm');
+  if (!manager || !createForm) return;
+  const cook = getMyCook();
+  if (!cook) {
+    createForm.hidden = false;
+    manager.classList.remove('active');
+    manager.innerHTML = '';
+    return;
+  }
+  createForm.hidden = true;
+  const cookDishes = dishes.filter(d => Number(d.cookId) === Number(cook.id));
+  manager.classList.add('active');
+  manager.innerHTML = `
+    <div class="manager-head">
+      <div>
+        <div class="welcome-label">Your cook profile</div>
+        <h2>${cook.name}</h2>
+        <p>${cookDishes.length} dish${cookDishes.length === 1 ? '' : 'es'} live on your profile. Add more dishes here anytime, or remove dishes you no longer want to show.</p>
+      </div>
+      <button class="btn-apply" type="button" onclick="openCookProfile(${cook.id})">View Profile</button>
+    </div>
+    <div class="manager-form">
+      <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" placeholder="Example: Chicken Biryani"></div>
+      <div><div class="welcome-label">Price (₺)</div><input id="extraDishPriceInput" class="cook-input" type="number" min="1" placeholder="150"></div>
+      <div><div class="welcome-label">Preparation time</div><input id="extraDishPrepInput" class="cook-input" placeholder="45 minutes"></div>
+      <div><div class="welcome-label">Sauces / sides</div><input id="extraDishSauceInput" class="cook-input" placeholder="Salad, bread, extra sauce"></div>
+      <div><div class="welcome-label">Drinks</div><input id="extraDishDrinkInput" class="cook-input" placeholder="Ayran, cola, tea"></div>
+      <div><div class="welcome-label">Dish tag</div><input id="extraDishTagInput" class="cook-input" placeholder="Homemade"></div>
+      <div class="wide"><div class="welcome-label">Dish description</div><textarea id="extraDishDescInput" class="cook-input" rows="4" placeholder="Describe this dish for customers."></textarea></div>
+      <div class="wide">
+        <div class="welcome-label">Dish photo</div>
+        <div class="profile-photo-actions">
+          <button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${cook.name}</small></button>
+          <button class="photo-action" type="button" onclick="publishExtraDish()">Publish Dish<small>Add it to your cook profile</small></button>
+        </div>
+        <input id="extraDishPhotoInput" type="file" accept="image/*" hidden onchange="handleExtraDishPhoto(this)">
+      </div>
+      <div class="wide photo-preview" id="extraDishPhotoPreview">No dish photo selected</div>
+    </div>
+    <div class="manager-dishes">
+      ${cookDishes.length ? cookDishes.map(d => `
+        <div class="manager-dish">
+          <img src="${d.img}" alt="${d.name}" onerror="this.src='${defaultDishPhoto}'">
+          <div><strong>${d.name}</strong><br><span>${d.price} ₺ · ${d.prepTime || '45 min'}</span></div>
+          <button class="manager-remove" type="button" onclick="removeCookDish(event,${d.id})">Remove</button>
+        </div>
+      `).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}
+    </div>
+  `;
+}
+function handleExtraDishPhoto(input){
+  readImageAsDataUrl(input, value => {
+    extraDishPhotoPreviewUrl = value;
+    const preview = document.getElementById('extraDishPhotoPreview');
+    if (preview) preview.innerHTML = value ? `<img src="${value}" alt="Selected new dish photo">` : 'No dish photo selected';
+    if (value) showToast('Dish photo selected.', 'info');
+  });
+}
+function publishExtraDish(){
+  const cook = getMyCook();
+  if (!cook) { showToast('Create your cook profile first.', 'error'); return; }
+  const name = document.getElementById('extraDishNameInput')?.value.trim();
+  if (!name) { showToast('Please enter the dish name.', 'error'); return; }
+  const price = Number(document.getElementById('extraDishPriceInput')?.value) || 150;
+  const prepTime = document.getElementById('extraDishPrepInput')?.value.trim() || cook.prepTime || '45 min';
+  const sauces = document.getElementById('extraDishSauceInput')?.value.trim() || 'House sauce';
+  const drinks = document.getElementById('extraDishDrinkInput')?.value.trim() || 'Ayran / cola';
+  const tag = document.getElementById('extraDishTagInput')?.value.trim() || 'Homemade';
+  const desc = document.getElementById('extraDishDescInput')?.value.trim() || cook.bio || 'Fresh homemade dish from this cook.';
+  const id = nextDishId();
+  dishes.unshift({id,name,cookId:cook.id,tag,desc,price,img:extraDishPhotoPreviewUrl || defaultDishPhoto,tags:['Homemade','New'],sauces,drinks,prepTime,isCustom:true,ownerKey:userSlug()});
+  cook.dish = name;
+  cook.price = price;
+  cook.prepTime = prepTime;
+  extraDishPhotoPreviewUrl = '';
+  saveCustomCookData();
+  refreshCookAndDishViews();
+  showToast('Dish published on your cook profile.', 'success');
+}
+function removeCookDish(event, dishId){
+  event?.stopPropagation();
+  const cook = getMyCook();
+  const index = dishes.findIndex(d => Number(d.id) === Number(dishId));
+  const dish = dishes[index];
+  if (!cook || !dish || Number(dish.cookId) !== Number(cook.id)) {
+    showToast('You can remove only dishes from your cook profile.', 'error');
+    return;
+  }
+  dishes.splice(index, 1);
+  cart = cart.filter(item => Number(item.id) !== Number(dishId));
+  if (currentDish && Number(currentDish.id) === Number(dishId)) closeDishModal();
+  const remaining = dishes.filter(d => Number(d.cookId) === Number(cook.id));
+  cook.dishes = remaining.length;
+  if (remaining[0]) {
+    cook.dish = remaining[0].name;
+    cook.price = remaining[0].price;
+    cook.prepTime = remaining[0].prepTime || cook.prepTime;
+  } else {
+    cook.dish = 'No dishes yet';
+    cook.price = 0;
+  }
+  saveCustomCookData();
+  renderCart();
+  refreshCookAndDishViews();
+  if (document.getElementById('page-cook-profile')?.classList.contains('active') && currentCook && Number(currentCook.id) === Number(cook.id)) {
+    openCookProfile(cook.id);
+  }
+  showToast(`${dish.name} removed from your profile.`, 'info');
 }
 
 // ===== FAQ =====
@@ -3538,7 +3928,7 @@ function toggleOnlineSetting(el) {
 }
 
 function userPaymentKey() {
-  return `hometaste_payment_methods_${currentUserName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'user'}`;
+  return `hometaste_payment_methods_${userSlug()}`;
 }
 function getSavedPaymentMethods() {
   try {
@@ -3552,7 +3942,7 @@ function setSavedPaymentMethods(methods) {
   localStorage.setItem(userPaymentKey(), JSON.stringify(methods.filter(method => allPaymentMethods.includes(method))));
 }
 function userProfilePictureKey() {
-  return `hometaste_profile_picture_${currentUserName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'user'}`;
+  return `hometaste_profile_picture_${userSlug()}`;
 }
 function getSavedProfilePicture() {
   return localStorage.getItem(userProfilePictureKey()) || '';
@@ -3560,14 +3950,28 @@ function getSavedProfilePicture() {
 function setSavedProfilePicture(value) {
   localStorage.setItem(userProfilePictureKey(), value);
 }
+function userProfileCoverKey() {
+  return `hometaste_profile_cover_${userSlug()}`;
+}
+function getSavedProfileCover() {
+  return localStorage.getItem(userProfileCoverKey()) || '';
+}
+function setSavedProfileCover(value) {
+  localStorage.setItem(userProfileCoverKey(), value);
+}
 function updateSettingsAccount() {
   const name = document.getElementById('settingsProfileName');
   const region = document.getElementById('settingsProfileRegion');
   const avatar = document.getElementById('settingsProfileAvatar');
   const photo = getSavedProfilePicture();
+  const cook = getMyCook();
   if (name) name.textContent = currentUserName || 'Your account';
-  if (region) region.textContent = `${countryNames[selectedCountry] || 'Selected country'} account`;
+  if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
   if (avatar) avatar.innerHTML = photo ? `<img src="${photo}" alt="${currentUserName} profile picture">` : '👤';
+  syncMyCookPhotos();
+  if (currentCook && cook && Number(currentCook.id) === Number(cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
+    openCookProfile(cook.id);
+  }
 }
 function openAccountModal(html) {
   document.getElementById('accountModalBody').innerHTML = html;
@@ -3602,29 +4006,87 @@ function handleProfilePicture(input) {
   const file = input.files?.[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
-  const reader = new FileReader();
-  reader.onload = () => {
-    const value = String(reader.result || '');
+  compressImageFile(file, value => {
     pendingProfilePicture = value;
     document.getElementById('profilePicturePreview').innerHTML = `<img src="${value}" alt="New profile picture">`;
     showToast('Picture selected. Press Save picture to confirm.', 'info');
-  };
-  reader.readAsDataURL(file);
+  });
 }
 function saveProfilePicture() {
   if (!pendingProfilePicture) return showToast('Choose a photo first.', 'error');
   setSavedProfilePicture(pendingProfilePicture);
   pendingProfilePicture = '';
   updateSettingsAccount();
+  refreshCookAndDishViews();
   document.getElementById('accountModal')?.classList.remove('open');
   showToast('Profile picture saved.', 'success');
 }
 function removeProfilePicture() {
   localStorage.removeItem(userProfilePictureKey());
   pendingProfilePicture = '';
+  const cook = getMyCook();
+  if (cook) {
+    cook.profilePhoto = defaultCookProfilePhoto;
+    cook.img = getCookCoverPhoto(cook);
+    saveCustomCookData();
+    refreshCookAndDishViews();
+  }
   updateSettingsAccount();
   document.getElementById('profilePicturePreview').textContent = 'No profile picture selected';
   showToast('Profile picture removed.', 'info');
+}
+function openProfileCoverPanel() {
+  const cover = getSavedProfileCover();
+  pendingProfileCover = '';
+  openAccountModal(`
+    <h2>Change Background Photo</h2>
+    <p class="account-hint">This photo is used as the large background image on your cook profile.</p>
+    <div class="profile-picture-preview" id="profileCoverPreview">${cover ? `<img src="${cover}" alt="Current background photo">` : 'No background photo selected'}</div>
+    <div class="profile-picture-actions">
+      <button class="photo-action" type="button" onclick="document.getElementById('coverCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
+      <button class="photo-action" type="button" onclick="document.getElementById('coverGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
+    </div>
+    <input id="coverCameraInput" type="file" accept="image/*" capture="environment" hidden onchange="handleProfileCover(this)">
+    <input id="coverGalleryInput" type="file" accept="image/*" hidden onchange="handleProfileCover(this)">
+    <div class="account-actions">
+      <button class="account-cancel" type="button" onclick="removeProfileCover()">Remove background</button>
+      <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
+      <button class="btn-place-order" type="button" onclick="saveProfileCover()">Save background</button>
+    </div>
+  `);
+}
+function handleProfileCover(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
+  compressImageFile(file, value => {
+    pendingProfileCover = value;
+    document.getElementById('profileCoverPreview').innerHTML = `<img src="${value}" alt="New background photo">`;
+    showToast('Background selected. Press Save background to confirm.', 'info');
+  });
+}
+function saveProfileCover() {
+  if (!pendingProfileCover) return showToast('Choose a background photo first.', 'error');
+  setSavedProfileCover(pendingProfileCover);
+  pendingProfileCover = '';
+  updateSettingsAccount();
+  refreshCookAndDishViews();
+  document.getElementById('accountModal')?.classList.remove('open');
+  showToast('Background photo saved.', 'success');
+}
+function removeProfileCover() {
+  localStorage.removeItem(userProfileCoverKey());
+  pendingProfileCover = '';
+  const cook = getMyCook();
+  if (cook) {
+    cook.coverPhoto = '';
+    cook.img = getCookCoverPhoto(cook);
+    saveCustomCookData();
+    refreshCookAndDishViews();
+  }
+  updateSettingsAccount();
+  document.getElementById('profileCoverPreview').textContent = 'No background photo selected';
+  showToast('Background photo removed.', 'info');
 }
 function openPasswordPanel() {
   openAccountModal(`
