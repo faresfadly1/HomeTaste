@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260606-admin-remove-real-flow-01";
+const APP_BUILD = "20260606-full-flow-check-02";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -289,6 +289,7 @@ async function handleMarketplaceMessage(event) {
         body: JSON.stringify({
           items: payload.items || [],
           deliveryAddress: payload.deliveryAddress || currentSavedAddress() || state.user.city || "",
+          customerLocation: payload.customerLocation || currentSavedLocationQuery() || state.user.city || "",
           scheduledFor: payload.scheduledFor || "",
           paymentMethod: payload.paymentMethod || "cash",
           notes: payload.notes || ""
@@ -469,6 +470,7 @@ function setLocationMap(query, label = query) {
   const cleanQuery = String(query || label || "").trim();
   const cleanLabel = readableLocationLabel(label) || t("currentLocation");
   localStorage.setItem("hometaste_location_label", cleanLabel);
+  if (cleanQuery) localStorage.setItem("hometaste_location_query", cleanQuery);
   const input = document.querySelector("#locationInput");
   if (input) {
     input.value = cleanLabel;
@@ -482,8 +484,16 @@ function userAddressKey() {
   return `hometaste_address_${state?.user?.id || "guest"}`;
 }
 
+function userLocationQueryKey() {
+  return `hometaste_location_query_${state?.user?.id || "guest"}`;
+}
+
 function currentSavedAddress() {
   return readableLocationLabel(localStorage.getItem(userAddressKey())) || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
+}
+
+function currentSavedLocationQuery() {
+  return localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -496,6 +506,7 @@ function confirmLocation(value, mapQuery = value) {
   if (!clean) return toast(t("enterAddress"), true);
   const label = readableLocationLabel(clean) || t("currentLocation");
   localStorage.setItem(userAddressKey(), label);
+  if (mapQuery) localStorage.setItem(userLocationQueryKey(), mapQuery);
   setLocationMap(mapQuery, label);
   updateAddressButton(label);
   closeLocation();
