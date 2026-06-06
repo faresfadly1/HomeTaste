@@ -232,6 +232,10 @@ function listUser(user) {
   return { ...safe, email: maskEmail(safe.email), phone: safe.phone ? "Hidden" : "" };
 }
 
+function dishMatchKey(dish) {
+  return `${dish?.cookId || ""}::${String(dish?.name || "").trim().toLowerCase()}`;
+}
+
 function configuredGateways() {
   return {
     stripe: Boolean(stripeSecretKey),
@@ -1993,17 +1997,22 @@ async function api(req, res, pathname) {
     const cook = cookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) return json(res, 403, { error: "No access to this dish." });
     const input = await body(req);
-    if ("available" in input) dish.available = Boolean(input.available);
-    if ("featured" in input && user.role === "owner") dish.featured = Boolean(input.featured);
-    if (input.name) dish.name = String(input.name).trim();
-    if (input.price) dish.price = Number(input.price);
-    if (input.description !== undefined) dish.description = String(input.description || "").trim();
-    if (input.prepMinutes) dish.prepMinutes = Number(input.prepMinutes);
-    if (input.image !== undefined) dish.image = String(input.image || "").trim();
-    if (input.country !== undefined || input.tags !== undefined) {
-      dish.country = String(input.country || input.tags || "").split(",")[0].trim();
-      dish.tags = dish.country ? [dish.country] : [];
-    }
+    const targets = user.role === "owner" && input.scope === "matching"
+      ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
+      : [dish];
+    targets.forEach((target) => {
+      if ("available" in input) target.available = Boolean(input.available);
+      if ("featured" in input && user.role === "owner") target.featured = Boolean(input.featured);
+      if (input.name) target.name = String(input.name).trim();
+      if (input.price) target.price = Number(input.price);
+      if (input.description !== undefined) target.description = String(input.description || "").trim();
+      if (input.prepMinutes) target.prepMinutes = Number(input.prepMinutes);
+      if (input.image !== undefined) target.image = String(input.image || "").trim();
+      if (input.country !== undefined || input.tags !== undefined) {
+        target.country = String(input.country || input.tags || "").split(",")[0].trim();
+        target.tags = target.country ? [target.country] : [];
+      }
+    });
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -2014,8 +2023,12 @@ async function api(req, res, pathname) {
     if (!dish) return json(res, 404, { error: "Dish not found." });
     const cook = cookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) return json(res, 403, { error: "No access to this dish." });
-    db.dishes = db.dishes.filter((item) => item.id !== dishId);
-    db.socialActions = db.socialActions.filter((item) => item.dishId !== dishId);
+    const input = await body(req);
+    const deleteIds = new Set((user.role === "owner" && input.scope === "matching"
+      ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
+      : [dish]).map((item) => item.id));
+    db.dishes = db.dishes.filter((item) => !deleteIds.has(item.id));
+    db.socialActions = db.socialActions.filter((item) => !deleteIds.has(item.dishId));
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }

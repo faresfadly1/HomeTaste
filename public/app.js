@@ -29,6 +29,7 @@ let authProviderStatusPromise = null;
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
+const dishMatchKey = (dish) => `${dish?.cookId || ""}::${String(dish?.name || "").trim().toLowerCase()}`;
 const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id);
 const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
@@ -854,17 +855,22 @@ async function staticApi(path, options = {}) {
     if (!dish) throw new Error("Dish not found.");
     const cook = staticCookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) throw new Error("No access to this dish.");
-    if ("available" in input) dish.available = Boolean(input.available);
-    if ("featured" in input && user.role === "owner") dish.featured = Boolean(input.featured);
-    if (input.name) dish.name = String(input.name).trim();
-    if (input.price) dish.price = Number(input.price);
-    if (input.description !== undefined) dish.description = String(input.description || "").trim();
-    if (input.prepMinutes) dish.prepMinutes = Number(input.prepMinutes);
-    if (input.image !== undefined) dish.image = String(input.image || "").trim();
-    if (input.country !== undefined || input.tags !== undefined) {
-      dish.country = String(input.country || input.tags || "").split(",")[0].trim();
-      dish.tags = dish.country ? [dish.country] : [];
-    }
+    const targets = user.role === "owner" && input.scope === "matching"
+      ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
+      : [dish];
+    targets.forEach((target) => {
+      if ("available" in input) target.available = Boolean(input.available);
+      if ("featured" in input && user.role === "owner") target.featured = Boolean(input.featured);
+      if (input.name) target.name = String(input.name).trim();
+      if (input.price) target.price = Number(input.price);
+      if (input.description !== undefined) target.description = String(input.description || "").trim();
+      if (input.prepMinutes) target.prepMinutes = Number(input.prepMinutes);
+      if (input.image !== undefined) target.image = String(input.image || "").trim();
+      if (input.country !== undefined || input.tags !== undefined) {
+        target.country = String(input.country || input.tags || "").split(",")[0].trim();
+        target.tags = target.country ? [target.country] : [];
+      }
+    });
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -875,7 +881,11 @@ async function staticApi(path, options = {}) {
     if (!dish) throw new Error("Dish not found.");
     const cook = staticCookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) throw new Error("No access to this dish.");
-    db.dishes = db.dishes.filter((item) => item.id !== dishId);
+    const deleteIds = new Set((user.role === "owner" && input.scope === "matching"
+      ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
+      : [dish]).map((item) => item.id));
+    db.dishes = db.dishes.filter((item) => !deleteIds.has(item.id));
+    db.socialActions = db.socialActions.filter((item) => !deleteIds.has(item.dishId));
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1639,6 +1649,7 @@ function subscriptionCard(subscription) {
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
+  const verificationCooks = state.cooks.filter((cook) => cook.status !== "suspended");
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -1656,8 +1667,8 @@ function renderAdmin() {
 	        <h3>Become a cook requests</h3>
 	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
 	        <h3 style="margin-top:22px">${t("cookVerification")}</h3>
-	        ${state.cooks.map((cook) => `
-          <div class="row">
+		        ${verificationCooks.map((cook) => `
+	          <div class="row">
             <div style="display:flex;gap:10px;align-items:center">
               ${profilePhotoHtml(cook.profilePhoto, cook.name)}
               <div>
@@ -1679,7 +1690,7 @@ function renderAdmin() {
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
             </div>
           </div>
-        `).join("")}
+		        `).join("") || `<div class="empty">No active cook verification profiles.</div>`}
       </div>
       <div class="panel">
         <h3>Add dish for any cook</h3>
@@ -2602,7 +2613,7 @@ async function applyCook(event) {
 async function toggleDish(dishId) {
   const dish = byId(state.dishes, dishId);
   try {
-    state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ available: !dish.available }) });
+    state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ available: !dish.available, scope: isOwner() ? "matching" : "single" }) });
     toast("Dish visibility updated.");
     renderApp();
   } catch (err) {
@@ -2613,9 +2624,10 @@ async function toggleDish(dishId) {
 async function deleteDish(dishId) {
   const dish = byId(state.dishes, dishId);
   if (!dish) return;
-  if (!window.confirm(`Remove ${dish.name} from the marketplace?`)) return;
+  const scopeText = isOwner() ? " and any duplicate row for the same cook/dish" : "";
+  if (!window.confirm(`Remove ${dish.name}${scopeText} from the marketplace?`)) return;
   try {
-    state = await api(`/api/dishes/${dishId}`, { method: "DELETE" });
+    state = await api(`/api/dishes/${dishId}`, { method: "DELETE", body: JSON.stringify({ scope: isOwner() ? "matching" : "single" }) });
     toast("Dish removed.");
     renderApp();
   } catch (err) {
@@ -2636,7 +2648,7 @@ async function toggleCookOnline(online) {
 async function featureDish(dishId) {
   const dish = byId(state.dishes, dishId);
   try {
-    state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ featured: !dish.featured }) });
+    state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ featured: !dish.featured, scope: isOwner() ? "matching" : "single" }) });
     toast("Featured status updated.");
     renderApp();
   } catch (err) {
@@ -2646,7 +2658,7 @@ async function featureDish(dishId) {
 
 async function cookStatus(cookId, status) {
   try {
-    state = await api(`/api/admin/cooks/${cookId}`, { method: "PATCH", body: JSON.stringify({ status, verified: status === "approved" }) });
+    state = await api(`/api/admin/cooks/${cookId}`, { method: "PATCH", body: JSON.stringify({ status, verified: status === "approved", online: status === "suspended" ? false : undefined }) });
     toast("Cook status updated.");
     renderApp();
   } catch (err) {
