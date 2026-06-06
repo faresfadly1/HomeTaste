@@ -11,6 +11,7 @@ const dataDir = path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
+const backendBuild = "20260606-admin-actions-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -61,6 +62,7 @@ const json = (res, status, body) => {
 
 const healthPayload = () => ({
   ok: true,
+  build: backendBuild,
   database: useSupabase ? "supabase" : "local-json",
   auth: {
     emailVerification: true,
