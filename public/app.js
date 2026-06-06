@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260604-schedule-delivery-16";
+const APP_BUILD = "20260606-real-cook-dishes-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -205,14 +205,111 @@ function sendPreferenceToMarketplace(name, value) {
 
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
+  const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", ...payload }, event.origin);
   if (event.data.action === "market-page") {
     currentMarketPage = event.data.page || "home";
     updateRolePanelVisibility();
     return;
   }
+  if (event.data.action === "market-state-request") {
+    reply({ action: "market-sync", state });
+    return;
+  }
+  if (event.data.action === "market-profile") {
+    try {
+      state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-online") {
+    try {
+      state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: event.data.online }) });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-create-cook-dish") {
+    try {
+      const payload = event.data.payload || {};
+      if (!myCook()) {
+        state = await api("/api/cooks/apply", {
+          method: "POST",
+          body: JSON.stringify({
+            cuisine: payload.country || "Home Kitchen",
+            bio: payload.bio || "Fresh home cooking.",
+            profilePhoto: payload.profilePhoto || "",
+            profileCover: payload.coverPhoto || ""
+          })
+        });
+      }
+      state = await api("/api/dishes", {
+        method: "POST",
+        body: JSON.stringify({
+          name: payload.name,
+          description: payload.description,
+          price: payload.price,
+          prepMinutes: payload.prepMinutes,
+          image: payload.image,
+          country: payload.country
+        })
+      });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-add-dish") {
+    try {
+      state = await api("/api/dishes", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-place-order") {
+    try {
+      const payload = event.data.payload || {};
+      const result = await api("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          items: payload.items || [],
+          deliveryAddress: payload.deliveryAddress || currentSavedAddress() || state.user.city || "",
+          scheduledFor: payload.scheduledFor || "",
+          paymentMethod: payload.paymentMethod || "cash",
+          notes: payload.notes || ""
+        })
+      });
+      state = result.state || result;
+      reply({ action: "market-sync", ok: true, placedOrder: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-remove-dish") {
+    try {
+      state = await api(`/api/dishes/${event.data.dishId}`, { method: "DELETE" });
+      reply({ action: "market-sync", ok: true, state });
+      renderApp();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
   if (event.data.action !== "change-password") return;
 
-  const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", action: "password-result", ...payload }, event.origin);
   try {
     await api("/api/auth/password", {
       method: "PATCH",
@@ -221,9 +318,9 @@ async function handleMarketplaceMessage(event) {
         newPassword: event.data.newPassword
       })
     });
-    reply({ ok: true });
+    reply({ action: "password-result", ok: true });
   } catch (err) {
-    reply({ ok: false, error: err.message });
+    reply({ action: "password-result", ok: false, error: err.message });
   }
 }
 
@@ -533,64 +630,8 @@ function staticSeedDb() {
   const createdAt = new Date().toISOString();
   return {
     users: [],
-    cooks: [
-      {
-        id: "cook_2",
-        userId: null,
-        name: "Aylin Demir",
-        cuisine: "Turkish Classics",
-        city: "Kadikoy",
-        bio: "Stuffed vegetables, soups, and trays for families.",
-        verified: true,
-        status: "approved",
-        rating: 4.8,
-        reviews: 96,
-        availability: "Weekdays 12 PM to 8 PM",
-        responseTime: "Usually replies in 12 minutes",
-        createdAt
-      },
-      {
-        id: "cook_3",
-        userId: null,
-        name: "Ravi Patel",
-        cuisine: "Indian Comfort Food",
-        city: "Besiktas",
-        bio: "Fresh curries, biryani, dal, and homemade chutneys.",
-        verified: true,
-        status: "approved",
-        rating: 4.7,
-        reviews: 74,
-        availability: "Fri to Sun 5 PM to 11 PM",
-        responseTime: "Usually replies in 18 minutes",
-        createdAt
-      }
-    ],
-    dishes: [
-      {
-        id: "dish_2",
-        cookId: "cook_2",
-        name: "Dolma Plate",
-        description: "Stuffed peppers and vine leaves with yogurt.",
-        price: 240,
-        prepMinutes: 45,
-        image: "https://images.unsplash.com/photo-1559847844-5315695dadae?w=900&q=80",
-        tags: ["turkish", "family"],
-        available: true,
-        featured: false
-      },
-      {
-        id: "dish_3",
-        cookId: "cook_3",
-        name: "Chicken Biryani",
-        description: "Layered rice, spices, chicken, raita, and chutney.",
-        price: 285,
-        prepMinutes: 50,
-        image: "https://images.unsplash.com/photo-1563379091339-03246963d7d3?w=900&q=80",
-        tags: ["spicy", "halal"],
-        available: true,
-        featured: true
-      }
-    ],
+    cooks: [],
+    dishes: [],
     orders: [],
     messages: [],
     notifications: [],
@@ -604,6 +645,16 @@ function loadStaticDb() {
   const beforeCount = seeded.users.length;
   seeded.users = seeded.users.filter((user) => !["usr_owner", "usr_cook_1", "usr_driver_1"].includes(user.id));
   if (seeded.users.length !== beforeCount) changed = true;
+  const beforeCookCount = seeded.cooks.length;
+  const legacyCookIds = new Set(["cook_2", "cook_3"]);
+  seeded.cooks = seeded.cooks.filter((cook) => {
+    const legacyName = ["aylin demir", "ravi patel"].includes(String(cook.name || "").trim().toLowerCase());
+    return !(String(cook.id || "").startsWith("cook_seed_") || legacyName || (legacyCookIds.has(cook.id) && !cook.userId));
+  });
+  if (seeded.cooks.length !== beforeCookCount) changed = true;
+  const beforeDishCount = seeded.dishes.length;
+  seeded.dishes = seeded.dishes.filter((dish) => !legacyCookIds.has(dish.cookId) && !["dish_2", "dish_3"].includes(dish.id));
+  if (seeded.dishes.length !== beforeDishCount) changed = true;
   const primaryCook = seeded.cooks.find((cook) => cook.id === "cook_2");
   if (primaryCook && primaryCook.userId) {
     primaryCook.userId = null;
@@ -691,21 +742,50 @@ async function staticApi(path, options = {}) {
   const user = staticUserByToken(db);
   if (!user) throw new Error("Please sign in first.");
 
+  if (method === "PATCH" && path === "/api/users/profile") {
+    if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
+    if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
+    if (input.name) user.name = String(input.name).trim();
+    if (input.city) user.city = String(input.city).trim();
+    if (input.phone) user.phone = String(input.phone).trim();
+    const cook = staticCookForUser(db, user.id);
+    if (cook) {
+      if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
+      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
+      if (input.name) cook.name = user.name;
+      if (input.city) cook.city = user.city;
+    }
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path === "/api/cooks/online") {
+    const cook = staticCookForUser(db, user.id);
+    if (!cook) throw new Error("Create a cook profile first.");
+    cook.online = Boolean(input.online);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
   if (method === "POST" && path === "/api/cooks/apply") {
     if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
     const cook = {
       id: `cook_${Date.now()}`,
       userId: user.id,
-      name: String(input.name || user.name).trim(),
-      cuisine: String(input.cuisine || "Home Kitchen").trim(),
-      city: String(input.city || user.city || "Istanbul").trim(),
+      name: String(user.name || input.name || "HomeTaste cook").trim(),
+      cuisine: String(input.cuisine || input.country || "Home Kitchen").trim(),
+      city: String(user.city || input.city || "Istanbul").trim(),
       bio: String(input.bio || "Fresh home cooking.").trim(),
       verified: false,
       status: "pending",
       rating: 5,
       reviews: 0,
-      availability: String(input.availability || "Today").trim(),
+      followers: 0,
+      availability: "",
       responseTime: "New cook",
+      profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
+      coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
+      online: false,
       createdAt: new Date().toISOString()
     };
     user.role = "cook";
@@ -726,7 +806,8 @@ async function staticApi(path, options = {}) {
       price: Number(input.price || 0),
       prepMinutes: Number(input.prepMinutes || 30),
       image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
-      tags: String(input.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      country: String(input.country || input.tags || "").split(",")[0].trim(),
+      tags: [String(input.country || input.tags || "").split(",")[0].trim()].filter(Boolean),
       available: true,
       featured: false
     };
@@ -745,6 +826,24 @@ async function staticApi(path, options = {}) {
     if ("featured" in input && user.role === "owner") dish.featured = Boolean(input.featured);
     if (input.name) dish.name = String(input.name).trim();
     if (input.price) dish.price = Number(input.price);
+    if (input.description !== undefined) dish.description = String(input.description || "").trim();
+    if (input.prepMinutes) dish.prepMinutes = Number(input.prepMinutes);
+    if (input.image !== undefined) dish.image = String(input.image || "").trim();
+    if (input.country !== undefined || input.tags !== undefined) {
+      dish.country = String(input.country || input.tags || "").split(",")[0].trim();
+      dish.tags = dish.country ? [dish.country] : [];
+    }
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "DELETE" && path.startsWith("/api/dishes/")) {
+    const dishId = path.split("/").pop();
+    const dish = db.dishes.find((item) => item.id === dishId);
+    if (!dish) throw new Error("Dish not found.");
+    const cook = staticCookForUser(db, user.id);
+    if (user.role !== "owner" && cook?.id !== dish.cookId) throw new Error("No access to this dish.");
+    db.dishes = db.dishes.filter((item) => item.id !== dishId);
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -840,6 +939,24 @@ async function staticApi(path, options = {}) {
     if (!cook) throw new Error("Cook not found.");
     if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
     if ("verified" in input) cook.verified = Boolean(input.verified);
+    if ("online" in input) cook.online = Boolean(input.online);
+    if (input.name) cook.name = String(input.name).trim();
+    if (input.cuisine) cook.cuisine = String(input.cuisine).trim();
+    if (input.city) cook.city = String(input.city).trim();
+    if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
+    if (input.profilePhoto !== undefined) cook.profilePhoto = String(input.profilePhoto || "").trim();
+    if (input.profileCover !== undefined) cook.coverPhoto = String(input.profileCover || "").trim();
+    if (input.verification) {
+      cook.verification = { ...(cook.verification || {}), ...input.verification, updatedAt: new Date().toISOString() };
+      cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
+    }
+    const cookUser = db.users.find((item) => item.id === cook.userId);
+    if (cookUser) {
+      if (input.name) cookUser.name = cook.name;
+      if (input.city) cookUser.city = cook.city;
+      if (input.profilePhoto !== undefined) cookUser.profilePhoto = cook.profilePhoto;
+      if (input.profileCover !== undefined) cookUser.profileCover = cook.coverPhoto;
+    }
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -879,6 +996,8 @@ function staticAuth(input) {
     city: String(input.city || (input.country === "DE" ? "Berlin" : "Istanbul")).trim(),
     country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
     phone: String(input.phone || "").trim(),
+    profilePhoto: "",
+    profileCover: "",
     createdAt: new Date().toISOString()
   };
   db.users.push(user);
@@ -913,6 +1032,33 @@ function setButtonBusy(button, busy, label = "") {
     button.textContent = button.dataset.originalText;
     delete button.dataset.originalText;
   }
+}
+
+function readImageFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read the selected image."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function imageFromForm(form, fileName, urlName = "") {
+  const file = form.elements[fileName]?.files?.[0];
+  if (file) return readImageFile(file);
+  if (!urlName) return "";
+  return String(form.elements[urlName]?.value || "").trim();
+}
+
+function profileInitials(name) {
+  return String(name || "HT").trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "HT";
+}
+
+function profilePhotoHtml(src, name, className = "profile-avatar") {
+  return src
+    ? `<img class="${className}" src="${src}" alt="${name}">`
+    : `<div class="${className} avatar-fallback">${profileInitials(name)}</div>`;
 }
 
 function renderAuth(error = "") {
@@ -1279,7 +1425,7 @@ function renderDashboard() {
           <button class="button secondary" data-page="orders">${t("trackOrders")}</button>
           <button class="button secondary" data-page="chat">${t("messageAroundOrders")}</button>
           ${isOwner() ? `<button class="button" data-page="admin">${t("openAdmin")}</button>` : ""}
-          ${isCook() ? `<button class="button" data-page="cook">${t("openCookStudio")}</button>` : `<button class="button" data-page="become">${t("applyAsCook")}</button>`}
+          ${!isOwner() ? (isCook() ? `<button class="button" data-page="cook">${t("openCookStudio")}</button>` : `<button class="button" data-page="become">${t("applyAsCook")}</button>`) : ""}
         </div>
       </div>
       <div class="panel">
@@ -1337,6 +1483,7 @@ function subscriptionCard(subscription) {
 
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
+  const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -1351,20 +1498,45 @@ function renderAdmin() {
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
-        <h3>${t("cookVerification")}</h3>
+        <h3>Become a cook requests</h3>
+        ${pendingCooks.map((cook) => `
+          <div class="row">
+            <div style="display:flex;gap:10px;align-items:center">
+              ${profilePhotoHtml(cook.profilePhoto, cook.name)}
+              <div>
+                <strong>${cook.name}</strong>
+                <div class="meta">${cook.cuisine} in ${cook.city} - ${cook.online ? "online" : "offline"}</div>
+                <div class="tag-row" style="margin-top:8px">
+                  ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
+                </div>
+              </div>
+            </div>
+            <div class="toolbar" style="margin:0;justify-content:flex-end">
+              <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+              <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
+              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
+            </div>
+          </div>
+        `).join("") || `<div class="empty">No become a cook requests yet.</div>`}
+        <h3 style="margin-top:22px">${t("cookVerification")}</h3>
         ${state.cooks.map((cook) => `
           <div class="row">
-            <div>
-              <strong>${cook.name}</strong>
-              <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span></div>
-              <div class="tag-row" style="margin-top:8px">
-                ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
+            <div style="display:flex;gap:10px;align-items:center">
+              ${profilePhotoHtml(cook.profilePhoto, cook.name)}
+              <div>
+                <strong>${cook.name}</strong>
+                <div class="meta">${cook.cuisine} in ${cook.city} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
+                <div class="tag-row" style="margin-top:8px">
+                  ${["id", "address", "phone"].map((key) => `<span class="tag">${key.toUpperCase()}: ${cook.verification?.[key] || "pending"}</span>`).join("")}
+                </div>
               </div>
             </div>
             <div class="toolbar" style="margin:0;justify-content:flex-end">
               <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
               <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
               <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
+              <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
+              <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="id">${t("verifyId")}</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="address">${t("verifyAddress")}</button>
               <button class="button small secondary" data-verify-cook="${cook.id}" data-check="phone">${t("verifyPhone")}</button>
@@ -1373,16 +1545,32 @@ function renderAdmin() {
         `).join("")}
       </div>
       <div class="panel">
+        <h3>Add dish for any cook</h3>
+        <form class="form" id="adminDishForm" style="margin-bottom:18px">
+          <div class="field"><label>Cook profile</label><select name="cookId" required>
+            <option value="">Choose cook</option>
+            ${state.cooks.map((cook) => `<option value="${cook.id}">${cook.name} - ${cook.status}</option>`).join("")}
+          </select></div>
+          <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Dish name"></div>
+          <div class="field"><label>${t("description")}</label><textarea name="description" placeholder="Real dish description"></textarea></div>
+          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" value="150"></div>
+          <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" min="1" value="35"></div>
+          <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
+          <button class="button">${t("createDish")}</button>
+        </form>
         <h3>${t("dishControls")}</h3>
         ${state.dishes.map((dish) => `
           <div class="row">
-            <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.available ? t("availableLower") : t("hidden")}</div></div>
+            <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div></div>
             <div class="toolbar" style="margin:0">
               <button class="button small secondary" data-feature="${dish.id}">${dish.featured ? t("unfeature") : t("feature")}</button>
               <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
+              <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
             </div>
           </div>
-        `).join("")}
+        `).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
       </div>
     </section>
     <section class="panel" style="margin-top:18px">
@@ -1466,7 +1654,7 @@ function renderAdmin() {
 function renderBrowse() {
   const dishes = state.dishes.filter((dish) => {
     const cook = byId(state.cooks, dish.cookId);
-    const hay = `${dish.name} ${dish.description} ${dish.tags.join(" ")} ${cook?.name || ""} ${cook?.city || ""}`.toLowerCase();
+    const hay = `${dish.name} ${dish.description} ${dish.country || ""} ${(dish.tags || []).join(" ")} ${cook?.name || ""} ${cook?.city || ""}`.toLowerCase();
     return dish.available && hay.includes(filters.q.toLowerCase()) && (!filters.city || cook?.city === filters.city);
   });
   const cities = [...new Set(state.cooks.map((cook) => cook.city))];
@@ -1555,8 +1743,8 @@ function dishCard(dish) {
       <div class="dish-body">
         <h3>${dish.name}</h3>
         <div class="meta">${dish.description}</div>
-        <div class="tag-row">${dish.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>
-        <div class="meta">${cook?.name || t("cookFallback")} - ${cook?.city || ""} - ${dish.prepMinutes} min</div>
+        <div class="tag-row"><span class="tag">${dish.country || "Country not set"}</span></div>
+        <div class="meta">${cook?.name || t("cookFallback")} - ${cook?.city || ""} - ${dish.prepMinutes} min - ${cook?.online ? "online" : "offline"}</div>
         <div class="price-row"><span class="price">${money(dish.price)}</span><button class="button small" data-add="${dish.id}">${t("add")}</button></div>
         <div class="toolbar" style="margin:0">
           <button class="button small secondary" data-social="follow" data-cook="${dish.cookId}">${t("followCook")}</button>
@@ -1799,6 +1987,7 @@ function renderCookStudio() {
     ${header(t("cookStudioTitle"), t("cookStudioSubtitle"))}
     <section class="grid cols-4">
       <div class="stat"><small>${t("status")}</small><strong>${cook.status}</strong></div>
+      <div class="stat"><small>Online</small><strong>${cook.online ? "online" : "offline"}</strong></div>
       <div class="stat"><small>${t("dishes")}</small><strong>${dishes.length}</strong></div>
       <div class="stat"><small>${t("ordersTitle")}</small><strong>${orders.length}</strong></div>
       <div class="stat"><small>${t("revenue")}</small><strong>${money(revenue)}</strong></div>
@@ -1810,6 +1999,9 @@ function renderCookStudio() {
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
         <h3>${t("businessSummary")}</h3>
+        <div class="toolbar" style="margin:0 0 12px">
+          <button class="button small ${cook.online ? "secondary" : "good"}" data-cook-online="${cook.online ? "false" : "true"}">${cook.online ? "Go offline" : "Go online"}</button>
+        </div>
         <div class="row"><span>${t("popularDish")}</span><strong>${popularDish?.name || t("noOrdersYet")}</strong></div>
         <div class="row"><span>${t("likes")}</span><strong>${social.filter((action) => action.type === "like").length}</strong></div>
         <div class="row"><span>${t("comments")}</span><strong>${social.filter((action) => action.type === "comment").length}</strong></div>
@@ -1832,14 +2024,15 @@ function renderCookStudio() {
           <div class="field"><label>${t("description")}</label><textarea name="description" required></textarea></div>
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
-          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" value="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80"></div>
-          <div class="field"><label>${t("tagsComma")}</label><input class="input" name="tags" value="homemade,fresh"></div>
+          <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
       </div>
       <div class="panel">
         <h3>${t("yourDishes")}</h3>
-        ${dishes.map((dish) => `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${money(dish.price)} - ${dish.available ? t("availableLower") : t("hidden")}</div></div><button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button></div>`).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
+        ${dishes.map((dish) => `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div></div><div class="toolbar" style="margin:0"><button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button><button class="button small bad" data-delete-dish="${dish.id}">Remove</button></div></div>`).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
       </div>
     </section>
   `;
@@ -1859,12 +2052,10 @@ function renderBecomeCook() {
   }
   return `
     ${header(t("becomeCookTitle"), t("becomeCookSubtitle"))}
-    <section class="panel">
-      <form class="form" id="cookApplyForm">
-        <div class="field"><label>${t("displayName")}</label><input class="input" name="name" required value="${state.user.name}"></div>
+      <section class="panel">
+        <form class="form" id="cookApplyForm">
+        <div class="notice">Your cook name will be your account username: <strong>${state.user.name}</strong>.</div>
         <div class="field"><label>${t("cuisine")}</label><input class="input" name="cuisine" required value="Home Kitchen"></div>
-        <div class="field"><label>${t("city")}</label><input class="input" name="city" required value="${state.user.city || "Istanbul"}"></div>
-        <div class="field"><label>${t("availability")}</label><input class="input" name="availability" value="Today 6 PM to 10 PM"></div>
         <div class="field"><label>${t("bio")}</label><textarea name="bio">Fresh homemade dishes prepared in small batches.</textarea></div>
         <button class="button">${t("submitCookApplication")}</button>
       </form>
@@ -1878,6 +2069,15 @@ function renderSettings() {
     <section class="grid cols-2">
       <div class="panel">
         <h3>${state.user.name}</h3>
+        <div class="profile-media-block">
+          <div class="profile-cover-preview" style="${state.user.profileCover ? `background-image:url('${state.user.profileCover.replace(/'/g, "%27")}')` : ""}"></div>
+          ${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}
+        </div>
+        <form class="form" id="profileMediaForm" style="margin:14px 0">
+          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/*"></div>
+          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/*"></div>
+          <button class="button secondary" type="submit">Save profile photos</button>
+        </form>
         <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
         <div class="row"><span>${t("emailVerified")}</span><strong>${state.user.emailVerified ? t("verified") : t("needsVerification")}</strong></div>
         <div class="row"><span>${t("role")}</span><strong>${roleLabel(state.user.role)}</strong></div>
@@ -1951,12 +2151,28 @@ function bindPage() {
   if (checkout) checkout.onsubmit = placeOrder;
   const dishForm = document.querySelector("#dishForm");
   if (dishForm) dishForm.onsubmit = createDish;
+  const adminDishForm = document.querySelector("#adminDishForm");
+  if (adminDishForm) adminDishForm.onsubmit = adminAddDish;
+  const profileMediaForm = document.querySelector("#profileMediaForm");
+  if (profileMediaForm) profileMediaForm.onsubmit = updateProfileMedia;
   const mealPlanForm = document.querySelector("#mealPlanForm");
   if (mealPlanForm) mealPlanForm.onsubmit = createMealPlan;
   const cookApply = document.querySelector("#cookApplyForm");
   if (cookApply) cookApply.onsubmit = applyCook;
   document.querySelectorAll("[data-toggle-dish]").forEach((button) => {
     button.onclick = () => toggleDish(button.dataset.toggleDish);
+  });
+  document.querySelectorAll("[data-delete-dish]").forEach((button) => {
+    button.onclick = () => deleteDish(button.dataset.deleteDish);
+  });
+  document.querySelectorAll("[data-cook-online]").forEach((button) => {
+    button.onclick = () => toggleCookOnline(button.dataset.cookOnline === "true");
+  });
+  document.querySelectorAll("[data-admin-online-cook]").forEach((button) => {
+    button.onclick = () => adminToggleCookOnline(button.dataset.adminOnlineCook);
+  });
+  document.querySelectorAll("[data-admin-edit-cook]").forEach((button) => {
+    button.onclick = () => adminEditCook(button.dataset.adminEditCook);
   });
   document.querySelectorAll("[data-feature]").forEach((button) => {
     button.onclick = () => featureDish(button.dataset.feature);
@@ -2193,10 +2409,28 @@ async function placeOrder(event) {
 
 async function createDish(event) {
   event.preventDefault();
-  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const form = event.currentTarget;
+  const input = Object.fromEntries(new FormData(form).entries());
   try {
+    const image = await imageFromForm(form, "imageFile", "image");
+    if (image) input.image = image;
     state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
     toast("Dish created.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function adminAddDish(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = Object.fromEntries(new FormData(form).entries());
+  try {
+    const image = await imageFromForm(form, "imageFile", "image");
+    if (image) input.image = image;
+    state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
+    toast("Dish added for cook.");
     renderApp();
   } catch (err) {
     toast(err.message, true);
@@ -2239,6 +2473,29 @@ async function toggleDish(dishId) {
   }
 }
 
+async function deleteDish(dishId) {
+  const dish = byId(state.dishes, dishId);
+  if (!dish) return;
+  if (!window.confirm(`Remove ${dish.name} from the marketplace?`)) return;
+  try {
+    state = await api(`/api/dishes/${dishId}`, { method: "DELETE" });
+    toast("Dish removed.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function toggleCookOnline(online) {
+  try {
+    state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online }) });
+    toast(online ? "You are online." : "You are offline.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
 async function featureDish(dishId) {
   const dish = byId(state.dishes, dishId);
   try {
@@ -2267,6 +2524,62 @@ async function verifyCookStep(cookId, check) {
       body: JSON.stringify({ verification: { [check]: "verified" } })
     });
     toast(`${check} verification updated.`);
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function adminToggleCookOnline(cookId) {
+  const cook = byId(state.cooks, cookId);
+  if (!cook) return;
+  try {
+    state = await api(`/api/admin/cooks/${cookId}`, { method: "PATCH", body: JSON.stringify({ online: !cook.online }) });
+    toast(`${cook.name} is now ${cook.online ? "offline" : "online"}.`);
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function adminEditCook(cookId) {
+  const cook = byId(state.cooks, cookId);
+  if (!cook) return;
+  const name = window.prompt("Cook/profile name", cook.name);
+  if (name === null) return;
+  const cuisine = window.prompt("Cuisine", cook.cuisine || "Home Kitchen");
+  if (cuisine === null) return;
+  const city = window.prompt("City", cook.city || "");
+  if (city === null) return;
+  const bio = window.prompt("Bio", cook.bio || "");
+  if (bio === null) return;
+  try {
+    state = await api(`/api/admin/cooks/${cookId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, cuisine, city, bio })
+    });
+    toast("Cook profile updated.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function updateProfileMedia(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  try {
+    const profilePhoto = await imageFromForm(form, "profilePhotoFile");
+    const profileCover = await imageFromForm(form, "profileCoverFile");
+    const payload = {};
+    if (profilePhoto) payload.profilePhoto = profilePhoto;
+    if (profileCover) payload.profileCover = profileCover;
+    if (!Object.keys(payload).length) {
+      toast("Choose a profile or background photo first.", true);
+      return;
+    }
+    state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(payload) });
+    toast("Profile photos saved.");
     renderApp();
   } catch (err) {
     toast(err.message, true);

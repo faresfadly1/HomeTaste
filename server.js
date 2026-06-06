@@ -89,7 +89,7 @@ function applyCors(req, res) {
   if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
     res.setHeader("access-control-allow-origin", origin);
     res.setHeader("vary", "Origin");
-    res.setHeader("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    res.setHeader("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
     res.setHeader("access-control-allow-headers", "content-type,authorization");
   }
 }
@@ -546,83 +546,16 @@ const seedDb = () => ({
     emailVerified: true,
     phoneVerified: true,
     authProvider: "password",
+    profilePhoto: "",
+    profileCover: "",
     createdAt: now()
   })),
-  cooks: [
-    {
-      id: "cook_2",
-      userId: seedAccounts.some((account) => account.id === "usr_cook_1") ? "usr_cook_1" : null,
-      name: "Aylin Demir",
-      cuisine: "Turkish Classics",
-      city: "Kadikoy",
-      bio: "Stuffed vegetables, soups, and trays for families.",
-      verified: true,
-      verification: defaultVerification("verified"),
-      status: "approved",
-      rating: 4.8,
-      reviews: 96,
-      availability: "Weekdays 12 PM to 8 PM",
-      responseTime: "Usually replies in 12 minutes",
-      createdAt: now()
-    },
-    {
-      id: "cook_3",
-      userId: null,
-      name: "Ravi Patel",
-      cuisine: "Indian Comfort Food",
-      city: "Besiktas",
-      bio: "Fresh curries, biryani, dal, and homemade chutneys.",
-      verified: true,
-      verification: defaultVerification("verified"),
-      status: "approved",
-      rating: 4.7,
-      reviews: 74,
-      availability: "Fri to Sun 5 PM to 11 PM",
-      responseTime: "Usually replies in 18 minutes",
-      createdAt: now()
-    }
-  ],
-  dishes: [
-    {
-      id: "dish_2",
-      cookId: "cook_2",
-      name: "Dolma Plate",
-      description: "Stuffed peppers and vine leaves with yogurt.",
-      price: 240,
-      prepMinutes: 45,
-      image: "https://images.unsplash.com/photo-1559847844-5315695dadae?w=900&q=80",
-      tags: ["turkish", "family"],
-      available: true,
-      featured: false
-    },
-    {
-      id: "dish_3",
-      cookId: "cook_3",
-      name: "Chicken Biryani",
-      description: "Layered rice, spices, chicken, raita, and chutney.",
-      price: 285,
-      prepMinutes: 50,
-      image: "https://images.unsplash.com/photo-1563379091339-03246963d7d3?w=900&q=80",
-      tags: ["spicy", "halal"],
-      available: true,
-      featured: true
-    }
-  ],
+  cooks: [],
+  dishes: [],
   orders: [],
   messages: [],
   notifications: [],
-  mealPlans: [
-    {
-      id: "plan_family_5",
-      cookId: "cook_2",
-      name: "5 homemade meals weekly",
-      mealsPerWeek: 5,
-      price: 1500,
-      description: "Five fresh weekly meals from Aylin's kitchen with delivery scheduling.",
-      active: true,
-      createdAt: now()
-    }
-  ],
+  mealPlans: [],
   subscriptions: [],
   payments: [],
   refunds: [],
@@ -743,14 +676,34 @@ function normalizeDb(db) {
   db.authTokens ||= [];
   db.notificationDevices ||= [];
 
+  const legacyDemoCookIds = new Set(["cook_2", "cook_3"]);
+  const legacyDemoDishIds = new Set(["dish_2", "dish_3"]);
+  db.cooks = db.cooks.filter((cook) => {
+    const legacyName = ["aylin demir", "ravi patel"].includes(String(cook.name || "").trim().toLowerCase());
+    return !(String(cook.id || "").startsWith("cook_seed_") || legacyName || (legacyDemoCookIds.has(cook.id) && !cook.userId));
+  });
+  db.dishes = db.dishes.filter((dish) => !legacyDemoCookIds.has(dish.cookId) && !legacyDemoDishIds.has(dish.id));
+  db.mealPlans = db.mealPlans.filter((plan) => !legacyDemoCookIds.has(plan.cookId));
+
   for (const user of db.users) {
     user.emailVerified ??= ["owner", "cook", "driver"].includes(user.role);
     user.phoneVerified ??= ["owner", "cook", "driver"].includes(user.role);
     user.authProvider ||= "password";
+    user.profilePhoto ||= "";
+    user.profileCover ||= "";
   }
   for (const cook of db.cooks) {
     cook.verification ||= defaultVerification(cook.verified ? "verified" : "pending");
     cook.followers ||= 0;
+    cook.profilePhoto ||= db.users.find((item) => item.id === cook.userId)?.profilePhoto || "";
+    cook.coverPhoto ||= db.users.find((item) => item.id === cook.userId)?.profileCover || "";
+    cook.online = Boolean(cook.online);
+    cook.name ||= db.users.find((item) => item.id === cook.userId)?.name || "HomeTaste cook";
+  }
+  for (const dish of db.dishes) {
+    dish.country ||= dish.tags?.[0] || "";
+    dish.tags = dish.country ? [dish.country] : [];
+    dish.available = dish.available !== false;
   }
   for (const order of db.orders) {
     order.statusHistory ||= [];
@@ -832,6 +785,8 @@ const toUser = (row) => ({
   phoneVerified: Boolean(row.phone_verified),
   authProvider: row.auth_provider || "password",
   authMeta: row.auth_meta || {},
+  profilePhoto: row.profile_photo || "",
+  profileCover: row.profile_cover || "",
   createdAt: row.created_at
 });
 
@@ -848,6 +803,8 @@ const fromUser = (user) => ({
   phone_verified: Boolean(user.phoneVerified),
   auth_provider: user.authProvider || "password",
   auth_meta: user.authMeta || {},
+  profile_photo: user.profilePhoto || "",
+  profile_cover: user.profileCover || "",
   created_at: user.createdAt || now()
 });
 
@@ -878,10 +835,34 @@ const toCook = (row) => ({
   availability: row.availability,
   responseTime: row.response_time,
   followers: Number(row.followers || 0),
+  profilePhoto: row.profile_photo || "",
+  coverPhoto: row.cover_photo || "",
+  online: Boolean(row.online),
   createdAt: row.created_at
 });
 
 const fromCook = (cook) => ({
+  id: cook.id,
+  user_id: cook.userId,
+  name: cook.name,
+  cuisine: cook.cuisine,
+  city: cook.city,
+  bio: cook.bio,
+  verified: Boolean(cook.verified),
+  verification: cook.verification || defaultVerification(cook.verified ? "verified" : "pending"),
+  status: cook.status,
+  rating: cook.rating || 0,
+  reviews: cook.reviews || 0,
+  availability: cook.availability || "",
+  response_time: cook.responseTime || "",
+  followers: cook.followers || 0,
+  profile_photo: cook.profilePhoto || "",
+  cover_photo: cook.coverPhoto || "",
+  online: Boolean(cook.online),
+  created_at: cook.createdAt || now()
+});
+
+const fromCookLegacy = (cook) => ({
   id: cook.id,
   user_id: cook.userId,
   name: cook.name,
@@ -907,12 +888,27 @@ const toDish = (row) => ({
   price: Number(row.price || 0),
   prepMinutes: Number(row.prep_minutes || 0),
   image: row.image,
+  country: row.country || (Array.isArray(row.tags) ? row.tags[0] : "") || "",
   tags: row.tags || [],
   available: row.available,
   featured: row.featured
 });
 
 const fromDish = (dish) => ({
+  id: dish.id,
+  cook_id: dish.cookId,
+  name: dish.name,
+  description: dish.description || "",
+  price: dish.price || 0,
+  prep_minutes: dish.prepMinutes || 30,
+  image: dish.image || "",
+  country: dish.country || dish.tags?.[0] || "",
+  tags: dish.tags || [],
+  available: Boolean(dish.available),
+  featured: Boolean(dish.featured)
+});
+
+const fromDishLegacy = (dish) => ({
   id: dish.id,
   cook_id: dish.cookId,
   name: dish.name,
@@ -1332,8 +1328,8 @@ async function saveSupabaseDb(db) {
   }
 
   await compatibleUpsert("app_users", db.users.map(fromUser), db.users.map(fromUserLegacy));
-  await upsert("cook_profiles", db.cooks.map(fromCook));
-  await upsert("dishes", db.dishes.map(fromDish));
+  await compatibleUpsert("cook_profiles", db.cooks.map(fromCook), db.cooks.map(fromCookLegacy));
+  await compatibleUpsert("dishes", db.dishes.map(fromDish), db.dishes.map(fromDishLegacy));
   await compatibleUpsert("orders", db.orders.map(fromOrder), db.orders.map(fromOrderLegacy));
   await upsert("messages", db.messages.map(fromMessage));
   await compatibleUpsert("notifications", db.notifications.map(fromNotification), db.notifications.map(fromNotificationLegacy));
@@ -1479,6 +1475,17 @@ function publicState(db, user = null) {
   };
 }
 
+function publicMarketplaceState(db) {
+  const cooks = db.cooks.filter((cook) => cook.status === "approved");
+  const cookIds = new Set(cooks.map((cook) => cook.id));
+  return {
+    cooks,
+    dishes: db.dishes.filter((dish) => dish.available !== false && cookIds.has(dish.cookId)),
+    social: socialSummary(db),
+    time: now()
+  };
+}
+
 function partialPublicState(user) {
   return {
     user: safeUser(user),
@@ -1578,6 +1585,10 @@ async function api(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/health") {
     return json(res, 200, healthPayload());
+  }
+
+  if (req.method === "GET" && pathname === "/api/marketplace") {
+    return json(res, 200, publicMarketplaceState(db));
   }
 
   if (req.method === "POST" && pathname === "/api/auth/verify-email/request") {
@@ -1817,6 +1828,33 @@ async function api(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/state") return json(res, 200, publicState(db, user));
 
+  if (req.method === "PATCH" && pathname === "/api/users/profile") {
+    const input = await body(req);
+    if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
+    if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
+    if (input.name) user.name = String(input.name).trim();
+    if (input.city) user.city = String(input.city).trim();
+    if (input.phone) user.phone = String(input.phone).trim();
+    const cook = cookForUser(db, user.id);
+    if (cook) {
+      if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
+      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
+      if (input.name) cook.name = user.name;
+      if (input.city) cook.city = user.city;
+    }
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "PATCH" && pathname === "/api/cooks/online") {
+    const cook = cookForUser(db, user.id);
+    if (!cook) return json(res, 404, { error: "Create a cook profile first." });
+    const input = await body(req);
+    cook.online = Boolean(input.online);
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
   if (req.method === "POST" && pathname === "/api/notifications/devices") {
     const input = await body(req);
     const provider = String(input.provider || "").trim().toLowerCase();
@@ -1903,16 +1941,20 @@ async function api(req, res, pathname) {
     cook = {
       id: id("cook"),
       userId: user.id,
-      name: String(input.name || user.name).trim(),
-      cuisine: String(input.cuisine || "Home Kitchen").trim(),
-      city: String(input.city || user.city || "Istanbul").trim(),
+      name: String(user.name || input.name || "HomeTaste cook").trim(),
+      cuisine: String(input.cuisine || input.country || "Home Kitchen").trim(),
+      city: String(user.city || input.city || "Istanbul").trim(),
       bio: String(input.bio || "Fresh home cooking.").trim(),
       verified: false,
       status: "pending",
       rating: 5,
       reviews: 0,
-      availability: String(input.availability || "Today").trim(),
+      followers: 0,
+      availability: "",
       responseTime: "New cook",
+      profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
+      coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
+      online: false,
       createdAt: now()
     };
     user.role = "cook";
@@ -1934,7 +1976,8 @@ async function api(req, res, pathname) {
       price: Number(input.price || 0),
       prepMinutes: Number(input.prepMinutes || 30),
       image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
-      tags: String(input.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+      country: String(input.country || input.tags || "").split(",")[0].trim(),
+      tags: [String(input.country || input.tags || "").split(",")[0].trim()].filter(Boolean),
       available: true,
       featured: false
     };
@@ -1954,6 +1997,25 @@ async function api(req, res, pathname) {
     if ("featured" in input && user.role === "owner") dish.featured = Boolean(input.featured);
     if (input.name) dish.name = String(input.name).trim();
     if (input.price) dish.price = Number(input.price);
+    if (input.description !== undefined) dish.description = String(input.description || "").trim();
+    if (input.prepMinutes) dish.prepMinutes = Number(input.prepMinutes);
+    if (input.image !== undefined) dish.image = String(input.image || "").trim();
+    if (input.country !== undefined || input.tags !== undefined) {
+      dish.country = String(input.country || input.tags || "").split(",")[0].trim();
+      dish.tags = dish.country ? [dish.country] : [];
+    }
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "DELETE" && pathname.startsWith("/api/dishes/")) {
+    const dishId = pathname.split("/").pop();
+    const dish = db.dishes.find((item) => item.id === dishId);
+    if (!dish) return json(res, 404, { error: "Dish not found." });
+    const cook = cookForUser(db, user.id);
+    if (user.role !== "owner" && cook?.id !== dish.cookId) return json(res, 403, { error: "No access to this dish." });
+    db.dishes = db.dishes.filter((item) => item.id !== dishId);
+    db.socialActions = db.socialActions.filter((item) => item.dishId !== dishId);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -2299,6 +2361,20 @@ async function api(req, res, pathname) {
     const input = await body(req);
     if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
     if ("verified" in input) cook.verified = Boolean(input.verified);
+    if ("online" in input) cook.online = Boolean(input.online);
+    if (input.name) cook.name = String(input.name).trim();
+    if (input.cuisine) cook.cuisine = String(input.cuisine).trim();
+    if (input.city) cook.city = String(input.city).trim();
+    if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
+    if (input.profilePhoto !== undefined) cook.profilePhoto = String(input.profilePhoto || "").trim();
+    if (input.profileCover !== undefined) cook.coverPhoto = String(input.profileCover || "").trim();
+    const cookUser = db.users.find((item) => item.id === cook.userId);
+    if (cookUser) {
+      if (input.profilePhoto !== undefined) cookUser.profilePhoto = cook.profilePhoto;
+      if (input.profileCover !== undefined) cookUser.profileCover = cook.coverPhoto;
+      if (input.name) cookUser.name = cook.name;
+      if (input.city) cookUser.city = cook.city;
+    }
     if (input.verification) {
       cook.verification = { ...(cook.verification || defaultVerification()), ...input.verification, updatedAt: now() };
       cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");

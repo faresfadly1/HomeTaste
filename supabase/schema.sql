@@ -7,6 +7,8 @@ create table if not exists app_users (
   city text,
   country text not null default 'TR' check (country in ('TR', 'DE')),
   phone text,
+  profile_photo text,
+  profile_cover text,
   email_verified boolean not null default false,
   phone_verified boolean not null default false,
   auth_provider text not null default 'password',
@@ -29,6 +31,9 @@ create table if not exists cook_profiles (
   followers integer not null default 0,
   availability text,
   response_time text,
+  profile_photo text,
+  cover_photo text,
+  online boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -40,6 +45,7 @@ create table if not exists dishes (
   price numeric not null check (price >= 0),
   prep_minutes integer not null default 30,
   image text,
+  country text,
   tags jsonb not null default '[]'::jsonb,
   available boolean not null default true,
   featured boolean not null default false
@@ -226,9 +232,15 @@ alter table app_users add column if not exists email_verified boolean not null d
 alter table app_users add column if not exists phone_verified boolean not null default false;
 alter table app_users add column if not exists auth_provider text not null default 'password';
 alter table app_users add column if not exists auth_meta jsonb not null default '{}'::jsonb;
+alter table app_users add column if not exists profile_photo text;
+alter table app_users add column if not exists profile_cover text;
 
 alter table cook_profiles add column if not exists verification jsonb not null default '{"id":"pending","address":"pending","phone":"pending","notes":""}'::jsonb;
 alter table cook_profiles add column if not exists followers integer not null default 0;
+alter table cook_profiles add column if not exists profile_photo text;
+alter table cook_profiles add column if not exists cover_photo text;
+alter table cook_profiles add column if not exists online boolean not null default false;
+alter table dishes add column if not exists country text;
 alter table orders add column if not exists driver_id text references app_users(id) on delete set null;
 alter table orders add column if not exists payment jsonb not null default '{}'::jsonb;
 alter table orders add column if not exists scheduled_for timestamptz;
