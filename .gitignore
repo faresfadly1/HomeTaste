@@ -1,5 +1,6 @@
 data/db.json
 data/db.tmp
 .env
+.env.*.local
 .DS_Store
 node_modules
