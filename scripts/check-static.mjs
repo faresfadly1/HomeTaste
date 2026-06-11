@@ -5,7 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const publicDir = path.join(root, "public");
-const routes = ["orders", "browse", "dishes", "favorites", "messages", "become", "help", "settings", "subscriptions"];
+const routes = ["orders", "browse", "dishes", "favorites", "messages", "become", "help", "settings", "subscriptions", "admin", "driver"];
 const required = [
   "index.html",
   "404.html",
@@ -32,7 +32,7 @@ new Function(scripts);
 for (const route of routes) {
   const routeHtml = await readFile(path.join(publicDir, route, "index.html"), "utf8");
   const expected = `../marketplace.html?page=${route}`;
-  if (["settings", "subscriptions"].includes(route)) {
+  if (["settings", "subscriptions", "admin", "driver"].includes(route)) {
     if (!routeHtml.includes("../app.js")) fail(`public/${route}/index.html does not load the SPA`);
   } else if (!routeHtml.includes(expected)) {
     fail(`public/${route}/index.html does not route to ${expected}`);
