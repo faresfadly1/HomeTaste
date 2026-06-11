@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: hometaste-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173
