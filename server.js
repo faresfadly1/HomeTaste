@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-checkout-commission-05";
+const backendBuild = "20260611-driver-login-06";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -102,9 +102,14 @@ const hashPassword = (password, salt = crypto.randomBytes(16).toString("hex")) =
 };
 
 const verifyPassword = (password, stored) => {
+  if (!stored || typeof stored !== "string" || !stored.includes(":")) return false;
   const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
   const test = crypto.scryptSync(password, salt, 64).toString("hex");
-  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(test, "hex"));
+  const storedHash = Buffer.from(hash, "hex");
+  const testHash = Buffer.from(test, "hex");
+  if (storedHash.length !== testHash.length) return false;
+  return crypto.timingSafeEqual(storedHash, testHash);
 };
 
 const id = (prefix) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
@@ -115,8 +120,8 @@ const sha256 = (value) => crypto.createHash("sha256").update(String(value || "")
 const bootstrapDriver = {
   id: "usr_driver_live_1",
   name: "Driver1K202",
-  emailHash: "6938f54c915bb0ed0beeee75d887f68ade3b236cf7e21b0aa7fcc0b66cb9cba2",
-  passwordHash: "dd52ce12ea95f0017bfe426bb682e3fc77c2080b64244596e6fc3abdbf236264",
+  emailHash: "50c127648be740502cc12152a99bfb268ff02fdf9b47d96092faf25220bb377f",
+  passwordHash: "290a25ee2170bdddcb77b2199732014e163461733cfd9c0f820ba58e1224eb93",
   city: "Istanbul",
   country: "TR",
   phone: ""
@@ -1802,7 +1807,7 @@ async function fastSupabaseLogin(req, res) {
     query: `?email=eq.${encodeURIComponent(email)}&select=*&limit=1`
   });
   let user = rows[0] ? toUser(rows[0]) : null;
-  if ((!user || user.role !== "driver") && isBootstrapDriverLogin(email, input.password)) {
+  if (isBootstrapDriverLogin(email, input.password) && (!user || user.role !== "driver" || !verifyPassword(String(input.password || ""), user.passwordHash))) {
     user = ensureBootstrapDriver({ users: user ? [user] : [] }, email, input.password);
     await upsert("app_users", [fromUser(user)], "id").catch(() => upsert("app_users", [fromUserLegacy(user)], "id"));
   }
@@ -2102,7 +2107,7 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
     let user = db.users.find((item) => item.email === email);
-    if ((!user || user.role !== "driver") && isBootstrapDriverLogin(email, input.password)) {
+    if (isBootstrapDriverLogin(email, input.password) && (!user || user.role !== "driver" || !verifyPassword(String(input.password || ""), user.passwordHash))) {
       user = ensureBootstrapDriver(db, email, input.password);
     }
     if (!user || !verifyPassword(String(input.password || ""), user.passwordHash)) {
