@@ -462,8 +462,8 @@ html[dir="rtl"] .auth-tools { left: 24px; right: auto; }
 .auth-tools .language-menu { right: 0; }
 html[dir="rtl"] .auth-tools .language-menu { left: 0; right: auto; }
 .mobile-auth-logo { display: none; }
-.auth-card h2 { margin: 0; font: 900 clamp(44px, 4.2vw, 64px) "Playfair Display", serif; letter-spacing: 0; }
-.auth-subtitle { margin: 10px 0 22px; color: #5f564d; font: 700 17px/1.45 "Playfair Display", serif; }
+.auth-card h2 { margin: 0; font: 900 clamp(34px, 3.2vw, 46px) "Playfair Display", serif; letter-spacing: 0; }
+.auth-subtitle { margin: 8px 0 16px; color: #5f564d; font: 700 14px/1.4 "Playfair Display", serif; }
 .auth-switch {
   display: inline-grid;
   align-self: flex-start;
@@ -484,10 +484,10 @@ html[dir="rtl"] .auth-tools .language-menu { left: 0; right: auto; }
   font-weight: 900;
 }
 .auth-switch-btn.active { background: linear-gradient(180deg, #f5c061, #df941f); color: #1f1508; box-shadow: 0 8px 20px rgba(204,132,22,.26); }
-.auth-card .form { gap: 12px; }
-.auth-card .field label { color: #241a12; font: 900 16px "Playfair Display", serif; text-transform: none; }
+.auth-card .form { gap: 9px; }
+.auth-card .field label { color: #241a12; font: 900 13px "Playfair Display", serif; text-transform: none; }
 .auth-card .input, .auth-card textarea, .auth-card select {
-  min-height: 52px;
+  min-height: 46px;
   border: 1px solid rgba(107,78,42,.13);
   background: rgba(255,255,255,.76);
   color: #19130e;
@@ -529,12 +529,12 @@ html[dir="rtl"] .auth-field-icon { right: 22px; left: auto; }
 html[dir="rtl"] .auth-input-field .input { padding-right: 66px; padding-left: 12px; }
 html[dir="rtl"] .password-field .input { padding-right: 66px; padding-left: 24px; }
 html[dir="rtl"] .password-toggle { right: 18px; left: auto; }
-.auth-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #5e544a; font-weight: 800; }
+.auth-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #5e544a; font-weight: 800; font-size: 13px; }
 .remember { display: inline-flex; align-items: center; gap: 8px; }
 .remember input { width: 18px; height: 18px; accent-color: #e5a23a; }
 .link-button, .auth-mode-link { border: 0; background: transparent; color: #bd741b; font-weight: 900; }
 .auth-submit {
-  min-height: 62px;
+  min-height: 52px;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -543,7 +543,7 @@ html[dir="rtl"] .password-toggle { right: 18px; left: auto; }
   color: #1a1208;
   background: linear-gradient(180deg, #f5c161, #dc8d19);
   box-shadow: 0 18px 34px rgba(211,133,21,.32);
-  font: 900 22px "Playfair Display", serif;
+  font: 900 18px "Playfair Display", serif;
 }
 .auth-submit b {
   width: 48px;
@@ -1124,17 +1124,17 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   .auth-card h2 {
     text-align: center;
-    font-size: 28px;
+    font-size: 24px;
     color: #f7efe4;
   }
   .auth-subtitle {
-    margin: 4px 0 18px;
+    margin: 3px 0 12px;
     text-align: center;
     color: rgba(247,239,228,.72);
-    font-size: 14px;
+    font-size: 12px;
   }
-  .auth-card .form { gap: 11px; }
-  .auth-card .field { gap: 8px; }
+  .auth-card .form { gap: 8px; }
+  .auth-card .field { gap: 5px; }
   .auth-card .field label {
     color: #dca23f;
     font: 900 12px Inter, system-ui, sans-serif;
@@ -1142,8 +1142,8 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .auth-card .input,
   .auth-card textarea,
   .auth-card select {
-    min-height: 50px;
-    font-size: 16px;
+    min-height: 42px;
+    font-size: 14px;
     border-radius: 8px;
     border-color: rgba(255,255,255,.08);
     background: rgba(255,255,255,.09);
@@ -1164,17 +1164,17 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   html[dir="rtl"] .password-toggle { right: 11px; left: auto; }
   .auth-row {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(247,239,228,.82);
   }
   .remember input { width: 14px; height: 14px; }
   .link-button { color: #e3a338; font-size: 12px; }
   .auth-submit {
-    min-height: 48px;
+    min-height: 42px;
     display: block;
     padding: 0 18px;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 14px;
     text-align: center;
   }
   .auth-submit b { display: none; }

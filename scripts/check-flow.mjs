@@ -105,7 +105,8 @@ try {
     password: "CookPass123!",
     phone: "+90 555 100 2000",
     city: "Besiktas",
-    country: "TR"
+    country: "TR",
+    nationalId: "12345678901"
   });
   const customer = await auth(base, "signup", {
     name: `${baseName} Customer`,
@@ -113,7 +114,8 @@ try {
     password: "CustomerPass123!",
     phone: "+90 555 300 4000",
     city: "Uskudar",
-    country: "TR"
+    country: "TR",
+    nationalId: "10987654321"
   });
   const driver = await auth(base, "login", { email: driverEmail, password: driverPassword });
 
@@ -151,7 +153,7 @@ try {
   const ownerCook = ownerState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(ownerState.stats.pendingCooks === 1 && ownerCook?.status === "pending", "admin sees pending cook request fast");
   assert(ownerState.notifications.some((note) => note.data?.type === "cook_application" && note.data?.cookId === ownerCook.id), "admin receives cook application notification");
-  assert(ownerState.users.some((user) => user.id === cookState.user.id && !String(user.email).includes(`cook.${runId}@`)), "admin user list masks account email");
+  assert(ownerState.users.some((user) => user.id === cookState.user.id && String(user.email).includes(`cook.${runId}@`) && user.nationalId === "12345678901"), "admin sees cook contact and T.C. Kimlik data for review");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {

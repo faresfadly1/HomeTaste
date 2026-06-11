@@ -7,6 +7,7 @@ create table if not exists app_users (
   city text,
   country text not null default 'TR' check (country in ('TR', 'DE')),
   phone text,
+  national_id text,
   profile_photo text,
   profile_cover text,
   email_verified boolean not null default false,
@@ -234,6 +235,7 @@ alter table app_users add column if not exists auth_provider text not null defau
 alter table app_users add column if not exists auth_meta jsonb not null default '{}'::jsonb;
 alter table app_users add column if not exists profile_photo text;
 alter table app_users add column if not exists profile_cover text;
+alter table app_users add column if not exists national_id text;
 
 alter table cook_profiles add column if not exists verification jsonb not null default '{"id":"pending","address":"pending","phone":"pending","notes":""}'::jsonb;
 alter table cook_profiles add column if not exists followers integer not null default 0;

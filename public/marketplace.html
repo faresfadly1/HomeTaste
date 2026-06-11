@@ -904,6 +904,19 @@ ul{list-style:none}
   overflow:hidden;flex-shrink:0;
 }
 .settings-avatar img{width:100%;height:100%;object-fit:cover}
+.settings-cover-preview{
+  width:min(220px,60vw);
+  height:58px;
+  margin-top:8px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--bg2) center/cover no-repeat;
+  color:var(--text3);
+  font-size:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 .toggle{
   width:44px;height:24px;border-radius:12px;
   background:var(--bg4);position:relative;cursor:pointer;
@@ -2078,6 +2091,7 @@ ul{list-style:none}
         <div>
           <div id="settingsProfileName" style="font-size:18px;font-weight:700">Your account</div>
           <div id="settingsProfileRegion" style="font-size:13px;color:var(--text3)">HomeTaste customer</div>
+          <div id="settingsProfileCover" class="settings-cover-preview"></div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
             <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfilePicturePanel()">Change profile photo →</button>
             <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfileCoverPanel()">Change background →</button>
@@ -2588,7 +2602,17 @@ function tr(key) {
   if (Object.prototype.hasOwnProperty.call(translations.EN, key)) return translations.EN[key];
   return key;
 }
-const checkoutPaymentMethods = ['💳 Bank / credit card', '🏦 Iban', '💵 Cash on delivery'];
+const checkoutPaymentMethods = [
+  { value: 'cash', label: '💵 Cash on delivery' },
+  { value: 'iyzico', label: '🟠 iyzico hosted checkout' },
+  { value: 'stripe', label: '💳 Stripe card / wallet' },
+  { value: 'paytr', label: '🔐 PayTR secure checkout' },
+  { value: 'visa', label: '💳 Visa via Stripe' },
+  { value: 'mastercard', label: '💳 Mastercard via Stripe' },
+  { value: 'troy', label: '🇹🇷 Troy via iyzico' },
+  { value: 'google_pay', label: 'G Google Pay via Stripe' },
+  { value: 'turkish_bank_card', label: '🏦 Turkish bank card via iyzico' }
+];
 const paymentMethodsByCountry = {
   TR: checkoutPaymentMethods,
   DE: checkoutPaymentMethods,
@@ -2597,7 +2621,8 @@ const paymentMethodsByCountry = {
   FR: checkoutPaymentMethods,
   NL: checkoutPaymentMethods
 };
-const allPaymentMethods = checkoutPaymentMethods;
+const allPaymentMethods = checkoutPaymentMethods.map(method => method.label);
+const paymentValueByLabel = Object.fromEntries(checkoutPaymentMethods.map(method => [method.label, method.value]));
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
 const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
@@ -3051,6 +3076,9 @@ function applyMarketplaceState(rawState) {
   if (user.profileCover) setSavedProfileCover(user.profileCover);
   const normalizedDishes = (rawState.dishes || []).filter(dish => dish.available !== false).map(normalizeMarketDish);
   const normalizedCooks = (rawState.cooks || []).map(cook => normalizeMarketCook(cook, normalizedDishes, rawState));
+  favorites = new Set((rawState.socialActions || [])
+    .filter(action => action.type === 'follow' && action.cookId)
+    .map(action => String(action.cookId)));
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
 	  const ownCook = cooks.find(cook => sameId(cook.userId, currentUserId));
@@ -3202,12 +3230,15 @@ function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
   const saved = getSavedPaymentMethods();
   const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
-  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" data-payment-label="${m}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
+  wrap.innerHTML = methods.map((method,i)=>{
+    const item = typeof method === 'string' ? { label: method, value: paymentValueByLabel[method] || 'cash' } : method;
+    return `<div class="payment-method ${i===0?'active':''}" data-payment-value="${item.value}" data-payment-label="${item.label}" onclick="selectPayment(this)"><div>${item.label.split(' ')[0]}</div><span>${item.label.replace(/^\S+\s/,'')}</span></div>`;
+  }).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
-    ? `Your saved payment methods: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`
-    : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`;
-  renderPaymentDetails(methods[0]);
+    ? `Your saved payment methods: ${methods.map(m=>String(m.label || m).replace(/^\S+\s/,'')).join(', ')}`
+    : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>String(m.label || m).replace(/^\S+\s/,'')).join(', ')}`;
+  renderPaymentDetails(methods[0]?.label || methods[0]);
 }
 function toggleCart(force){
   const panel = document.getElementById('cartPanel');
@@ -3363,7 +3394,7 @@ function toggleCityDropdown() {
   document.getElementById('cityDropdown').classList.toggle('open');
 }
 function countryCooks() {
-  return cooks.filter(c => (c.country || selectedCountry || 'TR') === selectedCountry);
+  return cooks.filter(c => (c.country || selectedCountry || 'TR') === selectedCountry && (c.status || 'approved') === 'approved');
 }
 function countryDishes() {
   const visibleCookIds = new Set(countryCooks().map(c => String(c.id)));
@@ -3637,19 +3668,25 @@ function renderFavorites() {
 }
 
 // ===== FAVORITES TOGGLE =====
-function toggleFav(e, cookId, btn) {
+async function toggleFav(e, cookId, btn) {
   e.stopPropagation();
   const id = String(cookId);
   if (favorites.has(id)) {
-    favorites.delete(id);
-    btn.classList.remove('active');
-    showToast('Removed from favorites', 'info');
-  } else {
-    favorites.add(id);
     btn.classList.add('active');
-    showToast('❤️ Added to favorites!', 'success');
+    showToast('Already following this cook.', 'info');
+    return;
   }
+  favorites.add(id);
+  btn.classList.add('active');
   renderFavorites();
+  renderHomeCooks();
+  renderBrowseCooks();
+  try {
+    await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
+    showToast('Cook followed and saved.', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 // ===== CART =====
@@ -3825,6 +3862,8 @@ async function followCookFromProfile() {
     const button = document.getElementById('profileFollowButton');
     if (button) button.textContent = 'Following';
     renderFavorites();
+    renderHomeCooks();
+    renderBrowseCooks();
   }
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
@@ -4227,11 +4266,17 @@ function updateSettingsAccount() {
   const name = document.getElementById('settingsProfileName');
   const region = document.getElementById('settingsProfileRegion');
   const avatar = document.getElementById('settingsProfileAvatar');
+  const cover = document.getElementById('settingsProfileCover');
   const photo = getSavedProfilePicture();
+  const coverPhoto = getSavedProfileCover();
   const cook = getMyCook();
   if (name) name.textContent = currentUserName || 'Your account';
   if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
   if (avatar) avatar.innerHTML = photo ? `<img src="${photo}" alt="${currentUserName} profile picture">` : '👤';
+  if (cover) {
+    cover.style.backgroundImage = coverPhoto ? `url('${coverPhoto.replace(/'/g, "%27")}')` : '';
+    cover.textContent = coverPhoto ? '' : 'No background photo yet';
+  }
   document.getElementById('cookOnlineToggle')?.classList.toggle('on', Boolean(cook?.online));
   syncMyCookPhotos();
   if (currentCook && cook && sameId(currentCook.id, cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
@@ -4460,7 +4505,7 @@ function renderPaymentDetails(method) {
   if (!panel) return;
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
-  if (name === 'Bank / credit card') {
+  if (name.includes('Stripe') || name.includes('Visa') || name.includes('Mastercard') || name.includes('Google Pay')) {
     panel.innerHTML = `
       <p class="payment-details-title">Card details</p>
       <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
@@ -4472,14 +4517,17 @@ function renderPaymentDetails(method) {
     `;
     return;
   }
-  if (name === 'Iban') {
+  if (name.includes('iyzico') || name.includes('Troy') || name.includes('Turkish bank')) {
     panel.innerHTML = `
-      <p class="payment-details-title">IBAN transfer details</p>
-      <p class="payment-details-hint">Add the real IBAN number and receiver full name here before launch.</p>
-      <div class="iban-card">
-        <div class="iban-field"><span>IBAN Number</span><strong>TR00 0000 0000 0000 0000 0000 00</strong></div>
-        <div class="iban-field"><span>Receiver Full Name</span><strong>HomeTaste Receiver Name</strong></div>
-      </div>
+      <p class="payment-details-title">iyzico secure checkout</p>
+      <p class="payment-details-hint">You will continue with a Turkish card, Troy, or iyzico hosted payment after placing the order.</p>
+    `;
+    return;
+  }
+  if (name.includes('PayTR')) {
+    panel.innerHTML = `
+      <p class="payment-details-title">PayTR secure checkout</p>
+      <p class="payment-details-hint">You will continue to PayTR after placing the order.</p>
     `;
     return;
   }
@@ -4531,8 +4579,10 @@ function selectPayment(el) {
 async function placeOrder() {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
+  const activePayment = document.querySelector('#paymentMethods .payment-method.active');
+  const paymentMethod = activePayment?.dataset.paymentValue || 'cash';
   try {
-    const result = await sendMarketAction('market-place-order', { payload: { items, paymentMethod: 'cash' } });
+    const result = await sendMarketAction('market-place-order', { payload: { items, paymentMethod } });
     pendingOrderPlacement = true;
     if (result.mode === 'host') {
       showToast('Placing your real order...', 'info');

@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260607-ui-order-flow-01";
+const APP_BUILD = "20260611-mobile-admin-flow-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -223,7 +223,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      updateRolePanelVisibility();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -233,7 +233,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: event.data.online }) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      updateRolePanelVisibility();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -311,7 +311,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/social", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      updateRolePanelVisibility();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -321,7 +321,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/messages", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      updateRolePanelVisibility();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -1163,15 +1163,19 @@ function staticAuth(input) {
   const name = String(input.name || email.split("@")[0] || "HomeTaste User").trim();
   if (!name || !email || password.length < 8) throw new Error("Name, email, and an 8 character password are required.");
   if (db.users.some((user) => user.email === email)) throw new Error("That email already exists.");
+  const country = ["TR", "DE"].includes(input.country) ? input.country : "TR";
+  const nationalId = String(input.nationalId || "").replace(/\D/g, "");
+  if (country === "TR" && nationalId.length !== 11) throw new Error("T.C. Kimlik must be 11 digits.");
   const user = {
     id: `usr_${Date.now()}`,
     name,
     email,
     passwordHash: password,
     role: "customer",
-    city: String(input.city || (input.country === "DE" ? "Berlin" : "Istanbul")).trim(),
-    country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
+    city: String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim(),
+    country,
     phone: String(input.phone || "").trim(),
+    nationalId,
     profilePhoto: "",
     profileCover: "",
     createdAt: new Date().toISOString()
@@ -1292,14 +1296,14 @@ function adminCookRequestHtml(cook) {
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
-        <div class="admin-review-cover">${cook.coverPhoto ? `<img src="${cook.coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
+        <div class="admin-review-cover">${cook.coverPhoto || user?.profileCover ? `<img src="${cook.coverPhoto || user?.profileCover}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
         <div class="admin-review-profile">${profilePhotoHtml(cook.profilePhoto || user?.profilePhoto, cook.name)}</div>
       </div>
       <div class="admin-review-body">
         <div class="admin-review-heading">
           <div>
             <strong>${cook.name}</strong>
-            <div class="meta">${cook.cuisine || "Home Kitchen"} in ${cook.city || user?.city || "No city"} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
+            <div class="meta">${cook.cuisine || "Home Kitchen"} in ${cook.city || user?.city || "No city"} - ${user?.country || cook.country || "TR"} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
           </div>
           <div class="toolbar" style="margin:0;justify-content:flex-end">
             <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
@@ -1313,6 +1317,7 @@ function adminCookRequestHtml(cook) {
           <div><small>Name</small><strong>${user?.name || cook.name}</strong></div>
           <div><small>Email</small><strong>${user?.email || "No email"}</strong></div>
           <div><small>Phone</small><strong>${cook.phone || user?.phone || "No phone"}</strong></div>
+          <div><small>T.C. Kimlik</small><strong>${user?.nationalId || "Not provided"}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
         </div>
         <div class="admin-review-bio">
@@ -1331,7 +1336,7 @@ function adminCookRequestHtml(cook) {
               ${dish.image ? `<img src="${dish.image}" alt="${dish.name}">` : `<div class="admin-review-dish-empty">Dish</div>`}
               <div>
                 <strong>${dish.name}</strong>
-                <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div>
+                <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.prepMinutes || 35} min - ${dish.available ? t("availableLower") : t("hidden")}</div>
                 <p>${dish.description || "No dish description."}</p>
               </div>
             </div>
@@ -1403,6 +1408,7 @@ function renderAuth(error = "") {
             </select>
           </div>
           ${mode === "signup" ? `
+            ${countryValue === "TR" ? `<div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" pattern="\\d{11}" maxlength="11" placeholder="11 digit T.C. Kimlik" required></div>` : ""}
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
@@ -1493,6 +1499,9 @@ function renderAuth(error = "") {
 	    const rememberLogin = input.rememberLogin === "on";
 	    delete input.rememberLogin;
 	    try {
+        if (mode === "signup" && input.country === "TR" && !/^\d{11}$/.test(String(input.nationalId || ""))) {
+          throw new Error("T.C. Kimlik must be 11 digits.");
+        }
 	      if (useStaticApi) {
 	        const data = staticAuth(input);
         token = data.token;
@@ -1880,7 +1889,7 @@ function renderAdmin() {
 	          return `
           <tr>
             <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
-            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
+            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div><div class="meta">T.C. ${user.nationalId || "Not provided"}</div></td>
             <td>${new Date(user.createdAt).toLocaleString()}</td>
             <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
             <td>
