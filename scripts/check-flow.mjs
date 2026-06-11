@@ -251,7 +251,8 @@ try {
   });
   customerState = orderResult.state;
   const order = customerState.orders.find((item) => item.items.some((orderItem) => orderItem.dishId === dish.id));
-  assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 212.5, "15% commission and cook payout calculate correctly");
+  assert(order?.serviceFee === 37.5 && order.total === 317.5, "checkout total includes food, 30 TL delivery, and 15% commission");
+  assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.gross === 317.5, "15% commission, gross payment, and cook payout calculate correctly");
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
 
@@ -278,7 +279,7 @@ try {
   const refund = customerState.refunds.find((item) => item.orderId === order.id);
   assert(refund?.status === "pending", "refund request goes to admin review");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/refunds/${refund.id}`, { outcome: "half", adminNote: "Approved half refund." });
-  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === 140, "admin half refund outcome saves");
+  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === 158.75, "admin half refund outcome saves");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "suspended", online: false });
   hiddenMarket = await request(base, "", "GET", "/api/marketplace");

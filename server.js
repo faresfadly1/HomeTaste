@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-social-ui-cleanup-04";
+const backendBuild = "20260611-checkout-commission-05";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -897,16 +897,16 @@ function ensureSystemUsers(db) {
 function paymentLedgerForOrder(order) {
   const foodAmount = Number(order.subtotal || 0);
   const deliveryFee = Number(order.deliveryFee || 0);
-  const commission = Math.round(foodAmount * commissionRate * 100) / 100;
+  const commission = Number(order.serviceFee || Math.round(foodAmount * commissionRate * 100) / 100);
   return {
     method: order.paymentMethod || "cash",
     status: order.status === "delivered" ? "released" : "held",
-    gross: foodAmount + deliveryFee,
+    gross: foodAmount + deliveryFee + commission,
     foodAmount,
     deliveryFee,
     commissionRate,
     commission,
-    cookPayout: Math.max(0, foodAmount - commission),
+    cookPayout: foodAmount,
     provider: "manual",
     capturedAt: order.createdAt || now(),
     releasedAt: order.status === "delivered" ? (order.updatedAt || now()) : null,
@@ -2343,6 +2343,7 @@ async function api(req, res, pathname) {
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
     const customerLocation = normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
     const cookLocation = coordinateFromText(db.cooks.find((cook) => cook.id === firstDish.cookId)?.city || "Istanbul");
@@ -2354,8 +2355,8 @@ async function api(req, res, pathname) {
       items: normalized,
       subtotal,
       deliveryFee: 30,
-      serviceFee: 0,
-      total: subtotal + 30,
+      serviceFee,
+      total: subtotal + 30 + serviceFee,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
