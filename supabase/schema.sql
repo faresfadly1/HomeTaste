@@ -101,7 +101,8 @@ create table if not exists notifications (
 create table if not exists app_sessions (
   token text primary key,
   user_id text not null references app_users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '7 days')
 );
 
 create table if not exists admin_audit_log (
@@ -255,6 +256,7 @@ alter table orders add column if not exists eta_minutes integer;
 alter table orders drop constraint if exists orders_status_check;
 alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
 alter table notifications add column if not exists data jsonb not null default '{}'::jsonb;
+alter table app_sessions add column if not exists expires_at timestamptz not null default (now() + interval '7 days');
 alter table payments add column if not exists external_payment_id text;
 alter table payments add column if not exists checkout_url text;
 alter table payments add column if not exists metadata jsonb not null default '{}'::jsonb;

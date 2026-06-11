@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import net from "node:net";
@@ -11,6 +11,11 @@ const driverEmail = "driver.flow@hometaste.test";
 const driverPassword = "DriverPass123!";
 const runId = `${Date.now()}${Math.random().toString(16).slice(2)}`;
 const baseName = `Flow ${runId.slice(-6)}`;
+const testImage = (label) => `data:image/jpeg;base64,${Buffer.from(label).toString("base64")}`;
+const profilePhotoImage = testImage("profile-photo");
+const coverPhotoImage = testImage("cover-photo");
+const dishPhotoImage = testImage("dish-photo");
+const xssText = `<img src=x onerror=alert("${runId}")>`;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -58,6 +63,20 @@ async function request(base, token, method, route, payload) {
   return body;
 }
 
+async function requestRaw(base, token, method, route, payload, headers = {}) {
+  const res = await fetch(`${base}${route}`, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...headers
+    },
+    body: payload === undefined ? undefined : typeof payload === "string" ? payload : JSON.stringify(payload)
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, ok: res.ok, body };
+}
+
 async function auth(base, mode, profile) {
   const route = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
   const body = await request(base, "", "POST", route, profile);
@@ -103,8 +122,37 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
+  assert(health.build === "20260612-security-hardening-10", "security hardening build marker is exposed");
+
+  let missingPage = await fetch(`${base}/this-route-does-not-exist`);
+  assert(missingPage.status === 404, "unknown frontend routes return 404");
+  let missingAsset = await fetch(`${base}/assets/not-real.js`);
+  assert(missingAsset.status === 404, "missing static assets return 404");
+  let cleanRoute = await fetch(`${base}/orders`);
+  assert(cleanRoute.status === 200, "known frontend routes load without requiring a trailing slash");
+
+  let failedLogin = await requestRaw(base, "", "POST", "/api/auth/login", { email: ownerEmail, password: "wrong-password" });
+  assert(failedLogin.status === 401 && failedLogin.body.ok === false, "wrong password returns standardized 401 error");
+  let oversizedBody = await requestRaw(base, "", "POST", "/api/auth/login", JSON.stringify({ email: `huge.${runId}@hometaste.test`, password: "x".repeat(1024 * 1024 + 64) }));
+  assert(oversizedBody.status === 413 && oversizedBody.body.code === "BODY_TOO_LARGE", "oversized JSON bodies are rejected");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
+  const expiringAccount = await auth(base, "signup", {
+    name: `${baseName} Expiring`,
+    email: `expiring.${runId}@hometaste.test`,
+    password: "ExpirePass123!",
+    phone: "+90 555 222 3333",
+    city: "Istanbul",
+    country: "TR",
+    nationalId: "11111111111"
+  });
+  const dbFile = path.join(dataDir, "db.json");
+  const dbSnapshot = JSON.parse(await readFile(dbFile, "utf8"));
+  dbSnapshot.sessions[expiringAccount.token].expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
+  await writeFile(dbFile, JSON.stringify(dbSnapshot, null, 2));
+  const expiredState = await requestRaw(base, expiringAccount.token, "GET", "/api/state");
+  assert(expiredState.status === 401, "expired sessions are rejected");
+
   const cookAccount = await auth(base, "signup", {
     name: `${baseName} Cook`,
     email: `cook.${runId}@hometaste.test`,
@@ -126,28 +174,32 @@ try {
   const driver = await auth(base, "login", { email: driverEmail, password: driverPassword });
 
   let cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", {
-    profilePhoto: "data:image/jpeg;base64,profile-photo",
-    profileCover: "data:image/jpeg;base64,cover-photo",
+    profilePhoto: profilePhotoImage,
+    profileCover: coverPhotoImage,
     city: "Moda, Istanbul",
     locationLabel: "Moda, Kadikoy, Istanbul",
     locationQuery: "40.987000,29.025000",
     phone: "+90 555 100 2000"
   });
-  assert(cookState.user.profilePhoto.includes("profile-photo"), "profile photo saves to user account");
-  assert(cookState.user.profileCover.includes("cover-photo"), "background photo saves to user account");
+  assert(cookState.user.profilePhoto === profilePhotoImage, "profile photo saves to user account");
+  assert(cookState.user.profileCover === coverPhotoImage, "background photo saves to user account");
   assert(cookState.user.city === "Moda, Istanbul" && cookState.user.authMeta?.locationLabel === "Moda, Kadikoy, Istanbul", "account city and chosen location save to user account");
+  const invalidProfileImage = await requestRaw(base, cookAccount.token, "PATCH", "/api/users/profile", {
+    profilePhoto: `data:text/html;base64,${Buffer.from("<script>alert(1)</script>").toString("base64")}`
+  });
+  assert(invalidProfileImage.status === 400 && invalidProfileImage.body.code === "INVALID_IMAGE", "invalid profile image data is rejected");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/cooks/apply", {
     cuisine: "Turkey",
     bio: "Real homemade flow-test dishes.",
-    profilePhoto: "data:image/jpeg;base64,profile-photo",
-    profileCover: "data:image/jpeg;base64,cover-photo",
+    profilePhoto: profilePhotoImage,
+    profileCover: coverPhotoImage,
     phone: "+90 555 100 2000",
     online: true
   });
   const pendingCook = cookState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
-  assert(pendingCook.city === "Moda, Istanbul" && pendingCook.profilePhoto.includes("profile-photo") && pendingCook.coverPhoto.includes("cover-photo"), "cook request uses the same user city, profile photo, and background photo");
+  assert(pendingCook.city === "Moda, Istanbul" && pendingCook.profilePhoto === profilePhotoImage && pendingCook.coverPhoto === coverPhotoImage, "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/dishes", {
@@ -155,20 +207,30 @@ try {
     description: "Dish photo and country should persist.",
     price: 250,
     prepMinutes: 35,
-    image: "data:image/jpeg;base64,dish-photo",
+    image: dishPhotoImage,
     country: "Turkey"
   });
   const dish = cookState.dishes.find((item) => item.name === `${baseName} Dish`);
-  assert(dish?.image.includes("dish-photo") && dish.country === "Turkey", "published dish photo and country persist exactly");
+  assert(dish?.image === dishPhotoImage && dish.country === "Turkey", "published dish photo and country persist exactly");
   assert(cookState.cooks.find((cook) => cook.id === pendingCook.id)?.online === true, "adding a dish does not turn an online cook offline");
+  const xssDishState = await request(base, cookAccount.token, "POST", "/api/dishes", {
+    name: xssText,
+    description: xssText,
+    price: 12,
+    prepMinutes: 20,
+    image: dishPhotoImage,
+    country: "Turkey"
+  });
+  const escapedDish = xssDishState.dishes.find((item) => String(item.name).includes("&lt;img"));
+  assert(escapedDish && !JSON.stringify(escapedDish).includes("<img"), "dish names and descriptions are escaped in API state");
 
   let ownerState = await request(base, owner.token, "GET", "/api/state");
   const ownerCook = ownerState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(ownerState.stats.pendingCooks === 1 && ownerCook?.status === "pending", "admin sees pending cook request fast");
   assert(ownerState.notifications.some((note) => note.data?.type === "cook_application" && note.data?.cookId === ownerCook.id), "admin receives cook application notification");
   assert(ownerState.users.some((user) => user.id === cookState.user.id && String(user.email).includes(`cook.${runId}@`) && user.nationalId === "12345678901"), "admin sees cook contact and T.C. Kimlik data for review");
-  assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && String(user.profilePhoto).includes("profile-photo") && String(user.profileCover).includes("cover-photo")), "admin sees cook phone, profile photo, and background photo for review");
-  assert(String(ownerCook.profilePhoto).includes("profile-photo") && String(ownerCook.coverPhoto).includes("cover-photo"), "pending cook request keeps submitted profile and background photos");
+  assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && user.profilePhoto === profilePhotoImage && user.profileCover === coverPhotoImage), "admin sees cook phone, profile photo, and background photo for review");
+  assert(ownerCook.profilePhoto === profilePhotoImage && ownerCook.coverPhoto === coverPhotoImage, "pending cook request keeps submitted profile and background photos");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
@@ -192,12 +254,14 @@ try {
     online: true,
     verification: { id: "verified", address: "verified", phone: "verified" }
   });
+  const reapprovedCook = await auth(base, "login", { email: `cook.${runId}@hometaste.test`, password: "CookPass123!" });
+  cookAccount.token = reapprovedCook.token;
 
   const market = await request(base, "", "GET", "/api/marketplace");
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
   const liveCook = market.cooks.find((cook) => cook.id === ownerCook.id);
-  assert(liveCook?.city === "Moda, Istanbul" && liveCook.profilePhoto.includes("profile-photo") && liveCook.coverPhoto.includes("cover-photo"), "public marketplace uses the same user city, profile photo, and background photo");
-  assert(market.dishes.some((item) => item.id === dish.id && item.image.includes("dish-photo")), "approved dish is visible publicly with uploaded photo");
+  assert(liveCook?.city === "Moda, Istanbul" && liveCook.profilePhoto === profilePhotoImage && liveCook.coverPhoto === coverPhotoImage, "public marketplace uses the same user city, profile photo, and background photo");
+  assert(market.dishes.some((item) => item.id === dish.id && item.image === dishPhotoImage), "approved dish is visible publicly with uploaded photo");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });
   assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");
   const offlineMarket = await request(base, "", "GET", "/api/marketplace");
@@ -222,6 +286,8 @@ try {
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "comment", dishId: dish.id, cookId: ownerCook.id, text: "Great dish." });
   assert(customerState.socialActions.some((action) => action.type === "comment"), "follow, like, unlike, unfollow, and comment social actions save");
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "comment", dishId: dish.id, cookId: ownerCook.id, text: xssText });
+  assert(customerState.socialActions.some((action) => action.type === "comment" && String(action.text).includes("&lt;img")), "social comments are escaped in API state");
 
   let cookPlanState = await request(base, cookAccount.token, "POST", "/api/meal-plans", {
     name: "5 meals weekly",
@@ -296,6 +362,19 @@ try {
   hiddenMarket = await request(base, "", "GET", "/api/marketplace");
   assert(!hiddenMarket.cooks.some((cook) => cook.id === ownerCook.id), "suspended cook disappears from public marketplace");
   assert(ownerState.cooks.some((cook) => cook.id === ownerCook.id && cook.status === "suspended"), "admin still sees suspended cook in all profiles");
+  const staleSuspendedSession = await requestRaw(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: true });
+  assert(staleSuspendedSession.status === 401, "admin suspension invalidates existing cook sessions");
+  const suspendedCookLogin = await auth(base, "login", { email: `cook.${runId}@hometaste.test`, password: "CookPass123!" });
+  const suspendedOnline = await requestRaw(base, suspendedCookLogin.token, "PATCH", "/api/cooks/online", { online: true });
+  assert(suspendedOnline.status === 403, "suspended cook cannot turn online after logging in again");
+  const suspendedDish = await requestRaw(base, suspendedCookLogin.token, "POST", "/api/dishes", {
+    name: `${baseName} Suspended Dish`,
+    price: 50,
+    prepMinutes: 20,
+    image: dishPhotoImage,
+    country: "Turkey"
+  });
+  assert(suspendedDish.status === 403, "suspended cook cannot publish new dishes");
 
   ownerState = await request(base, owner.token, "DELETE", `/api/admin/cooks/${ownerCook.id}`);
   assert(!ownerState.cooks.some((cook) => cook.id === ownerCook.id), "admin remove cook deletes cook profile");

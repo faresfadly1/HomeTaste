@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-online-persistence-09";
+const backendBuild = "20260612-security-hardening-10";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -51,13 +51,26 @@ const firebasePrivateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n
 const mapProvider = process.env.MAP_PROVIDER || "openstreetmap";
 const mapboxPublicToken = process.env.MAPBOX_PUBLIC_TOKEN || "";
 const googleMapsBrowserKey = process.env.GOOGLE_MAPS_BROWSER_KEY || "";
+const sessionTtlMs = 7 * 24 * 60 * 60 * 1000;
+const maxJsonBodySize = 1024 * 1024;
+const maxImageBytes = 500 * 1024;
+const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const rateAttempts = new Map();
+let localSaveQueue = Promise.resolve();
 
 const json = (res, status, body) => {
+  const payload = status >= 400
+    ? {
+        ok: false,
+        code: body?.code || `HTTP_${status}`,
+        error: body?.error || "Request failed."
+      }
+    : body;
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store"
   });
-  res.end(JSON.stringify(body));
+  res.end(JSON.stringify(payload));
 };
 
 const healthPayload = () => ({
@@ -117,6 +130,124 @@ const id = (prefix) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
 const now = () => new Date().toISOString();
 const commissionRate = 0.15;
 const sha256 = (value) => crypto.createHash("sha256").update(String(value || "")).digest("hex");
+const sessionExpiresAt = () => new Date(Date.now() + sessionTtlMs).toISOString();
+const createSession = (userId) => ({ userId, createdAt: now(), expiresAt: sessionExpiresAt() });
+const isExpiredSession = (session) => {
+  if (!session) return true;
+  const expires = session.expiresAt
+    ? new Date(session.expiresAt).getTime()
+    : new Date(session.createdAt || 0).getTime() + sessionTtlMs;
+  return !Number.isFinite(expires) || Date.now() > expires;
+};
+const deleteSessionsForUser = (db, userId, exceptToken = "") => {
+  for (const [token, session] of Object.entries(db.sessions || {})) {
+    if (session.userId === userId && token !== exceptToken) delete db.sessions[token];
+  }
+};
+function clientIp(req) {
+  return String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown").split(",")[0].trim();
+}
+function rateLimit(key, limit = 5, windowMs = 15 * 60 * 1000) {
+  const stamp = Date.now();
+  const attempts = (rateAttempts.get(key) || []).filter((time) => stamp - time < windowMs);
+  if (attempts.length >= limit) {
+    rateAttempts.set(key, attempts);
+    return false;
+  }
+  attempts.push(stamp);
+  rateAttempts.set(key, attempts);
+  return true;
+}
+function checkRateLimit(req, scope, key = "", limit = 5, windowMs = 15 * 60 * 1000) {
+  const bucket = `${scope}:${clientIp(req)}:${String(key || "").toLowerCase()}`;
+  return rateLimit(bucket, limit, windowMs);
+}
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
+}
+function isValidPhone(phone) {
+  const clean = String(phone || "").trim();
+  return !clean || /^[+\d\s-]{7,24}$/.test(clean);
+}
+function appError(status, code, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function validateImageValue(value, field = "Image") {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+  if (/^https?:\/\/[^\s"'<>]{1,1200}$/i.test(clean)) return clean;
+  const match = clean.match(/^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match || !allowedImageTypes.has(match[1])) {
+    const error = new Error(`${field} must be a JPEG, PNG, WebP, or safe image URL.`);
+    error.status = 400;
+    error.code = "INVALID_IMAGE";
+    throw error;
+  }
+  const bytes = Buffer.byteLength(match[2], "base64");
+  if (bytes > maxImageBytes) {
+    const error = new Error(`${field} must be smaller than 500 KB.`);
+    error.status = 413;
+    error.code = "IMAGE_TOO_LARGE";
+    throw error;
+  }
+  return clean;
+}
+function textValue(value, field, { min = 0, max = 500, fallback = "" } = {}) {
+  const clean = String(value ?? fallback).trim();
+  if (clean.length < min) throw appError(400, "INVALID_INPUT", `${field} is required.`);
+  if (clean.length > max) throw appError(400, "INVALID_INPUT", `${field} must be ${max} characters or less.`);
+  return clean;
+}
+function numberValue(value, field, { min = 0, max = 100000, fallback = 0 } = {}) {
+  const number = value === undefined || value === null || value === "" ? Number(fallback) : Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) {
+    throw appError(400, "INVALID_INPUT", `${field} must be between ${min} and ${max}.`);
+  }
+  return number;
+}
+function validCookCanPublish(cook) {
+  return cook && !["rejected", "suspended"].includes(cook.status);
+}
+function publicImageUrl(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "";
+  if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(clean)) return clean;
+  if (/^https?:\/\/[^\s"'<>]{1,2000}$/i.test(clean)) return clean;
+  if (/^\/[^\s"'<>]{0,1200}$/i.test(clean)) return clean;
+  return "";
+}
+const publicUrlFields = new Set([
+  "profilePhoto",
+  "profileCover",
+  "coverPhoto",
+  "image",
+  "photo",
+  "checkoutUrl",
+  "pendingEmailVerificationUrl",
+  "pendingPasswordResetUrl"
+]);
+function sanitizePublicValue(value, key = "") {
+  if (Array.isArray(value)) return value.map((item) => sanitizePublicValue(item, key));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([entryKey, entryValue]) => [entryKey, sanitizePublicValue(entryValue, entryKey)]));
+  }
+  if (typeof value === "string") return publicUrlFields.has(key) ? publicImageUrl(value) : escapeHtml(value);
+  return value;
+}
+function publicPayload(payload) {
+  return sanitizePublicValue(payload);
+}
 const bootstrapDriver = {
   id: "usr_driver_live_1",
   name: "Driver1K202",
@@ -1007,6 +1138,11 @@ async function loadDb() {
 async function saveDb(db) {
   normalizeDb(db);
   if (useSupabase) return saveSupabaseDb(db);
+  localSaveQueue = localSaveQueue.then(() => writeLocalDb(db));
+  return localSaveQueue;
+}
+
+async function writeLocalDb(db) {
   await mkdir(dataDir, { recursive: true });
   const tmp = path.join(dataDir, "db.tmp");
   await writeFile(tmp, JSON.stringify(db, null, 2));
@@ -1580,7 +1716,14 @@ async function loadSupabaseDb() {
     socialActions: socialActions.map(toSocialAction),
     authTokens: authTokens.map(toAuthToken),
     notificationDevices: notificationDevices.map(toNotificationDevice),
-    sessions: Object.fromEntries(sessions.map((session) => [session.token, { userId: session.user_id, createdAt: session.created_at }]))
+    sessions: Object.fromEntries(sessions.map((session) => {
+      const createdAt = session.created_at || now();
+      return [session.token, {
+        userId: session.user_id,
+        createdAt,
+        expiresAt: session.expires_at || new Date(new Date(createdAt).getTime() + sessionTtlMs).toISOString()
+      }];
+    }))
   });
 }
 
@@ -1655,21 +1798,39 @@ async function saveSupabaseDb(db) {
   const sessionRows = Object.entries(db.sessions || {}).map(([token, session]) => ({
     token,
     user_id: session.userId,
-    created_at: session.createdAt || now()
+    created_at: session.createdAt || now(),
+    expires_at: session.expiresAt || sessionExpiresAt()
   }));
-  await upsert("app_sessions", sessionRows, "token");
+  await upsert("app_sessions", sessionRows, "token").catch(() => upsert("app_sessions", sessionRows.map(({ expires_at, ...row }) => row), "token"));
 }
 
-async function body(req) {
+async function body(req, maxSize = maxJsonBodySize) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > maxSize) {
+      const error = new Error("Request body too large.");
+      error.status = 413;
+      error.code = "BODY_TOO_LARGE";
+      throw error;
+    }
+    chunks.push(chunk);
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   const type = String(req.headers["content-type"] || "");
   if (type.includes("application/x-www-form-urlencoded")) {
     return Object.fromEntries(new URLSearchParams(raw).entries());
   }
-  return JSON.parse(raw);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const error = new Error("Invalid JSON.");
+    error.status = 400;
+    error.code = "INVALID_JSON";
+    throw error;
+  }
 }
 
 function safeUser(user) {
@@ -1687,6 +1848,10 @@ function requireUser(db, req) {
   const token = getToken(req);
   const session = token ? db.sessions[token] : null;
   if (!session) return null;
+  if (isExpiredSession(session)) {
+    delete db.sessions[token];
+    return null;
+  }
   return db.users.find((u) => u.id === session.userId) || null;
 }
 
@@ -1757,12 +1922,11 @@ function socialSummary(db, cookId = null) {
 
 function publicState(db, user = null) {
   syncCookProfilesFromUsers(db);
-  const approvedCooks = db.cooks.filter((cook) => cook.status === "approved");
   const cooks = user?.role === "owner"
     ? db.cooks
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
-  return {
+  return publicPayload({
     user: safeUser(user),
     cooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
@@ -1794,23 +1958,23 @@ function publicState(db, user = null) {
           activeSubscriptions: db.subscriptions.filter((subscription) => subscription.status === "active").length
         }
       : null
-  };
+  });
 }
 
 function publicMarketplaceState(db) {
   syncCookProfilesFromUsers(db);
   const cooks = db.cooks.filter((cook) => cook.status === "approved");
   const cookIds = new Set(cooks.map((cook) => cook.id));
-  return {
+  return publicPayload({
     cooks,
     dishes: db.dishes.filter((dish) => dish.available !== false && cookIds.has(dish.cookId)),
     social: socialSummary(db),
     time: now()
-  };
+  });
 }
 
 function partialPublicState(user) {
-  return {
+  return publicPayload({
     user: safeUser(user),
     cooks: [],
     dishes: [],
@@ -1827,12 +1991,14 @@ function partialPublicState(user) {
     stats: user?.role === "owner"
       ? { users: 1, cooks: 0, drivers: user.role === "driver" ? 1 : 0, pendingCooks: 0, orders: 0, revenue: 0, commission: 0, pendingRefunds: 0, activeSubscriptions: 0 }
       : null
-  };
+  });
 }
 
 async function fastSupabaseLogin(req, res) {
   const input = await body(req);
   const email = String(input.email || "").trim().toLowerCase();
+  if (!isValidEmail(email)) return json(res, 400, { code: "INVALID_EMAIL", error: "Enter a valid email address." });
+  if (!checkRateLimit(req, "login", email)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
   const rows = await supabaseRequest("app_users", {
     query: `?email=eq.${encodeURIComponent(email)}&select=*&limit=1`
   });
@@ -1845,7 +2011,9 @@ async function fastSupabaseLogin(req, res) {
     return json(res, 401, { error: "Invalid email or password." });
   }
   const token = id("ses");
-  await upsert("app_sessions", [{ token, user_id: user.id, created_at: now() }], "token");
+  const session = createSession(user.id);
+  await upsert("app_sessions", [{ token, user_id: user.id, created_at: session.createdAt, expires_at: session.expiresAt }], "token")
+    .catch(() => upsert("app_sessions", [{ token, user_id: user.id, created_at: session.createdAt }], "token"));
   return json(res, 200, { token, state: partialPublicState(user), partial: true });
 }
 
@@ -1921,6 +2089,8 @@ async function api(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/auth/verify-email/request") {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
+    if (!isValidEmail(email)) return json(res, 400, { code: "INVALID_EMAIL", error: "Enter a valid email address." });
+    if (!checkRateLimit(req, "email_verify", email, 3)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
     const user = db.users.find((item) => item.email === email);
     if (!user) return json(res, 404, { error: "No account exists for that email." });
     const token = addAuthToken(db, { userId: user.id, email, type: "email_verification", ttlMinutes: 60 });
@@ -1948,6 +2118,8 @@ async function api(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/auth/password/request") {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
+    if (!isValidEmail(email)) return json(res, 400, { code: "INVALID_EMAIL", error: "Enter a valid email address." });
+    if (!checkRateLimit(req, "password_reset", email, 3)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
     const user = db.users.find((item) => item.email === email);
     if (!user) return json(res, 200, { ok: true, message: "If the email exists, a reset link was created." });
     const token = addAuthToken(db, { userId: user.id, email, type: "password_reset", ttlMinutes: 30 });
@@ -1970,6 +2142,7 @@ async function api(req, res, pathname) {
     if (!user) return json(res, 404, { error: "User not found." });
     user.passwordHash = hashPassword(newPassword);
     user.pendingPasswordResetUrl = "";
+    deleteSessionsForUser(db, user.id);
     await saveDb(db);
     return json(res, 200, { ok: true });
   }
@@ -2040,7 +2213,7 @@ async function api(req, res, pathname) {
         emailVerified: profile.email_verified === "true" || profile.email_verified === true
       });
       const token = id("ses");
-      db.sessions[token] = { userId: user.id, createdAt: now() };
+      db.sessions[token] = createSession(user.id);
       await saveDb(db);
       return redirect(res, oauthReturnUrl({ authToken: token }));
     } catch (err) {
@@ -2089,7 +2262,7 @@ async function api(req, res, pathname) {
         emailVerified: profile.email_verified === "true" || profile.email_verified === true
       });
       const token = id("ses");
-      db.sessions[token] = { userId: user.id, createdAt: now() };
+      db.sessions[token] = createSession(user.id);
       await saveDb(db);
       return redirect(res, oauthReturnUrl({ authToken: token }));
     } catch (err) {
@@ -2102,21 +2275,25 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
     const password = String(input.password || "");
-    const name = String(input.name || email.split("@")[0] || "HomeTaste User").trim();
-    if (!email || password.length < 8) return json(res, 400, { error: "Email and a password with at least 8 characters are required." });
+    const name = textValue(input.name || email.split("@")[0] || "HomeTaste User", "Name", { min: 1, max: 80 });
+    if (!isValidEmail(email)) return json(res, 400, { code: "INVALID_EMAIL", error: "Enter a valid email address." });
+    if (!checkRateLimit(req, "signup", email, 5)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
+    if (password.length < 8) return json(res, 400, { error: "Email and a password with at least 8 characters are required." });
     if (db.users.some((user) => user.email === email)) return json(res, 409, { error: "That email already exists." });
     const country = ["TR", "DE"].includes(input.country) ? input.country : "TR";
     const nationalId = String(input.nationalId || "").replace(/\D/g, "");
     if (country === "TR" && nationalId.length !== 11) return json(res, 400, { error: "T.C. Kimlik must be 11 digits." });
+    const phone = textValue(input.phone || "", "Phone number", { max: 24 });
+    if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
     const user = {
       id: id("usr"),
       name,
       email,
       passwordHash: hashPassword(password),
       role: "customer",
-      city: String(input.city || (country === "DE" ? "Berlin" : "Istanbul")).trim(),
+      city: textValue(input.city || (country === "DE" ? "Berlin" : "Istanbul"), "City", { min: 1, max: 100 }),
       country,
-      phone: String(input.phone || "").trim(),
+      phone,
       nationalId,
       emailVerified: false,
       phoneVerified: false,
@@ -2128,7 +2305,7 @@ async function api(req, res, pathname) {
     const verifyToken = addAuthToken(db, { userId: user.id, email: user.email, type: "email_verification", ttlMinutes: 60 });
     user.pendingEmailVerificationUrl = verificationUrl(verifyToken);
     const token = id("ses");
-    db.sessions[token] = { userId: user.id, createdAt: now() };
+    db.sessions[token] = createSession(user.id);
     await saveDb(db);
     return json(res, 201, { token, state: publicState(db, user), verificationUrl: verificationUrl(verifyToken) });
   }
@@ -2136,6 +2313,8 @@ async function api(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/auth/login") {
     const input = await body(req);
     const email = String(input.email || "").trim().toLowerCase();
+    if (!isValidEmail(email)) return json(res, 400, { code: "INVALID_EMAIL", error: "Enter a valid email address." });
+    if (!checkRateLimit(req, "login", email)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
     let user = db.users.find((item) => item.email === email);
     if (isBootstrapDriverLogin(email, input.password) && (!user || user.role !== "driver" || !verifyPassword(String(input.password || ""), user.passwordHash))) {
       user = ensureBootstrapDriver(db, email, input.password);
@@ -2144,7 +2323,7 @@ async function api(req, res, pathname) {
       return json(res, 401, { error: "Invalid email or password." });
     }
     const token = id("ses");
-    db.sessions[token] = { userId: user.id, createdAt: now() };
+    db.sessions[token] = createSession(user.id);
     await saveDb(db);
     return json(res, 200, { token, state: publicState(db, user) });
   }
@@ -2164,18 +2343,22 @@ async function api(req, res, pathname) {
   if (req.method === "PATCH" && pathname === "/api/users/profile") {
     const input = await body(req);
     user.authMeta ||= {};
-    if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
-    if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
-    if (input.name) user.name = String(input.name).trim();
-    if (input.city !== undefined) user.city = String(input.city || "").trim();
+    if ("profilePhoto" in input) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
+    if ("profileCover" in input) user.profileCover = validateImageValue(input.profileCover, "Background photo");
+    if (input.name) user.name = textValue(input.name, "Name", { min: 1, max: 80 });
+    if (input.city !== undefined) user.city = textValue(input.city || "", "City", { max: 100 });
     if (input.country !== undefined && ["TR", "DE"].includes(input.country)) user.country = input.country;
     if (input.locationLabel !== undefined || input.address !== undefined) {
-      user.authMeta.locationLabel = String(input.locationLabel ?? input.address ?? "").trim();
+      user.authMeta.locationLabel = textValue(input.locationLabel ?? input.address ?? "", "Location label", { max: 180 });
     }
     if (input.locationQuery !== undefined || input.customerLocation !== undefined) {
-      user.authMeta.locationQuery = String(input.locationQuery ?? input.customerLocation ?? "").trim();
+      user.authMeta.locationQuery = textValue(input.locationQuery ?? input.customerLocation ?? "", "Location query", { max: 180 });
     }
-    if (input.phone) user.phone = String(input.phone).trim();
+    if (input.phone) {
+      const phone = textValue(input.phone, "Phone number", { max: 24 });
+      if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
+      user.phone = phone;
+    }
     const cook = cookForUser(db, user.id);
     if (cook) {
       syncCookProfileFromUser(db, cook);
@@ -2187,6 +2370,7 @@ async function api(req, res, pathname) {
   if (req.method === "PATCH" && pathname === "/api/cooks/online") {
     const cook = cookForUser(db, user.id);
     if (!cook) return json(res, 404, { error: "Create a cook profile first." });
+    if (cook.status !== "approved") return json(res, 403, { error: "Admin approval is required before going online." });
     const input = await body(req);
     cook.online = Boolean(input.online);
     await saveDb(db);
@@ -2227,6 +2411,8 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const phone = String(input.phone || user.phone || "").trim();
     if (!phone) return json(res, 400, { error: "Phone number is required." });
+    if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
+    if (!checkRateLimit(req, "phone_verify", user.id, 3, 10 * 60 * 1000)) return json(res, 429, { code: "RATE_LIMITED", error: "Too many attempts. Try again later." });
     const code = String(crypto.randomInt(100000, 999999));
     addAuthToken(db, { userId: user.id, phone, type: "phone_verification", ttlMinutes: 10, meta: { code } });
     user.phone = phone;
@@ -2268,6 +2454,7 @@ async function api(req, res, pathname) {
       return json(res, 400, { error: "Choose a different new password." });
     }
     user.passwordHash = hashPassword(newPassword);
+    deleteSessionsForUser(db, user.id, getToken(req));
     await saveDb(db);
     return json(res, 200, { ok: true });
   }
@@ -2276,16 +2463,20 @@ async function api(req, res, pathname) {
     const input = await body(req);
     let cook = cookForUser(db, user.id);
     if (cook) return json(res, 409, { error: "You already have a cook profile." });
-    if (input.phone) user.phone = String(input.phone || "").trim();
-    if (input.profilePhoto) user.profilePhoto = String(input.profilePhoto || "").trim();
-    if (input.profileCover) user.profileCover = String(input.profileCover || "").trim();
+    if (input.phone) {
+      const phone = textValue(input.phone, "Phone number", { max: 24 });
+      if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
+      user.phone = phone;
+    }
+    if (input.profilePhoto) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
+    if (input.profileCover) user.profileCover = validateImageValue(input.profileCover, "Background photo");
     cook = {
       id: id("cook"),
       userId: user.id,
-      name: String(user.name || input.name || "HomeTaste cook").trim(),
-      cuisine: String(input.cuisine || input.country || "Home Kitchen").trim(),
-      city: String(user.city || input.city || "Istanbul").trim(),
-      bio: String(input.bio || "Fresh home cooking.").trim(),
+      name: textValue(user.name || input.name || "HomeTaste cook", "Cook name", { min: 1, max: 80 }),
+      cuisine: textValue(input.cuisine || input.country || "Home Kitchen", "Cuisine", { min: 1, max: 80 }),
+      city: textValue(user.city || input.city || "Istanbul", "City", { min: 1, max: 100 }),
+      bio: textValue(input.bio || "Fresh home cooking.", "Bio", { min: 1, max: 700 }),
       verified: false,
       status: "pending",
       rating: 5,
@@ -2293,8 +2484,8 @@ async function api(req, res, pathname) {
       followers: 0,
       availability: "",
       responseTime: "New cook",
-      profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
-      coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
+      profilePhoto: user.profilePhoto || validateImageValue(input.profilePhoto, "Profile photo"),
+      coverPhoto: user.profileCover || validateImageValue(input.profileCover, "Background photo"),
       online: Boolean(input.online),
       createdAt: now()
     };
@@ -2309,20 +2500,24 @@ async function api(req, res, pathname) {
     const cook = cookForUser(db, user.id);
     if (!cook && user.role !== "owner") return json(res, 403, { error: "Only cooks can add dishes." });
     const input = await body(req);
+    const targetCookId = input.cookId && user.role === "owner" ? String(input.cookId).trim() : cook?.id;
+    const targetCook = db.cooks.find((item) => item.id === targetCookId);
+    if (!targetCook) return json(res, 404, { error: "Cook profile not found." });
+    if (user.role !== "owner" && !validCookCanPublish(targetCook)) return json(res, 403, { error: "This cook profile cannot publish dishes." });
+    const country = textValue(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
     const dish = {
       id: id("dish"),
-      cookId: input.cookId && user.role === "owner" ? input.cookId : cook.id,
-      name: String(input.name || "").trim(),
-      description: String(input.description || "").trim(),
-      price: Number(input.price || 0),
-      prepMinutes: Number(input.prepMinutes || 30),
-      image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
-      country: String(input.country || input.tags || "").split(",")[0].trim(),
-      tags: [String(input.country || input.tags || "").split(",")[0].trim()].filter(Boolean),
+      cookId: targetCook.id,
+      name: textValue(input.name, "Dish name", { min: 1, max: 120 }),
+      description: textValue(input.description || "", "Dish description", { max: 1000 }),
+      price: numberValue(input.price, "Dish price", { min: 1, max: 100000 }),
+      prepMinutes: numberValue(input.prepMinutes, "Prep time", { min: 5, max: 240, fallback: 30 }),
+      image: validateImageValue(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80", "Dish photo"),
+      country,
+      tags: [country].filter(Boolean),
       available: true,
       featured: false
     };
-    if (!dish.name || dish.price <= 0) return json(res, 400, { error: "Dish name and price are required." });
     db.dishes.push(dish);
     await saveDb(db);
     return json(res, 201, publicState(db, user));
@@ -2333,6 +2528,7 @@ async function api(req, res, pathname) {
     if (!dish) return json(res, 404, { error: "Dish not found." });
     const cook = cookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) return json(res, 403, { error: "No access to this dish." });
+    if (user.role !== "owner" && !validCookCanPublish(cook)) return json(res, 403, { error: "This cook profile cannot update dishes." });
     const input = await body(req);
     const targets = user.role === "owner" && input.scope === "matching"
       ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
@@ -2340,13 +2536,13 @@ async function api(req, res, pathname) {
     targets.forEach((target) => {
       if ("available" in input) target.available = Boolean(input.available);
       if ("featured" in input && user.role === "owner") target.featured = Boolean(input.featured);
-      if (input.name) target.name = String(input.name).trim();
-      if (input.price) target.price = Number(input.price);
-      if (input.description !== undefined) target.description = String(input.description || "").trim();
-      if (input.prepMinutes) target.prepMinutes = Number(input.prepMinutes);
-      if (input.image !== undefined) target.image = String(input.image || "").trim();
+      if (input.name) target.name = textValue(input.name, "Dish name", { min: 1, max: 120 });
+      if (input.price !== undefined) target.price = numberValue(input.price, "Dish price", { min: 1, max: 100000 });
+      if (input.description !== undefined) target.description = textValue(input.description || "", "Dish description", { max: 1000 });
+      if (input.prepMinutes !== undefined) target.prepMinutes = numberValue(input.prepMinutes, "Prep time", { min: 5, max: 240 });
+      if (input.image !== undefined) target.image = validateImageValue(input.image || "", "Dish photo");
       if (input.country !== undefined || input.tags !== undefined) {
-        target.country = String(input.country || input.tags || "").split(",")[0].trim();
+        target.country = textValue(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
         target.tags = target.country ? [target.country] : [];
       }
     });
@@ -2374,11 +2570,19 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const items = Array.isArray(input.items) ? input.items : [];
     if (!items.length) return json(res, 400, { error: "Cart is empty." });
-    const normalized = items.map((item) => {
+    if (items.length > 50) return json(res, 400, { code: "INVALID_CART", error: "Cart has too many items." });
+    const normalized = [];
+    for (const item of items) {
       const dish = db.dishes.find((d) => d.id === item.dishId && d.available);
-      if (!dish) throw new Error("A dish in your cart is unavailable.");
-      return { dishId: dish.id, name: dish.name, qty: Math.max(1, Number(item.qty || 1)), price: dish.price };
-    });
+      const dishCook = dish ? db.cooks.find((cook) => cook.id === dish.cookId) : null;
+      if (!dish || dishCook?.status !== "approved") return json(res, 400, { error: "A dish in your cart is unavailable." });
+      normalized.push({
+        dishId: dish.id,
+        name: dish.name,
+        qty: Math.round(numberValue(item.qty || 1, "Quantity", { min: 1, max: 20, fallback: 1 })),
+        price: dish.price
+      });
+    }
     const firstDish = db.dishes.find((dish) => dish.id === normalized[0].dishId);
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
@@ -2400,14 +2604,14 @@ async function api(req, res, pathname) {
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
-      deliveryAddress: String(input.deliveryAddress || "").trim(),
-      scheduledFor: String(input.scheduledFor || "").trim() || null,
+      deliveryAddress: textValue(input.deliveryAddress || "", "Delivery address", { max: 240 }),
+      scheduledFor: textValue(input.scheduledFor || "", "Scheduled time", { max: 80 }) || null,
       customerLocation,
       cookLocation,
       driverLocation: null,
       route: null,
       etaMinutes: null,
-      notes: String(input.notes || "").trim(),
+      notes: textValue(input.notes || "", "Order notes", { max: 500 }),
       createdAt: now(),
       updatedAt: now()
     };
@@ -2480,6 +2684,8 @@ async function api(req, res, pathname) {
     const isOrderDriver = order.driverId === user.id || user.role === "owner";
     const isOrderCustomer = order.customerId === user.id || user.role === "owner";
     if (!isOrderDriver && !isOrderCustomer) return json(res, 403, { error: "No access to update this order location." });
+    if (typeof input.driverLocation === "string" && input.driverLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Driver location is too long." });
+    if (typeof input.customerLocation === "string" && input.customerLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Customer location is too long." });
     if (input.driverLocation && isOrderDriver) order.driverLocation = normalizeLocation(input.driverLocation);
     if (input.customerLocation && isOrderCustomer) order.customerLocation = normalizeLocation(input.customerLocation, order.deliveryAddress);
     order.route = routeForOrder(order);
@@ -2533,7 +2739,7 @@ async function api(req, res, pathname) {
       status: input.status,
       byUserId: user.id,
       at: order.updatedAt,
-      note: String(input.note || "").trim()
+      note: textValue(input.note || "", "Status note", { max: 300 })
     });
     const notifyIds = [order.customerId, order.driverId];
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
@@ -2578,10 +2784,9 @@ async function api(req, res, pathname) {
       orderId: order.id,
       fromUserId: user.id,
       toCookId: order.cookId,
-      text: String(input.text || "").trim(),
+      text: textValue(input.text, "Message", { min: 1, max: 1000 }),
       createdAt: now()
     };
-    if (!msg.text) return json(res, 400, { error: "Message cannot be empty." });
     db.messages.push(msg);
     await saveDb(db);
     return json(res, 201, publicState(db, user));
@@ -2591,13 +2796,17 @@ async function api(req, res, pathname) {
     const cook = cookForUser(db, user.id);
     if (!cook && user.role !== "owner") return json(res, 403, { error: "Only cooks or admin can create subscription plans." });
     const input = await body(req);
+    const targetCookId = user.role === "owner" && input.cookId ? String(input.cookId).trim() : cook?.id;
+    const targetCook = db.cooks.find((item) => item.id === targetCookId);
+    if (!targetCook) return json(res, 404, { error: "Cook profile not found." });
+    if (user.role !== "owner" && !validCookCanPublish(targetCook)) return json(res, 403, { error: "This cook profile cannot create subscription plans." });
     const plan = {
       id: id("plan"),
-      cookId: user.role === "owner" && input.cookId ? input.cookId : cook.id,
-      name: String(input.name || "Weekly meal plan").trim(),
-      mealsPerWeek: Math.max(1, Number(input.mealsPerWeek || 5)),
-      price: Math.max(1, Number(input.price || 1500)),
-      description: String(input.description || "Fresh weekly homemade meals.").trim(),
+      cookId: targetCook.id,
+      name: textValue(input.name || "Weekly meal plan", "Plan name", { min: 1, max: 120 }),
+      mealsPerWeek: Math.round(numberValue(input.mealsPerWeek, "Meals per week", { min: 1, max: 21, fallback: 5 })),
+      price: numberValue(input.price, "Plan price", { min: 1, max: 100000, fallback: 1500 }),
+      description: textValue(input.description || "Fresh weekly homemade meals.", "Plan description", { min: 1, max: 700 }),
       active: true,
       createdAt: now()
     };
@@ -2668,8 +2877,15 @@ async function api(req, res, pathname) {
     const dishId = String(input.dishId || "").trim();
     if (type === "follow" && !cookId) return json(res, 400, { error: "Cook is required." });
     if (type === "like" && !dishId) return json(res, 400, { error: "Dish is required." });
-    if (cookId && !db.cooks.some((cook) => cook.id === cookId)) return json(res, 404, { error: "Cook not found." });
-    if (dishId && !db.dishes.some((dish) => dish.id === dishId)) return json(res, 404, { error: "Dish not found." });
+    const socialCook = cookId ? db.cooks.find((cook) => cook.id === cookId) : null;
+    const socialDish = dishId ? db.dishes.find((dish) => dish.id === dishId) : null;
+    if (cookId && !socialCook) return json(res, 404, { error: "Cook not found." });
+    if (dishId && !socialDish) return json(res, 404, { error: "Dish not found." });
+    if (socialCook && socialCook.status !== "approved" && user.role !== "owner" && socialCook.userId !== user.id) return json(res, 403, { error: "Cook is not public yet." });
+    if (socialDish) {
+      const dishCook = db.cooks.find((cook) => cook.id === socialDish.cookId);
+      if (dishCook?.status !== "approved" && user.role !== "owner" && dishCook?.userId !== user.id) return json(res, 403, { error: "Dish is not public yet." });
+    }
     if (type === "follow") {
       const existing = db.socialActions.find((action) => action.userId === user.id && action.cookId === cookId && action.type === "follow");
       if (existing) {
@@ -2694,8 +2910,8 @@ async function api(req, res, pathname) {
       cookId: cookId || null,
       dishId: dishId || null,
       type,
-      text: String(input.text || "").trim(),
-      photo: String(input.photo || "").trim(),
+      text: textValue(input.text || "", "Comment", { max: 500 }),
+      photo: validateImageValue(input.photo || "", "Shared photo"),
       createdAt: now()
     };
     if (type === "comment" && !action.text) return json(res, 400, { error: "Comment text is required." });
@@ -2718,7 +2934,7 @@ async function api(req, res, pathname) {
       orderId: order.id,
       customerId: user.id,
       reason,
-      details: String(input.details || "").trim(),
+      details: textValue(input.details || "", "Refund details", { max: 1000 }),
       status: "pending",
       outcome: null,
       amount: 0,
@@ -2766,15 +2982,21 @@ async function api(req, res, pathname) {
     const cook = db.cooks.find((item) => item.id === pathname.split("/").pop());
     if (!cook) return json(res, 404, { error: "Cook not found." });
     const input = await body(req);
-    if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
+    if (["approved", "pending", "rejected", "suspended"].includes(input.status)) {
+      cook.status = input.status;
+      if (cook.status === "suspended" || cook.status === "rejected") {
+        cook.online = false;
+        if (cook.userId) deleteSessionsForUser(db, cook.userId);
+      }
+    }
     if ("verified" in input) cook.verified = Boolean(input.verified);
-    if ("online" in input) cook.online = Boolean(input.online);
-    if (input.name) cook.name = String(input.name).trim();
-    if (input.cuisine) cook.cuisine = String(input.cuisine).trim();
-    if (input.city) cook.city = String(input.city).trim();
-    if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
-    if (input.profilePhoto !== undefined) cook.profilePhoto = String(input.profilePhoto || "").trim();
-    if (input.profileCover !== undefined) cook.coverPhoto = String(input.profileCover || "").trim();
+    if ("online" in input) cook.online = cook.status === "approved" && Boolean(input.online);
+    if (input.name) cook.name = textValue(input.name, "Cook name", { min: 1, max: 80 });
+    if (input.cuisine) cook.cuisine = textValue(input.cuisine, "Cuisine", { min: 1, max: 80 });
+    if (input.city) cook.city = textValue(input.city, "City", { min: 1, max: 100 });
+    if (input.bio !== undefined) cook.bio = textValue(input.bio || "", "Bio", { max: 700 });
+    if (input.profilePhoto !== undefined) cook.profilePhoto = validateImageValue(input.profilePhoto || "", "Profile photo");
+    if (input.profileCover !== undefined) cook.coverPhoto = validateImageValue(input.profileCover || "", "Background photo");
     const cookUser = db.users.find((item) => item.id === cook.userId);
     if (cookUser) {
       if (input.profilePhoto !== undefined) cookUser.profilePhoto = cook.profilePhoto;
@@ -2783,7 +3005,12 @@ async function api(req, res, pathname) {
       if (input.city) cookUser.city = cook.city;
     }
     if (input.verification) {
-      cook.verification = { ...(cook.verification || defaultVerification()), ...input.verification, updatedAt: now() };
+      const allowedVerification = {};
+      for (const key of ["id", "address", "phone"]) {
+        if (["verified", "pending", "rejected"].includes(input.verification[key])) allowedVerification[key] = input.verification[key];
+      }
+      if (input.verification.notes !== undefined) allowedVerification.notes = textValue(input.verification.notes || "", "Verification notes", { max: 500 });
+      cook.verification = { ...(cook.verification || defaultVerification()), ...allowedVerification, updatedAt: now() };
       cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
     }
     await saveDb(db);
@@ -2800,7 +3027,7 @@ async function api(req, res, pathname) {
     refund.status = "reviewed";
     refund.outcome = input.outcome;
     refund.amount = Math.round(Number(order?.total || 0) * rate * 100) / 100;
-    refund.adminNote = String(input.adminNote || "").trim();
+    refund.adminNote = textValue(input.adminNote || "", "Admin note", { max: 500 });
     refund.reviewedAt = now();
     if (order) {
       order.payment = { ...(order.payment || paymentLedgerForOrder(order)), refundStatus: input.outcome, refundAmount: refund.amount };
@@ -2839,7 +3066,13 @@ async function api(req, res, pathname) {
 }
 
 async function staticFile(req, res, pathname) {
-  const clean = pathname === "/" ? "/index.html" : pathname.endsWith("/") ? `${pathname}index.html` : pathname;
+  const clean = pathname === "/"
+    ? "/index.html"
+    : pathname.endsWith("/")
+      ? `${pathname}index.html`
+      : path.extname(pathname)
+        ? pathname
+        : `${pathname}/index.html`;
   const filePath = path.normalize(path.join(publicDir, clean));
   if (!filePath.startsWith(publicDir)) {
     res.writeHead(403);
@@ -2860,9 +3093,14 @@ async function staticFile(req, res, pathname) {
     res.writeHead(200, { "content-type": type });
     res.end(data);
   } catch {
-    const data = await readFile(path.join(publicDir, "index.html"));
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(data);
+    const wantsHtml = !path.extname(clean) || path.extname(clean) === ".html";
+    if (wantsHtml) {
+      const data = await readFile(path.join(publicDir, "404.html")).catch(() => Buffer.from("Not found"));
+      res.writeHead(404, { "content-type": "text/html; charset=utf-8" });
+      return res.end(data);
+    }
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    return res.end("Not found");
   }
 }
 
@@ -2878,7 +3116,10 @@ const server = http.createServer(async (req, res) => {
     return await staticFile(req, res, url.pathname);
   } catch (error) {
     console.error(error);
-    return json(res, 500, { error: error.message || "Server error." });
+    return json(res, error.status || 500, {
+      code: error.code || (error.status === 413 ? "BODY_TOO_LARGE" : "SERVER_ERROR"),
+      error: error.message || "Server error."
+    });
   }
 });
 
