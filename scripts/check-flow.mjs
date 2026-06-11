@@ -131,6 +131,7 @@ try {
     bio: "Real homemade flow-test dishes.",
     profilePhoto: "data:image/jpeg;base64,profile-photo",
     profileCover: "data:image/jpeg;base64,cover-photo",
+    phone: "+90 555 100 2000",
     online: true
   });
   const pendingCook = cookState.cooks.find((cook) => cook.userId === cookState.user.id);
@@ -154,6 +155,8 @@ try {
   assert(ownerState.stats.pendingCooks === 1 && ownerCook?.status === "pending", "admin sees pending cook request fast");
   assert(ownerState.notifications.some((note) => note.data?.type === "cook_application" && note.data?.cookId === ownerCook.id), "admin receives cook application notification");
   assert(ownerState.users.some((user) => user.id === cookState.user.id && String(user.email).includes(`cook.${runId}@`) && user.nationalId === "12345678901"), "admin sees cook contact and T.C. Kimlik data for review");
+  assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && String(user.profilePhoto).includes("profile-photo") && String(user.profileCover).includes("cover-photo")), "admin sees cook phone, profile photo, and background photo for review");
+  assert(String(ownerCook.profilePhoto).includes("profile-photo") && String(ownerCook.coverPhoto).includes("cover-photo"), "pending cook request keeps submitted profile and background photos");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
@@ -217,12 +220,13 @@ try {
     deliveryAddress: "Uskudar, Istanbul",
     customerLocation: "41.0240,29.0170",
     scheduledFor: "2026-06-12T18:00:00.000Z",
-    paymentMethod: "cash",
+    paymentMethod: "iban",
     notes: "Flow check order"
   });
   customerState = orderResult.state;
   const order = customerState.orders.find((item) => item.items.some((orderItem) => orderItem.dishId === dish.id));
   assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 212.5, "15% commission and cook payout calculate correctly");
+  assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
 
   await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "accepted" });

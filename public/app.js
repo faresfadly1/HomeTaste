@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260611-mobile-admin-flow-01";
+const APP_BUILD = "20260611-admin-ui-cleanup-02";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -64,7 +64,8 @@ const statusLabels = {
 const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered"];
 const paymentLabels = {
   cash: "Cash on delivery",
-  stripe: "Stripe",
+  iban: "IBAN transfer",
+  stripe: "Credit card",
   iyzico: "iyzico",
   paytr: "PayTR",
   visa: "Visa",
@@ -250,6 +251,7 @@ async function handleMarketplaceMessage(event) {
             bio: payload.bio || "Fresh home cooking.",
             profilePhoto: payload.profilePhoto || "",
             profileCover: payload.coverPhoto || "",
+            phone: payload.phone || "",
             online: Boolean(payload.online)
           })
         });
@@ -910,6 +912,9 @@ async function staticApi(path, options = {}) {
 
   if (method === "POST" && path === "/api/cooks/apply") {
     if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
+    if (input.phone) user.phone = String(input.phone || "").trim();
+    if (input.profilePhoto) user.profilePhoto = String(input.profilePhoto || "").trim();
+    if (input.profileCover) user.profileCover = String(input.profileCover || "").trim();
     const cook = {
       id: `cook_${Date.now()}`,
       userId: user.id,
@@ -1020,11 +1025,11 @@ async function staticApi(path, options = {}) {
       items: normalized,
       subtotal,
       deliveryFee: 30,
-      serviceFee: 15,
-      total: subtotal + 45,
+      serviceFee: 0,
+      total: subtotal + 30,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
-      paymentMethod: String(input.paymentMethod || "cash"),
+      paymentMethod: ["stripe", "iban", "cash"].includes(input.paymentMethod) ? input.paymentMethod : "cash",
       deliveryAddress: String(input.deliveryAddress || "").trim(),
       notes: String(input.notes || "").trim(),
       createdAt,
@@ -1293,11 +1298,14 @@ function verificationTags(cook) {
 function adminCookRequestHtml(cook) {
   const user = userForCook(cook);
   const cookDishes = dishesForCook(cook.id);
+  const coverPhoto = cook.coverPhoto || user?.profileCover || "";
+  const profilePhoto = cook.profilePhoto || user?.profilePhoto || "";
+  const phone = user?.phone || cook.phone || "No phone submitted";
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
-        <div class="admin-review-cover">${cook.coverPhoto || user?.profileCover ? `<img src="${cook.coverPhoto || user?.profileCover}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
-        <div class="admin-review-profile">${profilePhotoHtml(cook.profilePhoto || user?.profilePhoto, cook.name)}</div>
+        <div class="admin-review-cover">${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
+        <div class="admin-review-profile">${profilePhotoHtml(profilePhoto, cook.name)}</div>
       </div>
       <div class="admin-review-body">
         <div class="admin-review-heading">
@@ -1316,7 +1324,7 @@ function adminCookRequestHtml(cook) {
         <div class="admin-review-grid">
           <div><small>Name</small><strong>${user?.name || cook.name}</strong></div>
           <div><small>Email</small><strong>${user?.email || "No email"}</strong></div>
-          <div><small>Phone</small><strong>${cook.phone || user?.phone || "No phone"}</strong></div>
+          <div><small>Phone number</small><strong>${phone}</strong></div>
           <div><small>T.C. Kimlik</small><strong>${user?.nationalId || "Not provided"}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
         </div>
@@ -1351,7 +1359,7 @@ function renderAuth(error = "") {
   applyAppearance();
   const isLogin = mode === "login";
   const rememberedLogin = isLogin ? savedLoginCredentials() : null;
-  const countryValue = rememberedLogin?.country || authCountry;
+  const countryValue = isLogin ? (rememberedLogin?.country || authCountry || "TR") : (authCountry || "TR");
   const chefIcon = `
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1400,13 +1408,13 @@ function renderAuth(error = "") {
         <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
-          <div class="field">
+          ${isLogin ? `<input type="hidden" name="country" value="${countryValue}">` : `<div class="field">
             <label>${t("country")}</label>
             <select class="input" id="authCountry" name="country">
               <option value="TR" ${countryValue === "TR" ? "selected" : ""}>${t("turkey")}</option>
               <option value="DE" ${countryValue === "DE" ? "selected" : ""}>${t("germany")}</option>
             </select>
-          </div>
+          </div>`}
           ${mode === "signup" ? `
             ${countryValue === "TR" ? `<div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" pattern="\\d{11}" maxlength="11" placeholder="11 digit T.C. Kimlik" required></div>` : ""}
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
@@ -2026,15 +2034,9 @@ function renderCart() {
         <div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
+          <option value="stripe">${paymentLabel("stripe")}</option>
+          <option value="iban">${paymentLabel("iban")}</option>
           <option value="cash">${paymentLabel("cash")}</option>
-          <option value="iyzico">iyzico hosted checkout</option>
-          <option value="stripe">Stripe card / wallet</option>
-          <option value="paytr">PayTR secure checkout</option>
-          <option value="visa">Visa via Stripe</option>
-          <option value="mastercard">Mastercard via Stripe</option>
-          <option value="troy">Troy via iyzico</option>
-          <option value="google_pay">Google Pay via Stripe</option>
-          <option value="turkish_bank_card">Turkish bank card via iyzico</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>

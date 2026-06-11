@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-mobile-admin-flow-01";
+const backendBuild = "20260611-admin-ui-cleanup-02";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -163,7 +163,7 @@ const seedAccounts = [
   } : null
 ].filter(Boolean);
 
-const paymentMethods = ["cash", "stripe", "iyzico", "paytr", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
+const paymentMethods = ["cash", "iban", "stripe", "iyzico", "paytr", "visa", "mastercard", "troy", "apple_pay", "google_pay", "turkish_bank_card"];
 const refundReasons = ["not_delivered", "spoiled", "wrong_order", "missing_item"];
 const refundOutcomes = ["full", "half", "none"];
 const subscriptionActions = ["pause", "resume", "skip_week", "cancel"];
@@ -491,7 +491,7 @@ function configuredGateways() {
 }
 
 function paymentProviderFor(method) {
-  if (["stripe", "iyzico", "paytr", "cash"].includes(method)) return method;
+  if (["stripe", "iyzico", "paytr", "cash", "iban"].includes(method)) return method;
   if (["visa", "mastercard", "google_pay"].includes(method)) return "stripe";
   if (["troy", "turkish_bank_card", "apple_pay"].includes(method)) return "iyzico";
   return "cash";
@@ -2232,6 +2232,9 @@ async function api(req, res, pathname) {
     const input = await body(req);
     let cook = cookForUser(db, user.id);
     if (cook) return json(res, 409, { error: "You already have a cook profile." });
+    if (input.phone) user.phone = String(input.phone || "").trim();
+    if (input.profilePhoto) user.profilePhoto = String(input.profilePhoto || "").trim();
+    if (input.profileCover) user.profileCover = String(input.profileCover || "").trim();
     cook = {
       id: id("cook"),
       userId: user.id,
@@ -2367,8 +2370,9 @@ async function api(req, res, pathname) {
     order.etaMinutes = order.route.etaMinutes;
     order.payment = paymentLedgerForOrder(order);
     const provider = paymentProviderFor(paymentMethod);
-    order.payment.provider = provider === "cash" ? "cash_on_delivery" : provider;
-    order.payment.status = provider === "cash" ? "held" : "pending";
+    const manualPayment = provider === "cash" || provider === "iban";
+    order.payment.provider = provider === "cash" ? "cash_on_delivery" : provider === "iban" ? "bank_transfer" : provider;
+    order.payment.status = manualPayment ? "held" : "pending";
     const payment = {
       id: id("pay"),
       orderId: order.id,
@@ -2388,7 +2392,7 @@ async function api(req, res, pathname) {
       releasedAt: null
     };
     let checkout = null;
-    if (provider !== "cash") {
+    if (!manualPayment) {
       checkout = await createGatewayCheckout(payment, order, user, req);
       payment.externalPaymentId = checkout.externalPaymentId || checkout.token || "";
       payment.checkoutUrl = checkout.checkoutUrl || "";

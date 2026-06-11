@@ -2603,15 +2603,9 @@ function tr(key) {
   return key;
 }
 const checkoutPaymentMethods = [
-  { value: 'cash', label: '💵 Cash on delivery' },
-  { value: 'iyzico', label: '🟠 iyzico hosted checkout' },
-  { value: 'stripe', label: '💳 Stripe card / wallet' },
-  { value: 'paytr', label: '🔐 PayTR secure checkout' },
-  { value: 'visa', label: '💳 Visa via Stripe' },
-  { value: 'mastercard', label: '💳 Mastercard via Stripe' },
-  { value: 'troy', label: '🇹🇷 Troy via iyzico' },
-  { value: 'google_pay', label: 'G Google Pay via Stripe' },
-  { value: 'turkish_bank_card', label: '🏦 Turkish bank card via iyzico' }
+  { value: 'stripe', label: '💳 Credit card' },
+  { value: 'iban', label: '🏦 IBAN transfer' },
+  { value: 'cash', label: '💵 Cash on delivery' }
 ];
 const paymentMethodsByCountry = {
   TR: checkoutPaymentMethods,
@@ -2678,7 +2672,7 @@ cooks.forEach((c,i)=>{
     availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
     prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
     responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
-    phone: c.phone || '+90 5XX XXX XX XX',
+    phone: c.phone || '',
     speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
     verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
     profilePhoto,
@@ -2752,6 +2746,7 @@ async function runStandaloneMarketAction(action, payload = {}) {
             bio: data.bio || 'Fresh home cooking.',
             profilePhoto: data.profilePhoto || '',
             profileCover: data.coverPhoto || '',
+            phone: data.phone || '',
             online: Boolean(data.online)
           })
         });
@@ -4047,9 +4042,10 @@ async function createCookDemo(){
   const country = document.getElementById('cookDishCountryInput').value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
   const price = Number(document.getElementById('cookPriceInput').value) || 150;
-  const profilePhoto = getSavedProfilePicture() || defaultCookProfilePhoto;
-  const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
-  const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
+  const profilePhoto = getSavedProfilePicture() || '';
+  const coverPhoto = getSavedProfileCover() || '';
+  if (!cookDishPhotoPreviewUrl) { showToast('Please upload a real dish photo before publishing.', 'error'); return; }
+  const dishPhoto = cookDishPhotoPreviewUrl;
   const online = getDesiredCookOnline();
 	  try {
 	    const result = await sendMarketAction('market-create-cook-dish', {
@@ -4063,6 +4059,7 @@ async function createCookDemo(){
       bio,
       profilePhoto,
       coverPhoto,
+      phone,
       online
     }
   });
@@ -4451,7 +4448,7 @@ function handlePasswordResult(data) {
 function openPaymentPanel() {
   const saved = new Set(getSavedPaymentMethods());
   const defaults = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
-  const chosen = saved.size ? saved : new Set(defaults.slice(0, 3));
+  const chosen = saved.size ? saved : new Set(defaults.map(method => method.label || method));
   openAccountModal(`
     <h2>Manage Payment Methods</h2>
     <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${currentUserName}.</p>
@@ -4495,7 +4492,7 @@ function updateCheckoutItems() {
       <span class="summary-item-price">${item.price * item.qty} ₺</span>
     </div>`).join('');
   document.getElementById('checkoutSubtotal').textContent = sub + ' ₺';
-  document.getElementById('checkoutTotal').textContent = (sub + 30 + 15) + ' ₺';
+  document.getElementById('checkoutTotal').textContent = (sub + 30) + ' ₺';
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
@@ -4505,7 +4502,7 @@ function renderPaymentDetails(method) {
   if (!panel) return;
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
-  if (name.includes('Stripe') || name.includes('Visa') || name.includes('Mastercard') || name.includes('Google Pay')) {
+  if (name.includes('Credit card') || name.includes('card') || name.includes('Stripe')) {
     panel.innerHTML = `
       <p class="payment-details-title">Card details</p>
       <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
@@ -4517,17 +4514,11 @@ function renderPaymentDetails(method) {
     `;
     return;
   }
-  if (name.includes('iyzico') || name.includes('Troy') || name.includes('Turkish bank')) {
+  if (name.includes('IBAN')) {
     panel.innerHTML = `
-      <p class="payment-details-title">iyzico secure checkout</p>
-      <p class="payment-details-hint">You will continue with a Turkish card, Troy, or iyzico hosted payment after placing the order.</p>
-    `;
-    return;
-  }
-  if (name.includes('PayTR')) {
-    panel.innerHTML = `
-      <p class="payment-details-title">PayTR secure checkout</p>
-      <p class="payment-details-hint">You will continue to PayTR after placing the order.</p>
+      <p class="payment-details-title">IBAN transfer</p>
+      <div class="form-group"><label>IBAN Number</label><input class="form-input" type="text" value="TR00 0000 0000 0000 0000 0000 00" readonly></div>
+      <div class="form-group"><label>Receiver Full Name</label><input class="form-input" type="text" value="HomeTaste" readonly></div>
     `;
     return;
   }
