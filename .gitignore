@@ -1,6 +1,6 @@
-data/db.json
-data/db.tmp
 .env
-.env.*.local
+.env.*
+data/
+node_modules/
 .DS_Store
-node_modules
+.claude/
