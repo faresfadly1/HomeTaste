@@ -923,6 +923,7 @@ ul{list-style:none}
   transition:background var(--transition);flex-shrink:0;
 }
 .toggle.on{background:var(--orange)}
+.toggle.saving{opacity:.65;pointer-events:none}
 .toggle::after{
   content:'';position:absolute;
   top:3px;left:3px;
@@ -2097,7 +2098,7 @@ ul{list-style:none}
           <div class="toggle on" onclick="toggleSetting(this)"></div>
         </div>
         <div class="setting-item">
-          <div><div class="setting-label">Online</div><div class="setting-desc">Switch on when you have free time to cook, switch off when unavailable</div></div>
+          <div><div class="setting-label">Online</div><div class="setting-desc">Switch on when you have free time to cook, switch off when unavailable</div><div class="setting-desc" id="cookOnlineStatus">Offline</div></div>
           <div class="toggle" id="cookOnlineToggle" onclick="toggleOnlineSetting(this)"></div>
         </div>
         <div class="setting-item">
@@ -4246,13 +4247,18 @@ function toggleSetting(el) {
   showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
 }
 async function toggleOnlineSetting(el) {
-  el.classList.toggle('on');
-  const online = el.classList.contains('on');
-  setDesiredCookOnline(online);
+  if (el.dataset.saving === 'yes') return;
   const cook = getMyCook();
+  const previous = cook ? Boolean(cook.online) : el.classList.contains('on');
+  const online = !previous;
+  el.dataset.saving = 'yes';
+  el.classList.add('saving');
+  el.classList.toggle('on', online);
+  setDesiredCookOnline(online);
   if (cook) {
     cook.online = online;
     cook.availability = online ? 'Online now' : 'Offline';
+    updateSettingsAccount();
     refreshCookAndDishViews();
     try {
       await sendMarketAction('market-online', { online });
@@ -4264,8 +4270,15 @@ async function toggleOnlineSetting(el) {
       refreshCookAndDishViews();
       showToast(error.message, 'error');
       return;
+    } finally {
+      el.dataset.saving = '';
+      el.classList.remove('saving');
+      updateSettingsAccount();
     }
   } else {
+    el.dataset.saving = '';
+    el.classList.remove('saving');
+    updateSettingsAccount();
     showToast(online ? 'Online will be applied after your cook profile is created.' : 'Offline saved.', 'info');
     return;
   }
@@ -4309,6 +4322,8 @@ function updateSettingsAccount() {
   const region = document.getElementById('settingsProfileRegion');
   const avatar = document.getElementById('settingsProfileAvatar');
   const cover = document.getElementById('settingsProfileCover');
+  const onlineToggle = document.getElementById('cookOnlineToggle');
+  const onlineStatus = document.getElementById('cookOnlineStatus');
   const photo = getSavedProfilePicture();
   const coverPhoto = getSavedProfileCover();
   const cook = getMyCook();
@@ -4319,7 +4334,12 @@ function updateSettingsAccount() {
     cover.style.backgroundImage = coverPhoto ? `url('${coverPhoto.replace(/'/g, "%27")}')` : '';
     cover.textContent = coverPhoto ? '' : 'No background photo yet';
   }
-  document.getElementById('cookOnlineToggle')?.classList.toggle('on', Boolean(cook?.online));
+  if (onlineToggle) onlineToggle.classList.toggle('on', Boolean(cook?.online));
+  if (onlineStatus) {
+    onlineStatus.textContent = cook
+      ? (cook.online ? 'Visible to customers as Online' : 'Visible to customers as Offline')
+      : (getDesiredCookOnline() ? 'Online will apply after your cook profile is created' : 'Create a cook profile to appear online');
+  }
   syncMyCookPhotos();
   if (currentCook && cook && sameId(currentCook.id, cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
     openCookProfile(cook.id);

@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-profile-location-sync-08";
+const backendBuild = "20260611-online-persistence-09";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1110,8 +1110,13 @@ const toCook = (row) => ({
   followers: Number(row.followers || 0),
   profilePhoto: row.profile_photo || "",
   coverPhoto: row.cover_photo || "",
-  online: Boolean(row.online),
+  online: row.online === undefined || row.online === null ? Boolean(row.verification?.online) : Boolean(row.online),
   createdAt: row.created_at
+});
+
+const cookVerificationPayload = (cook) => ({
+  ...(cook.verification || defaultVerification(cook.verified ? "verified" : "pending")),
+  online: Boolean(cook.online)
 });
 
 const fromCook = (cook) => ({
@@ -1122,7 +1127,7 @@ const fromCook = (cook) => ({
   city: cook.city,
   bio: cook.bio,
   verified: Boolean(cook.verified),
-  verification: cook.verification || defaultVerification(cook.verified ? "verified" : "pending"),
+  verification: cookVerificationPayload(cook),
   status: cook.status,
   rating: cook.rating || 0,
   reviews: cook.reviews || 0,
@@ -1143,7 +1148,7 @@ const fromCookLegacy = (cook) => ({
   city: cook.city,
   bio: cook.bio,
   verified: Boolean(cook.verified),
-  verification: cook.verification || defaultVerification(cook.verified ? "verified" : "pending"),
+  verification: cookVerificationPayload(cook),
   status: cook.status,
   rating: cook.rating || 0,
   reviews: cook.reviews || 0,

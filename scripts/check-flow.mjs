@@ -205,6 +205,9 @@ try {
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: true });
   const onlineMarket = await request(base, "", "GET", "/api/marketplace");
   assert(onlineMarket.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "online cook is online again across the public marketplace");
+  const reloadedCookLogin = await auth(base, "login", { email: `cook.${runId}@hometaste.test`, password: "CookPass123!" });
+  const reloadedCookState = await request(base, reloadedCookLogin.token, "GET", "/api/state");
+  assert(reloadedCookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === true, "online state survives fresh cook login and page reload");
 
   let customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
   assert(customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action saves for the current customer");
