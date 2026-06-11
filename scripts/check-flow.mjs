@@ -128,9 +128,14 @@ try {
   let cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", {
     profilePhoto: "data:image/jpeg;base64,profile-photo",
     profileCover: "data:image/jpeg;base64,cover-photo",
+    city: "Moda, Istanbul",
+    locationLabel: "Moda, Kadikoy, Istanbul",
+    locationQuery: "40.987000,29.025000",
     phone: "+90 555 100 2000"
   });
   assert(cookState.user.profilePhoto.includes("profile-photo"), "profile photo saves to user account");
+  assert(cookState.user.profileCover.includes("cover-photo"), "background photo saves to user account");
+  assert(cookState.user.city === "Moda, Istanbul" && cookState.user.authMeta?.locationLabel === "Moda, Kadikoy, Istanbul", "account city and chosen location save to user account");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/cooks/apply", {
     cuisine: "Turkey",
@@ -142,6 +147,7 @@ try {
   });
   const pendingCook = cookState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
+  assert(pendingCook.city === "Moda, Istanbul" && pendingCook.profilePhoto.includes("profile-photo") && pendingCook.coverPhoto.includes("cover-photo"), "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/dishes", {
@@ -189,6 +195,8 @@ try {
 
   const market = await request(base, "", "GET", "/api/marketplace");
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
+  const liveCook = market.cooks.find((cook) => cook.id === ownerCook.id);
+  assert(liveCook?.city === "Moda, Istanbul" && liveCook.profilePhoto.includes("profile-photo") && liveCook.coverPhoto.includes("cover-photo"), "public marketplace uses the same user city, profile photo, and background photo");
   assert(market.dishes.some((item) => item.id === dish.id && item.image.includes("dish-photo")), "approved dish is visible publicly with uploaded photo");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });
   assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");

@@ -2720,6 +2720,8 @@ async function runStandaloneMarketAction(action, payload = {}) {
       return syncMarketplaceFromApi();
     case 'market-profile':
       return syncMarketplaceFromApi(await marketApi('/api/users/profile', { method: 'PATCH', body: JSON.stringify(payload.profile || {}) }));
+    case 'market-location':
+      return syncMarketplaceFromApi(await marketApi('/api/users/profile', { method: 'PATCH', body: JSON.stringify(payload.profile || {}) }));
     case 'market-online':
       return syncMarketplaceFromApi(await marketApi('/api/cooks/online', { method: 'PATCH', body: JSON.stringify({ online: payload.online }) }));
     case 'market-create-cook-dish': {
@@ -2734,6 +2736,7 @@ async function runStandaloneMarketAction(action, payload = {}) {
             profilePhoto: data.profilePhoto || '',
             profileCover: data.coverPhoto || '',
             phone: data.phone || '',
+            city: data.city || '',
             online: Boolean(data.online)
           })
         });
@@ -2958,8 +2961,11 @@ function normalizeMarketDish(dish) {
 function normalizeMarketCook(cook, normalizedDishes, rawState) {
   const cookDishes = normalizedDishes.filter(dish => sameId(dish.cookId, cook.id));
   const firstDish = cookDishes[0];
-  const userCountry = rawState?.user?.country;
   const isMine = sameId(cook.userId, currentUserId);
+  const user = isMine ? (rawState?.user || {}) : {};
+  const userCountry = user.country;
+  const profilePhoto = user.profilePhoto || cook.profilePhoto || '';
+  const coverPhoto = user.profileCover || cook.coverPhoto || '';
   const cookCountry = cook.country || (isMine ? userCountry : '') || selectedCountry;
   return {
     id: cook.id,
@@ -2967,7 +2973,7 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     name: cook.name || 'HomeTaste cook',
     emoji: '🧑‍🍳',
     cuisine: cook.cuisine || 'Home Kitchen',
-    city: cook.city || (selectedCountry === 'DE' ? 'Berlin' : 'Istanbul'),
+    city: user.city || cook.city || (selectedCountry === 'DE' ? 'Berlin' : 'Istanbul'),
     country: cookCountry,
     rating: Number(cook.rating || 5),
     reviews: Number(cook.reviews || 0),
@@ -2975,10 +2981,10 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     dish: firstDish?.name || 'No dishes yet',
     price: firstDish?.price || 0,
     verified: Boolean(cook.verified),
-    verifiedPhoto: Boolean(cook.profilePhoto),
-    img: cook.coverPhoto || cook.profilePhoto || defaultCookCoverPhoto,
-    profilePhoto: cook.profilePhoto || defaultCookProfilePhoto,
-    coverPhoto: cook.coverPhoto || '',
+    verifiedPhoto: Boolean(profilePhoto),
+    img: coverPhoto || profilePhoto || defaultCookCoverPhoto,
+    profilePhoto: profilePhoto || defaultCookProfilePhoto,
+    coverPhoto,
     bio: cook.bio || 'Fresh homemade food from this cook.',
     orders: (rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length,
     followers: Number(cook.followers || 0),
@@ -3054,8 +3060,22 @@ function applyMarketplaceState(rawState) {
     selectedCountry = user.country;
     localStorage.setItem('hometaste_country', selectedCountry);
   }
-  if (user.profilePhoto) setSavedProfilePicture(user.profilePhoto);
-  if (user.profileCover) setSavedProfileCover(user.profileCover);
+  if ('profilePhoto' in user) setSavedProfilePicture(user.profilePhoto || '');
+  if ('profileCover' in user) setSavedProfileCover(user.profileCover || '');
+  const userCity = String(user.city || '').trim();
+  const userLocationLabel = String(user.authMeta?.locationLabel || userCity || '').trim();
+  const userLocationQuery = String(user.authMeta?.locationQuery || userLocationLabel || '').trim();
+  if (userCity) {
+    const welcomeCity = document.getElementById('welcomeCity');
+    const cityLabel = document.getElementById('cityLabel');
+    if (welcomeCity) welcomeCity.value = userCity;
+    if (cityLabel) {
+      cityLabel.dataset.city = userCity;
+      cityLabel.textContent = '';
+    }
+  }
+  if (userLocationLabel) localStorage.setItem(`hometaste_location_label_${user.id || userSlug()}`, userLocationLabel);
+  if (userLocationQuery) localStorage.setItem(`hometaste_location_query_${user.id || userSlug()}`, userLocationQuery);
   const normalizedDishes = (rawState.dishes || []).filter(dish => dish.available !== false).map(normalizeMarketDish);
   const normalizedCooks = (rawState.cooks || []).map(cook => normalizeMarketCook(cook, normalizedDishes, rawState));
   favorites = new Set((rawState.socialActions || [])
@@ -3192,6 +3212,7 @@ function finishWelcome(goCook=false){
     document.getElementById('cityLabel').dataset.city = city;
     document.getElementById('cityLabel').textContent = '';
     document.getElementById('searchInput').value = cuisine;
+    persistMarketLocation(city);
     renderCityDropdown();
     renderHomeCooks();
     renderBrowseCooks();
@@ -3382,8 +3403,13 @@ function countryDishes() {
 function renderCityDropdown() {
   const dropdown = document.getElementById('cityDropdown');
   if (!dropdown) return;
-  dropdown.innerHTML = countryDefaults[selectedCountry].cities
-    .map(city => `<div class="city-option" onclick="selectCity('${city}')">📍 ${city}</div>`)
+  const cityOptions = [...new Set([
+    ...(countryDefaults[selectedCountry]?.cities || []),
+    ...countryCooks().map(cook => cook.city).filter(Boolean),
+    document.getElementById('cityLabel')?.dataset.city || ''
+  ].filter(Boolean))];
+  dropdown.innerHTML = cityOptions
+    .map(city => `<div class="city-option" onclick='selectCity(${jsArg(city)})'>📍 ${city}</div>`)
     .join('');
   renderCuisineFilterOptions();
   renderCityFilterOptions();
@@ -3402,15 +3428,35 @@ function renderCityFilterOptions() {
   const select = document.getElementById('cookCitySelect');
   if (!select) return;
   const current = select.value;
-  select.innerHTML = `<option value="">${tr('allCities')}</option>` + countryDefaults[selectedCountry].cities
+  const cityOptions = [...new Set([
+    ...(countryDefaults[selectedCountry]?.cities || []),
+    ...countryCooks().map(cook => cook.city).filter(Boolean),
+    document.getElementById('cityLabel')?.dataset.city || ''
+  ].filter(Boolean))];
+  select.innerHTML = `<option value="">${tr('allCities')}</option>` + cityOptions
     .map(city => `<option value="${city}">${city}</option>`)
     .join('');
-  select.value = countryDefaults[selectedCountry].cities.includes(current) ? current : '';
+  select.value = cityOptions.includes(current) ? current : '';
+}
+function persistMarketLocation(city) {
+  const cleanCity = String(city || '').trim();
+  if (!cleanCity) return;
+  sendMarketAction('market-location', {
+    profile: {
+      city: cleanCity,
+      country: selectedCountry,
+      locationLabel: cleanCity,
+      locationQuery: cleanCity
+    }
+  }).catch(error => {
+    if (marketAuthToken() || hostBridgeReady) showToast(error.message, 'error');
+  });
 }
 function selectCity(city) {
   document.getElementById('cityLabel').dataset.city = city;
   document.getElementById('cityLabel').textContent = '';
   document.getElementById('cityDropdown')?.classList.remove('open');
+  persistMarketLocation(city);
   renderHomeCooks();
   renderBrowseCooks();
   renderDishes();
@@ -4054,6 +4100,7 @@ async function createCookDemo(){
       prepMinutes: parsePrepMinutes(prep),
       image: dishPhoto,
       country,
+      city,
       bio,
       profilePhoto,
       coverPhoto,

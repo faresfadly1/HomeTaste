@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260611-driver-login-06";
+const APP_BUILD = "20260611-profile-location-sync-07";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -209,6 +209,12 @@ function sendPreferenceToMarketplace(name, value) {
   frame.contentWindow.postMessage({ source: "HomeTaste", name, value }, window.location.origin);
 }
 
+function sendStateToMarketplace(extra = {}) {
+  const frame = marketplaceFrame();
+  if (!frame?.contentWindow || !state) return;
+  frame.contentWindow.postMessage({ source: "HomeTaste", action: "market-sync", state, ...extra }, window.location.origin);
+}
+
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
   const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", ...payload }, event.origin);
@@ -224,8 +230,20 @@ async function handleMarketplaceMessage(event) {
   if (event.data.action === "market-profile") {
     try {
       state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
+      syncSavedLocationFromUser(state.user);
       reply({ action: "market-sync", ok: true, state });
       updateRolePanelVisibility();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-location") {
+    try {
+      state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
+      syncSavedLocationFromUser(state.user);
+      reply({ action: "market-sync", ok: true, state });
+      updateAddressButton();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -253,6 +271,7 @@ async function handleMarketplaceMessage(event) {
             profilePhoto: payload.profilePhoto || "",
             profileCover: payload.coverPhoto || "",
             phone: payload.phone || "",
+            city: payload.city || state.user.city || "",
             online: Boolean(payload.online)
           })
         });
@@ -473,6 +492,22 @@ function readableLocationLabel(value) {
   return clean && !isCoordinateLabel(clean) ? clean : "";
 }
 
+function inferCityFromLocation(value) {
+  return String(value || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .find((part) => !isCoordinateLabel(part) && !/^\d{4,}$/.test(part)) || "";
+}
+
+function syncSavedLocationFromUser(user = state?.user) {
+  if (!user?.id) return;
+  const label = readableLocationLabel(user.authMeta?.locationLabel) || readableLocationLabel(user.city);
+  const query = user.authMeta?.locationQuery || label;
+  if (label) localStorage.setItem(`hometaste_address_${user.id}`, label);
+  if (query) localStorage.setItem(`hometaste_location_query_${user.id}`, query);
+}
+
 function setLocationMap(query, label = query) {
   const cleanQuery = String(query || label || "").trim();
   const cleanLabel = readableLocationLabel(label) || t("currentLocation");
@@ -496,11 +531,15 @@ function userLocationQueryKey() {
 }
 
 function currentSavedAddress() {
-  return readableLocationLabel(localStorage.getItem(userAddressKey())) || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
+  return readableLocationLabel(state?.user?.authMeta?.locationLabel)
+    || readableLocationLabel(localStorage.getItem(userAddressKey()))
+    || readableLocationLabel(localStorage.getItem("hometaste_location_label"))
+    || readableLocationLabel(state?.user?.city)
+    || "";
 }
 
 function currentSavedLocationQuery() {
-  return localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
+  return state?.user?.authMeta?.locationQuery || localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -508,7 +547,7 @@ function updateAddressButton(value = currentSavedAddress()) {
   if (label) label.textContent = value || t("selectAddress");
 }
 
-function confirmLocation(value, mapQuery = value) {
+async function confirmLocation(value, mapQuery = value) {
   const clean = value.trim();
   if (!clean) return toast(t("enterAddress"), true);
   const label = readableLocationLabel(clean) || t("currentLocation");
@@ -517,6 +556,23 @@ function confirmLocation(value, mapQuery = value) {
   setLocationMap(mapQuery, label);
   updateAddressButton(label);
   closeLocation();
+  if (state?.user) {
+    try {
+      state = await api("/api/users/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          city: inferCityFromLocation(label) || state.user.city || "",
+          locationLabel: label,
+          locationQuery: mapQuery || label
+        })
+      });
+      syncSavedLocationFromUser(state.user);
+      sendStateToMarketplace({ ok: true });
+    } catch (err) {
+      toast(err.message, true);
+      return;
+    }
+  }
   toast(t("addressSaved"));
 }
 
@@ -662,6 +718,7 @@ async function refresh() {
   refreshInFlight = true;
   try {
     state = await api("/api/state");
+    syncSavedLocationFromUser(state.user);
     renderApp();
   } catch {
     token = null;
@@ -745,6 +802,16 @@ function staticSafeUser(user) {
 
 function staticCookForUser(db, userId) {
   return db.cooks.find((cook) => cook.userId === userId) || null;
+}
+
+function staticSyncCookProfileFromUser(db, cook) {
+  const owner = db.users.find((item) => item.id === cook?.userId);
+  if (!owner) return cook;
+  cook.name = owner.name || cook.name || "HomeTaste cook";
+  cook.city = owner.city || cook.city || "";
+  cook.profilePhoto = owner.profilePhoto || "";
+  cook.coverPhoto = owner.profileCover || "";
+  return cook;
 }
 
 function staticNotifyOwners(db, text, data = {}) {
@@ -835,6 +902,7 @@ function staticVisibleOrders(db, user) {
 }
 
 function staticPublicState(db, user) {
+  db.cooks.forEach((cook) => staticSyncCookProfileFromUser(db, cook));
   const cooks = user?.role === "owner"
     ? db.cooks
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
@@ -890,17 +958,18 @@ async function staticApi(path, options = {}) {
   if (!user) throw new Error("Please sign in first.");
 
   if (method === "PATCH" && path === "/api/users/profile") {
+    user.authMeta ||= {};
     if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
     if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
     if (input.name) user.name = String(input.name).trim();
-    if (input.city) user.city = String(input.city).trim();
+    if (input.city !== undefined) user.city = String(input.city || "").trim();
+    if (input.country !== undefined && ["TR", "DE"].includes(input.country)) user.country = input.country;
+    if (input.locationLabel !== undefined || input.address !== undefined) user.authMeta.locationLabel = String(input.locationLabel ?? input.address ?? "").trim();
+    if (input.locationQuery !== undefined || input.customerLocation !== undefined) user.authMeta.locationQuery = String(input.locationQuery ?? input.customerLocation ?? "").trim();
     if (input.phone) user.phone = String(input.phone).trim();
     const cook = staticCookForUser(db, user.id);
     if (cook) {
-      if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
-      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
-      if (input.name) cook.name = user.name;
-      if (input.city) cook.city = user.city;
+      staticSyncCookProfileFromUser(db, cook);
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1537,26 +1606,27 @@ function renderAuth(error = "") {
   document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
-	    const submitButton = event.currentTarget.querySelector("[type='submit']");
-	    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
-	    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-	    const rememberLogin = input.rememberLogin === "on";
-	    delete input.rememberLogin;
-	    try {
-        if (mode === "signup" && input.country === "TR" && !/^\d{11}$/.test(String(input.nationalId || ""))) {
-          throw new Error("T.C. Kimlik must be 11 digits.");
-        }
-	      if (useStaticApi) {
-	        const data = staticAuth(input);
+    const submitButton = event.currentTarget.querySelector("[type='submit']");
+    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
+    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const rememberLogin = input.rememberLogin === "on";
+    delete input.rememberLogin;
+    try {
+      if (mode === "signup" && input.country === "TR" && !/^\d{11}$/.test(String(input.nationalId || ""))) {
+        throw new Error("T.C. Kimlik must be 11 digits.");
+      }
+      if (useStaticApi) {
+        const data = staticAuth(input);
         token = data.token;
         localStorage.setItem(storageKey, token);
         authCountry = input.country || authCountry;
-	        localStorage.setItem("hometaste_country", authCountry);
-	        if (isLogin) {
-	          if (rememberLogin) saveLoginCredentials(input);
-	          else clearLoginCredentials();
-	        }
-	        state = data.state;
+        localStorage.setItem("hometaste_country", authCountry);
+        if (isLogin) {
+          if (rememberLogin) saveLoginCredentials(input);
+          else clearLoginCredentials();
+        }
+        state = data.state;
+        syncSavedLocationFromUser(state.user);
         page = "dashboard";
         renderApp();
         return;
@@ -1565,12 +1635,13 @@ function renderAuth(error = "") {
       token = data.token;
       localStorage.setItem(storageKey, token);
       authCountry = input.country || authCountry;
-	      localStorage.setItem("hometaste_country", authCountry);
-	      if (isLogin) {
-	        if (rememberLogin) saveLoginCredentials(input);
-	        else clearLoginCredentials();
-	      }
-	      state = data.state;
+      localStorage.setItem("hometaste_country", authCountry);
+      if (isLogin) {
+        if (rememberLogin) saveLoginCredentials(input);
+        else clearLoginCredentials();
+      }
+      state = data.state;
+      syncSavedLocationFromUser(state.user);
       if (data.verificationUrl) toast("Account created. Email verification link is ready in Profile.");
       page = "dashboard";
       renderApp();
@@ -1691,6 +1762,7 @@ function renderMarketplaceFrame() {
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
     sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+    sendStateToMarketplace();
     updateRolePanelVisibility();
   });
   bindPage();

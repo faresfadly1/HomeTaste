@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-driver-login-06";
+const backendBuild = "20260611-profile-location-sync-07";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -955,10 +955,9 @@ function normalizeDb(db) {
   for (const cook of db.cooks) {
     cook.verification ||= defaultVerification(cook.verified ? "verified" : "pending");
     cook.followers ||= 0;
-    cook.profilePhoto ||= db.users.find((item) => item.id === cook.userId)?.profilePhoto || "";
-    cook.coverPhoto ||= db.users.find((item) => item.id === cook.userId)?.profileCover || "";
+    syncCookProfileFromUser(db, cook);
     cook.online = Boolean(cook.online);
-    cook.name ||= db.users.find((item) => item.id === cook.userId)?.name || "HomeTaste cook";
+    cook.name ||= "HomeTaste cook";
   }
   for (const dish of db.dishes) {
     dish.country ||= dish.tags?.[0] || "";
@@ -1680,6 +1679,20 @@ function cookForUser(db, userId) {
   return db.cooks.find((cook) => cook.userId === userId) || null;
 }
 
+function syncCookProfileFromUser(db, cook) {
+  const owner = db.users.find((item) => item.id === cook?.userId);
+  if (!owner) return cook;
+  cook.name = owner.name || cook.name || "HomeTaste cook";
+  cook.city = owner.city || cook.city || "";
+  cook.profilePhoto = owner.profilePhoto || "";
+  cook.coverPhoto = owner.profileCover || "";
+  return cook;
+}
+
+function syncCookProfilesFromUsers(db) {
+  db.cooks.forEach((cook) => syncCookProfileFromUser(db, cook));
+}
+
 function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") {
@@ -1728,6 +1741,7 @@ function socialSummary(db, cookId = null) {
 }
 
 function publicState(db, user = null) {
+  syncCookProfilesFromUsers(db);
   const approvedCooks = db.cooks.filter((cook) => cook.status === "approved");
   const cooks = user?.role === "owner"
     ? db.cooks
@@ -1769,6 +1783,7 @@ function publicState(db, user = null) {
 }
 
 function publicMarketplaceState(db) {
+  syncCookProfilesFromUsers(db);
   const cooks = db.cooks.filter((cook) => cook.status === "approved");
   const cookIds = new Set(cooks.map((cook) => cook.id));
   return {
@@ -2133,17 +2148,22 @@ async function api(req, res, pathname) {
 
   if (req.method === "PATCH" && pathname === "/api/users/profile") {
     const input = await body(req);
+    user.authMeta ||= {};
     if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
     if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
     if (input.name) user.name = String(input.name).trim();
-    if (input.city) user.city = String(input.city).trim();
+    if (input.city !== undefined) user.city = String(input.city || "").trim();
+    if (input.country !== undefined && ["TR", "DE"].includes(input.country)) user.country = input.country;
+    if (input.locationLabel !== undefined || input.address !== undefined) {
+      user.authMeta.locationLabel = String(input.locationLabel ?? input.address ?? "").trim();
+    }
+    if (input.locationQuery !== undefined || input.customerLocation !== undefined) {
+      user.authMeta.locationQuery = String(input.locationQuery ?? input.customerLocation ?? "").trim();
+    }
     if (input.phone) user.phone = String(input.phone).trim();
     const cook = cookForUser(db, user.id);
     if (cook) {
-      if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
-      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
-      if (input.name) cook.name = user.name;
-      if (input.city) cook.city = user.city;
+      syncCookProfileFromUser(db, cook);
     }
     await saveDb(db);
     return json(res, 200, publicState(db, user));
