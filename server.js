@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-profile-location-sync-07";
+const backendBuild = "20260611-profile-location-sync-08";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1045,8 +1045,8 @@ const toUser = (row) => ({
   phoneVerified: Boolean(row.phone_verified),
   authProvider: row.auth_provider || "password",
   authMeta: row.auth_meta || {},
-  profilePhoto: row.profile_photo || "",
-  profileCover: row.profile_cover || "",
+  profilePhoto: row.profile_photo || row.auth_meta?.profilePhoto || "",
+  profileCover: row.profile_cover || row.auth_meta?.profileCover || "",
   createdAt: row.created_at
 });
 
@@ -1063,7 +1063,12 @@ const fromUser = (user) => ({
   email_verified: Boolean(user.emailVerified),
   phone_verified: Boolean(user.phoneVerified),
   auth_provider: user.authProvider || "password",
-  auth_meta: { ...(user.authMeta || {}), ...(user.nationalId ? { nationalId: user.nationalId } : {}) },
+  auth_meta: {
+    ...(user.authMeta || {}),
+    ...(user.nationalId ? { nationalId: user.nationalId } : {}),
+    profilePhoto: user.profilePhoto || "",
+    profileCover: user.profileCover || ""
+  },
   profile_photo: user.profilePhoto || "",
   profile_cover: user.profileCover || "",
   created_at: user.createdAt || now()
@@ -1079,7 +1084,12 @@ const fromUserLegacy = (user) => ({
   country: user.country || "TR",
   phone: user.phone || "",
   auth_provider: user.authProvider || "password",
-  auth_meta: { ...(user.authMeta || {}), ...(user.nationalId ? { nationalId: user.nationalId } : {}) },
+  auth_meta: {
+    ...(user.authMeta || {}),
+    ...(user.nationalId ? { nationalId: user.nationalId } : {}),
+    profilePhoto: user.profilePhoto || "",
+    profileCover: user.profileCover || ""
+  },
   created_at: user.createdAt || now()
 });
 
