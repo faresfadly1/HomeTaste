@@ -570,9 +570,10 @@ html[dir="rtl"] .password-toggle { right: 18px; left: auto; }
 .reset-result.success,
 .reset-result.error { display: block; }
 .reset-result a { color: var(--brand-2); font-weight: 900; }
-.oauth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.oauth-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 18px; }
 .oauth-button {
   min-height: 48px;
+  width: 100%;
   justify-content: center;
   display: inline-flex;
   align-items: center;
@@ -1186,20 +1187,19 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   }
   .auth-separator span { background: rgba(255,255,255,.13); }
   .oauth-grid {
-    grid-template-columns: 48px;
-    justify-content: center;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
     gap: 12px;
     margin-bottom: 18px;
   }
   .oauth-button {
-    width: 48px;
+    width: 100%;
     min-height: 48px;
-    padding: 0;
-    border-radius: 50%;
+    padding: 0 18px;
+    border-radius: 999px;
     background: #f7f3ec;
     color: #111;
   }
-  .oauth-button span { display: none; }
   .auth-mode-link {
     color: rgba(247,239,228,.78);
     font-size: 13px;

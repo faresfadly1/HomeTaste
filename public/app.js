@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260611-payment-fallback-03";
+const APP_BUILD = "20260611-social-ui-cleanup-04";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -671,11 +671,14 @@ async function refresh() {
   }
 }
 
+function stopOwnerRefresh() {
+  if (!ownerRefreshTimer) return;
+  clearInterval(ownerRefreshTimer);
+  ownerRefreshTimer = null;
+}
+
 function scheduleOwnerRefresh() {
-  if (ownerRefreshTimer) {
-    clearInterval(ownerRefreshTimer);
-    ownerRefreshTimer = null;
-  }
+  stopOwnerRefresh();
   if (state?.user?.role === "owner" && page === "admin") {
     ownerRefreshTimer = setInterval(() => refresh(), 10000);
   }
@@ -1089,6 +1092,48 @@ async function staticApi(path, options = {}) {
     return staticPublicState(db, user);
   }
 
+  if (method === "POST" && path === "/api/social") {
+    const type = String(input.type || "").trim();
+    if (!["follow", "like", "comment", "photo"].includes(type)) throw new Error("Invalid social action.");
+    const cookId = String(input.cookId || "").trim();
+    const dishId = String(input.dishId || "").trim();
+    if (type === "follow" && !cookId) throw new Error("Cook is required.");
+    if (type === "like" && !dishId) throw new Error("Dish is required.");
+    if (cookId && !db.cooks.some((cook) => cook.id === cookId)) throw new Error("Cook not found.");
+    if (dishId && !db.dishes.some((dish) => dish.id === dishId)) throw new Error("Dish not found.");
+    if (type === "follow" || type === "like") {
+      const existing = db.socialActions.find((action) => (
+        action.userId === user.id
+        && action.type === type
+        && (type === "follow" ? action.cookId === cookId : action.dishId === dishId)
+      ));
+      if (existing) {
+        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
+        const cook = db.cooks.find((item) => item.id === cookId);
+        if (cook) cook.followers = db.socialActions.filter((action) => action.type === "follow" && action.cookId === cookId).length;
+        saveStaticDb(db);
+        return staticPublicState(db, user);
+      }
+    }
+    const action = {
+      id: `soc_${Date.now()}`,
+      userId: user.id,
+      cookId: cookId || null,
+      dishId: dishId || null,
+      type,
+      text: String(input.text || "").trim(),
+      photo: String(input.photo || "").trim(),
+      createdAt: new Date().toISOString()
+    };
+    if (type === "comment" && !action.text) throw new Error("Comment text is required.");
+    if (type === "photo" && !action.photo) throw new Error("Photo URL is required.");
+    db.socialActions.unshift(action);
+    const cook = db.cooks.find((item) => item.id === cookId);
+    if (cook) cook.followers = db.socialActions.filter((item) => item.type === "follow" && item.cookId === cookId).length;
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
   if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/cooks/")) {
     const cook = db.cooks.find((item) => item.id === path.split("/").pop());
     if (!cook) throw new Error("Cook not found.");
@@ -1359,7 +1404,7 @@ function renderAuth(error = "") {
   applyAppearance();
   const isLogin = mode === "login";
   const rememberedLogin = isLogin ? savedLoginCredentials() : null;
-  const countryValue = isLogin ? (rememberedLogin?.country || authCountry || "TR") : (authCountry || "TR");
+  const countryValue = "TR";
   const chefIcon = `
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1408,13 +1453,7 @@ function renderAuth(error = "") {
         <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
-          ${isLogin ? `<input type="hidden" name="country" value="${countryValue}">` : `<div class="field">
-            <label>${t("country")}</label>
-            <select class="input" id="authCountry" name="country">
-              <option value="TR" ${countryValue === "TR" ? "selected" : ""}>${t("turkey")}</option>
-              <option value="DE" ${countryValue === "DE" ? "selected" : ""}>${t("germany")}</option>
-            </select>
-          </div>`}
+          <input type="hidden" name="country" value="${countryValue}">
           ${mode === "signup" ? `
             ${countryValue === "TR" ? `<div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" pattern="\\d{11}" maxlength="11" placeholder="11 digit T.C. Kimlik" required></div>` : ""}
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
@@ -1489,11 +1528,6 @@ function renderAuth(error = "") {
     document.querySelector("#passwordToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
     document.querySelector("#passwordToggle").title = show ? "Hide password" : "Show password";
   };
-  document.querySelector("#authCountry")?.addEventListener("change", (event) => {
-    authCountry = event.target.value;
-    localStorage.setItem("hometaste_country", authCountry);
-    renderAuth();
-  });
   document.querySelectorAll("[data-oauth]").forEach((button) => {
     button.onclick = () => startOAuth(button.dataset.oauth);
   });
@@ -1582,11 +1616,11 @@ function navItems() {
 function renderApp() {
   applyAppearance();
   if (!state?.user) {
-    scheduleOwnerRefresh();
+    stopOwnerRefresh();
     return renderAuth();
   }
-  if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
   scheduleOwnerRefresh();
+  if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -1636,7 +1670,6 @@ function renderMarketplaceFrame() {
           <span class="market-location-text">${currentSavedAddress() || t("selectAddress")}</span>
         </button>
         <div class="market-user">
-          ${languageMenuHtml()}
           <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
           <button class="button secondary small" id="logout">${t("signOut")}</button>
         </div>
@@ -1665,6 +1698,7 @@ async function logout() {
   const previousToken = token;
   token = null;
   state = null;
+  stopOwnerRefresh();
   localStorage.removeItem(storageKey);
   renderAuth();
   if (!useStaticApi && previousToken) {
@@ -2758,6 +2792,9 @@ async function createMealPlan(event) {
 async function applyCook(event) {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  input.profilePhoto = state.user.profilePhoto || "";
+  input.profileCover = state.user.profileCover || "";
+  input.phone = state.user.phone || "";
   try {
     state = await api("/api/cooks/apply", { method: "POST", body: JSON.stringify(input) });
     toast("Cook application submitted.");
@@ -3005,9 +3042,19 @@ async function updateDriverLocation(orderId) {
 }
 
 async function socialAction(input) {
+  const wasActive = state.socialActions?.some((action) => (
+    action.userId === state.user?.id
+    && action.type === input.type
+    && (input.type === "follow" ? action.cookId === input.cookId : action.dishId === input.dishId)
+  ));
   try {
     state = await api("/api/social", { method: "POST", body: JSON.stringify(input) });
-    toast(input.type === "follow" ? "Cook followed." : "Dish liked.");
+    const message = input.type === "follow"
+      ? (wasActive ? "Cook unfollowed." : "Cook followed.")
+      : input.type === "like"
+        ? (wasActive ? "Dish unliked." : "Dish liked.")
+        : "Saved.";
+    toast(message);
     renderApp();
   } catch (err) {
     toast(err.message, true);

@@ -1249,9 +1249,6 @@ ul{list-style:none}
 .cart-floating-btn{position:fixed;right:22px;bottom:22px;z-index:450;background:var(--orange);color:#fff;padding:13px 17px;border-radius:999px;font-weight:800;box-shadow:0 12px 30px var(--orange-glow);display:flex;align-items:center;gap:8px}
 .cart-floating-btn.hidden{display:none}
 .cart-close{width:30px;height:30px;border-radius:8px;background:var(--bg3);display:grid;place-items:center;color:var(--text2)}
-.lang-switch{position:relative;display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:13px;color:var(--text3);cursor:pointer;border-radius:10px}.lang-switch:hover{background:var(--bg3);color:var(--text)}
-.lang-menu{position:absolute;left:12px;bottom:44px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:140px;display:none;box-shadow:var(--shadow);z-index:300}.lang-menu.open{display:block}
-.lang-menu button{display:block;width:100%;text-align:left;padding:9px 10px;border-radius:8px;color:var(--text2);font-size:13px}.lang-menu button:hover{background:var(--bg3);color:var(--text)}
 .info-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 8px;border-radius:99px;background:var(--bg3);color:var(--text2);margin-top:6px;margin-right:4px}.verified-photo{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
 .profile-extra{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}.profile-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}.profile-box small{display:block;color:var(--text3);font-size:11px;margin-bottom:5px}.profile-box strong{font-size:13px}
 .cook-form{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:32px}.cook-form .wide{grid-column:1/-1}.cook-input[type=file]{padding:10px}.live-preview-note{padding:14px;border:1px dashed var(--orange);background:var(--orange-light);border-radius:12px;color:var(--text2);font-size:13px;line-height:1.6}.camera-verified{color:#22c55e;font-weight:800}
@@ -1755,16 +1752,6 @@ ul{list-style:none}
     <div class="nav-item" onclick="showPage('settings',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Settings
-    </div>
-    <div class="lang-switch" onclick="toggleLangMenu(event)">
-      <span>🌐</span><span id="currentLangLabel">EN</span>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      <div class="lang-menu" id="langMenu">
-        <button onclick="setLanguage('EN',event)">English</button>
-        <button onclick="setLanguage('DE',event)">Deutsch</button>
-        <button onclick="setLanguage('AR',event)">العربية</button>
-        <button onclick="setLanguage('TR',event)">Türkçe</button>
-      </div>
     </div>
   </div>
 </aside>
@@ -3072,7 +3059,7 @@ function applyMarketplaceState(rawState) {
   const normalizedDishes = (rawState.dishes || []).filter(dish => dish.available !== false).map(normalizeMarketDish);
   const normalizedCooks = (rawState.cooks || []).map(cook => normalizeMarketCook(cook, normalizedDishes, rawState));
   favorites = new Set((rawState.socialActions || [])
-    .filter(action => action.type === 'follow' && action.cookId)
+    .filter(action => action.type === 'follow' && action.cookId && sameId(action.userId, currentUserId))
     .map(action => String(action.cookId)));
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
@@ -3246,13 +3233,11 @@ function updateCartButtonVisibility(pageId) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
   document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', cartCount === 0 || ['messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
 }
-function toggleLangMenu(e){ e.stopPropagation(); document.getElementById('langMenu').classList.toggle('open'); }
 function setLanguage(lang,e,silent=false){
-  if(e) e.stopPropagation(); selectedLanguage = lang; document.getElementById('currentLangLabel').textContent = lang;
+  if(e) e.stopPropagation(); selectedLanguage = lang;
   localStorage.setItem('hometaste_language', lang);
   document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : (lang === 'DE' ? 'de' : 'en'));
   document.body.dir = lang === 'AR' ? 'rtl' : 'ltr';
-  document.getElementById('langMenu')?.classList.remove('open');
   applyTranslations();
   if (!silent) showToast(tr('languageChanged'), 'success');
 }
@@ -3359,7 +3344,6 @@ function applyTranslations() {
   });
 
 }
-document.addEventListener('click',()=>document.getElementById('langMenu')?.classList.remove('open'));
 document.addEventListener('click',(event)=>{
   if (!event.target.closest('.country-filter')) {
     document.getElementById('countryCuisineMenu')?.classList.remove('open');
@@ -3666,20 +3650,27 @@ function renderFavorites() {
 async function toggleFav(e, cookId, btn) {
   e.stopPropagation();
   const id = String(cookId);
-  if (favorites.has(id)) {
+  const wasFavorite = favorites.has(id);
+  if (wasFavorite) {
+    favorites.delete(id);
+    btn.classList.remove('active');
+  } else {
+    favorites.add(id);
     btn.classList.add('active');
-    showToast('Already following this cook.', 'info');
-    return;
   }
-  favorites.add(id);
-  btn.classList.add('active');
   renderFavorites();
   renderHomeCooks();
   renderBrowseCooks();
   try {
-    await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
-    showToast('Cook followed and saved.', 'success');
+    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
+    if (result.mode === 'api') applyMarketplaceState(result.state);
+    showToast(wasFavorite ? 'Cook unfollowed.' : 'Cook followed and saved.', 'success');
   } catch (error) {
+    if (wasFavorite) favorites.add(id);
+    else favorites.delete(id);
+    renderFavorites();
+    renderHomeCooks();
+    renderBrowseCooks();
     showToast(error.message, 'error');
   }
 }
@@ -3850,21 +3841,28 @@ async function followCookFromProfile() {
   }
   const cookKey = String(currentCook.id);
   const alreadyFollowing = favorites.has(cookKey);
-  if (!alreadyFollowing) {
-    favorites.add(cookKey);
-    currentCook.followers = Number(currentCook.followers || 0) + 1;
+  if (alreadyFollowing) favorites.delete(cookKey);
+  else favorites.add(cookKey);
+  currentCook.followers = Math.max(0, Number(currentCook.followers || 0) + (alreadyFollowing ? -1 : 1));
+  document.getElementById('profileFollowers').textContent = currentCook.followers;
+  const button = document.getElementById('profileFollowButton');
+  if (button) button.textContent = alreadyFollowing ? '+ Follow' : 'Following';
+  renderFavorites();
+  renderHomeCooks();
+  renderBrowseCooks();
+  try {
+    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
+    if (result.mode === 'api') applyMarketplaceState(result.state);
+    showToast(alreadyFollowing ? 'Cook unfollowed.' : 'Cook saved to favorites.', 'success');
+  } catch (error) {
+    if (alreadyFollowing) favorites.add(cookKey);
+    else favorites.delete(cookKey);
+    currentCook.followers = Math.max(0, Number(currentCook.followers || 0) + (alreadyFollowing ? 1 : -1));
     document.getElementById('profileFollowers').textContent = currentCook.followers;
-    const button = document.getElementById('profileFollowButton');
-    if (button) button.textContent = 'Following';
+    if (button) button.textContent = alreadyFollowing ? 'Following' : '+ Follow';
     renderFavorites();
     renderHomeCooks();
     renderBrowseCooks();
-  }
-  try {
-    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
-    showToast(alreadyFollowing ? 'Already following this cook.' : 'Following cook...', 'info');
-    if (result.mode === 'api') showToast(alreadyFollowing ? 'Already following this cook.' : 'Cook saved to favorites.', alreadyFollowing ? 'info' : 'success');
-  } catch (error) {
     showToast(error.message, 'error');
   }
 }

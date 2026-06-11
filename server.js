@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-payment-fallback-03";
+const backendBuild = "20260611-social-ui-cleanup-04";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -2625,15 +2625,27 @@ async function api(req, res, pathname) {
     if (!["follow", "like", "comment", "photo"].includes(type)) return json(res, 400, { error: "Invalid social action." });
     const cookId = String(input.cookId || "").trim();
     const dishId = String(input.dishId || "").trim();
+    if (type === "follow" && !cookId) return json(res, 400, { error: "Cook is required." });
+    if (type === "like" && !dishId) return json(res, 400, { error: "Dish is required." });
     if (cookId && !db.cooks.some((cook) => cook.id === cookId)) return json(res, 404, { error: "Cook not found." });
     if (dishId && !db.dishes.some((dish) => dish.id === dishId)) return json(res, 404, { error: "Dish not found." });
     if (type === "follow") {
       const existing = db.socialActions.find((action) => action.userId === user.id && action.cookId === cookId && action.type === "follow");
-      if (existing) return json(res, 200, publicState(db, user));
+      if (existing) {
+        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
+        const cook = db.cooks.find((item) => item.id === cookId);
+        if (cook) cook.followers = socialSummary(db, cook.id).followers;
+        await saveDb(db);
+        return json(res, 200, publicState(db, user));
+      }
     }
     if (type === "like") {
       const existing = db.socialActions.find((action) => action.userId === user.id && action.dishId === dishId && action.type === "like");
-      if (existing) return json(res, 200, publicState(db, user));
+      if (existing) {
+        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
+        await saveDb(db);
+        return json(res, 200, publicState(db, user));
+      }
     }
     const action = {
       id: id("soc"),
