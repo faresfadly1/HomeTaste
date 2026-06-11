@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260611-admin-ui-cleanup-02";
+const backendBuild = "20260611-payment-fallback-03";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -488,6 +488,10 @@ function configuredGateways() {
     iyzico: Boolean(iyzicoApiKey && iyzicoSecretKey),
     paytr: Boolean(paytrMerchantId && paytrMerchantKey && paytrMerchantSalt)
   };
+}
+
+function isGatewayConfigured(provider) {
+  return Boolean(configuredGateways()[provider]);
 }
 
 function paymentProviderFor(method) {
@@ -2371,8 +2375,9 @@ async function api(req, res, pathname) {
     order.payment = paymentLedgerForOrder(order);
     const provider = paymentProviderFor(paymentMethod);
     const manualPayment = provider === "cash" || provider === "iban";
+    const gatewayConfigured = !manualPayment && isGatewayConfigured(provider);
     order.payment.provider = provider === "cash" ? "cash_on_delivery" : provider === "iban" ? "bank_transfer" : provider;
-    order.payment.status = manualPayment ? "held" : "pending";
+    order.payment.status = manualPayment || !gatewayConfigured ? "held" : "pending";
     const payment = {
       id: id("pay"),
       orderId: order.id,
@@ -2393,13 +2398,25 @@ async function api(req, res, pathname) {
     };
     let checkout = null;
     if (!manualPayment) {
-      checkout = await createGatewayCheckout(payment, order, user, req);
-      payment.externalPaymentId = checkout.externalPaymentId || checkout.token || "";
-      payment.checkoutUrl = checkout.checkoutUrl || "";
-      payment.metadata = checkout;
-      order.payment.externalPaymentId = payment.externalPaymentId;
-      order.payment.checkoutUrl = payment.checkoutUrl;
-      order.payment.metadata = checkout;
+      if (gatewayConfigured) {
+        checkout = await createGatewayCheckout(payment, order, user, req);
+        payment.externalPaymentId = checkout.externalPaymentId || checkout.token || "";
+        payment.checkoutUrl = checkout.checkoutUrl || "";
+        payment.metadata = checkout;
+        order.payment.externalPaymentId = payment.externalPaymentId;
+        order.payment.checkoutUrl = payment.checkoutUrl;
+        order.payment.metadata = checkout;
+      } else {
+        checkout = {
+          provider,
+          status: "missing_configuration",
+          checkoutUrl: "",
+          externalPaymentId: "",
+          message: `${provider} keys are missing in Railway. Order saved for admin payment follow-up.`
+        };
+        payment.metadata = checkout;
+        order.payment.metadata = checkout;
+      }
     }
     db.orders.unshift(order);
     db.payments.unshift(payment);

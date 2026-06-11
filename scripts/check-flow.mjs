@@ -78,6 +78,12 @@ const child = spawn(process.execPath, ["server.js"], {
     SUPABASE_URL: "",
     SUPABASE_SECRET_KEY: "",
     SUPABASE_SERVICE_ROLE_KEY: "",
+    STRIPE_SECRET_KEY: "",
+    IYZICO_API_KEY: "",
+    IYZICO_SECRET_KEY: "",
+    PAYTR_MERCHANT_ID: "",
+    PAYTR_MERCHANT_KEY: "",
+    PAYTR_MERCHANT_SALT: "",
     SEED_OWNER_EMAIL: ownerEmail,
     SEED_OWNER_PASSWORD: ownerPassword,
     SEED_OWNER_NAME: "Flow Owner",
@@ -214,6 +220,17 @@ try {
   customerState = await request(base, customer.token, "PATCH", `/api/subscriptions/${subscription.id}`, { action: "skip_week", weekOf: "2026-06-12T18:00:00.000Z" });
   subscription = customerState.subscriptions.find((item) => item.id === subscription.id);
   assert(subscription.status === "active" && subscription.skipWeeks.length === 1, "subscription pause/resume/skip-week flow saves");
+
+  const cardFallbackResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Uskudar, Istanbul",
+    customerLocation: "41.0240,29.0170",
+    scheduledFor: "2026-06-12T19:00:00.000Z",
+    paymentMethod: "stripe",
+    notes: "Card fallback flow check order"
+  });
+  const cardFallbackOrder = cardFallbackResult.state.orders.find((item) => item.notes === "Card fallback flow check order");
+  assert(cardFallbackOrder?.paymentMethod === "stripe" && cardFallbackOrder.payment?.metadata?.status === "missing_configuration", "credit card order saves when Stripe keys are missing");
 
   const orderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
