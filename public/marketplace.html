@@ -1917,8 +1917,8 @@ ul{list-style:none}
     <div class="filter-chips" id="filterChips">
       <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
       <div class="country-filter">
-        <button class="chip" type="button" onclick="openCountryMenu()">All Locations <span class="chevron">⌄</span></button>
-        <input class="country-search" id="countryCuisineSearch" aria-label="Search countries" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
+        <button class="chip" type="button" onclick="openCountryMenu()">Dish Origins <span class="chevron">⌄</span></button>
+        <input class="country-search" id="countryCuisineSearch" aria-label="Search dish origins" placeholder="Search dish origin globally" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
         <div class="country-menu" id="countryCuisineMenu"></div>
       </div>
       <button class="chip" type="button" onclick="setDishSort(this,'popular')">Sort by Popular</button>
@@ -2455,6 +2455,7 @@ let lastCookFilterSummary = 'All cooks';
 let dishSortMode = 'default';
 let dishCategoryFilter = 'all';
 let orderFilter = 'all';
+let nextSearchUsesAllApprovedDishes = false;
 const translations = {
   EN: {
     welcomeTitle: 'Where are you, and what do you want to eat?',
@@ -2723,6 +2724,19 @@ const paymentMethodsByCountry = {
 const cardPaymentConfigured = false;
 const allPaymentMethods = checkoutPaymentMethods.map(method => method.label);
 const paymentValueByLabel = Object.fromEntries(checkoutPaymentMethods.map(method => [method.label, method.value]));
+function checkoutMethodValue(method) {
+  return typeof method === 'string' ? paymentValueByLabel[method] : method?.value;
+}
+function checkoutMethodLabel(method) {
+  return String(typeof method === 'string' ? method : method?.label || '');
+}
+function availableCheckoutMethods(methods) {
+  return (methods || []).filter(method => {
+    const value = checkoutMethodValue(method);
+    if (value === 'stripe' && !cardPaymentConfigured) return false;
+    return Boolean(value || checkoutMethodLabel(method));
+  });
+}
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
 const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
@@ -3031,6 +3045,9 @@ function loadCustomCookData() {
   });
   readSavedArray(customDishesKey()).forEach(dish => {
     if (!dish || !dish.name) return;
+    const parsedPrice = Number(dish.price);
+    const customImage = safeImageSrc(dish.img, '');
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0 || !customImage) return;
     const normalizedDish = {
       ...dish,
       id: dish.id || nextDishId(),
@@ -3038,12 +3055,12 @@ function loadCustomCookData() {
       isCustom: true,
       ownerKey: dish.ownerKey || userSlug(),
       tag: dish.tag || 'Homemade',
-      img: dish.img || defaultDishPhoto,
+      img: customImage,
       tags: Array.isArray(dish.tags) ? dish.tags : ['Homemade'],
       sauces: dish.sauces || 'House sauce',
       drinks: dish.drinks || 'Ayran / cola',
       prepTime: dish.prepTime || '45 min',
-      price: Number(dish.price) || 150
+      price: parsedPrice
     };
     const existingIndex = dishes.findIndex(item => sameId(item.id, normalizedDish.id));
     if (existingIndex >= 0) dishes[existingIndex] = {...dishes[existingIndex], ...normalizedDish};
@@ -3436,18 +3453,19 @@ function finishWelcome(goCook=false){
 }
 function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
-  const saved = getSavedPaymentMethods();
-  const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
+  const saved = availableCheckoutMethods(getSavedPaymentMethods());
+  const defaults = availableCheckoutMethods(paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
+  const methods = saved.length ? saved : defaults;
   wrap.innerHTML = methods.map((method,i)=>{
     const item = typeof method === 'string' ? { label: method, value: paymentValueByLabel[method] || 'cash' } : method;
-    const label = String(item.label || '');
+    const label = checkoutMethodLabel(item);
     return `<div class="payment-method ${i===0?'active':''}" data-payment-value="${escapeAttr(item.value)}" data-payment-label="${escapeDisplayAttr(label)}" onclick="selectPayment(this)"><div>${safeDisplayHtml(label.split(' ')[0])}</div><span>${safeDisplayHtml(label.replace(/^\S+\s/,''))}</span></div>`;
   }).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
-    ? `Your saved payment methods: ${methods.map(m=>String(m.label || m).replace(/^\S+\s/,'')).join(', ')}`
-    : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>String(m.label || m).replace(/^\S+\s/,'')).join(', ')}`;
-  renderPaymentDetails(methods[0]?.label || methods[0]);
+    ? `Your saved payment methods: ${methods.map(m=>checkoutMethodLabel(m).replace(/^\S+\s/,'')).join(', ')}`
+    : `Available in ${countryNames[selectedCountry] || 'selected country'}: ${methods.map(m=>checkoutMethodLabel(m).replace(/^\S+\s/,'')).join(', ')}`;
+  renderPaymentDetails(checkoutMethodLabel(methods[0]));
 }
 function toggleCart(force){
   const panel = document.getElementById('cartPanel');
@@ -3603,6 +3621,12 @@ function countryDishes() {
   const visibleCookIds = new Set(countryCooks().map(c => String(c.id)));
   return dishes.filter(d => visibleCookIds.has(String(d.cookId)));
 }
+function searchableApprovedDishes() {
+  return dishes.filter(dish => {
+    const cook = cooks.find(c => sameId(c.id, dish.cookId));
+    return cook && (cook.status || 'approved') === 'approved';
+  });
+}
 function renderCityDropdown() {
   const dropdown = document.getElementById('cityDropdown');
   if (!dropdown) return;
@@ -3703,6 +3727,7 @@ function selectCountryCuisine(country) {
   if (allChip) allChip.classList.remove('active');
   const search = document.getElementById('searchInput');
   if (search) search.value = country;
+  nextSearchUsesAllApprovedDishes = true;
   doSearch();
 }
 document.addEventListener('click', e => {
@@ -3711,6 +3736,18 @@ document.addEventListener('click', e => {
   }
 });
 function marketplaceLogout() {
+  const previousToken = marketAuthToken();
+  if (previousToken) {
+    fetch(`${MARKET_API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        authorization: `Bearer ${previousToken}`
+      }
+    }).catch(() => {});
+  }
   localStorage.removeItem('hometaste_token');
   localStorage.removeItem('hometaste_user');
   localStorage.removeItem('hometaste_user_name');
@@ -3729,13 +3766,16 @@ function handleSearchKey(event) {
 function doSearch() {
   const q = displayText(document.getElementById('searchInput').value).trim().toLowerCase();
   if (!q) {
+    nextSearchUsesAllApprovedDishes = false;
     dishCategoryFilter = 'all';
     renderDishes();
     showPage('dishes', document.querySelector('[onclick*="dishes"]'));
     showToast('Showing all dishes.', 'info');
     return;
   }
-  const filtered = sortDishList(countryDishes().filter(d => dishSearchText(d).includes(q)));
+  const sourceDishes = nextSearchUsesAllApprovedDishes ? searchableApprovedDishes() : countryDishes();
+  nextSearchUsesAllApprovedDishes = false;
+  const filtered = sortDishList(sourceDishes.filter(d => dishSearchText(d).includes(q)));
   const grid = document.getElementById('dishesGrid');
   if (grid) {
     grid.innerHTML = filtered.length
@@ -3753,6 +3793,9 @@ function filterChip(el, type) {
   dishSortMode = 'default';
   dishCategoryFilter = 'all';
   renderDishes();
+  if (el.closest('.filter-chips')) {
+    showPage('dishes', document.querySelector('[onclick*="dishes"]'));
+  }
   showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
 }
 function setDishCategoryFilter(el, type) {
@@ -3768,6 +3811,9 @@ function setDishSort(el, mode) {
   if (el.closest('.filter-chips')) dishCategoryFilter = 'all';
   dishSortMode = mode;
   renderDishes();
+  if (el.closest('.filter-chips')) {
+    showPage('dishes', document.querySelector('[onclick*="dishes"]'));
+  }
   showToast(mode === 'popular' ? 'Sorted by popular dishes' : 'Dish sorting cleared', 'info');
 }
 function dishPopularity(dish) {
@@ -4787,9 +4833,9 @@ function openPasswordPanel() {
     <h2>Change Password</h2>
     <p class="account-hint">Update the password for ${safeDisplayHtml(currentUserName)}. Use at least 8 characters.</p>
     <form class="account-form" onsubmit="submitPasswordChange(event)">
-      <div class="form-group"><label>Current Password</label><input class="form-input" id="currentPasswordInput" type="password" autocomplete="current-password" required></div>
-      <div class="form-group"><label>New Password</label><input class="form-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
-      <div class="form-group"><label>Confirm New Password</label><input class="form-input" id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="form-group"><label for="currentPasswordInput">Current Password</label><input class="form-input" id="currentPasswordInput" type="password" autocomplete="current-password" required></div>
+      <div class="form-group"><label for="newPasswordInput">New Password</label><input class="form-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="form-group"><label for="confirmPasswordInput">Confirm New Password</label><input class="form-input" id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
       <div class="account-actions">
         <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Cancel</button>
         <button class="btn-place-order" type="submit">Save Password</button>
@@ -4797,15 +4843,28 @@ function openPasswordPanel() {
     </form>
   `);
 }
-function submitPasswordChange(event) {
+async function submitPasswordChange(event) {
   event.preventDefault();
   const currentPassword = document.getElementById('currentPasswordInput').value;
   const newPassword = document.getElementById('newPasswordInput').value;
   const confirmPassword = document.getElementById('confirmPasswordInput').value;
   if (newPassword !== confirmPassword) return showToast('New passwords do not match.', 'error');
   if (newPassword.length < 8) return showToast('New password must be at least 8 characters.', 'error');
-  parent.postMessage({ source:'HomeTaste', action:'change-password', currentPassword, newPassword }, location.origin);
-  showToast('Saving password...', 'info');
+  if (hostBridgeReady && hasHostWindow()) {
+    parent.postMessage({ source:'HomeTaste', action:'change-password', currentPassword, newPassword }, location.origin);
+    showToast('Saving password...', 'info');
+    return;
+  }
+  try {
+    await marketApi('/api/auth/password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    document.getElementById('accountModal')?.classList.remove('open');
+    showToast('Password changed successfully.', 'success');
+  } catch (error) {
+    showToast(error.message || 'Password could not be changed.', 'error');
+  }
 }
 function handlePasswordResult(data) {
   if (!data.ok) return showToast(data.error || 'Password could not be changed.', 'error');
@@ -4814,13 +4873,14 @@ function handlePasswordResult(data) {
 }
 function openPaymentPanel() {
   const saved = new Set(getSavedPaymentMethods());
-  const defaults = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
-  const chosen = saved.size ? saved : new Set(defaults.map(method => method.label || method));
+  const availableMethods = availableCheckoutMethods(allPaymentMethods);
+  const defaults = availableCheckoutMethods(paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
+  const chosen = saved.size ? saved : new Set(defaults.map(method => checkoutMethodLabel(method)));
   openAccountModal(`
     <h2>Manage Payment Methods</h2>
     <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${safeDisplayHtml(currentUserName)}.</p>
     <div class="payment-choice-list">
-      ${allPaymentMethods.map(method => `
+      ${availableMethods.map(method => `
         <label class="payment-choice">
           <input type="checkbox" value="${escapeAttr(method)}" ${chosen.has(method) ? 'checked' : ''}>
           <span>${safeDisplayHtml(method)}</span>
@@ -4835,7 +4895,10 @@ function openPaymentPanel() {
   `);
 }
 function savePaymentPanel() {
-  const selected = [...document.querySelectorAll('#accountModal input[type="checkbox"]:checked')].map(input => input.value);
+  const allowed = new Set(availableCheckoutMethods(allPaymentMethods));
+  const selected = [...document.querySelectorAll('#accountModal input[type="checkbox"]:checked')]
+    .map(input => input.value)
+    .filter(method => allowed.has(method));
   if (!selected.length) return showToast('Select at least one payment method.', 'error');
   setSavedPaymentMethods(selected);
   updatePaymentMethods();
@@ -4883,10 +4946,10 @@ function renderPaymentDetails(method) {
     }
     panel.innerHTML = `
       <p class="payment-details-title">Card details</p>
-      <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
+      <div class="form-group"><label for="checkoutCardNumber">Card Number</label><input class="form-input" id="checkoutCardNumber" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
       <div class="form-row">
-        <div class="form-group"><label>Expiry</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY"></div>
-        <div class="form-group"><label>CVV</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></div>
+        <div class="form-group"><label for="checkoutCardExpiry">Expiry</label><input class="form-input" id="checkoutCardExpiry" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY"></div>
+        <div class="form-group"><label for="checkoutCardCvv">CVV</label><input class="form-input" id="checkoutCardCvv" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></div>
       </div>
       <button class="payment-save" type="button" onclick="saveCardDetails()">Save card</button>
     `;
@@ -4895,8 +4958,8 @@ function renderPaymentDetails(method) {
   if (name.includes('IBAN')) {
     panel.innerHTML = `
       <p class="payment-details-title">IBAN transfer</p>
-      <div class="form-group"><label>IBAN Number</label><input class="form-input" type="text" value="TR00 0000 0000 0000 0000 0000 00" readonly></div>
-      <div class="form-group"><label>Receiver Full Name</label><input class="form-input" type="text" value="HomeTaste" readonly></div>
+      <div class="form-group"><label for="checkoutIbanNumber">IBAN Number</label><input class="form-input" id="checkoutIbanNumber" type="text" value="TR00 0000 0000 0000 0000 0000 00" readonly></div>
+      <div class="form-group"><label for="checkoutIbanReceiver">Receiver Full Name</label><input class="form-input" id="checkoutIbanReceiver" type="text" value="HomeTaste" readonly></div>
     `;
     return;
   }
@@ -4926,8 +4989,8 @@ function renderDeliveryTimeDetails(mode) {
     <p class="payment-details-title">Schedule delivery</p>
     <p class="payment-details-hint">Choose when you want to receive this order.</p>
     <div class="form-row">
-      <div class="form-group"><label>Delivery Date</label><input class="form-input" id="scheduleDateInput" type="date" min="${todayInputValue()}" value="${escapeAttr(saved.date || todayInputValue())}"></div>
-      <div class="form-group"><label>Delivery Time</label><input class="form-input" id="scheduleTimeInput" type="time" value="${escapeAttr(saved.time || '')}"></div>
+      <div class="form-group"><label for="scheduleDateInput">Delivery Date</label><input class="form-input" id="scheduleDateInput" type="date" min="${todayInputValue()}" value="${escapeAttr(saved.date || todayInputValue())}"></div>
+      <div class="form-group"><label for="scheduleTimeInput">Delivery Time</label><input class="form-input" id="scheduleTimeInput" type="time" value="${escapeAttr(saved.time || '')}"></div>
     </div>
     <button class="payment-save" type="button" onclick="saveDeliverySchedule()">Save time</button>
   `;

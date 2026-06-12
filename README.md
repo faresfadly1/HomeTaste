@@ -12,6 +12,18 @@ The current production layer includes real authentication flows, live order rout
 - Supabase-ready production persistence
 - Production API hosted at `https://hometaste-api-production.up.railway.app`
 
+## Frontend source of truth
+
+The deployed frontend source is the [`public/`](public/) directory. Files at the repository root such as `index.html`, `marketplace.html`, `app.js`, `styles.css`, and `404.html` are only lightweight compatibility stubs that point to `public/`; do not edit them for product changes.
+
+For clean handoff ZIPs, use:
+
+```bash
+npm run export:zip
+```
+
+This uses `git archive`, so the export does not include `.git/`, `.DS_Store`, local database files, or temporary ZIPs.
+
 ## Local run
 
 ```bash

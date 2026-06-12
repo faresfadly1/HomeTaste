@@ -13,6 +13,7 @@
     "check:static": "node scripts/check-static.mjs",
     "check:prod": "node scripts/check-production.mjs",
     "check:live": "node scripts/check-live-integrations.mjs",
-    "activate:live": "node scripts/activate-live-integrations.mjs"
+    "activate:live": "node scripts/activate-live-integrations.mjs",
+    "export:zip": "git archive --format=zip --output=HomeTaste-final.zip HEAD"
   }
 }
