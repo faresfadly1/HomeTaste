@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260612-ui-ux-audit-12";
+const backendBuild = "20260612-ux-polish-13";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");

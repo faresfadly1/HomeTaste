@@ -1876,8 +1876,6 @@ ul{list-style:none}
 
     <div class="filter-chips" id="filterChips">
       <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
-      <button class="chip" type="button" onclick="filterChip(this,'categories')">All Categories <span class="chevron">⌄</span></button>
-      <button class="chip" type="button" onclick="filterChip(this,'cuisines')">All Cuisines <span class="chevron">⌄</span></button>
       <div class="country-filter">
         <button class="chip" type="button" onclick="openCountryMenu()">All Locations <span class="chevron">⌄</span></button>
         <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
@@ -1944,10 +1942,10 @@ ul{list-style:none}
       <p>The most loved homemade meals on HomeTaste</p>
     </div>
     <div class="filter-bar">
-      <div class="chip active" onclick="filterChip(this,'all')" style="padding:8px 16px">All</div>
-      <div class="chip" onclick="filterChip(this,'vegetarian')" style="padding:8px 16px">🌱 Vegetarian</div>
-      <div class="chip" onclick="filterChip(this,'spicy')" style="padding:8px 16px">🌶️ Spicy</div>
-      <div class="chip" onclick="filterChip(this,'dessert')" style="padding:8px 16px">🍰 Desserts</div>
+      <div class="chip active" onclick="setDishCategoryFilter(this,'all')" style="padding:8px 16px">All</div>
+      <div class="chip" onclick="setDishCategoryFilter(this,'vegetarian')" style="padding:8px 16px">🌱 Vegetarian</div>
+      <div class="chip" onclick="setDishCategoryFilter(this,'spicy')" style="padding:8px 16px">🌶️ Spicy</div>
+      <div class="chip" onclick="setDishCategoryFilter(this,'dessert')" style="padding:8px 16px">🍰 Desserts</div>
     </div>
     <div class="dishes-grid" id="dishesGrid">
       <!-- Populated by JS -->
@@ -2415,6 +2413,7 @@ let pendingProfilePicture = '';
 let pendingProfileCover = '';
 let lastCookFilterSummary = 'All cooks';
 let dishSortMode = 'default';
+let dishCategoryFilter = 'all';
 const translations = {
   EN: {
     welcomeTitle: 'Where are you, and what do you want to eat?',
@@ -2817,6 +2816,15 @@ function validateMarketplaceImageFile(file) {
 }
 function moneyTl(value) {
   return `${Number(value || 0).toLocaleString('tr-TR')} ₺`;
+}
+function readPositivePrice(inputId) {
+  const raw = document.getElementById(inputId)?.value;
+  const price = Number(raw);
+  if (!Number.isFinite(price) || price <= 0) {
+    showToast('Please enter a valid price greater than 0.', 'error');
+    return null;
+  }
+  return price;
 }
 let hostBridgeReady = false;
 function hasHostWindow() {
@@ -3496,10 +3504,12 @@ function applyTranslations() {
   if (secure) secure.textContent = tr('secure');
 
   document.querySelectorAll('.empty-state h3').forEach(node => {
+    if (node.closest('[data-preserve-empty]')) return;
     if (node.textContent.includes('Cart') || node.textContent.includes('Sepet') || node.textContent.includes('السلة')) node.textContent = tr('cartEmpty');
     if (node.textContent.includes('No cooks') || node.textContent.includes('Aşçı') || node.textContent.includes('طهاة')) node.textContent = tr('noCooks');
   });
   document.querySelectorAll('.empty-state p').forEach(node => {
+    if (node.closest('[data-preserve-empty]')) return;
     if (node.textContent.includes('dish') || node.textContent.includes('yemek') || node.textContent.includes('طعام')) node.textContent = tr('addFood');
     if (node.textContent.includes('cuisine') || node.textContent.includes('mutfak') || node.textContent.includes('مطبخ')) node.textContent = tr('tryFilters');
   });
@@ -3650,11 +3660,19 @@ function handleSearchKey(event) {
 }
 function doSearch() {
   const q = displayText(document.getElementById('searchInput').value).trim().toLowerCase();
-  if (!q) return;
+  if (!q) {
+    dishCategoryFilter = 'all';
+    renderDishes();
+    showPage('dishes', document.querySelector('[onclick*="dishes"]'));
+    showToast('Showing all dishes.', 'info');
+    return;
+  }
   const filtered = sortDishList(countryDishes().filter(d => dishSearchText(d).includes(q)));
   const grid = document.getElementById('dishesGrid');
   if (grid) {
-    grid.innerHTML = filtered.map(d => dishCard(d, '')).join('');
+    grid.innerHTML = filtered.length
+      ? filtered.map(d => dishCard(d, '')).join('')
+      : `<div class="empty-state" data-preserve-empty="yes" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>No results found</h3><p>Try another dish, cook, cuisine, country, or city.</p></div>`;
   }
   showToast(`🔍 Found ${filtered.length} results for "${q}"`, 'info');
   showPage('dishes', document.querySelector('[onclick*="dishes"]'));
@@ -3665,12 +3683,21 @@ function filterChip(el, type) {
   el.closest('.filter-chips, .filter-bar').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   dishSortMode = 'default';
+  dishCategoryFilter = 'all';
   renderDishes();
   showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
+}
+function setDishCategoryFilter(el, type) {
+  document.querySelectorAll('#page-dishes .filter-bar .chip').forEach(chip => chip.classList.remove('active'));
+  el.classList.add('active');
+  dishCategoryFilter = type || 'all';
+  renderDishes();
+  showToast(dishCategoryFilter === 'all' ? 'Showing all dishes.' : `Showing ${dishCategoryFilter} dishes.`, 'info');
 }
 function setDishSort(el, mode) {
   el.closest('.filter-chips, .filter-bar')?.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  if (el.closest('.filter-chips')) dishCategoryFilter = 'all';
   dishSortMode = mode;
   renderDishes();
   showToast(mode === 'popular' ? 'Sorted by popular dishes' : 'Dish sorting cleared', 'info');
@@ -3697,6 +3724,15 @@ function dishSearchText(dish) {
     cook?.country,
     countryNames[cook?.country],
     cook?.city
+  ].map(displayText).join(' ').toLowerCase();
+}
+function dishCategoryText(dish) {
+  return [
+    dish.name,
+    dish.desc,
+    dish.tag,
+    dish.country,
+    ...(Array.isArray(dish.tags) ? dish.tags : [])
   ].map(displayText).join(' ').toLowerCase();
 }
 
@@ -3756,10 +3792,9 @@ function cookCard(c, staggerClass) {
 // ===== RENDER DISHES =====
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
-  const activeChip = displayText(document.querySelector('.filter-chips .chip.active')?.textContent || '').trim().toLowerCase();
   const list = sortDishList(countryDishes().filter(d => {
-    if (dishSortMode === 'popular' || activeChip.includes('all')) return true;
-    return displayText(d.tag).toLowerCase() === activeChip || displayText(d.country).toLowerCase() === activeChip;
+    if (dishCategoryFilter === 'all') return true;
+    return dishCategoryText(d).includes(dishCategoryFilter);
   }));
   grid.innerHTML = list.length
     ? list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('')
@@ -4261,7 +4296,8 @@ async function createCookDemo(){
   const prep = document.getElementById('cookPrepInput').value.trim() || '45 min';
   const country = document.getElementById('cookDishCountryInput').value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
-  const price = Number(document.getElementById('cookPriceInput').value) || 150;
+  const price = readPositivePrice('cookPriceInput');
+  if (price === null) return;
   const profilePhoto = getSavedProfilePicture() || '';
   const coverPhoto = getSavedProfileCover() || '';
   if (!cookDishPhotoPreviewUrl) { showToast('Please upload a real dish photo before publishing.', 'error'); return; }
@@ -4353,10 +4389,12 @@ async function publishExtraDish(){
   if (!cook) { showToast('Create your cook profile first.', 'error'); return; }
   const name = document.getElementById('extraDishNameInput')?.value.trim();
   if (!name) { showToast('Please enter the dish name.', 'error'); return; }
-  const price = Number(document.getElementById('extraDishPriceInput')?.value) || 150;
+  const price = readPositivePrice('extraDishPriceInput');
+  if (price === null) return;
   const prepTime = document.getElementById('extraDishPrepInput')?.value.trim() || cook.prepTime || '45 min';
   const country = document.getElementById('extraDishCountryInput')?.value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
+  if (!extraDishPhotoPreviewUrl) { showToast('Please upload a real dish photo before publishing.', 'error'); return; }
   const desc = document.getElementById('extraDishDescInput')?.value.trim() || cook.bio || 'Fresh homemade dish from this cook.';
   try {
     const result = await sendMarketAction('market-add-dish', {
@@ -4365,7 +4403,7 @@ async function publishExtraDish(){
         description: desc,
         price,
         prepMinutes: parsePrepMinutes(prepTime),
-        image: extraDishPhotoPreviewUrl || defaultDishPhoto,
+        image: extraDishPhotoPreviewUrl,
         country
       }
     });
@@ -4801,9 +4839,17 @@ function saveDeliverySchedule() {
   localStorage.setItem('hometaste_delivery_schedule', JSON.stringify({ date, time }));
   showToast(`Delivery scheduled for ${date} at ${time}.`, 'success');
 }
-function getSavedDeliveryScheduleValue() {
-  const selectedMode = document.querySelector('#deliveryTimeOptions .payment-method.active')?.dataset.deliveryTime || 'asap';
-  if (selectedMode !== 'schedule') return '';
+function selectedDeliveryTimeMode() {
+  return document.querySelector('#deliveryTimeOptions .payment-method.active')?.dataset.deliveryTime || 'asap';
+}
+function getDeliveryScheduleValue() {
+  if (selectedDeliveryTimeMode() !== 'schedule') return '';
+  const dateInput = document.getElementById('scheduleDateInput')?.value || '';
+  const timeInput = document.getElementById('scheduleTimeInput')?.value || '';
+  if (dateInput && timeInput) {
+    localStorage.setItem('hometaste_delivery_schedule', JSON.stringify({ date: dateInput, time: timeInput }));
+    return `${String(dateInput).slice(0, 10)}T${String(timeInput).slice(0, 5)}`;
+  }
   try {
     const saved = JSON.parse(localStorage.getItem('hometaste_delivery_schedule') || '{}') || {};
     if (!saved.date || !saved.time) return '';
@@ -4823,7 +4869,12 @@ async function placeOrder() {
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
   const activePayment = document.querySelector('#paymentMethods .payment-method.active');
   const paymentMethod = activePayment?.dataset.paymentValue || 'cash';
-  const scheduledFor = getSavedDeliveryScheduleValue();
+  const deliveryTimeMode = selectedDeliveryTimeMode();
+  const scheduledFor = getDeliveryScheduleValue();
+  if (deliveryTimeMode === 'schedule' && !scheduledFor) {
+    showToast('Please choose and save a delivery date and time.', 'error');
+    return;
+  }
   try {
     const result = await sendMarketAction('market-place-order', { payload: { items, paymentMethod, scheduledFor } });
     pendingOrderPlacement = true;
