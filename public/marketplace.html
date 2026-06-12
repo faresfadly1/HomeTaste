@@ -369,15 +369,15 @@ ul{list-style:none}
 .search-input input::placeholder{color:var(--text3)}
 .search-divider{width:1px;background:var(--border);margin:10px 0}
 .search-city{
-  display:flex;align-items:center;gap:0;
-  padding:14px 0;background:transparent;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  padding:14px 16px;background:transparent;cursor:pointer;
   color:var(--text3);font-size:14px;
   position:relative;
-  min-width:0;
-  width:0;
+  min-width:130px;
+  width:auto;
 }
-.search-city > svg{display:none}
-.search-city #cityLabel{display:none}
+.search-city > svg{display:block;width:16px;height:16px;flex-shrink:0}
+.search-city #cityLabel{display:inline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .city-dropdown{
   position:absolute;top:calc(100% + 8px);left:0;
   background:var(--card);border:1px solid var(--border);
@@ -1447,7 +1447,9 @@ ul{list-style:none}
   .search-bar{display:grid;grid-template-columns:1fr auto;border-radius:14px;overflow:visible}
   .search-input{min-width:0}
   .search-input input{font-size:16px}
-  .search-divider,.search-city{display:none}
+  .search-divider{display:none}
+  .search-city{display:flex;grid-column:1/-1;min-width:0;width:auto;padding:10px 12px;border-top:1px solid var(--border);font-size:12px}
+  .search-city #cityLabel{max-width:none}
   .btn-search{border-radius:0 14px 14px 0;padding:11px 12px;font-size:12px}
   .filter-chips{grid-template-columns:1fr;padding:10px 10px 4px;gap:8px}
   .chip{min-height:38px;font-size:12px;border-radius:10px}
@@ -1772,7 +1774,7 @@ ul{list-style:none}
     </div>
     <div class="nav-item mobile-secondary" onclick="showPage('dishes',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12h8M12 8v8"/></svg>
-      Popular Dishes
+      <span class="nav-label-desktop">Popular Dishes</span><span class="nav-label-mobile">Dishes</span>
     </div>
     <div class="nav-item" onclick="showPage('orders',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
@@ -1881,7 +1883,7 @@ ul{list-style:none}
         <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
         <div class="country-menu" id="countryCuisineMenu"></div>
       </div>
-      <button class="chip" type="button" onclick="filterChip(this,'popular')">Sort by Popular <span class="chevron">⌄</span></button>
+      <button class="chip" type="button" onclick="setDishSort(this,'popular')">Sort by Popular <span class="chevron">⌄</span></button>
     </div>
 
     <div class="section">
@@ -2412,6 +2414,7 @@ let extraDishPhotoPreviewUrl = '';
 let pendingProfilePicture = '';
 let pendingProfileCover = '';
 let lastCookFilterSummary = 'All cooks';
+let dishSortMode = 'default';
 const translations = {
   EN: {
     welcomeTitle: 'Where are you, and what do you want to eat?',
@@ -2770,6 +2773,23 @@ function escapeHtml(value) {
 }
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, '&#096;');
+}
+function decodeHtmlEntities(value) {
+  return String(value ?? '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+function displayText(value) {
+  return decodeHtmlEntities(value);
+}
+function safeDisplayHtml(value) {
+  return escapeHtml(displayText(value));
+}
+function escapeDisplayAttr(value) {
+  return escapeAttr(displayText(value));
 }
 function safeImageSrc(value, fallback = '') {
   const clean = String(value || '').trim();
@@ -3187,7 +3207,7 @@ function applyMarketplaceState(rawState) {
     if (welcomeCity) welcomeCity.value = userCity;
     if (cityLabel) {
       cityLabel.dataset.city = userCity;
-      cityLabel.textContent = '';
+      cityLabel.textContent = displayText(userCity);
     }
   }
   if (userLocationLabel) localStorage.setItem(`hometaste_location_label_${user.id || userSlug()}`, userLocationLabel);
@@ -3260,7 +3280,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('welcomeCountry').value = selectedCountry;
   document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
   document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').textContent = '';
+  document.getElementById('cityLabel').textContent = displayText(countryDefaults[selectedCountry].city);
   renderCityDropdown();
   if (localStorage.getItem('hometaste_welcome_done') === 'yes' || initialPage) {
     document.getElementById('welcomeOverlay').style.display = 'none';
@@ -3311,7 +3331,7 @@ function setCountryFromWelcome(){
   localStorage.setItem('hometaste_country', selectedCountry);
   document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
   document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').textContent = '';
+  document.getElementById('cityLabel').textContent = displayText(countryDefaults[selectedCountry].city);
   renderCityDropdown();
   renderHomeCooks();
   renderBrowseCooks();
@@ -3326,7 +3346,7 @@ function finishWelcome(goCook=false){
     const city = document.getElementById('welcomeCity').value.trim() || 'Istanbul';
     const cuisine = document.getElementById('welcomeCuisine').value;
     document.getElementById('cityLabel').dataset.city = city;
-    document.getElementById('cityLabel').textContent = '';
+    document.getElementById('cityLabel').textContent = displayText(city);
     document.getElementById('searchInput').value = cuisine;
     persistMarketLocation(city);
     renderCityDropdown();
@@ -3337,8 +3357,10 @@ function finishWelcome(goCook=false){
     localStorage.setItem('hometaste_welcome_done', 'yes');
     document.getElementById('welcomeOverlay').style.display = 'none';
     updatePaymentMethods();
-    if(!goCook) showToast(`Showing ${cuisine} in ${city}, ${countryNames[selectedCountry]}`, 'success');
-    else showPage('become', document.querySelector('[onclick*="become"]'));
+    if(!goCook) {
+      doSearch();
+      showToast(`Showing ${displayText(cuisine)} in ${displayText(city)}, ${countryNames[selectedCountry]}`, 'success');
+    } else showPage('become', document.querySelector('[onclick*="become"]'));
   } catch(e) {
     console.error(e);
     localStorage.setItem('hometaste_welcome_done', 'yes');
@@ -3352,7 +3374,7 @@ function updatePaymentMethods(){
   wrap.innerHTML = methods.map((method,i)=>{
     const item = typeof method === 'string' ? { label: method, value: paymentValueByLabel[method] || 'cash' } : method;
     const label = String(item.label || '');
-    return `<div class="payment-method ${i===0?'active':''}" data-payment-value="${escapeAttr(item.value)}" data-payment-label="${escapeAttr(label)}" onclick="selectPayment(this)"><div>${escapeHtml(label.split(' ')[0])}</div><span>${escapeHtml(label.replace(/^\S+\s/,''))}</span></div>`;
+    return `<div class="payment-method ${i===0?'active':''}" data-payment-value="${escapeAttr(item.value)}" data-payment-label="${escapeDisplayAttr(label)}" onclick="selectPayment(this)"><div>${safeDisplayHtml(label.split(' ')[0])}</div><span>${safeDisplayHtml(label.replace(/^\S+\s/,''))}</span></div>`;
   }).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
@@ -3381,7 +3403,7 @@ function setLanguage(lang,e,silent=false){
 }
 function setText(selector, text, all=false) {
   const nodes = all ? document.querySelectorAll(selector) : [document.querySelector(selector)];
-  nodes.forEach(node => { if (node) node.textContent = text; });
+  nodes.forEach(node => { if (node) node.textContent = displayText(text); });
 }
 function setHTML(selector, html) {
   const node = document.querySelector(selector);
@@ -3393,14 +3415,14 @@ function setPlaceholder(selector, text) {
 }
 function setOption(selectId, value, text) {
   const option = document.querySelector(`#${selectId} option[value="${value}"]`);
-  if (option) option.textContent = text;
+  if (option) option.textContent = displayText(text);
 }
 function setNav(pageId, text, mobileText = text) {
   const node = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
   if (!node) return;
   const svg = node.querySelector('svg')?.outerHTML || '';
   const badge = node.querySelector('.nav-badge')?.outerHTML || '';
-  node.innerHTML = `${svg}<span class="nav-label-desktop">${text}</span><span class="nav-label-mobile">${mobileText}</span>${badge}`;
+  node.innerHTML = `${svg}<span class="nav-label-desktop">${safeDisplayHtml(text)}</span><span class="nav-label-mobile">${safeDisplayHtml(mobileText)}</span>${badge}`;
 }
 function applyTranslations() {
   document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ') || tr('heroTitle').replace(/<[^>]+>/g, '')}`;
@@ -3418,7 +3440,7 @@ function applyTranslations() {
   if (floatingCart) floatingCart.innerHTML = `🛒 ${tr('cart')} <span id="cartFloatingCount">${cartCount}</span>`;
   setNav('home', tr('home'));
   setNav('browse', tr('browseCooks'), tr('search'));
-  setNav('dishes', tr('popularDishes'));
+  setNav('dishes', tr('popularDishes'), tr('allDishes'));
   setNav('orders', tr('myOrders'));
   setNav('favorites', tr('favorites'));
   setNav('messages', tr('messages'));
@@ -3527,7 +3549,7 @@ function renderCityDropdown() {
     document.getElementById('cityLabel')?.dataset.city || ''
   ].filter(Boolean))];
   dropdown.innerHTML = cityOptions
-    .map(city => `<div class="city-option" onclick='selectCity(${jsArg(city)})'>📍 ${escapeHtml(city)}</div>`)
+    .map(city => `<div class="city-option" onclick='selectCity(${jsArg(city)})'>📍 ${safeDisplayHtml(city)}</div>`)
     .join('');
   renderCuisineFilterOptions();
   renderCityFilterOptions();
@@ -3536,9 +3558,9 @@ function renderCuisineFilterOptions() {
   const select = document.getElementById('cookCuisineSelect');
   if (!select) return;
   const current = select.value;
-  const cuisines = [...new Set(countryCooks().map(c => c.cuisine.replace(/\s*Cuisine$/i, '')))].sort();
+  const cuisines = [...new Set(countryCooks().map(c => displayText(c.cuisine).replace(/\s*Cuisine$/i, '')))].sort();
   select.innerHTML = `<option value="">${escapeHtml(tr('allCuisines'))}</option>` + cuisines
-    .map(cuisine => `<option value="${escapeAttr(cuisine)}">${escapeHtml(cuisine)}</option>`)
+    .map(cuisine => `<option value="${escapeDisplayAttr(cuisine)}">${safeDisplayHtml(cuisine)}</option>`)
     .join('');
   select.value = cuisines.includes(current) ? current : '';
 }
@@ -3552,7 +3574,7 @@ function renderCityFilterOptions() {
     document.getElementById('cityLabel')?.dataset.city || ''
   ].filter(Boolean))];
   select.innerHTML = `<option value="">${escapeHtml(tr('allCities'))}</option>` + cityOptions
-    .map(city => `<option value="${escapeAttr(city)}">${escapeHtml(city)}</option>`)
+    .map(city => `<option value="${escapeDisplayAttr(city)}">${safeDisplayHtml(city)}</option>`)
     .join('');
   select.value = cityOptions.includes(current) ? current : '';
 }
@@ -3572,7 +3594,7 @@ function persistMarketLocation(city) {
 }
 function selectCity(city) {
   document.getElementById('cityLabel').dataset.city = city;
-  document.getElementById('cityLabel').textContent = '';
+  document.getElementById('cityLabel').textContent = displayText(city);
   document.getElementById('cityDropdown')?.classList.remove('open');
   persistMarketLocation(city);
   renderHomeCooks();
@@ -3584,7 +3606,7 @@ function renderCountryMenu(query = '') {
   if (!menu) return;
   const q = query.trim().toLowerCase();
   const list = allCountries.filter(country => !q || country.toLowerCase().includes(q));
-  menu.innerHTML = list.map(country => `<button class="country-option" type="button" onclick='selectCountryCuisine(${jsArg(country)})'>${escapeHtml(country)}</button>`).join('');
+  menu.innerHTML = list.map(country => `<button class="country-option" type="button" onclick='selectCountryCuisine(${jsArg(country)})'>${safeDisplayHtml(country)}</button>`).join('');
 }
 function bindCountrySelector() {
   const input = document.getElementById('countryCuisineSearch');
@@ -3627,14 +3649,9 @@ function handleSearchKey(event) {
   }
 }
 function doSearch() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const q = displayText(document.getElementById('searchInput').value).trim().toLowerCase();
   if (!q) return;
-  const filtered = countryDishes().filter(d =>
-    d.name.toLowerCase().includes(q) || 
-    d.tag.toLowerCase().includes(q) ||
-    (cooks.find(c => sameId(c.id, d.cookId))?.name.toLowerCase().includes(q)) ||
-    (cooks.find(c => sameId(c.id, d.cookId))?.cuisine.toLowerCase().includes(q))
-  );
+  const filtered = sortDishList(countryDishes().filter(d => dishSearchText(d).includes(q)));
   const grid = document.getElementById('dishesGrid');
   if (grid) {
     grid.innerHTML = filtered.map(d => dishCard(d, '')).join('');
@@ -3647,8 +3664,40 @@ function doSearch() {
 function filterChip(el, type) {
   el.closest('.filter-chips, .filter-bar').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  dishSortMode = 'default';
   renderDishes();
   showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
+}
+function setDishSort(el, mode) {
+  el.closest('.filter-chips, .filter-bar')?.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  dishSortMode = mode;
+  renderDishes();
+  showToast(mode === 'popular' ? 'Sorted by popular dishes' : 'Dish sorting cleared', 'info');
+}
+function dishPopularity(dish) {
+  return Number(dish.likes || dish.followers || dish.orders || dish.reviews || dish.price || 0);
+}
+function sortDishList(list) {
+  const next = [...list];
+  if (dishSortMode === 'popular') {
+    next.sort((a, b) => dishPopularity(b) - dishPopularity(a));
+  }
+  return next;
+}
+function dishSearchText(dish) {
+  const cook = cooks.find(c => sameId(c.id, dish.cookId));
+  return [
+    dish.name,
+    dish.desc,
+    dish.tag,
+    dish.country,
+    cook?.name,
+    cook?.cuisine,
+    cook?.country,
+    countryNames[cook?.country],
+    cook?.city
+  ].map(displayText).join(' ').toLowerCase();
 }
 
 // ===== RENDER HOME COOKS =====
@@ -3673,28 +3722,28 @@ function cookCard(c, staggerClass) {
   return `
   <div class="cook-card ${escapeAttr(staggerClass)}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
-      <img src="${escapeAttr(coverPhoto)}" alt="${escapeAttr(c.name)}" onerror="this.src='${escapeAttr(defaultCookCoverPhoto)}'">
+      <img src="${escapeAttr(coverPhoto)}" alt="${escapeDisplayAttr(c.name)}" onerror="this.src='${escapeAttr(defaultCookCoverPhoto)}'">
       <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
-        <div class="cook-avatar"><img src="${escapeAttr(profilePhoto)}" alt="${escapeAttr(c.name)} profile photo" onerror="this.remove();this.parentElement.textContent='👤'"></div>
+        <div class="cook-avatar"><img src="${escapeAttr(profilePhoto)}" alt="${escapeDisplayAttr(c.name)} profile photo" onerror="this.remove();this.parentElement.textContent='👤'"></div>
         <div>
-          <div class="cook-name">${escapeHtml(c.name)} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
-          <div class="cook-cuisine">${escapeHtml(c.cuisine)}</div>
+          <div class="cook-name">${safeDisplayHtml(c.name)} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
+          <div class="cook-cuisine">${safeDisplayHtml(c.cuisine)}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="cook-location">📍 ${escapeHtml(c.city)}</div>
-        <div class="cook-rating"><span class="star">★</span>${escapeHtml(c.rating)} <span style="color:var(--text3)">(${escapeHtml(c.reviews)})</span></div>
+        <div class="cook-location">📍 ${safeDisplayHtml(c.city)}</div>
+        <div class="cook-rating"><span class="star">★</span>${safeDisplayHtml(c.rating)} <span style="color:var(--text3)">(${safeDisplayHtml(c.reviews)})</span></div>
       </div>
       <div>
-        <span class="info-pill">${c.online ? '🟢' : '⚪'} ${escapeHtml(c.availability)}</span>
-        <span class="info-pill">⚡ ${escapeHtml(c.prepTime)}</span>
+        <span class="info-pill">${c.online ? '🟢' : '⚪'} ${safeDisplayHtml(c.availability)}</span>
+        <span class="info-pill">⚡ ${safeDisplayHtml(c.prepTime)}</span>
         ${c.verifiedPhoto ? '<span class="info-pill verified-photo">📸 Camera verified</span>' : ''}
       </div>
       <div class="cook-footer">
-        <div><div class="cook-dish">${escapeHtml(c.dish)}</div><div style="font-size:11px;color:var(--text3)">${escapeHtml(c.orders)} orders · speed ${escapeHtml(c.speedRating)}★</div></div>
+        <div><div class="cook-dish">${safeDisplayHtml(c.dish)}</div><div style="font-size:11px;color:var(--text3)">${safeDisplayHtml(c.orders)} orders · speed ${safeDisplayHtml(c.speedRating)}★</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="cook-price">${moneyTl(c.price)}</div>
           ${c.dishId ? `<button class="btn-add" type="button" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
@@ -3707,8 +3756,11 @@ function cookCard(c, staggerClass) {
 // ===== RENDER DISHES =====
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
-  const activeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase() || 'all';
-  const list = countryDishes().filter(d => activeChip.includes('all') || d.tag.toLowerCase() === activeChip);
+  const activeChip = displayText(document.querySelector('.filter-chips .chip.active')?.textContent || '').trim().toLowerCase();
+  const list = sortDishList(countryDishes().filter(d => {
+    if (dishSortMode === 'popular' || activeChip.includes('all')) return true;
+    return displayText(d.tag).toLowerCase() === activeChip || displayText(d.country).toLowerCase() === activeChip;
+  }));
   grid.innerHTML = list.length
     ? list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('')
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>When cooks publish real dishes, they will appear here.</p></div>`;
@@ -3720,16 +3772,16 @@ function dishCard(d, staggerClass, options = {}) {
   return `
   <div class="dish-card ${escapeAttr(staggerClass)}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
-      <img src="${escapeAttr(dishImg)}" alt="${escapeAttr(d.name)}" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
-      <span class="dish-tag">${escapeHtml(d.country || d.tag)}</span>
+      <img src="${escapeAttr(dishImg)}" alt="${escapeDisplayAttr(d.name)}" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
+      <span class="dish-tag">${safeDisplayHtml(d.country || d.tag)}</span>
       ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
-      <h3>${escapeHtml(d.name)}</h3>
-      <p>${escapeHtml(d.desc)}</p>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">⏱ ${escapeHtml(d.prepTime)} · 🌍 ${escapeHtml(d.country || d.tag)}</div>
+      <h3>${safeDisplayHtml(d.name)}</h3>
+      <p>${safeDisplayHtml(d.desc)}</p>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">⏱ ${safeDisplayHtml(d.prepTime)} · 🌍 ${safeDisplayHtml(d.country || d.tag)}</div>
       <div class="dish-footer">
-        <div class="dish-cook">${cook ? `${escapeHtml(cook.emoji || '👤')} ${escapeHtml(cook.name)}` : ''}</div>
+        <div class="dish-cook">${cook ? `${safeDisplayHtml(cook.emoji || '👤')} ${safeDisplayHtml(cook.name)}` : ''}</div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dish-price">${moneyTl(d.price)}</div>
           <button class="btn-add" onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>+ Add</button>
@@ -3752,33 +3804,33 @@ function renderOrders() {
   <div class="order-card">
     <div class="order-card-head">
       <div>
-        <div class="order-id">Order #${escapeHtml(o.id)}</div>
-        <div class="order-date">${escapeHtml(o.shortDate)}</div>
+        <div class="order-id">Order #${safeDisplayHtml(o.id)}</div>
+        <div class="order-date">${safeDisplayHtml(o.shortDate)}</div>
       </div>
-      <span class="order-status ${escapeAttr(o.statusClass)}">${escapeHtml(o.status)}</span>
+      <span class="order-status ${escapeAttr(o.statusClass)}">${safeDisplayHtml(o.status)}</span>
     </div>
-    <div class="order-img"><img src="${escapeAttr(safeImageSrc(o.img, defaultDishPhoto))}" alt="${escapeAttr(o.dish)}" onerror="this.parentElement.textContent='🍽️'"></div>
+    <div class="order-img"><img src="${escapeAttr(safeImageSrc(o.img, defaultDishPhoto))}" alt="${escapeDisplayAttr(o.dish)}" onerror="this.parentElement.textContent='🍽️'"></div>
     <div class="order-info">
-      <h3>${escapeHtml(o.dish)}</h3>
-      <p>by ${escapeHtml(o.by)}</p>
+      <h3>${safeDisplayHtml(o.dish)}</h3>
+      <p>by ${safeDisplayHtml(o.by)}</p>
       <div class="order-tags">
-        <span class="order-status ${escapeAttr(o.statusClass)}">${escapeHtml(o.status)}</span>
-        <span class="order-tag">${escapeHtml(o.itemCount)}</span>
+        <span class="order-status ${escapeAttr(o.statusClass)}">${safeDisplayHtml(o.status)}</span>
+        <span class="order-tag">${safeDisplayHtml(o.itemCount)}</span>
       </div>
       <div class="tracking-steps">${[1,2,3,4,5].map(n=>`<span class="track-dot ${n<=o.step?'done':''}"></span>`).join('')}</div>
-      <div class="order-track-text">${escapeHtml(o.track || 'Tracking updated in real time')}</div>
+      <div class="order-track-text">${safeDisplayHtml(o.track || 'Tracking updated in real time')}</div>
     </div>
     <div class="order-right">
-      <div class="order-price">${escapeHtml(o.price)}</div>
+      <div class="order-price">${safeDisplayHtml(o.price)}</div>
     </div>
-    <button class="btn-reorder" onclick='${o.action === 'Track Order' ? `openTrackOrder(${jsArg(o.id)})` : `reorder(${jsArg(o.dish)})`}'>${escapeHtml(o.action)}</button>
+    <button class="btn-reorder" onclick='${o.action === 'Track Order' ? `openTrackOrder(${jsArg(o.id)})` : `reorder(${jsArg(o.dish)})`}'>${safeDisplayHtml(o.action)}</button>
   </div>`).join('');
 }
 function openTrackOrder(orderId) {
   const order = demoOrders.find(item => sameId(item.id, orderId)) || demoOrders[0];
   if (!order) { showToast('No order to track yet.', 'info'); return; }
-  document.getElementById('trackOrderId').textContent = `Order #${order.id}`;
-  document.getElementById('trackOrderDate').textContent = order.date;
+  document.getElementById('trackOrderId').textContent = `Order #${displayText(order.id)}`;
+  document.getElementById('trackOrderDate').textContent = displayText(order.date);
   document.getElementById('trackTimeline').innerHTML = trackingSteps.map((step, index) => {
     const number = index + 1;
     const isDone = number < order.step;
@@ -3796,7 +3848,7 @@ function openTrackOrder(orderId) {
   showPage('track-order', null);
 }
 function reorder(dish) {
-  showToast(`🛒 ${dish} added to cart!`, 'success');
+  showToast(`🛒 ${displayText(dish)} added to cart!`, 'success');
   updateCartBadge();
 }
 
@@ -3848,13 +3900,13 @@ function renderCart() {
   } else {
     itemsEl.innerHTML = cart.map(item => `
     <div class="cart-item" id="cart-item-${escapeAttr(item.id)}">
-      <img class="cart-item-img" src="${escapeAttr(safeImageSrc(item.img, defaultDishPhoto))}" alt="${escapeAttr(item.name)}" onerror="this.style.background='var(--bg3)'">
+      <img class="cart-item-img" src="${escapeAttr(safeImageSrc(item.img, defaultDishPhoto))}" alt="${escapeDisplayAttr(item.name)}" onerror="this.style.background='var(--bg3)'">
       <div class="cart-item-info">
-        <div class="cart-item-name">${escapeHtml(item.name)}</div>
-        <div class="cart-item-by">by ${escapeHtml(item.by)}</div>
+        <div class="cart-item-name">${safeDisplayHtml(item.name)}</div>
+        <div class="cart-item-by">by ${safeDisplayHtml(item.by)}</div>
         <div class="cart-qty">
           <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
-          <span class="qty-val">${escapeHtml(item.qty)}</span>
+          <span class="qty-val">${safeDisplayHtml(item.qty)}</span>
           <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
         </div>
       </div>
@@ -3931,7 +3983,7 @@ function addToCart(dish) {
     cart.push({id: dish.id, name: dish.name, by: cook ? cook.name : 'Chef', price: dish.price, qty: 1, img: dish.img});
   }
   renderCart();
-  showToast(`🛒 ${dish.name} added to cart!`, 'success');
+  showToast(`🛒 ${displayText(dish.name)} added to cart!`, 'success');
   toggleCart(true);
 }
 function quickAddToCart(dishId) {
@@ -3946,16 +3998,16 @@ function openDishModal(dishId) {
   const cook = cooks.find(c => sameId(c.id, dish.cookId));
   currentDish = dish;
   document.getElementById('modalImg').src = safeImageSrc(dish.img, defaultDishPhoto);
-  document.getElementById('modalTitle').textContent = dish.name;
-  document.getElementById('modalDesc').textContent = dish.desc;
+  document.getElementById('modalTitle').textContent = displayText(dish.name);
+  document.getElementById('modalDesc').textContent = displayText(dish.desc);
   document.getElementById('modalPrice').textContent = moneyTl(dish.price);
-  document.getElementById('modalTags').innerHTML = `<span class="modal-tag">${escapeHtml(dish.country || dish.tag || 'Country not set')}</span>`;
-  document.getElementById('modalOptions').innerHTML = `<span class="modal-tag">⏱ ${escapeHtml(dish.prepTime)}</span><span class="modal-tag">🌍 ${escapeHtml(dish.country || dish.tag || 'Country not set')}</span>`;
+  document.getElementById('modalTags').innerHTML = `<span class="modal-tag">${safeDisplayHtml(dish.country || dish.tag || 'Country not set')}</span>`;
+  document.getElementById('modalOptions').innerHTML = `<span class="modal-tag">⏱ ${safeDisplayHtml(dish.prepTime)}</span><span class="modal-tag">🌍 ${safeDisplayHtml(dish.country || dish.tag || 'Country not set')}</span>`;
   document.getElementById('modalCook').innerHTML = cook ? `
-    <div class="modal-cook-avatar"><img src="${escapeAttr(safeImageSrc(getCookProfilePhoto(cook), defaultCookProfilePhoto))}" alt="${escapeAttr(cook.name)}" onerror="this.remove();this.parentElement.textContent='👤'"></div>
+    <div class="modal-cook-avatar"><img src="${escapeAttr(safeImageSrc(getCookProfilePhoto(cook), defaultCookProfilePhoto))}" alt="${escapeDisplayAttr(cook.name)}" onerror="this.remove();this.parentElement.textContent='👤'"></div>
     <div class="modal-cook-info">
-      <h4>${escapeHtml(cook.name)}</h4>
-      <p>${escapeHtml(cook.cuisine)} · ⭐ ${escapeHtml(cook.rating)} (${escapeHtml(cook.reviews)} reviews) · ${escapeHtml(cook.responseTime)}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${escapeHtml(cook.phone)}</p>
+      <h4>${safeDisplayHtml(cook.name)}</h4>
+      <p>${safeDisplayHtml(cook.cuisine)} · ⭐ ${safeDisplayHtml(cook.rating)} (${safeDisplayHtml(cook.reviews)} reviews) · ${safeDisplayHtml(cook.responseTime)}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${safeDisplayHtml(cook.phone)}</p>
     </div>
     <button style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600" onclick='closeDishModal();openCookProfile(${jsArg(cook.id)})'>View Profile →</button>
   ` : '';
@@ -3976,28 +4028,28 @@ function openCookProfile(cookId) {
   const profilePhoto = safeImageSrc(getCookProfilePhoto(cook), defaultCookProfilePhoto);
   const coverPhoto = safeCssImageUrl(getCookCoverPhoto(cook), defaultCookCoverPhoto);
   document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url('${coverPhoto}')`;
-  document.getElementById('profileAvatar').innerHTML = `<img src="${escapeAttr(profilePhoto)}" alt="${escapeAttr(cook.name)}" onerror="this.remove();this.parentElement.textContent='👤'">`;
-  document.getElementById('profileName').textContent = cook.name;
-  document.getElementById('profileCuisine').textContent = `${cook.cuisine} · ${cook.online ? 'Online' : 'Offline'}`;
-  document.getElementById('profileRating').textContent = cook.rating;
-  document.getElementById('profileReviews').textContent = `(${cook.reviews} reviews)`;
-  document.getElementById('profileCity').textContent = '📍 ' + cook.city;
+  document.getElementById('profileAvatar').innerHTML = `<img src="${escapeAttr(profilePhoto)}" alt="${escapeDisplayAttr(cook.name)}" onerror="this.remove();this.parentElement.textContent='👤'">`;
+  document.getElementById('profileName').textContent = displayText(cook.name);
+  document.getElementById('profileCuisine').textContent = `${displayText(cook.cuisine)} · ${cook.online ? 'Online' : 'Offline'}`;
+  document.getElementById('profileRating').textContent = displayText(cook.rating);
+  document.getElementById('profileReviews').textContent = `(${displayText(cook.reviews)} reviews)`;
+  document.getElementById('profileCity').textContent = '📍 ' + displayText(cook.city);
   document.getElementById('profileOrders').textContent = cook.orders;
   document.getElementById('profileFollowers').textContent = cook.followers;
   document.getElementById('profileDishes').textContent = cook.dishes;
-  document.getElementById('profileSpeed').textContent = cook.speedRating + '★';
-  document.getElementById('profileAvailability').textContent = cook.availability;
-  document.getElementById('profilePrep').textContent = cook.prepTime;
-  document.getElementById('profilePhone').textContent = cook.phone;
+  document.getElementById('profileSpeed').textContent = displayText(cook.speedRating) + '★';
+  document.getElementById('profileAvailability').textContent = displayText(cook.availability);
+  document.getElementById('profilePrep').textContent = displayText(cook.prepTime);
+  document.getElementById('profilePhone').textContent = displayText(cook.phone);
   document.getElementById('profilePhotoTrust').textContent = cook.verifiedPhoto ? 'Camera Verified' : 'Gallery photo';
-  document.getElementById('profileBio').textContent = cook.bio;
+  document.getElementById('profileBio').textContent = displayText(cook.bio);
   const followButton = document.getElementById('profileFollowButton');
   if (followButton) {
     followButton.textContent = favorites.has(String(cook.id)) ? 'Following' : '+ Follow';
     followButton.disabled = isMyCook(cook.id);
   }
-  document.getElementById('profileAboutCity').textContent = `⊙ ${cook.city}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
-  document.getElementById('profileDishesTitle').textContent = `Dishes by ${cook.name}`;
+  document.getElementById('profileAboutCity').textContent = `⊙ ${displayText(cook.city)}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
+  document.getElementById('profileDishesTitle').textContent = `Dishes by ${displayText(cook.name)}`;
   const cookDishes = dishes.filter(d => sameId(d.cookId, cookId));
   document.getElementById('profileDishesGrid').innerHTML = cookDishes.length
     ? cookDishes.map(d => dishCard(d, '', {manage:isMyCook(cookId)})).join('')
@@ -4054,14 +4106,14 @@ function renderChatList() {
     const last = conv.messages[conv.messages.length - 1] || { text: 'No messages yet', time: '' };
     return `
     <div class="chat-item ${sameId(conv.id, activeChatId) ? 'active' : ''}" onclick='openChat(${jsArg(conv.id)})'>
-      <div class="chat-avatar">${escapeHtml(cook ? cook.emoji : '👤')}<div class="chat-online"></div></div>
+      <div class="chat-avatar">${safeDisplayHtml(cook ? cook.emoji : '👤')}<div class="chat-online"></div></div>
       <div class="chat-meta">
-        <div class="chat-name">${escapeHtml(cook ? cook.name : 'Cook')}</div>
-        <div class="chat-preview">${escapeHtml(last.text)}</div>
+        <div class="chat-name">${safeDisplayHtml(cook ? cook.name : 'Cook')}</div>
+        <div class="chat-preview">${safeDisplayHtml(last.text)}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <div class="chat-time">${escapeHtml(last.time)}</div>
-        ${conv.unread ? `<div class="chat-unread">${escapeHtml(conv.unread)}</div>` : ''}
+        <div class="chat-time">${safeDisplayHtml(last.time)}</div>
+        ${conv.unread ? `<div class="chat-unread">${safeDisplayHtml(conv.unread)}</div>` : ''}
       </div>
     </div>`;
 	  }).join('');
@@ -4073,14 +4125,14 @@ function openChat(convId) {
   if (!conv) { renderChatList(); return; }
 	  conv.unread = 0;
   const cook = cooks.find(c => sameId(c.id, conv.cookId));
-  document.getElementById('chatHeaderAvatar').textContent = cook ? cook.emoji : '👤';
-  document.getElementById('chatHeaderName').textContent = cook ? cook.name : 'Cook';
-  document.getElementById('chatHeaderDesc').textContent = cook ? cook.cuisine + ' · Online' : '';
+  document.getElementById('chatHeaderAvatar').textContent = displayText(cook ? cook.emoji : '👤');
+  document.getElementById('chatHeaderName').textContent = displayText(cook ? cook.name : 'Cook');
+  document.getElementById('chatHeaderDesc').textContent = cook ? `${displayText(cook.cuisine)} · Online` : '';
   const msgs = document.getElementById('chatMessages');
   msgs.innerHTML = conv.messages.map(m => `
     <div class="msg ${m.from === 'user' ? 'sent' : 'received'}">
-      <div class="msg-bubble">${escapeHtml(m.text)}</div>
-      <div class="msg-time">${escapeHtml(m.time)}</div>
+      <div class="msg-bubble">${safeDisplayHtml(m.text)}</div>
+      <div class="msg-time">${safeDisplayHtml(m.time)}</div>
     </div>`).join('');
   msgs.scrollTop = msgs.scrollHeight;
 	  renderChatList();
@@ -4101,8 +4153,8 @@ function renderSupportChat() {
   if (!msgs) return;
   msgs.innerHTML = supportMessages.map(m => `
     <div class="msg ${m.from === 'user' ? 'sent' : 'received'}">
-      <div class="msg-bubble">${escapeHtml(m.text)}</div>
-      <div class="msg-time">${escapeHtml(m.time)}</div>
+      <div class="msg-bubble">${safeDisplayHtml(m.text)}</div>
+      <div class="msg-time">${safeDisplayHtml(m.time)}</div>
     </div>`).join('');
   msgs.scrollTop = msgs.scrollHeight;
   requestAnimationFrame(() => document.getElementById('supportChatInput')?.focus());
@@ -4256,8 +4308,8 @@ function renderMyCookDishManager(){
     <div class="manager-head">
       <div>
         <div class="welcome-label">Your cook profile</div>
-        <h2>${escapeHtml(cook.name)}</h2>
-        <p>${escapeHtml(cookDishes.length)} dish${cookDishes.length === 1 ? '' : 'es'} live on your profile. Add more dishes here anytime, or remove dishes you no longer want to show.</p>
+        <h2>${safeDisplayHtml(cook.name)}</h2>
+        <p>${safeDisplayHtml(cookDishes.length)} dish${cookDishes.length === 1 ? '' : 'es'} live on your profile. Add more dishes here anytime, or remove dishes you no longer want to show.</p>
       </div>
       <button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View Profile</button>
     </div>
@@ -4270,7 +4322,7 @@ function renderMyCookDishManager(){
       <div class="wide">
         <div class="welcome-label">Dish photo</div>
         <div class="profile-photo-actions">
-          <button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${escapeHtml(cook.name)}</small></button>
+          <button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${safeDisplayHtml(cook.name)}</small></button>
           <button class="photo-action" type="button" onclick="publishExtraDish()">Publish Dish<small>Add it to your cook profile</small></button>
         </div>
         <input id="extraDishPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden onchange="handleExtraDishPhoto(this)">
@@ -4280,8 +4332,8 @@ function renderMyCookDishManager(){
     <div class="manager-dishes">
       ${cookDishes.length ? cookDishes.map(d => `
         <div class="manager-dish">
-          <img src="${escapeAttr(safeImageSrc(d.img, defaultDishPhoto))}" alt="${escapeAttr(d.name)}" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
-          <div><strong>${escapeHtml(d.name)}</strong><br><span>${moneyTl(d.price)} · ${escapeHtml(d.prepTime || '45 min')}</span></div>
+          <img src="${escapeAttr(safeImageSrc(d.img, defaultDishPhoto))}" alt="${escapeDisplayAttr(d.name)}" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
+          <div><strong>${safeDisplayHtml(d.name)}</strong><br><span>${moneyTl(d.price)} · ${safeDisplayHtml(d.prepTime || '45 min')}</span></div>
           <button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>
         </div>
       `).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}
@@ -4351,10 +4403,10 @@ function renderFAQ() {
   document.getElementById('faqList').innerHTML = faqs.map((f, i) => `
   <div class="faq-item">
     <div class="faq-question" onclick="toggleFaq(${i})">
-      ${escapeHtml(f.q)}
+      ${safeDisplayHtml(f.q)}
       <span class="faq-arrow" id="faq-arrow-${i}">▼</span>
     </div>
-    <div class="faq-answer" id="faq-ans-${i}">${escapeHtml(f.a)}</div>
+    <div class="faq-answer" id="faq-ans-${i}">${safeDisplayHtml(f.a)}</div>
   </div>`).join('');
 }
 function toggleFaq(i) {
@@ -4451,10 +4503,10 @@ function updateSettingsAccount() {
   const photo = getSavedProfilePicture();
   const coverPhoto = getSavedProfileCover();
   const cook = getMyCook();
-  if (name) name.textContent = currentUserName || 'Your account';
+  if (name) name.textContent = displayText(currentUserName || 'Your account');
   if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
-  if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeAttr(currentUserName)} profile picture">` : '👤';
-  if (heroAvatar) heroAvatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeAttr(currentUserName)} profile picture">` : '👤';
+  if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : '👤';
+  if (heroAvatar) heroAvatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : '👤';
   if (cover) {
     cover.style.backgroundImage = coverPhoto ? `url('${safeCssImageUrl(coverPhoto)}')` : '';
     cover.textContent = coverPhoto ? '' : 'No background photo yet';
@@ -4604,7 +4656,7 @@ async function removeProfileCover() {
 function openPasswordPanel() {
   openAccountModal(`
     <h2>Change Password</h2>
-    <p class="account-hint">Update the password for ${escapeHtml(currentUserName)}. Use at least 8 characters.</p>
+    <p class="account-hint">Update the password for ${safeDisplayHtml(currentUserName)}. Use at least 8 characters.</p>
     <form class="account-form" onsubmit="submitPasswordChange(event)">
       <div class="form-group"><label>Current Password</label><input class="form-input" id="currentPasswordInput" type="password" autocomplete="current-password" required></div>
       <div class="form-group"><label>New Password</label><input class="form-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
@@ -4637,12 +4689,12 @@ function openPaymentPanel() {
   const chosen = saved.size ? saved : new Set(defaults.map(method => method.label || method));
   openAccountModal(`
     <h2>Manage Payment Methods</h2>
-    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${escapeHtml(currentUserName)}.</p>
+    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${safeDisplayHtml(currentUserName)}.</p>
     <div class="payment-choice-list">
       ${allPaymentMethods.map(method => `
         <label class="payment-choice">
           <input type="checkbox" value="${escapeAttr(method)}" ${chosen.has(method) ? 'checked' : ''}>
-          <span>${escapeHtml(method)}</span>
+          <span>${safeDisplayHtml(method)}</span>
         </label>
       `).join('')}
     </div>
@@ -4674,8 +4726,8 @@ function updateCheckoutItems() {
   const commission = Math.round(sub * 0.15 * 100) / 100;
   document.getElementById('checkoutItems').innerHTML = cart.map(item => `
     <div class="summary-item">
-      <img src="${escapeAttr(safeImageSrc(item.img, defaultDishPhoto))}" alt="${escapeAttr(item.name)}" onerror="this.style.background='var(--bg3)'">
-      <span class="summary-item-name">${escapeHtml(item.name)} ×${escapeHtml(item.qty)}</span>
+      <img src="${escapeAttr(safeImageSrc(item.img, defaultDishPhoto))}" alt="${escapeDisplayAttr(item.name)}" onerror="this.style.background='var(--bg3)'">
+      <span class="summary-item-name">${safeDisplayHtml(item.name)} ×${safeDisplayHtml(item.qty)}</span>
       <span class="summary-item-price">${moneyTl(item.price * item.qty)}</span>
     </div>`).join('');
   document.getElementById('checkoutSubtotal').textContent = moneyTl(sub);
@@ -4797,16 +4849,16 @@ function getFilteredCooks() {
   const city = document.getElementById('cookCitySelect')?.value || '';
   const currentCity = document.getElementById('cityLabel')?.dataset.city || 'Istanbul';
   let list = countryCooks().filter(c =>
-    (!cuisine || c.cuisine.toLowerCase().includes(cuisine.toLowerCase())) &&
-    (!city || c.city === city)
+    (!cuisine || displayText(c.cuisine).toLowerCase().includes(displayText(cuisine).toLowerCase())) &&
+    (!city || displayText(c.city) === displayText(city))
   );
 
   list.sort((a, b) => {
     if (sort === 'most-orders') return b.orders - a.orders;
     if (sort === 'price-low') return a.price - b.price;
     if (sort === 'nearest') {
-      const aNear = a.city === (city || currentCity) ? 0 : 1;
-      const bNear = b.city === (city || currentCity) ? 0 : 1;
+      const aNear = displayText(a.city) === displayText(city || currentCity) ? 0 : 1;
+      const bNear = displayText(b.city) === displayText(city || currentCity) ? 0 : 1;
       return aNear - bNear || b.rating - a.rating;
     }
     return b.rating - a.rating || b.reviews - a.reviews;
@@ -4828,7 +4880,7 @@ function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.textContent = msg;
+  toast.textContent = displayText(msg);
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.animation = 'toastOut 0.3s ease forwards';
