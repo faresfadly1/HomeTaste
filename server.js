@@ -36,6 +36,7 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
 const appleClientSecret = process.env.APPLE_CLIENT_SECRET || "";
 const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/google/callback`;
 const appleRedirectUri = process.env.APPLE_REDIRECT_URI || `${apiBaseUrl || publicBaseUrl}/api/auth/oauth/apple/callback`;
+const bypassLogin = process.env.HOMETASTE_BYPASS_LOGIN === "true";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const iyzicoApiKey = process.env.IYZICO_API_KEY || "";
 const iyzicoSecretKey = process.env.IYZICO_SECRET_KEY || "";
@@ -73,6 +74,25 @@ const json = (res, status, body) => {
   res.end(JSON.stringify(payload));
 };
 
+const ownerSeedConfigured = () => Boolean(process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD);
+const cookSeedConfigured = () => Boolean(process.env.SEED_COOK_EMAIL && process.env.SEED_COOK_PASSWORD);
+const driverSeedConfigured = () => Boolean(process.env.SEED_DRIVER_EMAIL && process.env.SEED_DRIVER_PASSWORD);
+const googleRedirectConfigured = () => Boolean(process.env.GOOGLE_REDIRECT_URI);
+const googleConfigured = () => Boolean(googleClientId && googleClientSecret && googleRedirectConfigured());
+const googleConfigError = "Google sign-in is not configured.";
+
+// Server-side login diagnostics. Logs the masked email, the failure reason, the
+// active database mode, and whether the owner seed env is present. It never logs
+// passwords, password hashes, full emails, or secret keys.
+function logLoginFailure(reason, email) {
+  console.warn(`[auth] login failed: ${JSON.stringify({
+    reason,
+    database: useSupabase ? "supabase" : "local-json",
+    email: email ? maskEmail(email) : "",
+    ownerSeedConfigured: ownerSeedConfigured()
+  })}`);
+}
+
 const healthPayload = () => ({
   ok: true,
   build: backendBuild,
@@ -81,8 +101,20 @@ const healthPayload = () => ({
     emailVerification: true,
     phoneVerification: true,
     passwordReset: true,
-    google: Boolean(googleClientId && googleClientSecret),
+    google: googleConfigured(),
     apple: Boolean(appleClientId && appleClientSecret)
+  },
+  authSetup: {
+    database: useSupabase ? "supabase" : "local-json",
+    ownerSeedConfigured: ownerSeedConfigured(),
+    cookSeedConfigured: cookSeedConfigured(),
+    driverSeedConfigured: driverSeedConfigured(),
+    googleConfigured: googleConfigured(),
+    googleRedirectUri,
+    googleRedirectUriConfigured: googleRedirectConfigured(),
+    googleCallbackPath: "/api/auth/oauth/google/callback",
+    allowedOrigins,
+    devBypassLogin: bypassLogin
   },
   payments: configuredGateways(),
   push: {
@@ -2032,7 +2064,7 @@ async function fastSupabaseLogout(req, res) {
 async function fastSupabaseOAuthStart(req, res) {
   const input = await body(req);
   const provider = String(input.provider || "").trim();
-  if (provider === "google" && (!googleClientId || !googleClientSecret)) return json(res, 501, { error: "Google login needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in production." });
+  if (provider === "google" && !googleConfigured()) return json(res, 501, { error: googleConfigError });
   if (provider === "apple" && (!appleClientId || !appleClientSecret)) return json(res, 501, { error: "Apple login needs APPLE_CLIENT_ID and APPLE_CLIENT_SECRET in production." });
   if (!["google", "apple"].includes(provider)) return json(res, 400, { error: "Provider must be google or apple." });
 
@@ -2153,7 +2185,7 @@ async function api(req, res, pathname) {
     const stateToken = addAuthToken(db, { type: "oauth_state", ttlMinutes: 10, meta: { provider } });
     await saveDb(db);
     if (provider === "google") {
-      if (!googleClientId || !googleClientSecret) return json(res, 501, { error: "Google login needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in production." });
+      if (!googleConfigured()) return json(res, 501, { error: googleConfigError });
       const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
       url.searchParams.set("client_id", googleClientId);
       url.searchParams.set("redirect_uri", googleRedirectUri);
@@ -2184,9 +2216,9 @@ async function api(req, res, pathname) {
       await saveDb(db);
       return redirect(res, oauthReturnUrl({ authError: "Invalid Google login state." }));
     }
-    if (!code || !googleClientId || !googleClientSecret) {
+    if (!code || !googleConfigured()) {
       await saveDb(db);
-      return redirect(res, oauthReturnUrl({ authError: "Google login is not fully configured." }));
+      return redirect(res, oauthReturnUrl({ authError: googleConfigError }));
     }
     try {
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {

@@ -11,6 +11,9 @@ const driverEmail = "driver.flow@hometaste.test";
 const driverPassword = "DriverPass123!";
 const runId = `${Date.now()}${Math.random().toString(16).slice(2)}`;
 const baseName = `Flow ${runId.slice(-6)}`;
+const googleClientId = "flow-test-google-client";
+const googleClientSecret = "flow-test-google-secret";
+const googleRedirectUri = "http://127.0.0.1:4173/api/auth/oauth/google/callback";
 const testImage = (label) => `data:image/jpeg;base64,${Buffer.from(label).toString("base64")}`;
 const profilePhotoImage = testImage("profile-photo");
 const coverPhotoImage = testImage("cover-photo");
@@ -77,6 +80,10 @@ async function requestRaw(base, token, method, route, payload, headers = {}) {
   return { status: res.status, ok: res.ok, body };
 }
 
+async function postStatus(base, route, payload) {
+  return requestRaw(base, "", "POST", route, payload);
+}
+
 async function auth(base, mode, profile) {
   const route = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
   const body = await request(base, "", "POST", route, profile);
@@ -109,7 +116,11 @@ const child = spawn(process.execPath, ["server.js"], {
     SEED_DRIVER_EMAIL: driverEmail,
     SEED_DRIVER_PASSWORD: driverPassword,
     SEED_DRIVER_NAME: "Flow Driver",
-    SEED_DRIVER_CITY: "Kadikoy"
+    SEED_DRIVER_CITY: "Kadikoy",
+    GOOGLE_CLIENT_ID: googleClientId,
+    GOOGLE_CLIENT_SECRET: googleClientSecret,
+    GOOGLE_REDIRECT_URI: googleRedirectUri,
+    ALLOWED_ORIGINS: "http://127.0.0.1:4173,http://localhost:4173"
   },
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -135,6 +146,58 @@ try {
   assert(failedLogin.status === 401 && failedLogin.body.ok === false, "wrong password returns standardized 401 error");
   let oversizedBody = await requestRaw(base, "", "POST", "/api/auth/login", JSON.stringify({ email: `huge.${runId}@hometaste.test`, password: "x".repeat(1024 * 1024 + 64) }));
   assert(oversizedBody.status === 413 && oversizedBody.body.code === "BODY_TOO_LARGE", "oversized JSON bodies are rejected");
+  assert(health.authSetup?.database === "local-json", "health authSetup reports the active database mode");
+  assert(health.authSetup?.ownerSeedConfigured === true, "health authSetup confirms owner seed is configured");
+  assert(health.authSetup?.driverSeedConfigured === true, "health authSetup confirms driver seed is configured");
+  assert(health.authSetup?.cookSeedConfigured === false, "health authSetup reports unset cook seed as not configured");
+  assert(health.authSetup?.googleConfigured === true, "health authSetup reports google configured when env vars are set");
+  assert(health.authSetup?.googleRedirectUri === googleRedirectUri && health.authSetup?.googleRedirectUriConfigured === true, "health reports the exact configured Google redirect URI");
+  assert(Array.isArray(health.authSetup?.allowedOrigins) && health.authSetup.allowedOrigins.length > 0, "health reports allowed frontend origins for OAuth/CORS checks");
+  assert(health.auth?.google === true, "health auth.google boolean reflects configured Google client");
+  assert(!JSON.stringify(health).includes("flow-test-google-secret"), "health never exposes the Google client secret");
+  assert(!JSON.stringify(health.authSetup || {}).includes("@") && !JSON.stringify(health.authSetup || {}).toLowerCase().includes("password"), "health authSetup never exposes emails or passwords");
+
+  // Google OAuth: configured client builds a correct Google authorization URL.
+  const googleStart = await request(base, "", "POST", "/api/auth/oauth/start", { provider: "google" });
+  const googleUrl = new URL(googleStart.url);
+  assert(googleUrl.origin + googleUrl.pathname === "https://accounts.google.com/o/oauth2/v2/auth", "Google OAuth start returns the Google authorization endpoint");
+  assert(googleUrl.searchParams.get("client_id") === googleClientId, "Google OAuth URL carries the configured client_id");
+  assert(googleUrl.searchParams.get("redirect_uri") === googleRedirectUri, "Google OAuth URL uses the configured redirect_uri");
+  assert(Boolean(googleUrl.searchParams.get("state")) && googleUrl.searchParams.get("scope")?.includes("email"), "Google OAuth URL includes a state token and email scope");
+  // Unconfigured provider fails safely with a clear message (no crash).
+  const appleStart = await postStatus(base, "/api/auth/oauth/start", { provider: "apple" });
+  assert(appleStart.status === 501 && /not configured|APPLE_CLIENT_ID/i.test(appleStart.body.error || ""), "unconfigured provider returns a clear 501 message instead of failing silently");
+  const missingGoogleDir = await mkdtemp(path.join(tmpdir(), "hometaste-google-missing-"));
+  const missingGooglePort = await freePort();
+  const missingGoogleBase = `http://127.0.0.1:${missingGooglePort}`;
+  const missingGoogle = spawn(process.execPath, ["server.js"], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PORT: String(missingGooglePort),
+      HOMETASTE_DATA_DIR: missingGoogleDir,
+      HOMETASTE_DISABLE_SUPABASE: "1",
+      GOOGLE_CLIENT_ID: "",
+      GOOGLE_CLIENT_SECRET: "",
+      GOOGLE_REDIRECT_URI: "",
+      SEED_OWNER_EMAIL: ownerEmail,
+      SEED_OWNER_PASSWORD: ownerPassword
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  try {
+    await waitForHealth(missingGoogleBase, missingGoogle);
+    const missingGoogleStart = await postStatus(missingGoogleBase, "/api/auth/oauth/start", { provider: "google" });
+    assert(missingGoogleStart.status === 501 && missingGoogleStart.body.error === "Google sign-in is not configured.", "missing Google env returns the exact configured error message");
+  } finally {
+    missingGoogle.kill();
+    await rm(missingGoogleDir, { recursive: true, force: true });
+  }
+  // Frontend keeps the Google button clickable and shows a clear message when unconfigured.
+  const appSrcEarly = await readFile(path.join(root, "public/app.js"), "utf8");
+  assert(/button\.hidden\s*=\s*false/.test(appSrcEarly) && /button\.disabled\s*=\s*false/.test(appSrcEarly), "Google button stays visible and enabled (never silently hidden)");
+  assert(appSrcEarly.includes("sign-in is not configured"), "frontend shows a clear 'sign-in is not configured' message");
+  assert(appSrcEarly.includes('api("/api/auth/oauth/start"') && appSrcEarly.includes("handleAuthLinkParams"), "frontend Google button uses OAuth start and stores callback auth token");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const expiringAccount = await auth(base, "signup", {

@@ -54,6 +54,51 @@ Production admin, cook, and driver accounts must be created through the app or s
 
 Optional local/Railway seed variables are documented in [`.env.example`](.env.example). Use strong private values and rotate any credential that was previously shared publicly.
 
+### Create / log in as admin locally
+
+Two supported options, both keep credentials private:
+
+**Option A — seed environment variables.** Set these in `.env` (local) or in the host (Railway), then start the backend. The owner account is ensured before the first login automatically:
+
+```text
+SEED_OWNER_EMAIL=
+SEED_OWNER_PASSWORD=
+SEED_OWNER_NAME=
+```
+
+**Option B — one-off bootstrap script.** Create or update an admin without restarting:
+
+```bash
+npm run create:admin -- --email you@example.com --password "use-a-strong-private-password" --name "HomeTaste Admin"
+```
+
+The script writes to `data/db.json` in local mode, or upserts into the Supabase `app_users` table when `SUPABASE_URL` and `SUPABASE_SECRET_KEY`/`SUPABASE_SERVICE_ROLE_KEY` are set. It never prints the password and never writes credentials to any frontend or public file.
+
+### Configure admin login on Railway / Supabase
+
+1. In Railway, set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) so the backend uses Supabase.
+2. Set `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD`, and `SEED_OWNER_NAME` in Railway. On the first login the backend ensures the seeded owner exists in `app_users` before checking the password.
+3. Alternatively, run `npm run create:admin` against the same Supabase project (with the service role key in the environment) to seed the admin once.
+4. Confirm setup safely via `GET /api/health` — the `authSetup` block reports `database`, `ownerSeedConfigured`, `cookSeedConfigured`, `driverSeedConfigured`, and `googleConfigured` without exposing any emails, passwords, or secret keys.
+
+### Google sign-in (OAuth)
+
+The "Continue with Google" button on Sign In and Sign Up uses the backend OAuth routes. To enable it:
+
+1. In Google Cloud Console, create an OAuth 2.0 Client ID (type: Web application).
+2. Add an Authorized redirect URI that matches your backend callback exactly, e.g. `https://YOUR-RAILWAY-BACKEND.up.railway.app/api/auth/oauth/google/callback` (or `http://localhost:4173/api/auth/oauth/google/callback` for local backend port 4173).
+3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` on the backend host (never in frontend files).
+4. Make sure the frontend origin is in `ALLOWED_ORIGINS` so the redirect back succeeds.
+5. Check `GET /api/health` for `authSetup.googleRedirectUri`, `authSetup.googleRedirectUriConfigured`, and `authSetup.allowedOrigins`; these diagnostics do not expose `GOOGLE_CLIENT_SECRET`.
+
+Behavior: when configured, clicking the button starts the Google OAuth flow and returns to the app signed in (same session/token as email login). When not configured, the button stays visible and shows "Google sign-in is not configured." — it never fails silently. `GET /api/health` exposes the safe boolean `authSetup.googleConfigured` (and `auth.google`). The Google client secret is only ever used server-side.
+
+### Frontend API base
+
+- On GitHub Pages, [`public/config.js`](public/config.js) points the frontend at the Railway backend automatically.
+- When the frontend is served by the backend itself, the API base is empty (same-origin requests).
+- For a separate static/Vite dev server, set the backend URL with either `window.HOMETASTE_API_BASE` (e.g. in `config.js`) or `localStorage.setItem("hometaste_api_base", "http://localhost:4174")`. If the backend is unreachable the login screen now shows a clear "Backend not reachable" message.
+
 ## Production database with Supabase
 
 1. Create a Supabase project.

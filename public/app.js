@@ -707,12 +707,12 @@ async function refreshOAuthButtons(root = document) {
   buttons.forEach((button) => {
     const provider = button.dataset.oauth;
     const available = Boolean(status[provider]);
-    button.hidden = !available;
-    button.disabled = !available;
-    button.title = available ? "" : `${oauthProviderLabel(provider)} login is not configured yet.`;
+    button.hidden = false;
+    button.disabled = false;
+    button.title = available ? "" : `${oauthProviderLabel(provider)} sign-in is not configured.`;
   });
   root.querySelectorAll(".oauth-grid").forEach((grid) => {
-    grid.hidden = ![...grid.querySelectorAll("[data-oauth]")].some((button) => !button.hidden);
+    grid.hidden = false;
   });
 }
 
@@ -1889,22 +1889,6 @@ function renderMarketplaceFrame() {
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
     <div class="market-shell">
-      <header class="market-top">
-        <div class="brand compact">
-          <div class="mark">${chefLogoIcon}</div>
-          <div><h1>HomeTaste</h1></div>
-        </div>
-        <button class="market-location" type="button" id="openLocation">
-          <span class="market-location-pin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
-          </span>
-          <span class="market-location-text">${currentSavedAddress() || t("selectAddress")}</span>
-        </button>
-        <div class="market-user">
-          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
-          <button class="button secondary small" id="logout">${t("signOut")}</button>
-        </div>
-      </header>
       <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
         <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}&v=${APP_BUILD}"></iframe>
         <aside class="role-panel">
@@ -1913,10 +1897,6 @@ function renderMarketplaceFrame() {
       </div>
     </div>
   `;
-  document.querySelector("#openLocation").onclick = openLocation;
-  updateAddressButton();
-  bindPreferenceControls();
-  document.querySelector("#logout").onclick = logout;
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
     sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
@@ -2823,11 +2803,6 @@ async function startOAuth(provider) {
   const button = document.querySelector(`[data-oauth="${provider}"]`);
   setButtonBusy(button, true, oauthProviderLabel(provider));
   try {
-    if (authProviderStatus && !authProviderStatus[provider]) {
-      refreshOAuthButtons();
-      toast(`${oauthProviderLabel(provider)} login is not configured yet.`, true);
-      return;
-    }
     const data = await api("/api/auth/oauth/start", { method: "POST", body: JSON.stringify({ provider }) });
     if (data.url) {
       location.href = data.url;
