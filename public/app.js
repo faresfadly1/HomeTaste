@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260612-security-hardening-10";
+const APP_BUILD = "20260612-marketplace-audit-11";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -2090,7 +2090,7 @@ function renderAdmin() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" value="150"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" min="1" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2124,7 +2124,10 @@ function renderAdmin() {
 	                  <div class="toolbar" style="margin:0">
 	                    <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
 	                    <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
+	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
 	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
+	                    <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
+	                    <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
 	                    <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
 	                  </div>
 	                </td>
@@ -2570,7 +2573,7 @@ function renderCookStudio() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2619,8 +2622,8 @@ function renderSettings() {
           ${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}
         </div>
         <form class="form" id="profileMediaForm" style="margin:14px 0">
-          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/*"></div>
-          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/*"></div>
+          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/jpeg,image/png,image/webp"></div>
+          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/jpeg,image/png,image/webp"></div>
           <button class="button secondary" type="submit">Save profile photos</button>
         </form>
         <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
