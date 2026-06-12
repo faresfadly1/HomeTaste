@@ -172,7 +172,7 @@ ul{list-style:none}
   border-left:1px solid var(--border);
   position:fixed;right:0;top:0;height:100vh;
   display:flex;flex-direction:column;
-  z-index:100;
+  z-index:1100;
   overflow-y:auto;
   transform:translateX(105%);
   transition:transform var(--transition);
@@ -442,6 +442,24 @@ ul{list-style:none}
   position:absolute;
   width:1px;height:1px;
   opacity:0;pointer-events:none;
+}
+.country-filter.open{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.country-filter.open .country-search{
+  position:static;
+  width:min(260px,100%);
+  height:42px;
+  opacity:1;
+  pointer-events:auto;
+  padding:0 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--bg2);
+  color:var(--text);
 }
 .country-search::placeholder{color:var(--text2)}
 .country-filter::after{
@@ -965,7 +983,7 @@ ul{list-style:none}
 /* DISH MODAL */
 .modal-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.8);
-  backdrop-filter:blur(4px);z-index:500;
+  backdrop-filter:blur(4px);z-index:1200;
   display:none;align-items:center;justify-content:center;
   animation:fadeIn 0.2s ease;
 }
@@ -1202,7 +1220,7 @@ ul{list-style:none}
 /* TOAST */
 .toast-container{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  z-index:1000;display:flex;flex-direction:column;gap:8px;
+  z-index:1400;display:flex;flex-direction:column;gap:8px;
   pointer-events:none;
 }
 .toast{
@@ -1266,7 +1284,7 @@ ul{list-style:none}
 /* SUCCESS OVERLAY */
 .success-overlay{
   position:fixed;inset:0;background:var(--bg);
-  z-index:999;display:none;
+  z-index:1300;display:none;
   align-items:center;justify-content:center;
   flex-direction:column;gap:16px;text-align:center;
 }
@@ -1360,19 +1378,20 @@ ul{list-style:none}
   }
   body.light-mode .sidebar{background:rgba(255,255,255,.96)}
   .sidebar-nav{
-    height:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:stretch;gap:3px;
-    padding:5px;overflow:hidden;scrollbar-width:none;
+    height:100%;display:flex;align-items:stretch;gap:3px;
+    padding:5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+    scroll-snap-type:x proximity;
   }
   .sidebar-nav::-webkit-scrollbar{display:none}
   .sidebar-bottom{display:none}
   .nav-item{
-    min-width:0;max-width:100%;justify-content:center;
+    flex:0 0 74px;min-width:74px;max-width:86px;justify-content:center;
     flex-direction:column;gap:3px;margin:0;padding:6px 2px;
     font-size:8.5px;line-height:1.05;text-align:center;border-radius:10px;
     overflow:hidden;
     color:rgba(255,246,236,.64);
   }
-  .mobile-secondary{display:none}
+  .mobile-secondary{display:flex}
   .mobile-profile{display:flex}
   .nav-label-desktop{display:none}
   .nav-label-mobile{display:inline}
@@ -1505,7 +1524,7 @@ ul{list-style:none}
   .msg{max-width:86%}
   .chat-input-bar{padding:10px}
   .chat-action-btn{width:34px;height:34px}
-  .cart-panel{width:100dvw;max-width:100dvw;z-index:800}
+  .cart-panel{width:100dvw;max-width:100dvw;z-index:1100}
   .cart-floating-btn{right:14px;bottom:calc(82px + env(safe-area-inset-bottom));padding:10px 12px;font-size:12px}
   .checkout-layout{padding:10px}
   .checkout-section{padding:16px}
@@ -1670,13 +1689,34 @@ ul{list-style:none}
   .mobile-account-become{display:flex}
   .welcome-overlay{padding:10px}
   .welcome-card{width:100%;max-height:calc(100dvh - 20px);overflow:auto}
+  .qty-btn,
+  .cart-remove,
+  .fav-btn,
+  .driver-action,
+  .chat-action-btn,
+  .profile-mobile-topbar button,
+  .cart-close,
+  .modal-close{
+    min-width:40px;
+    min-height:40px;
+  }
 }
 @media(max-width:420px){
   body{font-size:12.5px}
   .hero{height:190px}
-  .hero-content{padding:36px 16px 16px;max-width:calc(100% - 18px)}
+  .hero-actions{top:10px;right:10px;gap:6px}
+  .hero-action{width:36px;height:36px}
+  .hero-avatar-action{min-width:58px;grid-template-columns:30px 14px;padding:3px 6px 3px 3px}
+  .hero-avatar-action span:first-child{width:30px;height:30px}
+  .hero-content{padding:54px 16px 16px;max-width:calc(100% - 18px)}
   .hero-content h1{font-size:24px;max-width:310px}
   .hero-content p{font-size:12.5px;margin-bottom:10px}
+  #deliveryTimeOptions{
+    display:grid!important;
+    grid-template-columns:1fr;
+    gap:8px!important;
+  }
+  #deliveryTimeOptions .payment-method{width:100%}
   .page-header h1{font-size:19px}
   .nav-item{font-size:9px;padding-inline:1px}
   .nav-item svg{width:16px;height:16px}
@@ -1690,10 +1730,10 @@ ul{list-style:none}
 @media(max-width:360px){
   body{font-size:12px}
   .sidebar-nav{gap:1px;padding:4px}
-  .nav-item{font-size:8px;border-radius:8px}
+  .nav-item{font-size:8px;border-radius:8px;flex-basis:68px;min-width:68px}
   .nav-item svg{width:15px;height:15px}
   .hero{height:190px;margin:8px 8px 10px}
-  .hero-content{padding:32px 14px 14px;max-width:calc(100% - 12px)}
+  .hero-content{padding:50px 14px 14px;max-width:calc(100% - 12px)}
   .hero-content h1{font-size:23px;max-width:292px;line-height:1.06}
   .hero-content p{font-size:12px;line-height:1.28}
   .hero-cta{min-height:34px;font-size:12px;padding:0 12px}
@@ -1721,7 +1761,7 @@ ul{list-style:none}
     <div class="welcome-grid">
       <div>
         <div class="welcome-label">Current country</div>
-        <select class="welcome-select" id="welcomeCountry" onchange="setCountryFromWelcome()">
+        <select class="welcome-select" id="welcomeCountry" aria-label="Current country" onchange="setCountryFromWelcome()">
           <option value="TR">🇹🇷 Türkiye</option>
           <option value="DE">🇩🇪 Germany</option>
           <option value="ES">🇪🇸 Spain</option>
@@ -1732,13 +1772,13 @@ ul{list-style:none}
       </div>
       <div>
         <div class="welcome-label">Food from</div>
-        <select class="welcome-select" id="welcomeCuisine">
+        <select class="welcome-select" id="welcomeCuisine" aria-label="Food from">
           <option>Egyptian food</option><option>Turkish food</option><option>Syrian food</option><option>Italian food</option><option>Indian food</option><option>Japanese food</option>
         </select>
       </div>
       <div class="welcome-full">
         <div class="welcome-label">City / area</div>
-        <input class="welcome-select" id="welcomeCity" placeholder="Example: Istanbul, Berlin, Madrid..." value="Istanbul">
+        <input class="welcome-select" id="welcomeCity" aria-label="City or area" placeholder="Example: Istanbul, Berlin, Madrid..." value="Istanbul">
       </div>
     </div>
     <div class="welcome-actions">
@@ -1855,19 +1895,19 @@ ul{list-style:none}
       <div class="search-bar">
         <div class="search-input">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input id="searchInput" type="text" placeholder="Search by dish name or cook name..." onkeydown="handleSearchKey(event)">
+          <input id="searchInput" type="text" aria-label="Search by dish name or cook name" placeholder="Search by dish name or cook name..." onkeydown="handleSearchKey(event)">
         </div>
         <div class="search-divider"></div>
         <div class="search-city" id="citySelector" onclick="toggleCityDropdown()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
           <span id="cityLabel" data-city="">Select city...</span>
           <div class="city-dropdown" id="cityDropdown">
-            <div class="city-option" onclick="selectCity('Istanbul')">📍 Istanbul</div>
-            <div class="city-option" onclick="selectCity('Ankara')">📍 Ankara</div>
-            <div class="city-option" onclick="selectCity('Berlin')">📍 Berlin</div>
-            <div class="city-option" onclick="selectCity('Munich')">📍 Munich</div>
-            <div class="city-option" onclick="selectCity('Cairo')">📍 Cairo</div>
-            <div class="city-option" onclick="selectCity('Damascus')">📍 Damascus</div>
+            <div class="city-option" onclick="selectCity(event,'Istanbul')">📍 Istanbul</div>
+            <div class="city-option" onclick="selectCity(event,'Ankara')">📍 Ankara</div>
+            <div class="city-option" onclick="selectCity(event,'Berlin')">📍 Berlin</div>
+            <div class="city-option" onclick="selectCity(event,'Munich')">📍 Munich</div>
+            <div class="city-option" onclick="selectCity(event,'Cairo')">📍 Cairo</div>
+            <div class="city-option" onclick="selectCity(event,'Damascus')">📍 Damascus</div>
           </div>
         </div>
         <button class="btn-search" onclick="doSearch()">Search</button>
@@ -1878,10 +1918,10 @@ ul{list-style:none}
       <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
       <div class="country-filter">
         <button class="chip" type="button" onclick="openCountryMenu()">All Locations <span class="chevron">⌄</span></button>
-        <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
+        <input class="country-search" id="countryCuisineSearch" aria-label="Search countries" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
         <div class="country-menu" id="countryCuisineMenu"></div>
       </div>
-      <button class="chip" type="button" onclick="setDishSort(this,'popular')">Sort by Popular <span class="chevron">⌄</span></button>
+      <button class="chip" type="button" onclick="setDishSort(this,'popular')">Sort by Popular</button>
     </div>
 
     <div class="section">
@@ -1903,13 +1943,13 @@ ul{list-style:none}
       <p>Discover talented home chefs in your city</p>
     </div>
     <div class="filter-bar">
-      <select class="filter-select" id="cookSortSelect" onchange="applyCookFilters()">
+      <select class="filter-select" id="cookSortSelect" aria-label="Sort cooks" onchange="applyCookFilters()">
         <option value="top-rated">Sort: Top Rated</option>
         <option value="most-orders">Sort: Most Orders</option>
         <option value="nearest">Sort: Nearest</option>
         <option value="price-low">Sort: Price: Low-High</option>
       </select>
-      <select class="filter-select" id="cookCuisineSelect" onchange="applyCookFilters()">
+      <select class="filter-select" id="cookCuisineSelect" aria-label="Filter cooks by cuisine" onchange="applyCookFilters()">
         <option value="">All Cuisines</option>
         <option value="Egyptian">Egyptian</option>
         <option value="Turkish">Turkish</option>
@@ -1920,7 +1960,7 @@ ul{list-style:none}
         <option value="Mexican">Mexican</option>
         <option value="Greek">Greek</option>
       </select>
-      <select class="filter-select" id="cookCitySelect" onchange="applyCookFilters()">
+      <select class="filter-select" id="cookCitySelect" aria-label="Filter cooks by city" onchange="applyCookFilters()">
         <option value="">All Cities</option>
         <option value="Istanbul">Istanbul</option>
         <option value="Ankara">Ankara</option>
@@ -1959,10 +1999,10 @@ ul{list-style:none}
       <p>Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     </div>
     <div class="orders-tabs">
-      <button class="orders-tab active" type="button">All</button>
-      <button class="orders-tab" type="button">Ongoing</button>
-      <button class="orders-tab" type="button">Completed</button>
-      <button class="orders-tab" type="button">Canceled</button>
+      <button class="orders-tab active" type="button" onclick="setOrderFilter(this,'all')">All</button>
+      <button class="orders-tab" type="button" onclick="setOrderFilter(this,'ongoing')">Ongoing</button>
+      <button class="orders-tab" type="button" onclick="setOrderFilter(this,'completed')">Completed</button>
+      <button class="orders-tab" type="button" onclick="setOrderFilter(this,'cancelled')">Canceled</button>
     </div>
     <div class="orders-list" id="ordersList">
       <!-- Populated by JS -->
@@ -2000,8 +2040,8 @@ ul{list-style:none}
           <span>⭐ 4.9 Your Driver</span>
         </div>
         <div class="driver-actions">
-          <button class="driver-action" type="button" onclick="showToast('Calling driver...','info')">☎</button>
-          <button class="driver-action" type="button" onclick="showPage('messages',null)">💬</button>
+          <button class="driver-action" type="button" aria-label="Call driver" onclick="showToast('Calling driver...','info')">☎</button>
+          <button class="driver-action" type="button" aria-label="Message driver" onclick="showPage('messages',null)">💬</button>
         </div>
       </div>
     </div>
@@ -2036,14 +2076,14 @@ ul{list-style:none}
             <p id="chatHeaderDesc"></p>
           </div>
           <div class="chat-actions">
-            <button class="chat-action-btn" onclick="showToast('Phone contact is available after an active order is placed.','info')">📞</button>
-            <button class="chat-action-btn" onclick="showToast('Conversation tools: order chat, delivery notes, and cook updates.','info')">⋯</button>
+            <button class="chat-action-btn" aria-label="Call cook" onclick="showToast('Phone contact is available after an active order is placed.','info')">📞</button>
+            <button class="chat-action-btn" aria-label="Conversation options" onclick="showToast('Conversation tools: order chat, delivery notes, and cook updates.','info')">⋯</button>
           </div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-bar">
           <input class="chat-input" id="chatInputField" type="text" placeholder="Type a message..." onkeydown="handleChatKey(event)" aria-label="Message text">
-          <button class="btn-send" onclick="sendChatMessage()">➤</button>
+          <button class="btn-send" aria-label="Send message" onclick="sendChatMessage()">➤</button>
         </div>
       </div>
     </div>
@@ -2066,7 +2106,7 @@ ul{list-style:none}
       <div class="chat-messages" id="supportChatMessages"></div>
       <div class="chat-input-bar">
         <input class="chat-input" id="supportChatInput" type="text" placeholder="Type a message..." onkeydown="handleSupportChatKey(event)" aria-label="Support message text">
-        <button class="btn-send" onclick="sendSupportMessage()">➤</button>
+        <button class="btn-send" aria-label="Send support message" onclick="sendSupportMessage()">➤</button>
       </div>
     </div>
   </div>
@@ -2079,14 +2119,14 @@ ul{list-style:none}
       <button class="btn-apply" onclick="document.getElementById('cookDishInput').focus();showToast('Start with your first dish. Your cook name is your account username.','info')">Create my cook profile</button>
     </div>
     <div class="cook-form" id="cookCreateForm">
-      <div><div class="welcome-label">Phone / WhatsApp</div><input id="cookPhoneInput" class="cook-input" placeholder="+90 ..."></div>
-      <div><div class="welcome-label">First dish</div><input id="cookDishInput" class="cook-input" placeholder="Koshari, Molokhia, Mahshi..."></div>
-      <div><div class="welcome-label">Dish price (₺)</div><input id="cookPriceInput" class="cook-input" type="number" min="1" placeholder="150"></div>
-      <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
-      <div><div class="welcome-label">Country of the dish</div><input id="cookDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt"></div>
-      <div class="wide"><div class="welcome-label">Short bio</div><textarea id="cookBioInput" class="cook-input" rows="5" placeholder="Tell customers what you cook and where your food is from."></textarea></div>
+      <div><div class="welcome-label">Phone / WhatsApp</div><input id="cookPhoneInput" class="cook-input" aria-label="Phone or WhatsApp" placeholder="+90 ..."></div>
+      <div><div class="welcome-label">First dish</div><input id="cookDishInput" class="cook-input" aria-label="First dish name" placeholder="Koshari, Molokhia, Mahshi..."></div>
+      <div><div class="welcome-label">Dish price (₺)</div><input id="cookPriceInput" class="cook-input" aria-label="Dish price in Turkish lira" type="number" min="1" placeholder="150"></div>
+      <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" aria-label="Preparation time" placeholder="45 minutes"></div>
+      <div><div class="welcome-label">Country of the dish</div><input id="cookDishCountryInput" class="cook-input" aria-label="Country of the dish" placeholder="Turkey, Syria, Egypt"></div>
+      <div class="wide"><div class="welcome-label">Short bio</div><textarea id="cookBioInput" class="cook-input" aria-label="Cook bio" rows="5" placeholder="Tell customers what you cook and where your food is from."></textarea></div>
       <label class="wide policy-confirm">
-        <input id="cookPolicyConfirm" type="checkbox">
+        <input id="cookPolicyConfirm" type="checkbox" aria-label="Confirm publishing policy">
         <span>I confirm this is my own kitchen profile and I understand my profile and dishes require admin approval before they appear publicly.</span>
       </label>
       <div class="wide">
@@ -2192,7 +2232,7 @@ ul{list-style:none}
           <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPaymentPanel()">Manage Payment Methods</button>
         </div>
         <div class="setting-item">
-          <div class="setting-label" style="cursor:pointer;color:#ef4444" onclick="parent.logout ? parent.logout() : showToast('Use the top Sign out button to leave your account.','info')">Sign Out</div>
+          <button class="setting-label" type="button" style="cursor:pointer;color:#ef4444" onclick="parent.logout ? parent.logout() : marketplaceLogout()">Sign Out</button>
         </div>
       </div>
     </div>
@@ -2202,8 +2242,8 @@ ul{list-style:none}
   <div class="page" id="page-cook-profile">
     <div class="cook-profile-hero">
       <div class="profile-mobile-topbar">
-        <button type="button" onclick="showPage('browse',null)">‹</button>
-        <button type="button" onclick="showToast('Profile menu opened.','info')">⋯</button>
+        <button type="button" aria-label="Back to browse" onclick="showPage('browse',null)">‹</button>
+        <button type="button" aria-label="Profile menu" onclick="showToast('Profile menu opened.','info')">⋯</button>
       </div>
       <div class="cook-profile-hero-bg"></div>
       <div class="cook-profile-info">
@@ -2287,7 +2327,7 @@ ul{list-style:none}
           </div>
           <button class="btn-place-order" onclick="placeOrder()">Place Order →</button>
           <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px">
-            🔒 All payments are secure and encrypted
+            🔒 HomeTaste confirms payment before releasing the cook payout.
           </div>
         </div>
       </div>
@@ -2300,7 +2340,7 @@ ul{list-style:none}
 <aside class="cart-panel" id="cartPanel">
   <div class="cart-header">
     <h3>Your Cart</h3>
-    <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" onclick="toggleCart(false)">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" aria-label="Close cart" onclick="toggleCart(false)">✕</button></div>
   </div>
   <div class="cart-tabs">
     <button class="cart-tab active" onclick="cartTab(this,'delivery')">Delivery</button>
@@ -2327,7 +2367,7 @@ ul{list-style:none}
 <!-- ===== DISH MODAL ===== -->
 <div class="modal-overlay" id="dishModal" onclick="closeModal(event)">
   <div class="modal-wrap">
-    <button class="modal-close" onclick="closeDishModal()">✕</button>
+    <button class="modal-close" aria-label="Close dish details" onclick="closeDishModal()">✕</button>
     <div class="modal" id="modalContent">
       <img src="" alt="" id="modalImg" class="modal-img">
       <div class="modal-body">
@@ -2414,6 +2454,7 @@ let pendingProfileCover = '';
 let lastCookFilterSummary = 'All cooks';
 let dishSortMode = 'default';
 let dishCategoryFilter = 'all';
+let orderFilter = 'all';
 const translations = {
   EN: {
     welcomeTitle: 'Where are you, and what do you want to eat?',
@@ -2679,13 +2720,25 @@ const paymentMethodsByCountry = {
   FR: checkoutPaymentMethods,
   NL: checkoutPaymentMethods
 };
+const cardPaymentConfigured = false;
 const allPaymentMethods = checkoutPaymentMethods.map(method => method.label);
 const paymentValueByLabel = Object.fromEntries(checkoutPaymentMethods.map(method => [method.label, method.value]));
 const countryNames = {TR:'Türkiye',DE:'Germany',ES:'Spain',EG:'Egypt',FR:'France',NL:'Netherlands'};
 const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
-  DE: { city: 'Berlin', cities: ['Berlin', 'Munich'] }
+  DE: { city: 'Berlin', cities: ['Berlin', 'Munich', 'Hamburg'] },
+  ES: { city: 'Madrid', cities: ['Madrid', 'Barcelona', 'Valencia'] },
+  EG: { city: 'Cairo', cities: ['Cairo', 'Alexandria', 'Giza'] },
+  FR: { city: 'Paris', cities: ['Paris', 'Lyon', 'Marseille'] },
+  NL: { city: 'Amsterdam', cities: ['Amsterdam', 'Rotterdam', 'Utrecht'] }
 };
+const supportedCountryCodes = Object.keys(countryDefaults);
+function isSupportedCountry(code) {
+  return supportedCountryCodes.includes(String(code || '').toUpperCase());
+}
+function getCountryDefault(code) {
+  return countryDefaults[String(code || '').toUpperCase()] || countryDefaults.TR;
+}
 const profilePhotos = [
   'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=900&q=75',
   'https://images.unsplash.com/photo-1566554273541-37a9ca77b91f?w=900&q=75',
@@ -3155,8 +3208,10 @@ function mapOrderForMobile(order) {
     dish: first?.name || dish?.name || 'Order',
     by: cook?.name || 'Cook',
     cookId: order.cookId,
+    dishId: first?.dishId || dish?.id || '',
     date: created.toLocaleString(),
     shortDate: created.toLocaleString(),
+    statusCode: order.status || 'placed',
     status: label,
     statusClass: order.status === 'delivered' ? 'status-delivered' : order.status === 'cancelled' ? 'status-cancelled' : 'status-pending',
     price: `₺${Number(order.total || 0).toLocaleString('tr-TR')}`,
@@ -3200,7 +3255,7 @@ function applyMarketplaceState(rawState) {
   currentUserId = user.id || currentUserId;
   currentUserName = (user.name || currentUserName || 'User').trim() || 'User';
   localStorage.setItem('hometaste_user_name', currentUserName);
-  if (user.country && ['TR', 'DE'].includes(user.country)) {
+  if (user.country && isSupportedCountry(user.country)) {
     selectedCountry = user.country;
     localStorage.setItem('hometaste_country', selectedCountry);
   }
@@ -3281,14 +3336,15 @@ document.addEventListener('DOMContentLoaded', () => {
   selectedCountry = params.get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
   currentUserName = (params.get('user') || localStorage.getItem('hometaste_user_name') || 'User').trim() || 'User';
   localStorage.setItem('hometaste_user_name', currentUserName);
-  if (!['TR', 'DE'].includes(selectedCountry)) selectedCountry = 'TR';
+  if (!isSupportedCountry(selectedCountry)) selectedCountry = 'TR';
   localStorage.setItem('hometaste_country', selectedCountry);
   clearLegacyLocalDemoData();
   syncMyCookPhotos();
+  const selectedDefault = getCountryDefault(selectedCountry);
   document.getElementById('welcomeCountry').value = selectedCountry;
-  document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').textContent = displayText(countryDefaults[selectedCountry].city);
+  document.getElementById('welcomeCity').value = selectedDefault.city;
+  document.getElementById('cityLabel').dataset.city = selectedDefault.city;
+  document.getElementById('cityLabel').textContent = displayText(selectedDefault.city);
   renderCityDropdown();
   if (localStorage.getItem('hometaste_welcome_done') === 'yes' || initialPage) {
     document.getElementById('welcomeOverlay').style.display = 'none';
@@ -3323,7 +3379,8 @@ function showPage(pageId, navEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
   if (page) page.classList.add('active');
-  if (navEl) navEl.classList.add('active');
+  const autoNav = navEl || document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
+  if (autoNav) autoNav.classList.add('active');
   if (pageId === 'checkout') updateCheckoutItems();
   if (pageId === 'settings') updateSettingsAccount();
   if (pageId === 'become') renderMyCookDishManager();
@@ -3336,10 +3393,12 @@ function showPage(pageId, navEl) {
 // ===== COUNTRY / WELCOME (FIXED: try-catch + safe hide) =====
 function setCountryFromWelcome(){
   selectedCountry = document.getElementById('welcomeCountry').value;
+  if (!isSupportedCountry(selectedCountry)) selectedCountry = 'TR';
   localStorage.setItem('hometaste_country', selectedCountry);
-  document.getElementById('welcomeCity').value = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').dataset.city = countryDefaults[selectedCountry].city;
-  document.getElementById('cityLabel').textContent = displayText(countryDefaults[selectedCountry].city);
+  const selectedDefault = getCountryDefault(selectedCountry);
+  document.getElementById('welcomeCity').value = selectedDefault.city;
+  document.getElementById('cityLabel').dataset.city = selectedDefault.city;
+  document.getElementById('cityLabel').textContent = displayText(selectedDefault.city);
   renderCityDropdown();
   renderHomeCooks();
   renderBrowseCooks();
@@ -3503,21 +3562,15 @@ function applyTranslations() {
   const secure = document.querySelector('.cart-secure span');
   if (secure) secure.textContent = tr('secure');
 
-  document.querySelectorAll('.empty-state h3').forEach(node => {
-    if (node.closest('[data-preserve-empty]')) return;
-    if (node.textContent.includes('Cart') || node.textContent.includes('Sepet') || node.textContent.includes('السلة')) node.textContent = tr('cartEmpty');
-    if (node.textContent.includes('No cooks') || node.textContent.includes('Aşçı') || node.textContent.includes('طهاة')) node.textContent = tr('noCooks');
-  });
-  document.querySelectorAll('.empty-state p').forEach(node => {
-    if (node.closest('[data-preserve-empty]')) return;
-    if (node.textContent.includes('dish') || node.textContent.includes('yemek') || node.textContent.includes('طعام')) node.textContent = tr('addFood');
-    if (node.textContent.includes('cuisine') || node.textContent.includes('mutfak') || node.textContent.includes('مطبخ')) node.textContent = tr('tryFilters');
+  document.querySelectorAll('[data-i18n]').forEach(node => {
+    node.textContent = tr(node.dataset.i18n);
   });
 
 }
 document.addEventListener('click',(event)=>{
   if (!event.target.closest('.country-filter')) {
     document.getElementById('countryCuisineMenu')?.classList.remove('open');
+    document.querySelector('.country-filter')?.classList.remove('open');
   }
 });
 window.addEventListener('message', (event) => {
@@ -3554,12 +3607,12 @@ function renderCityDropdown() {
   const dropdown = document.getElementById('cityDropdown');
   if (!dropdown) return;
   const cityOptions = [...new Set([
-    ...(countryDefaults[selectedCountry]?.cities || []),
+    ...(getCountryDefault(selectedCountry).cities || []),
     ...countryCooks().map(cook => cook.city).filter(Boolean),
     document.getElementById('cityLabel')?.dataset.city || ''
   ].filter(Boolean))];
   dropdown.innerHTML = cityOptions
-    .map(city => `<div class="city-option" onclick='selectCity(${jsArg(city)})'>📍 ${safeDisplayHtml(city)}</div>`)
+    .map(city => `<div class="city-option" onclick='selectCity(event,${jsArg(city)})'>📍 ${safeDisplayHtml(city)}</div>`)
     .join('');
   renderCuisineFilterOptions();
   renderCityFilterOptions();
@@ -3579,7 +3632,7 @@ function renderCityFilterOptions() {
   if (!select) return;
   const current = select.value;
   const cityOptions = [...new Set([
-    ...(countryDefaults[selectedCountry]?.cities || []),
+    ...(getCountryDefault(selectedCountry).cities || []),
     ...countryCooks().map(cook => cook.city).filter(Boolean),
     document.getElementById('cityLabel')?.dataset.city || ''
   ].filter(Boolean))];
@@ -3602,7 +3655,9 @@ function persistMarketLocation(city) {
     if (marketAuthToken() || hostBridgeReady) showToast(error.message, 'error');
   });
 }
-function selectCity(city) {
+function selectCity(eventOrCity, maybeCity) {
+  const city = maybeCity || eventOrCity;
+  eventOrCity?.stopPropagation?.();
   document.getElementById('cityLabel').dataset.city = city;
   document.getElementById('cityLabel').textContent = displayText(city);
   document.getElementById('cityDropdown')?.classList.remove('open');
@@ -3630,10 +3685,12 @@ function bindCountrySelector() {
   input.addEventListener('input', () => filterCountryMenu(input.value));
 }
 function openCountryMenu() {
+  document.querySelector('.country-filter')?.classList.add('open');
   renderCountryMenu(document.getElementById('countryCuisineSearch')?.value || '');
   document.getElementById('countryCuisineMenu')?.classList.add('open');
 }
 function filterCountryMenu(value) {
+  document.querySelector('.country-filter')?.classList.add('open');
   renderCountryMenu(value);
   document.getElementById('countryCuisineMenu')?.classList.add('open');
 }
@@ -3641,6 +3698,7 @@ function selectCountryCuisine(country) {
   const input = document.getElementById('countryCuisineSearch');
   if (input) input.value = country;
   document.getElementById('countryCuisineMenu')?.classList.remove('open');
+  document.querySelector('.country-filter')?.classList.remove('open');
   const allChip = document.querySelector('.filter-chips .chip');
   if (allChip) allChip.classList.remove('active');
   const search = document.getElementById('searchInput');
@@ -3652,6 +3710,16 @@ document.addEventListener('click', e => {
     document.getElementById('cityDropdown')?.classList.remove('open');
   }
 });
+function marketplaceLogout() {
+  localStorage.removeItem('hometaste_token');
+  localStorage.removeItem('hometaste_user');
+  localStorage.removeItem('hometaste_user_name');
+  localStorage.removeItem('hometaste_saved_login');
+  showToast('Signed out.', 'success');
+  setTimeout(() => {
+    window.location.href = './index.html';
+  }, 500);
+}
 function handleSearchKey(event) {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -3759,7 +3827,7 @@ function cookCard(c, staggerClass) {
   <div class="cook-card ${escapeAttr(staggerClass)}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
       <img src="${escapeAttr(coverPhoto)}" alt="${escapeDisplayAttr(c.name)}" onerror="this.src='${escapeAttr(defaultCookCoverPhoto)}'">
-      <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
+      <button class="fav-btn ${isFav ? 'active' : ''}" aria-label="${isFav ? 'Unfollow cook' : 'Follow cook'}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
@@ -3831,11 +3899,20 @@ function renderOrders() {
   const ordersList = document.getElementById('ordersList');
   if (!ordersList) return;
   updateNavBadges();
-  if (!demoOrders.length) {
-    ordersList.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><h3>No orders yet</h3><p>Your real orders will appear here after checkout.</p></div>`;
+  const visibleOrders = demoOrders.filter(order => {
+    if (orderFilter === 'all') return true;
+    if (orderFilter === 'completed') return order.statusCode === 'delivered';
+    if (orderFilter === 'cancelled') return order.statusCode === 'cancelled';
+    return !['delivered', 'cancelled'].includes(order.statusCode);
+  });
+  if (!visibleOrders.length) {
+    const emptyCopy = orderFilter === 'all'
+      ? 'Your real orders will appear here after checkout.'
+      : 'No orders match this filter yet.';
+    ordersList.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><h3>No orders yet</h3><p>${safeDisplayHtml(emptyCopy)}</p></div>`;
     return;
   }
-  ordersList.innerHTML = demoOrders.map(o => `
+  ordersList.innerHTML = visibleOrders.map(o => `
   <div class="order-card">
     <div class="order-card-head">
       <div>
@@ -3858,8 +3935,14 @@ function renderOrders() {
     <div class="order-right">
       <div class="order-price">${safeDisplayHtml(o.price)}</div>
     </div>
-    <button class="btn-reorder" onclick='${o.action === 'Track Order' ? `openTrackOrder(${jsArg(o.id)})` : `reorder(${jsArg(o.dish)})`}'>${safeDisplayHtml(o.action)}</button>
+    <button class="btn-reorder" onclick='${o.action === 'Track Order' ? `openTrackOrder(${jsArg(o.id)})` : `reorderDishById(${jsArg(o.dishId)})`}'>${safeDisplayHtml(o.action)}</button>
   </div>`).join('');
+}
+function setOrderFilter(el, filter) {
+  document.querySelectorAll('.orders-tab').forEach(tab => tab.classList.remove('active'));
+  el?.classList.add('active');
+  orderFilter = filter || 'all';
+  renderOrders();
 }
 function openTrackOrder(orderId) {
   const order = demoOrders.find(item => sameId(item.id, orderId)) || demoOrders[0];
@@ -3882,9 +3965,13 @@ function openTrackOrder(orderId) {
   }).join('');
   showPage('track-order', null);
 }
-function reorder(dish) {
-  showToast(`🛒 ${displayText(dish)} added to cart!`, 'success');
-  updateCartBadge();
+function reorderDishById(dishId) {
+  const dish = dishes.find(d => sameId(d.id, dishId));
+  if (!dish) {
+    showToast('This dish is no longer available.', 'error');
+    return;
+  }
+  addToCart(dish);
 }
 
 // ===== RENDER FAVORITES =====
@@ -3906,9 +3993,11 @@ async function toggleFav(e, cookId, btn) {
   if (wasFavorite) {
     favorites.delete(id);
     btn.classList.remove('active');
+    btn.setAttribute('aria-label', 'Follow cook');
   } else {
     favorites.add(id);
     btn.classList.add('active');
+    btn.setAttribute('aria-label', 'Unfollow cook');
   }
   renderFavorites();
   renderHomeCooks();
@@ -3931,7 +4020,7 @@ async function toggleFav(e, cookId, btn) {
 function renderCart() {
   const itemsEl = document.getElementById('cartItems');
   if (cart.length === 0) {
-    itemsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><h3>${tr('cartEmpty')}</h3><p>${tr('addFood')}</p></div>`;
+    itemsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><h3 data-i18n="cartEmpty">${tr('cartEmpty')}</h3><p data-i18n="addFood">${tr('addFood')}</p></div>`;
   } else {
     itemsEl.innerHTML = cart.map(item => `
     <div class="cart-item" id="cart-item-${escapeAttr(item.id)}">
@@ -3940,13 +4029,13 @@ function renderCart() {
         <div class="cart-item-name">${safeDisplayHtml(item.name)}</div>
         <div class="cart-item-by">by ${safeDisplayHtml(item.by)}</div>
         <div class="cart-qty">
-          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
+          <button class="qty-btn" aria-label="Decrease quantity" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
           <span class="qty-val">${safeDisplayHtml(item.qty)}</span>
-          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
+          <button class="qty-btn" aria-label="Increase quantity" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
         </div>
       </div>
       <div class="cart-item-price">${moneyTl(item.price * item.qty)}</div>
-      <button class="cart-remove" onclick='removeFromCart(${jsArg(item.id)})'>✕</button>
+      <button class="cart-remove" aria-label="Remove cart item" onclick='removeFromCart(${jsArg(item.id)})'>✕</button>
     </div>`).join('');
   }
   updateCartTotals();
@@ -4032,7 +4121,9 @@ function openDishModal(dishId) {
   if (!dish) return;
   const cook = cooks.find(c => sameId(c.id, dish.cookId));
   currentDish = dish;
-  document.getElementById('modalImg').src = safeImageSrc(dish.img, defaultDishPhoto);
+  const modalImg = document.getElementById('modalImg');
+  modalImg.src = safeImageSrc(dish.img, defaultDishPhoto);
+  modalImg.alt = `${displayText(dish.name)} photo`;
   document.getElementById('modalTitle').textContent = displayText(dish.name);
   document.getElementById('modalDesc').textContent = displayText(dish.desc);
   document.getElementById('modalPrice').textContent = moneyTl(dish.price);
@@ -4175,7 +4266,7 @@ function openChat(convId) {
 	  requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
 	}
 function openSupportChat() {
-  const greeting = `Hello ${currentUserName} Welocome to HomeTaste`;
+  const greeting = `Hello ${displayText(currentUserName)}, welcome to HomeTaste.`;
   if (!supportMessages.some(message => message.text === greeting)) {
     supportMessages.unshift({ text: greeting, from: 'cook', time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
   }
@@ -4290,7 +4381,7 @@ async function createCookDemo(){
   if (getMyCook()) { renderMyCookDishManager(); showToast('You already have a cook profile. Add another dish below.', 'info'); return; }
   if (!phone || !phone.match(/^[\+\d\s\-]+$/)) { showToast('Please enter a valid phone number', 'error'); return; }
   if (!policyConfirmed) { showToast('Please confirm the publishing policy before submitting.', 'error'); return; }
-  const city = document.getElementById('cityLabel').dataset.city || countryDefaults[selectedCountry].city || 'Istanbul';
+  const city = document.getElementById('cityLabel').dataset.city || getCountryDefault(selectedCountry).city || 'Istanbul';
   const dish = document.getElementById('cookDishInput').value.trim() || 'Homemade Special';
   const bio = document.getElementById('cookBioInput').value.trim() || 'Fresh homemade food from a new cook.';
   const prep = document.getElementById('cookPrepInput').value.trim() || '45 min';
@@ -4350,11 +4441,11 @@ function renderMyCookDishManager(){
       <button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View Profile</button>
     </div>
     <div class="manager-form">
-      <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" placeholder="Example: Chicken Biryani"></div>
-      <div><div class="welcome-label">Price (₺)</div><input id="extraDishPriceInput" class="cook-input" type="number" min="1" placeholder="150"></div>
-      <div><div class="welcome-label">Preparation time</div><input id="extraDishPrepInput" class="cook-input" placeholder="45 minutes"></div>
-      <div><div class="welcome-label">Country of the dish</div><input id="extraDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt"></div>
-      <div class="wide"><div class="welcome-label">Dish description</div><textarea id="extraDishDescInput" class="cook-input" rows="4" placeholder="Describe this dish for customers."></textarea></div>
+      <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" aria-label="New dish name" placeholder="Example: Chicken Biryani"></div>
+      <div><div class="welcome-label">Price (₺)</div><input id="extraDishPriceInput" class="cook-input" aria-label="New dish price in Turkish lira" type="number" min="1" placeholder="150"></div>
+      <div><div class="welcome-label">Preparation time</div><input id="extraDishPrepInput" class="cook-input" aria-label="New dish preparation time" placeholder="45 minutes"></div>
+      <div><div class="welcome-label">Country of the dish</div><input id="extraDishCountryInput" class="cook-input" aria-label="New dish country" placeholder="Turkey, Syria, Egypt"></div>
+      <div class="wide"><div class="welcome-label">Dish description</div><textarea id="extraDishDescInput" class="cook-input" aria-label="New dish description" rows="4" placeholder="Describe this dish for customers."></textarea></div>
       <div class="wide">
         <div class="welcome-label">Dish photo</div>
         <div class="profile-photo-actions">
@@ -4761,6 +4852,7 @@ function resetPaymentMethods() {
 // ===== CHECKOUT =====
 function updateCheckoutItems() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const delivery = cart.length ? 30 : 0;
   const commission = Math.round(sub * 0.15 * 100) / 100;
   document.getElementById('checkoutItems').innerHTML = cart.map(item => `
     <div class="summary-item">
@@ -4770,7 +4862,7 @@ function updateCheckoutItems() {
     </div>`).join('');
   document.getElementById('checkoutSubtotal').textContent = moneyTl(sub);
   document.getElementById('checkoutCommission').textContent = moneyTl(commission);
-  document.getElementById('checkoutTotal').textContent = moneyTl(sub + 30 + commission);
+  document.getElementById('checkoutTotal').textContent = moneyTl(sub + delivery + commission);
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
@@ -4781,6 +4873,14 @@ function renderPaymentDetails(method) {
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
   if (name.includes('Credit card') || name.includes('card') || name.includes('Stripe')) {
+    if (!cardPaymentConfigured) {
+      panel.classList.remove('empty');
+      panel.innerHTML = `
+        <p class="payment-details-title">Card payment unavailable</p>
+        <p class="payment-details-hint">Please choose IBAN transfer or Cash on delivery until a real card gateway is active.</p>
+      `;
+      return;
+    }
     panel.innerHTML = `
       <p class="payment-details-title">Card details</p>
       <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
@@ -4803,7 +4903,7 @@ function renderPaymentDetails(method) {
   panel.innerHTML = '';
 }
 function saveCardDetails() {
-  showToast('Card details saved for this checkout.', 'success');
+  showToast(cardPaymentConfigured ? 'Card details saved for this checkout.' : 'Card payment is not active yet.', cardPaymentConfigured ? 'success' : 'error');
 }
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
@@ -4869,6 +4969,10 @@ async function placeOrder() {
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
   const activePayment = document.querySelector('#paymentMethods .payment-method.active');
   const paymentMethod = activePayment?.dataset.paymentValue || 'cash';
+  if (paymentMethod === 'stripe' && !cardPaymentConfigured) {
+    showToast('Card payment is not active yet. Please choose IBAN or Cash on delivery.', 'error');
+    return;
+  }
   const deliveryTimeMode = selectedDeliveryTimeMode();
   const scheduledFor = getDeliveryScheduleValue();
   if (deliveryTimeMode === 'schedule' && !scheduledFor) {
