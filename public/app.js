@@ -1674,6 +1674,7 @@ function renderAuth(error = "") {
       <rect x="3" y="5" width="18" height="14" rx="2"></rect>
       <path d="m3 7 9 6 9-6"></path>
     </svg>`;
+  const googleColorIcon = `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5Z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7Z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.9 26.7 36 24 36c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 39.6 16.2 44 24 44Z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C39.9 36.1 44 30.6 44 24c0-1.3-.1-2.3-.4-3.5Z"/></svg>`;
   app.innerHTML = `
     <main class="auth-wrap">
       <section class="auth-frame">
@@ -1738,7 +1739,7 @@ function renderAuth(error = "") {
             </form>
             <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
             <div class="oauth-grid">
-              <button class="button secondary oauth-button" type="button" data-oauth="google"><b>G</b><span>Google</span></button>
+              <button class="button secondary oauth-button" type="button" data-oauth="google"><b class="g-icon">${googleColorIcon}</b><span>Continue with Google</span></button>
             </div>
             <button class="auth-mode-link" type="button" id="switchMode">
               ${isLogin ? "Don't have an account?" : t("hasAccount")} <strong>${isLogin ? `${t("createAccount")}!` : t("signIn")}</strong>
@@ -3360,6 +3361,9 @@ async function handleAuthLinkParams() {
   const reset = params.get("reset");
   const authToken = params.get("authToken");
   const authError = params.get("authError");
+  const authModeParam = params.get("authmode");
+  if (authModeParam === "signup") mode = "signup";
+  else if (authModeParam === "login") mode = "login";
   try {
     if (authError) {
       toast(authError, true);

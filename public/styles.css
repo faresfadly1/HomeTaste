@@ -621,6 +621,8 @@ html[dir="rtl"] .password-toggle { right: 18px; left: auto; }
   box-shadow: 0 10px 24px rgba(76,48,18,.08);
 }
 .oauth-button b { color: #dd8f1a; }
+.oauth-button .g-icon { display: inline-flex; align-items: center; }
+.oauth-button .g-icon svg { width: 19px; height: 19px; }
 .muted-oauth { opacity: .62; cursor: not-allowed; }
 .auth-mode-link { display: block; margin: 0 auto; color: #51483f; font-size: 17px; }
 .auth-mode-link strong, .auth-mode-link span { color: #d98d22; }
