@@ -1683,23 +1683,18 @@ function renderAuth(error = "") {
             <div class="chef-mark">${chefIcon}</div>
             <strong>Home<span>Taste</span></strong>
           </div>
-          <nav class="auth-nav" aria-label="HomeTaste">
-            <button type="button">Home</button>
-            <button type="button">Chefs</button>
-            <button type="button">About</button>
-          </nav>
           <div class="auth-nav-actions">
             <div class="auth-language-tabs" aria-label="${t("changeLanguage")}">
               ${["EN", "TR", "AR"].map((code) => `<button type="button" data-language="${code}" class="${appLanguage === code ? "active" : ""}">${code}</button>`).join("")}
             </div>
             <button class="auth-nav-link ${mode === "login" ? "active" : ""}" type="button" id="showLogin">${t("signIn")}</button>
-            <button class="auth-register-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">${t("createAccount")}</button>
+            <button class="auth-register-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">Sign Up</button>
           </div>
         </header>
         <div class="auth-frame-body">
           <section class="auth-hero">
             <div class="auth-hero-copy">
-              <p class="script-line">Global homemade food</p>
+              <p class="script-line">GLOBAL HOMEMADE FOOD</p>
               <h1>Authentic meals, cinematic taste.</h1>
               <p>Discover real home cooks through a premium food marketplace built for trust.</p>
             </div>
@@ -1710,7 +1705,7 @@ function renderAuth(error = "") {
               <div class="chef-badge">${chefIcon}</div>
               <strong>Home<span>Taste</span></strong>
             </div>
-            <p class="auth-kicker">Hello !</p>
+            <p class="auth-kicker">Hello!</p>
             <h2>${isLogin ? "Welcome back" : "Create your account"}</h2>
             <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
             ${error ? `<div class="notice error">${error}</div>` : ""}
@@ -1735,14 +1730,14 @@ function renderAuth(error = "") {
                 </div>
                 ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
               ` : ""}
-              <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span><b>&rarr;</b></button>
+              <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span></button>
             </form>
             <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
             <div class="oauth-grid">
               <button class="button secondary oauth-button" type="button" data-oauth="google"><b class="g-icon">${googleColorIcon}</b><span>Continue with Google</span></button>
             </div>
             <button class="auth-mode-link" type="button" id="switchMode">
-              ${isLogin ? "Don't have an account?" : t("hasAccount")} <strong>${isLogin ? `${t("createAccount")}!` : t("signIn")}</strong>
+              ${isLogin ? "Don't have an account?" : t("hasAccount")} <strong>${isLogin ? "Sign Up" : t("signIn")}</strong>
             </button>
             <form class="form mini-form" id="resetRequestForm">
               <div class="field"><label>${t("passwordReset")}</label><input class="input" type="email" name="email" placeholder="${t("resetPlaceholder")}"></div>
@@ -1752,10 +1747,10 @@ function renderAuth(error = "") {
           </section>
         </div>
         <div class="auth-info-strip">
-          <span>Protected checkout and profile security</span>
-          <span>10M+ Happy Foodies</span>
-          <span>4.9 star Average Rating</span>
-          <span>Made with love for food lovers</span>
+          <span>Secure login</span>
+          <span>Trusted home cooks</span>
+          <span>Global homemade dishes</span>
+          <span>Private support</span>
         </div>
       </section>
     </main>
