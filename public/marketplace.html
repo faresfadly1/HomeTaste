@@ -2132,8 +2132,8 @@ ul{list-style:none}
           <button class="photo-action" type="button" onclick="document.getElementById('cookDishCameraInput').click()">📸 Take Dish Photo<small>This photo appears only on the dish card</small></button>
           <button class="photo-action" type="button" onclick="document.getElementById('cookDishGalleryInput').click()">🖼️ Upload Dish Photo<small>Choose the food photo for this dish</small></button>
         </div>
-        <input id="cookDishCameraInput" type="file" accept="image/*" capture="environment" hidden onchange="handleCookDishPhoto(this,'camera')">
-        <input id="cookDishGalleryInput" type="file" accept="image/*" hidden onchange="handleCookDishPhoto(this,'gallery')">
+        <input id="cookDishCameraInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="environment" hidden onchange="handleCookDishPhoto(this,'camera')">
+        <input id="cookDishGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleCookDishPhoto(this,'gallery')">
       </div>
       <div class="wide photo-preview" id="cookDishPhotoPreview">No dish photo selected</div>
       <div class="wide"><button class="btn-apply" onclick="createCookDemo(this)">Publish my dish →</button></div>
@@ -4224,34 +4224,73 @@ async function sendChatMessage() {
 
 
 // ===== BECOME A COOK DEMO (FIXED: validation) =====
-function compressImageFile(file, onReady, maxSize = 1200, quality = 0.75) {
+const marketAcceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const marketMaxSourceImageBytes = 8 * 1024 * 1024;
+const marketMaxCompressedImageBytes = 500 * 1024;
+function canvasToJpegBlob(canvas, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+}
+async function fitImageToLimit(img) {
+  const naturalWidth = img.naturalWidth || img.width;
+  const naturalHeight = img.naturalHeight || img.height;
+  const attempts = [
+    [1000, 0.68],
+    [1000, 0.6],
+    [900, 0.55],
+    [800, 0.5],
+    [700, 0.45],
+    [600, 0.4]
+  ];
+  for (const [maxSize, quality] of attempts) {
+    const scale = Math.min(1, maxSize / Math.max(naturalWidth, naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(naturalHeight * scale));
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('Could not compress the selected image.');
+    ctx.fillStyle = '#fff8ef';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await canvasToJpegBlob(canvas, quality);
+    if (blob && blob.size <= marketMaxCompressedImageBytes) return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not process the selected image.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  throw new Error('Image is too large. Please choose a smaller photo.');
+}
+function compressImageFile(file, onReady) {
   const reader = new FileReader();
   reader.onload = () => {
     const rawValue = String(reader.result || '');
     const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      onReady(canvas.toDataURL('image/jpeg', quality));
+    img.onload = () => fitImageToLimit(img).then(onReady).catch(error => {
+      showToast(error.message, 'error');
+      onReady('');
+    });
+    img.onerror = () => {
+      showToast('Could not read the selected image.', 'error');
+      onReady('');
     };
-    img.onerror = () => onReady(rawValue);
     img.src = rawValue;
+  };
+  reader.onerror = () => {
+    showToast('Could not read the selected image.', 'error');
+    onReady('');
   };
   reader.readAsDataURL(file);
 }
 function readImageAsDataUrl(input, onReady) {
   const file = input.files && input.files[0];
   if (!file) return onReady('');
-  if (!file.type.startsWith('image/')) {
+  if (!marketAcceptedImageTypes.has(file.type)) {
     input.value = '';
-    showToast('Please choose an image file.', 'error');
+    showToast('Please choose a JPEG, PNG, or WebP image.', 'error');
     return onReady('');
   }
-  if (file.size > 8 * 1024 * 1024) {
+  if (file.size > marketMaxSourceImageBytes) {
     input.value = '';
     showToast('Image is too large. Please choose an image under 8 MB.', 'error');
     return onReady('');
@@ -4346,7 +4385,7 @@ function renderMyCookDishManager(){
           <button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${cook.name}</small></button>
           <button class="photo-action" type="button" onclick="publishExtraDish(this)">Publish Dish<small>Add it to your cook profile</small></button>
         </div>
-        <input id="extraDishPhotoInput" type="file" accept="image/*" hidden onchange="handleExtraDishPhoto(this)">
+        <input id="extraDishPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleExtraDishPhoto(this)">
       </div>
       <div class="wide photo-preview" id="extraDishPhotoPreview">No dish photo selected</div>
     </div>
@@ -4540,8 +4579,8 @@ function openProfilePicturePanel() {
       <button class="photo-action" type="button" onclick="document.getElementById('profileCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
       <button class="photo-action" type="button" onclick="document.getElementById('profileGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
     </div>
-    <input id="profileCameraInput" type="file" accept="image/*" capture="user" hidden onchange="handleProfilePicture(this)">
-    <input id="profileGalleryInput" type="file" accept="image/*" hidden onchange="handleProfilePicture(this)">
+    <input id="profileCameraInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="user" hidden onchange="handleProfilePicture(this)">
+    <input id="profileGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfilePicture(this)">
     <div class="account-actions">
       <button class="account-cancel" type="button" onclick="removeProfilePicture()">Remove photo</button>
       <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
@@ -4550,10 +4589,8 @@ function openProfilePicturePanel() {
   `);
 }
 function handleProfilePicture(input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
-  compressImageFile(file, value => {
+  readImageAsDataUrl(input, value => {
+    if (!value) return;
     pendingProfilePicture = value;
     document.getElementById('profilePicturePreview').innerHTML = `<img src="${value}" alt="New profile picture" loading="lazy" decoding="async">`;
     showToast('Picture selected. Press Save picture to confirm.', 'info');
@@ -4605,8 +4642,8 @@ function openProfileCoverPanel() {
       <button class="photo-action" type="button" onclick="document.getElementById('coverCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
       <button class="photo-action" type="button" onclick="document.getElementById('coverGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
     </div>
-    <input id="coverCameraInput" type="file" accept="image/*" capture="environment" hidden onchange="handleProfileCover(this)">
-    <input id="coverGalleryInput" type="file" accept="image/*" hidden onchange="handleProfileCover(this)">
+    <input id="coverCameraInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="environment" hidden onchange="handleProfileCover(this)">
+    <input id="coverGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfileCover(this)">
     <div class="account-actions">
       <button class="account-cancel" type="button" onclick="removeProfileCover()">Remove background</button>
       <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
@@ -4615,10 +4652,8 @@ function openProfileCoverPanel() {
   `);
 }
 function handleProfileCover(input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
-  compressImageFile(file, value => {
+  readImageAsDataUrl(input, value => {
+    if (!value) return;
     pendingProfileCover = value;
     document.getElementById('profileCoverPreview').innerHTML = `<img src="${value}" alt="New background photo" loading="lazy" decoding="async">`;
     showToast('Background selected. Press Save background to confirm.', 'info');

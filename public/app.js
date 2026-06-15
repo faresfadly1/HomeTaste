@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-mobile-stability-01";
+const APP_BUILD = "20260616-image-upload-fit-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -32,8 +32,10 @@ let searchRenderTimer = null;
 const pendingActions = new Set();
 const API_TIMEOUT_MS = 15000;
 const MAX_UPLOAD_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_IMAGE_DIMENSION = 1200;
-const IMAGE_COMPRESSION_QUALITY = 0.75;
+const MAX_COMPRESSED_IMAGE_BYTES = 500 * 1024;
+const MAX_IMAGE_DIMENSION = 1000;
+const IMAGE_COMPRESSION_QUALITY = 0.68;
+const ACCEPTED_UPLOAD_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -1343,24 +1345,35 @@ function loadImageFromFile(file) {
 
 async function readImageFile(file) {
   if (!file) return "";
-  if (!file.type.startsWith("image/")) throw new Error("Please choose a valid image file.");
+  if (!ACCEPTED_UPLOAD_IMAGE_TYPES.has(file.type)) throw new Error("Please choose a JPEG, PNG, or WebP image.");
   if (file.size > MAX_UPLOAD_IMAGE_BYTES) throw new Error("Image is too large. Please choose an image under 8 MB.");
-  if (file.type === "image/gif" || file.type === "image/svg+xml") return blobToDataUrl(file);
   const image = await loadImageFromFile(file);
-  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
-  const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
-  const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) return blobToDataUrl(file);
-  ctx.fillStyle = "#fff8ef";
-  ctx.fillRect(0, 0, width, height);
-  ctx.drawImage(image, 0, 0, width, height);
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", IMAGE_COMPRESSION_QUALITY));
-  if (!blob) throw new Error("Could not compress the selected image.");
-  return blobToDataUrl(blob);
+  const naturalWidth = image.naturalWidth || image.width;
+  const naturalHeight = image.naturalHeight || image.height;
+  const attempts = [
+    [MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY],
+    [MAX_IMAGE_DIMENSION, 0.6],
+    [900, 0.55],
+    [800, 0.5],
+    [700, 0.45],
+    [600, 0.4]
+  ];
+  for (const [maxDimension, quality] of attempts) {
+    const scale = Math.min(1, maxDimension / Math.max(naturalWidth, naturalHeight));
+    const width = Math.max(1, Math.round(naturalWidth * scale));
+    const height = Math.max(1, Math.round(naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("Could not compress the selected image.");
+    ctx.fillStyle = "#fff8ef";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (blob && blob.size <= MAX_COMPRESSED_IMAGE_BYTES) return blobToDataUrl(blob);
+  }
+  throw new Error("Image is too large. Please choose a smaller photo.");
 }
 
 async function imageFromForm(form, fileName, urlName = "") {
@@ -1931,7 +1944,7 @@ function renderAdmin() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" value="150"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" min="1" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2411,7 +2424,7 @@ function renderCookStudio() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2460,8 +2473,8 @@ function renderSettings() {
           ${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}
         </div>
         <form class="form" id="profileMediaForm" style="margin:14px 0">
-          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/*"></div>
-          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/*"></div>
+          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
+          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
           <button class="button secondary" type="submit">Save profile photos</button>
         </form>
         <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
