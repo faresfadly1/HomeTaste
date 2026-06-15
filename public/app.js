@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260607-ui-order-flow-01";
+const APP_BUILD = "20260615-june7-ui-fixes-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -223,7 +223,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -233,7 +233,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: event.data.online }) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -269,7 +269,7 @@ async function handleMarketplaceMessage(event) {
         })
       });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -279,7 +279,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/dishes", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -301,7 +301,7 @@ async function handleMarketplaceMessage(event) {
       });
       state = result.state || result;
       reply({ action: "market-sync", ok: true, placedOrder: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -311,7 +311,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/social", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -321,7 +321,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/messages", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -331,7 +331,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api(`/api/dishes/${event.data.dishId}`, { method: "DELETE" });
       reply({ action: "market-sync", ok: true, state });
-      renderApp();
+      refreshEmbeddedRolePanel();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -358,8 +358,19 @@ window.addEventListener("message", handleMarketplaceMessage);
 function updateRolePanelVisibility() {
   const content = document.querySelector(".market-content");
   if (!content || !state?.user) return;
-  const hideCustomerPanel = !isDriver();
+  const hideCustomerPanel = !isCook() && !isDriver();
   content.classList.toggle("panel-hidden", hideCustomerPanel);
+}
+
+function refreshEmbeddedRolePanel() {
+  const panel = document.querySelector(".role-panel");
+  if (!panel) {
+    renderApp();
+    return;
+  }
+  panel.innerHTML = renderRoleOperations();
+  updateRolePanelVisibility();
+  bindPage();
 }
 
 function toggleLanguageMenu(event) {
@@ -1346,7 +1357,6 @@ function renderAuth(error = "") {
   applyAppearance();
   const isLogin = mode === "login";
   const rememberedLogin = isLogin ? savedLoginCredentials() : null;
-  const countryValue = rememberedLogin?.country || authCountry;
   const chefIcon = `
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1395,13 +1405,6 @@ function renderAuth(error = "") {
         <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
-          <div class="field">
-            <label>${t("country")}</label>
-            <select class="input" id="authCountry" name="country">
-              <option value="TR" ${countryValue === "TR" ? "selected" : ""}>${t("turkey")}</option>
-              <option value="DE" ${countryValue === "DE" ? "selected" : ""}>${t("germany")}</option>
-            </select>
-          </div>
           ${mode === "signup" ? `
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
@@ -1475,11 +1478,6 @@ function renderAuth(error = "") {
     document.querySelector("#passwordToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
     document.querySelector("#passwordToggle").title = show ? "Hide password" : "Show password";
   };
-  document.querySelector("#authCountry")?.addEventListener("change", (event) => {
-    authCountry = event.target.value;
-    localStorage.setItem("hometaste_country", authCountry);
-    renderAuth();
-  });
   document.querySelectorAll("[data-oauth]").forEach((button) => {
     button.onclick = () => startOAuth(button.dataset.oauth);
   });
@@ -1490,6 +1488,7 @@ function renderAuth(error = "") {
 	    const submitButton = event.currentTarget.querySelector("[type='submit']");
 	    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
 	    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+	    input.country = authCountry || localStorage.getItem("hometaste_country") || "TR";
 	    const rememberLogin = input.rememberLogin === "on";
 	    delete input.rememberLogin;
 	    try {
