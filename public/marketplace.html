@@ -2725,15 +2725,6 @@ const lightFoodPlaceholder = (label, icon = '🍲') => `data:image/svg+xml,${enc
   <text x="450" y="286" text-anchor="middle" dominant-baseline="middle" font-size="68">${icon}</text>
   <text x="450" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#ff6a1a">${label}</text>
 </svg>`)}`;
-const deprecatedProfilePhotoUrls = [
-  'photo-1577219491135-ce391730fb2c',
-  'photo-1566554273541-37a9ca77b91f',
-  'photo-1494790108377-be9c29b29330',
-  'photo-1580489944761-15a19d654956',
-  'photo-1507003211169-0a1dd7228f2d',
-  'photo-1438761681033-6461ffad8d80',
-  'photo-1500648767791-00dcc994a43e'
-];
 const coverPhotos = [
   'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=1200&q=75',
   'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=1200&q=75',
@@ -2780,7 +2771,7 @@ cooks.forEach((c,i)=>{
     verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
     profilePhoto,
     coverPhoto,
-    img: c.cardPhoto || coverPhoto || c.img || defaultCookCoverPhoto
+    img: c.cardPhoto || defaultDishPhoto
   });
 });
 dishes.forEach((d,i)=>Object.assign(d,{
@@ -2808,11 +2799,6 @@ function avatarFallbackHtml(cook) {
 }
 function cookAvatarInnerHtml(cook, photo = getCookProfilePhoto(cook)) {
   return `${avatarFallbackHtml(cook)}${photo ? `<img src="${photo}" alt="${cook.name} profile photo" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
-}
-function isLikelyProfileAvatarImage(url, cook) {
-  const value = String(url || '');
-  if (!value) return false;
-  return value === cook?.profilePhoto || deprecatedProfilePhotoUrls.some(fragment => value.includes(fragment));
 }
 let hostBridgeReady = false;
 let marketRequestSeq = 0;
@@ -3010,7 +2996,7 @@ function normalizeCustomCook(cook) {
     speedRating: cook.speedRating || '5.0',
     profilePhoto,
     coverPhoto,
-    img: coverPhoto || cook.img || defaultCookCoverPhoto
+    img: cook.img || defaultDishPhoto
   };
 }
 function loadCustomCookData() {
@@ -3065,15 +3051,29 @@ function getCookProfilePhoto(cook) {
   const saved = isMyCook(cook.id) ? getSavedProfilePicture() : '';
   return saved || cook.profilePhoto || '';
 }
+function getDishPhoto(dish) {
+  return dish?.img || dish?.image || '';
+}
+function isFeaturedDishForCook(dish, cook) {
+  return Boolean(
+    dish?.featured ||
+    dish?.isFeatured ||
+    dish?.featuredDish ||
+    sameId(dish?.id, cook?.featuredDishId) ||
+    sameId(dish?.id, cook?.featuredDish?.id)
+  );
+}
+function getCookCardDishPhoto(cook, sourceDishes = dishes) {
+  const cookDishes = sourceDishes.filter(dish => sameId(dish.cookId, cook.id));
+  const firstAvailableDish = cookDishes.find(dish => dish.available !== false && getDishPhoto(dish));
+  const featuredDish = cookDishes.find(dish => isFeaturedDishForCook(dish, cook) && getDishPhoto(dish));
+  const anyDishWithPhoto = cookDishes.find(dish => getDishPhoto(dish));
+  return getDishPhoto(firstAvailableDish) || getDishPhoto(featuredDish) || getDishPhoto(anyDishWithPhoto) || defaultDishPhoto;
+}
 function getCookCoverPhoto(cook) {
   const saved = isMyCook(cook.id) ? getSavedProfileCover() : '';
-  const profilePhoto = getCookProfilePhoto(cook);
-  const firstDishImage = dishes.find(dish => sameId(dish.cookId, cook.id) && dish.img)?.img || '';
-  const cardImage = cook.img && cook.img !== profilePhoto && !isLikelyProfileAvatarImage(cook.img, cook) ? cook.img : '';
   if (saved) return saved;
   if (cook.coverPhoto) return cook.coverPhoto;
-  if (cardImage) return cardImage;
-  if (firstDishImage) return firstDishImage;
   return defaultCookCoverPhoto;
 }
 function syncMyCookPhotos() {
@@ -3158,6 +3158,7 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
   const profilePhoto = currentUser.profilePhoto || cook.profilePhoto || '';
   const coverPhoto = currentUser.profileCover || cook.coverPhoto || '';
   const cookCountry = cook.country || (isMine ? userCountry : '') || selectedCountry;
+  const cardDishPhoto = getCookCardDishPhoto(cook, cookDishes);
   return {
     id: cook.id,
     userId: cook.userId || '',
@@ -3173,7 +3174,7 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     price: firstDish?.price || 0,
     verified: Boolean(cook.verified),
     verifiedPhoto: Boolean(profilePhoto),
-    img: coverPhoto || firstDish?.img || defaultCookCoverPhoto,
+    img: cardDishPhoto,
     profilePhoto,
     coverPhoto,
     bio: cook.bio || 'Fresh homemade food from this cook.',
@@ -3729,12 +3730,12 @@ function renderBrowseCooks() {
 }
 function cookCard(c, staggerClass) {
   const isFav = favorites.has(String(c.id));
-  const coverPhoto = getCookCoverPhoto(c);
+  const cardDishPhoto = getCookCardDishPhoto(c);
   const profilePhoto = getCookProfilePhoto(c);
   return `
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
-      <img src="${coverPhoto}" alt="${c.name}" loading="lazy" decoding="async" onerror="this.src='${defaultCookCoverPhoto}'">
+      <img src="${cardDishPhoto}" alt="${c.dish || c.name}" loading="lazy" decoding="async" onerror="this.src='${defaultDishPhoto}'">
       <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
