@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HomeTaste – Real Cooks. Real Food. Real People.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* RESET & BASE */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1749,685 +1749,6 @@ ul{list-style:none}
   .order-card{grid-template-columns:58px minmax(0,1fr) auto;padding:10px;gap:8px}
   .order-img{width:58px;height:58px}
 }
-/* UI-2 Orders and Favorites luxury redesign */
-#page-orders,#page-favorites{position:relative;isolation:isolate;min-height:100vh;background:radial-gradient(circle at 86% 8%,rgba(219,151,43,.12),transparent 26%),linear-gradient(180deg,#0d0d0d,#11100f)}
-#page-orders::before,#page-favorites::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 82% 11%,rgba(234,163,51,.22) 0 1px,transparent 2px),radial-gradient(circle at 78% 7%,rgba(234,163,51,.16) 0 1px,transparent 2px);background-size:76px 58px,118px 90px;opacity:.32}
-.luxury-page-header{padding:38px 40px 20px;margin:0}
-.luxury-page-header h1{font-size:40px;line-height:1;color:#fff7ea;text-shadow:0 10px 34px rgba(0,0,0,.44)}
-.luxury-page-header p{margin-top:10px;color:rgba(255,246,232,.75);font-size:15px}
-.luxury-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:0 40px 24px}
-.luxury-stat-card{position:relative;overflow:hidden;min-height:118px;display:flex;align-items:center;gap:18px;padding:22px;border:1px solid rgba(224,154,43,.35);border-radius:8px;background:linear-gradient(145deg,rgba(28,28,28,.78),rgba(13,13,13,.92));box-shadow:0 18px 44px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.04)}
-.luxury-stat-icon,.premium-empty-icon{width:70px;height:70px;flex:0 0 auto;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(237,174,64,.82);color:#f1b44b;background:radial-gradient(circle,rgba(241,180,75,.18),rgba(0,0,0,.28) 70%);box-shadow:0 0 30px rgba(235,166,51,.22);font-size:27px;font-weight:900}
-.luxury-stat-copy{position:relative;z-index:1}.luxury-stat-copy span{display:block;color:#fff8ec;font-weight:800}.luxury-stat-copy strong{display:block;margin:7px 0 2px;color:#f7ead2;font:900 28px/1 "Playfair Display",serif}.luxury-stat-copy small{color:rgba(255,246,232,.62);font-size:13px}
-.luxury-stat-outline{position:absolute;right:18px;bottom:4px;color:rgba(255,255,255,.06);font-size:72px;font-weight:900;line-height:1}
-.orders-shell{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;padding:0 40px 40px;align-items:start}.orders-list{padding:0}.orders-main{min-width:0}
-.luxury-order-card,.refund-panel,.favorites-shell{border:1px solid rgba(224,154,43,.28);border-radius:8px;background:linear-gradient(155deg,rgba(24,24,24,.86),rgba(12,12,12,.94));box-shadow:0 18px 48px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04)}
-.luxury-order-card{padding:20px 22px;margin-bottom:14px}
-.luxury-order-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:rgba(255,246,232,.72);font-size:13px}.luxury-status{border-radius:6px;padding:5px 9px;background:rgba(226,155,43,.18);color:#f0ad38;font-size:11px;font-weight:900;letter-spacing:.04em}.luxury-status.status-delivered{background:rgba(36,122,67,.28);color:#5ee086}.luxury-order-id{white-space:nowrap}
-.luxury-order-body{display:grid;grid-template-columns:280px minmax(0,1fr) 190px;gap:22px;align-items:center}.luxury-order-img{width:100%;height:166px;object-fit:cover;border-radius:8px;background:var(--bg3)}.luxury-order-body h3{margin:0 0 12px;color:#fff6e8;font-size:26px;line-height:1.1}.luxury-cook-line,.saved-cook-row{display:flex;align-items:center;gap:10px;color:#fff6e8}.luxury-cook-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;display:grid;place-items:center;border:2px solid rgba(255,255,255,.2);background:#1c1c1c;flex:0 0 auto}.luxury-cook-avatar img{width:100%;height:100%;object-fit:cover}.luxury-cook-line small{display:block;color:rgba(255,246,232,.58);font-size:12px;margin-top:2px}.luxury-address{margin:16px 0 0;color:rgba(255,246,232,.72);font-size:13px;line-height:1.5}.luxury-order-side{display:grid;gap:8px;border-left:1px solid rgba(255,255,255,.08);padding-left:22px}.luxury-order-side small{color:rgba(255,246,232,.58)}.luxury-order-side strong,.luxury-order-side b{color:#f1b44b;font-size:18px}.payment-chip{width:max-content;border-radius:6px;padding:6px 9px;background:rgba(34,197,94,.14);color:#61df82;font-weight:900;font-size:12px}
-.luxury-order-timeline{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:20px 60px 18px}.luxury-order-timeline::before{content:"";position:absolute;left:8%;right:8%;top:18px;height:2px;background:rgba(255,255,255,.14)}.luxury-timeline-step{position:relative;z-index:1;display:grid;justify-items:center;gap:7px;color:rgba(255,246,232,.58);font-size:12px}.luxury-timeline-step span{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:#171717}.luxury-timeline-step.done span,.luxury-timeline-step.active span{border-color:#e5a53a;background:radial-gradient(circle,rgba(229,165,58,.3),#17120a);color:#f4b648;box-shadow:0 0 24px rgba(229,165,58,.28)}.luxury-timeline-step.done,.luxury-timeline-step.active{color:#f4b648}
-.luxury-order-actions,.saved-actions{display:flex;gap:12px;flex-wrap:wrap}.luxury-outline-btn,.luxury-primary-btn,.luxury-quiet-btn{min-height:42px;border-radius:8px;padding:0 18px;font-weight:900;border:1px solid rgba(224,154,43,.48)}.luxury-outline-btn{color:#f0b24a;background:rgba(0,0,0,.14)}.luxury-outline-btn.muted{color:rgba(255,246,232,.72);border-color:rgba(255,255,255,.12)}.luxury-primary-btn{color:#211507;background:linear-gradient(180deg,#f2bd5b,#b97620);box-shadow:0 12px 26px rgba(185,118,32,.24)}.luxury-primary-btn.small{min-height:38px}.luxury-quiet-btn{border-color:rgba(255,255,255,.1);color:rgba(255,246,232,.6);background:transparent}
-.refund-panel{min-height:520px;padding:28px 26px}.refund-panel-head h2{margin:0 0 8px;color:#fff6e8;font-size:27px}.refund-panel-head p{margin:0;color:rgba(255,246,232,.64);font-size:13px}.premium-empty{min-height:280px;display:grid;place-items:center;text-align:center;padding:34px;border:1px solid rgba(224,154,43,.22);border-radius:8px;background:radial-gradient(circle at 50% 44%,rgba(224,154,43,.12),transparent 42%)}.premium-empty.compact{min-height:390px;border:0;background:radial-gradient(circle at 50% 44%,rgba(224,154,43,.12),transparent 42%)}.premium-empty h3{margin:12px 0 0;color:#fff6e8;font-size:24px}.premium-empty p{max-width:340px;margin:10px auto 18px;color:rgba(255,246,232,.64);line-height:1.55}.refund-list{display:grid;gap:12px;margin-top:22px}.refund-item{padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.03)}.refund-item strong{color:#fff6e8}.refund-item span,.refund-item p{display:block;margin-top:6px;color:rgba(255,246,232,.62);font-size:13px}
-.favorites-shell{margin:0 40px 40px;padding:18px 20px 20px}.favorites-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.favorites-tabs{display:inline-grid;grid-template-columns:repeat(3,minmax(90px,1fr));gap:4px;padding:4px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(0,0,0,.2)}.favorites-tab{min-height:34px;border-radius:6px;color:rgba(255,246,232,.7);font-weight:900}.favorites-tab.active{background:linear-gradient(180deg,rgba(198,134,33,.58),rgba(93,57,16,.62));color:#fff;border:1px solid rgba(224,154,43,.4)}.favorites-sort{display:flex;align-items:center;gap:10px;color:rgba(255,246,232,.7);font-size:13px}.favorites-sort select{min-width:220px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#121212;color:#fff6e8;padding:12px}
-.favorites-content{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px}.luxury-favorites-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:0}.saved-dish-card,.saved-cook-card{position:relative;overflow:hidden;border:1px solid rgba(224,154,43,.24);border-radius:8px;background:linear-gradient(155deg,rgba(26,26,26,.86),rgba(12,12,12,.94));box-shadow:0 14px 34px rgba(0,0,0,.28)}.saved-dish-card{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:250px}.saved-dish-img{width:100%;height:100%;object-fit:cover;background:#1b1b1b}.saved-heart{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#f1b44b;background:rgba(0,0,0,.58);border:1px solid rgba(224,154,43,.32);font-size:18px}.saved-card-body,.saved-cook-body{padding:22px}.saved-card-body h3,.saved-cook-title h3{margin:0;color:#fff6e8;font-size:21px;line-height:1.1}.saved-meta{margin:9px 0;color:rgba(255,246,232,.64);font-size:13px}.saved-cook-row b{margin-left:auto;color:#f2b344}.saved-card-facts{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0;color:rgba(255,246,232,.7);font-size:13px}.saved-cook-cover{position:relative;height:118px}.saved-cook-cover img{width:100%;height:100%;object-fit:cover;filter:saturate(.88) brightness(.72)}.saved-cook-avatar{width:70px;height:70px;margin-top:-48px;position:relative;z-index:1;display:grid;place-items:center;border-radius:50%;overflow:hidden;border:3px solid #151515;background:#242424}.saved-cook-avatar img{width:100%;height:100%;object-fit:cover}.saved-cook-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}.saved-cook-title span{border-radius:999px;padding:5px 9px;background:rgba(255,255,255,.1);color:rgba(255,246,232,.7);font-size:11px;font-weight:900}.saved-cook-title span.online{background:rgba(34,197,94,.14);color:#5ee086}.saved-cook-body p{margin:6px 0 12px;color:rgba(255,246,232,.65);font-size:13px}.saved-tags{display:flex;gap:6px;flex-wrap:wrap}.saved-tags span{border:1px solid rgba(224,154,43,.28);border-radius:6px;padding:4px 8px;color:#efd3a0;font-size:11px}.wide{width:100%}.favorites-encouragement{min-width:0}.favorites-empty{grid-column:1/-1;min-height:360px}
-html[dir="rtl"] .luxury-order-side{border-left:0;border-right:1px solid rgba(255,255,255,.08);padding-left:0;padding-right:22px}html[dir="rtl"] .saved-heart{right:auto;left:14px}
-@media(max-width:1200px){.orders-shell,.favorites-content{grid-template-columns:1fr}.refund-panel{min-height:auto}.favorites-encouragement .premium-empty{min-height:260px}.luxury-order-body{grid-template-columns:220px minmax(0,1fr) 160px}.luxury-favorites-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:900px){.luxury-page-header{padding:28px 22px 18px}.luxury-page-header h1{font-size:34px}.luxury-stats{grid-template-columns:1fr;gap:12px;padding:0 22px 20px}.orders-shell,.favorites-shell{margin:0;padding-left:22px;padding-right:22px}.orders-shell{padding-bottom:96px}.favorites-shell{margin:0 22px 96px}.luxury-order-body{grid-template-columns:160px minmax(0,1fr);align-items:start}.luxury-order-side{grid-column:1/-1;border-left:0;border-top:1px solid rgba(255,255,255,.08);padding:14px 0 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}.luxury-order-timeline{margin-inline:0}.favorites-toolbar{display:grid}.favorites-sort{display:grid;gap:7px}.favorites-sort select{width:100%;min-width:0}.luxury-favorites-grid{grid-template-columns:1fr}.saved-dish-card{grid-template-columns:150px minmax(0,1fr)}}
-@media(max-width:560px){#page-orders .page-header,#page-favorites .page-header{text-align:left;padding:20px 14px 14px}#page-orders .page-header h1,#page-favorites .page-header h1{font-family:'Playfair Display',serif;font-size:30px}.luxury-page-header p{display:block!important;font-size:13px;line-height:1.45}.luxury-stats{grid-template-columns:1fr;gap:10px;padding:0 14px 16px;overflow:visible}.luxury-stat-card{min-width:0;width:100%;min-height:104px}.orders-shell,.favorites-shell{padding-left:14px;padding-right:14px}.favorites-shell{margin:0 14px 92px;padding-top:14px}.luxury-order-card{padding:15px}.luxury-order-top{align-items:flex-start}.luxury-order-id{white-space:normal;text-align:right}.luxury-order-body{grid-template-columns:1fr;gap:14px}.luxury-order-img{height:178px}.luxury-order-body h3{font-size:23px}.luxury-order-timeline{overflow-x:auto;grid-template-columns:repeat(4,92px);padding-bottom:4px}.luxury-order-actions,.saved-actions{display:grid;grid-template-columns:1fr}.refund-panel{padding:20px 16px}.premium-empty.compact{min-height:300px}.favorites-tabs{grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.saved-dish-card{grid-template-columns:1fr}.saved-dish-img{height:190px}.saved-card-body,.saved-cook-body{padding:18px}.saved-card-facts{align-items:flex-start;flex-direction:column;gap:7px}.favorites-content{gap:14px}.favorites-encouragement{display:none}.sidebar-logo{display:none}}
-/* UI-3 Messages luxury redesign */
-#page-messages{position:relative;isolation:isolate;min-height:100vh;background:radial-gradient(circle at 88% 8%,rgba(224,154,43,.16),transparent 28%),linear-gradient(180deg,#0d0d0d,#100f0e)}
-#page-messages::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 85% 11%,rgba(234,163,51,.22) 0 1px,transparent 2px),radial-gradient(circle at 76% 6%,rgba(234,163,51,.14) 0 1px,transparent 2px);background-size:82px 60px,130px 96px;opacity:.28}
-.messages-page-header{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;padding-bottom:18px}.messages-page-header h1{grid-column:1;font-size:44px}.messages-page-header p{grid-column:1}.messages-status-chip{grid-column:2;grid-row:1 / span 2;align-self:start;margin-top:12px;border:1px solid rgba(224,154,43,.42);border-radius:999px;padding:8px 12px;color:#f0b24a;background:rgba(0,0,0,.28);font-size:12px;font-weight:900;white-space:nowrap}
-.luxury-messages-layout{display:grid;grid-template-columns:380px minmax(0,1fr);gap:12px;height:calc(100vh - 144px);min-height:650px;margin:0 40px 40px;overflow:visible;background:transparent;border:0}
-.messages-conversations,.luxury-chat-window{min-width:0;border:1px solid rgba(224,154,43,.32);border-radius:8px;background:linear-gradient(155deg,rgba(24,24,24,.82),rgba(12,12,12,.94));box-shadow:0 18px 48px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden}
-.messages-conversations{padding:20px 14px;display:flex;flex-direction:column;gap:16px}.messages-search-row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:10px}.messages-search{display:flex;align-items:center;gap:10px;border:1px solid rgba(224,154,43,.28);border-radius:8px;background:rgba(0,0,0,.2);padding:0 14px;min-height:46px;color:#d9a447}.messages-search input{width:100%;background:transparent;color:#fff6e8;font-size:14px}.messages-search input::placeholder{color:rgba(255,246,232,.52)}.messages-filter-btn{border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.04);color:#e6b355;font-size:22px}
-.messages-tabs{display:flex;gap:8px}.messages-tab{min-height:36px;padding:0 18px;border:1px solid rgba(255,255,255,.1);border-radius:999px;color:rgba(255,246,232,.74);font-weight:900}.messages-tab.active{border-color:rgba(224,154,43,.75);background:linear-gradient(180deg,rgba(198,134,33,.58),rgba(93,57,16,.62));color:#fff6e8;box-shadow:0 0 20px rgba(224,154,43,.18)}
-.luxury-chat-list{display:grid;gap:10px;overflow:auto;padding:0}.luxury-chat-item{width:100%;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(255,255,255,.025);color:#fff6e8;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease}.luxury-chat-item.active{border-color:rgba(224,154,43,.85);background:linear-gradient(135deg,rgba(224,154,43,.12),rgba(255,255,255,.03));box-shadow:0 0 26px rgba(224,154,43,.16)}.luxury-chat-item .chat-name{font-family:'Playfair Display',serif;font-size:16px;font-weight:900}.luxury-chat-item .chat-preview{margin-top:6px;color:rgba(255,246,232,.62);font-size:13px;line-height:1.45;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.chat-side-meta{display:grid;justify-items:end;gap:8px}.chat-time{color:rgba(255,246,232,.54)}
-.luxury-chat-avatar{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;position:relative;overflow:visible;border:1px solid rgba(224,154,43,.48);background:#171717;color:#f0b24a;box-shadow:0 0 18px rgba(224,154,43,.13);font-size:18px}.luxury-chat-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.luxury-chat-avatar .chat-online{right:1px;bottom:2px;width:12px;height:12px;border:2px solid #16120c;background:#40d66b}.chat-unread{background:linear-gradient(180deg,#f0bd5d,#c57f1f);color:#1d1206;box-shadow:0 6px 16px rgba(197,127,31,.26)}
-.luxury-chat-window{display:flex;flex-direction:column}.luxury-chat-header{min-height:84px;padding:16px 22px;border-bottom:1px solid rgba(224,154,43,.25);background:rgba(0,0,0,.18)}.luxury-chat-header .chat-header-info h3{color:#fff6e8;font:900 19px/1.1 'Playfair Display',serif}.luxury-chat-header .chat-header-info p{margin-top:5px;color:rgba(255,246,232,.62);font-size:13px}.luxury-round-action{width:44px;height:44px;border-radius:50%;border:1px solid rgba(224,154,43,.36);background:rgba(0,0,0,.2);color:#f0b24a}.messages-day-chip{align-self:center;margin:16px 0 -2px;padding:7px 18px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(255,255,255,.04);color:rgba(255,246,232,.7);font-size:12px;font-weight:900}
-.luxury-chat-messages{position:relative;flex:1;padding:28px 28px 16px;background:radial-gradient(circle at 50% 30%,rgba(224,154,43,.06),transparent 36%);gap:16px}.luxury-chat-messages::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,rgba(255,255,255,.045) 0 1px,transparent 2px);background-size:36px 36px;opacity:.32}.luxury-chat-messages .msg{position:relative;z-index:1;max-width:min(70%,620px)}.luxury-chat-messages .msg-bubble{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px 16px;font-size:15px;line-height:1.48;box-shadow:0 12px 24px rgba(0,0,0,.22)}.luxury-chat-messages .msg.received .msg-bubble{background:linear-gradient(145deg,rgba(32,32,32,.94),rgba(18,18,18,.96));color:#fff6e8}.luxury-chat-messages .msg.sent .msg-bubble{background:linear-gradient(145deg,rgba(123,78,20,.9),rgba(55,34,11,.94));color:#fff6e8;border-color:rgba(224,154,43,.44)}.luxury-chat-messages .msg-time{color:rgba(255,246,232,.52)}
-.message-order-card{margin:0 88px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:18px;align-items:center;padding:14px;border:1px solid rgba(224,154,43,.45);border-radius:8px;background:linear-gradient(145deg,rgba(34,28,18,.88),rgba(15,15,15,.94));box-shadow:0 12px 28px rgba(0,0,0,.28)}.message-order-card strong{display:block;color:#fff6e8;font:900 18px 'Playfair Display',serif}.message-order-card span{display:block;margin-top:5px;color:rgba(255,246,232,.58);font-size:12px}.message-order-status,.message-order-total{color:#f0b24a;font-weight:900;font-size:13px}
-.luxury-chat-input-bar{padding:16px 22px;border-top:1px solid rgba(224,154,43,.25);background:rgba(0,0,0,.24)}.luxury-chat-input-bar .chat-input{min-height:54px;border:1px solid rgba(224,154,43,.5);border-radius:8px;background:rgba(255,255,255,.035);font-size:15px;color:#fff6e8}.luxury-attach-btn{width:52px;height:52px;border-radius:50%;border:1px solid rgba(224,154,43,.38);color:#f0b24a;background:rgba(0,0,0,.18)}.luxury-send-btn{width:58px;height:58px;border-radius:50%;color:#1d1206;background:linear-gradient(180deg,#f3c260,#c88020);box-shadow:0 12px 28px rgba(200,128,32,.3)}
-.messages-empty{min-height:260px;border:0;background:radial-gradient(circle at 50% 45%,rgba(224,154,43,.12),transparent 45%)}.messages-empty h3{font-size:22px}
-html[dir="rtl"] .luxury-chat-item{text-align:right}html[dir="rtl"] .msg.sent{margin-left:0;margin-right:auto}html[dir="rtl"] .msg.received{margin-right:0}
-@media(max-width:1024px){.luxury-messages-layout{grid-template-columns:320px minmax(0,1fr);margin:0 24px 32px}.message-order-card{margin-inline:24px;grid-template-columns:1fr auto}}
-@media(max-width:760px){#page-messages .page-header{text-align:left;padding:20px 14px 14px}#page-messages .page-header h1{font-family:'Playfair Display',serif;font-size:30px}.messages-page-header{display:block}.messages-status-chip{display:inline-flex;margin-top:12px}.luxury-messages-layout{height:auto;min-height:0;display:grid;grid-template-columns:1fr;gap:14px;margin:0 14px 92px}.messages-conversations{max-height:none}.luxury-chat-list{max-height:320px}.luxury-chat-window{min-height:560px}.luxury-chat-header{padding:14px}.luxury-chat-header .chat-header-info h3{font-size:18px}.luxury-chat-header .chat-header-info p{font-size:12px}.luxury-chat-messages{padding:18px 14px}.luxury-chat-messages .msg{max-width:86%}.luxury-chat-messages .msg-bubble{font-size:14px}.message-order-card{margin:0 14px 12px;grid-template-columns:1fr;gap:10px}.luxury-chat-input-bar{position:sticky;bottom:calc(68px + env(safe-area-inset-bottom));z-index:5;padding:10px 12px}.luxury-chat-input-bar .chat-input{min-height:46px}.luxury-attach-btn{width:44px;height:44px}.luxury-send-btn{width:48px;height:48px}.messages-tabs{overflow-x:auto}.sidebar-logo{display:none}}
-/* UI-4 Become a Cook luxury redesign */
-#page-become{position:relative;isolation:isolate;min-height:100vh;background:radial-gradient(circle at 82% 8%,rgba(224,154,43,.16),transparent 28%),linear-gradient(180deg,#0d0d0d,#100f0e);padding-bottom:34px}
-#page-become::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 10%,rgba(234,163,51,.22) 0 1px,transparent 2px),radial-gradient(circle at 18% 14%,rgba(234,163,51,.12) 0 1px,transparent 2px);background-size:82px 60px,130px 96px;opacity:.28}
-.become-lux-hero{position:relative;min-height:230px;display:grid;place-items:center;text-align:center;padding:44px 290px 28px;overflow:hidden;background:linear-gradient(90deg,rgba(0,0,0,.58),rgba(0,0,0,.08) 50%,rgba(0,0,0,.58))}
-.become-hero-copy{position:relative;z-index:1;max-width:760px}.become-hero-copy h1{margin:0;color:#fff6e8;font:900 48px/1.05 'Playfair Display',serif}.become-hero-copy h1 span{color:#f0b24a}.become-hero-copy p{margin:14px auto 20px;color:rgba(255,246,232,.78);font-size:16px;line-height:1.55}.become-hero-copy small{display:block;margin-top:12px;color:rgba(255,246,232,.62);font-size:12px}.become-cta{min-width:260px;min-height:52px;font-size:15px}
-.become-hero-art{position:absolute;top:0;bottom:0;width:340px;opacity:.52;background-size:cover;background-position:center;filter:saturate(.85) brightness(.72)}.become-hero-art.left{left:0;background-image:linear-gradient(90deg,rgba(0,0,0,.1),rgba(0,0,0,.92)),url('https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=900&q=80')}.become-hero-art.right{right:0;background-image:linear-gradient(270deg,rgba(0,0,0,.1),rgba(0,0,0,.92)),url('https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=900&q=80')}
-.become-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:0 40px 22px;padding:18px 26px;border:1px solid rgba(224,154,43,.3);border-radius:8px;background:linear-gradient(155deg,rgba(24,24,24,.78),rgba(12,12,12,.92));box-shadow:0 16px 42px rgba(0,0,0,.36)}.become-step{position:relative;display:flex;align-items:center;gap:14px;min-height:56px}.become-step:not(:last-child)::after{content:"";position:absolute;left:70%;right:22px;top:50%;height:1px;background:rgba(255,255,255,.22)}.become-step b{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(255,255,255,.22);color:rgba(255,246,232,.8);background:#161616}.become-step.active b{border-color:#f0b24a;color:#f0b24a;box-shadow:0 0 24px rgba(224,154,43,.28)}.become-step strong{display:block;color:#fff6e8;font-weight:900}.become-step.active strong{color:#f0b24a}.become-step span{display:block;margin-top:4px;color:rgba(255,246,232,.58);font-size:12px}
-.become-lux-form{display:grid;grid-template-columns:1fr;gap:14px;padding:0 40px 0}.become-panel,.become-publish{border:1px solid rgba(224,154,43,.3);border-radius:8px;background:linear-gradient(155deg,rgba(24,24,24,.84),rgba(12,12,12,.94));box-shadow:0 16px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.04);padding:22px}.become-panel-title{display:flex;align-items:center;gap:12px;margin-bottom:16px}.become-panel-title>span{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(224,154,43,.52);color:#f0b24a;background:rgba(224,154,43,.12)}.become-panel-title h2{margin:0;color:#f0b24a;font:900 18px/1 'DM Sans',sans-serif}.become-panel-title p{margin:4px 0 0;color:rgba(255,246,232,.58);font-size:12px}
-.become-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.lux-field{position:relative;display:grid;gap:7px}.lux-field.wide{grid-column:1/-1}.lux-field>span{color:rgba(255,246,232,.72);font-size:12px;font-weight:900}.become-lux-form .cook-input{width:100%;min-height:48px;border:1px solid rgba(224,154,43,.34);border-radius:8px;background:rgba(255,255,255,.035);color:#fff6e8;padding:12px 14px}.become-lux-form textarea.cook-input{min-height:96px;resize:vertical}.become-lux-form .cook-input::placeholder{color:rgba(255,246,232,.42)}.bio-count{position:absolute;right:12px;bottom:10px;color:rgba(255,246,232,.5);font-size:11px}
-.become-profile-actions,.become-photo-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.become-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.luxury-photo-action{min-height:96px;border:1px dashed rgba(224,154,43,.52);border-radius:8px;background:linear-gradient(145deg,rgba(224,154,43,.08),rgba(255,255,255,.025));color:#fff6e8}.luxury-photo-action:hover{border-color:#f0b24a;background:rgba(224,154,43,.12)}.luxury-photo-action small{color:rgba(255,246,232,.58)}.become-photo-preview{min-height:96px;border-color:rgba(224,154,43,.52);border-radius:8px;background:rgba(0,0,0,.18);color:rgba(255,246,232,.72);line-height:1.5}.become-photo-preview small{color:rgba(255,246,232,.48)}.become-photo-preview img{height:180px;border-radius:6px}
-.become-publish{display:grid;gap:14px}.luxury-policy{min-height:50px;border:1px solid rgba(224,154,43,.34);border-radius:8px;background:rgba(0,0,0,.16);padding:14px;color:rgba(255,246,232,.82)}.luxury-policy input{width:18px;height:18px;accent-color:#e5a53a}.publish-actions{display:flex;align-items:center;gap:22px}.become-publish-btn{min-width:230px;min-height:54px;border-radius:8px;background:linear-gradient(180deg,#f2bd5b,#b97620);color:#211507;box-shadow:0 14px 32px rgba(185,118,32,.26)}.publish-actions p{margin:0;color:rgba(255,246,232,.62);font-size:13px;line-height:1.55}.publish-actions strong{color:#fff6e8}.become-manager{margin:22px 40px 0}
-html[dir="rtl"] .bio-count{left:12px;right:auto}
-@media(max-width:1100px){.become-lux-hero{padding-inline:120px}.become-hero-art{width:220px}.become-progress{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.become-step::after{display:none}.become-photo-actions{grid-template-columns:1fr}}
-@media(max-width:760px){#page-become{padding-bottom:92px}.become-lux-hero{min-height:auto;padding:28px 14px 24px}.become-hero-art{display:none}.become-hero-copy h1{font-size:34px}.become-hero-copy p{font-size:13px}.become-cta{width:100%;min-width:0}.become-progress{grid-template-columns:1fr;margin:0 14px 14px;padding:14px}.become-step{min-height:46px}.become-lux-form{padding:0 14px;gap:12px}.become-panel,.become-publish{padding:16px}.become-field-grid,.become-profile-actions{grid-template-columns:1fr}.publish-actions{display:grid}.become-publish-btn{width:100%;min-width:0}.become-manager{margin:14px 14px 0}.sidebar-logo{display:none}}
-/* UI-5 Settings luxury redesign */
-#page-settings{position:relative;isolation:isolate;min-height:100vh;background:radial-gradient(circle at 88% 8%,rgba(224,154,43,.14),transparent 28%),linear-gradient(180deg,#0d0d0d,#100f0e);padding-bottom:36px}
-#page-settings::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 85% 12%,rgba(234,163,51,.2) 0 1px,transparent 2px),radial-gradient(circle at 16% 18%,rgba(234,163,51,.12) 0 1px,transparent 2px);background-size:86px 62px,134px 100px;opacity:.26}
-.settings-lux-header{padding-bottom:18px}.settings-lux-header h1{font-size:42px}.settings-lux-header h1::after{content:"";display:block;width:116px;height:1px;margin-top:16px;background:linear-gradient(90deg,#c98724,transparent)}
-.settings-lux-layout{padding:0 40px 40px}.settings-profile-hero{position:relative;min-height:220px;display:flex;align-items:center;justify-content:space-between;gap:24px;overflow:hidden;border:1px solid rgba(224,154,43,.38);border-radius:8px;background-position:center;background-size:cover;box-shadow:0 18px 50px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04);padding:34px}.settings-profile-shade{position:absolute;inset:0;background:radial-gradient(circle at 78% 42%,rgba(224,154,43,.12),transparent 38%);pointer-events:none}.settings-profile-content{position:relative;z-index:1;display:flex;align-items:center;gap:28px}.lux-settings-avatar{width:120px;height:120px;border:2px solid #d99a2a;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(145deg,#2a2112,#0f0f0f);box-shadow:0 0 34px rgba(224,154,43,.22);font:900 42px 'Playfair Display',serif;color:#f0b24a}.lux-settings-avatar img{width:100%;height:100%;object-fit:cover}.settings-profile-copy h2{margin:0;color:#fff6e8;font:900 32px/1.1 'Playfair Display',serif}.settings-profile-copy p{margin:8px 0 4px;color:rgba(255,246,232,.74)}.settings-location{color:rgba(255,246,232,.65);font-size:13px}.settings-status-badge{display:inline-flex;margin-top:14px;border:1px solid rgba(224,154,43,.42);border-radius:999px;padding:8px 13px;color:#f0b24a;background:rgba(0,0,0,.25);font-weight:900;font-size:13px}.settings-profile-actions{position:relative;z-index:1;display:flex;align-items:center;gap:18px;align-self:flex-end}.settings-link-btn{color:#f0b24a;font-weight:900}.settings-link-btn:hover{color:#ffd37b}
-.settings-dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:22px}.settings-lux-card{min-width:0;border:1px solid rgba(224,154,43,.32);border-radius:8px;background:linear-gradient(155deg,rgba(24,24,24,.84),rgba(12,12,12,.94));box-shadow:0 16px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.04);padding:22px}.settings-card-title{display:flex;align-items:center;gap:14px;margin-bottom:18px}.settings-card-title>span,.settings-ring{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(224,154,43,.48);background:rgba(224,154,43,.12);color:#f0b24a;flex:0 0 auto}.settings-card-title h2{margin:0;color:#f0b24a;font:900 16px/1 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.12em}.settings-card-title p{margin:5px 0 0;color:rgba(255,246,232,.58);font-size:13px}.settings-card-title .settings-mini-btn{margin-left:auto}
-.settings-list,.settings-action-list{display:grid;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden}.settings-lux-row,.settings-action-list button{min-height:64px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#fff6e8;text-align:left}.settings-lux-row:last-child,.settings-action-list button:last-child{border-bottom:0}.settings-lux-row strong,.settings-action-list strong{display:block;color:#fff6e8;font-size:15px}.settings-lux-row small{display:block;margin-top:4px;color:rgba(255,246,232,.58);font-size:13px;line-height:1.35}.settings-action-list button b{color:#f0b24a;font-size:24px}.settings-action-list button.danger strong,.settings-action-list button.danger b{color:#ff765f}.settings-action-list button.danger .settings-ring{border-color:rgba(255,118,95,.34);color:#ff765f;background:rgba(255,118,95,.1)}
-#page-settings .toggle{width:48px;height:26px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.12)}#page-settings .toggle.on{background:linear-gradient(180deg,#f0bd5d,#c57f1f)}#page-settings .toggle::after{top:3px;left:3px;width:18px;height:18px}#page-settings .toggle.on::after{left:25px}.settings-mini-btn{min-height:38px;border:1px solid rgba(224,154,43,.48);border-radius:8px;padding:0 18px;color:#f0b24a;background:rgba(0,0,0,.14);font-weight:900;white-space:nowrap}.settings-payment-card{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 18px;background:rgba(255,255,255,.025)}.settings-payment-card strong{display:block;color:#fff6e8}.settings-payment-card span{display:block;margin-top:5px;color:rgba(255,246,232,.58);font-size:13px}.settings-payment-card em{font-style:normal;border:1px solid rgba(34,197,94,.34);border-radius:999px;color:#5ee086;padding:5px 10px;font-size:12px;font-weight:900}
-html[dir="rtl"] .settings-action-list button,.settings-lux-row{text-align:inherit}html[dir="rtl"] .settings-card-title .settings-mini-btn{margin-left:0;margin-right:auto}
-@media(max-width:1100px){.settings-dashboard-grid{grid-template-columns:1fr}.settings-profile-hero{align-items:flex-start;flex-direction:column}.settings-profile-actions{align-self:flex-start}}
-@media(max-width:760px){#page-settings{padding-bottom:92px}.settings-lux-header{padding:22px 14px 14px}.settings-lux-header h1{font-size:34px}.settings-lux-layout{padding:0 14px 94px}.settings-profile-hero{min-height:280px;padding:20px;justify-content:flex-end}.settings-profile-content{align-items:flex-start;flex-direction:column;gap:14px}.lux-settings-avatar{width:92px;height:92px;font-size:34px}.settings-profile-copy h2{font-size:26px}.settings-profile-actions{display:grid;width:100%;gap:10px}.settings-link-btn{min-height:38px;text-align:left}.settings-dashboard-grid{gap:14px}.settings-lux-card{padding:16px}.settings-lux-row,.settings-action-list button{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:12px}.settings-ring,.settings-card-title>span{width:34px;height:34px}.settings-card-title{align-items:flex-start;flex-wrap:wrap}.settings-card-title>div{min-width:0;flex:1 1 180px}.settings-card-title .settings-mini-btn{margin-left:48px;max-width:calc(100% - 48px);padding:0 14px}.sidebar-logo{display:none}}
-/* Help & Support premium */
-.gold-accent{background:linear-gradient(135deg,#f6c35b,#d89a2b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-#page-help{position:relative}
-#page-help::before{content:"";position:absolute;top:-40px;right:-60px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(216,154,43,.1),transparent 65%);pointer-events:none;z-index:0}
-#page-help .page-header,#page-help .help-layout{position:relative;z-index:1}
-.hs-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:34px}
-.hs-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;text-decoration:none;padding:28px 18px;border-radius:18px;border:1px solid rgba(216,154,43,.24);background:linear-gradient(160deg,rgba(20,18,15,.9),rgba(11,10,9,.92));box-shadow:0 14px 34px rgba(0,0,0,.4);transition:transform .16s ease,border-color .2s ease,box-shadow .2s ease;cursor:pointer}
-.hs-card:hover{transform:translateY(-3px);border-color:rgba(246,195,91,.6);box-shadow:0 20px 44px rgba(0,0,0,.5)}
-.hs-ico{width:54px;height:54px;display:grid;place-items:center;border-radius:50%;color:#f0b24a;border:1px solid rgba(246,195,91,.45);background:radial-gradient(circle,rgba(240,160,40,.16),transparent 70%);box-shadow:0 0 26px rgba(240,160,40,.22);margin-bottom:6px}
-.hs-ico svg{width:24px;height:24px}
-.hs-title{font-weight:800;font-size:15px;color:#f7ead2}
-.hs-sub{font-size:12.5px;color:#9c9387}
-.hs-sub.hs-gold{color:#e0a83a}
-.faq-heading{margin-bottom:16px;font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:22px;color:#f7ead2}
-#faqList .faq-item{border:1px solid rgba(216,154,43,.2);background:rgba(18,17,15,.72);border-radius:14px;margin-bottom:10px;overflow:hidden;transition:border-color .2s ease}
-#faqList .faq-item:hover{border-color:rgba(246,195,91,.45)}
-#faqList .faq-question{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;font-weight:700;color:#f1e6d3;cursor:pointer}
-#faqList .faq-arrow{color:#e0a83a;font-size:12px;transition:transform .2s ease}
-#faqList .faq-arrow.open{transform:rotate(180deg)}
-#faqList .faq-answer{display:none;padding:0 18px 16px;color:#9c9387;font-size:13.5px;line-height:1.6}
-#faqList .faq-answer.open{display:block}
-@media (max-width:720px){.hs-cards{grid-template-columns:1fr}}
-/* Sidebar language pill (single language control) */
-.sidebar-lang{position:relative;display:flex;align-items:center;gap:7px;margin-top:10px;padding:9px 13px;border:1px solid rgba(216,154,43,.32);border-radius:999px;background:rgba(15,14,13,.7);color:#f3d49a;font-size:13px;font-weight:700;cursor:pointer;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}
-.sidebar-lang:hover{border-color:rgba(246,195,91,.65);background:rgba(28,24,20,.85);box-shadow:0 0 16px rgba(240,160,40,.16)}
-.sidebar-lang .sl-globe{color:#f0b24a;display:inline-flex}
-.sidebar-lang .sl-globe svg{width:16px;height:16px}
-.sidebar-lang .sl-code{color:#f7ead2;letter-spacing:.04em}
-.sidebar-lang .sl-chev{margin-left:auto;color:#cfc3b2}
-.sidebar-lang-menu{position:absolute;left:0;bottom:calc(100% + 8px);min-width:150px;background:rgba(15,14,13,.97);border:1px solid rgba(216,154,43,.3);border-radius:12px;padding:6px;display:none;box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:60}
-.sidebar-lang-menu.open{display:block}
-.sidebar-lang-menu button{display:block;width:100%;text-align:left;padding:9px 11px;border-radius:8px;background:transparent;border:0;color:#cfc3b2;font-size:13px;cursor:pointer}
-.sidebar-lang-menu button:hover{background:rgba(246,195,91,.12);color:#f7ead2}
-body[dir="rtl"] .sidebar-lang-menu{left:auto;right:0;text-align:right}
-body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
-/* Hero polish to match reference (gold gradient title + cinematic bowl) */
-#page-home .hero-content h1 span{background:linear-gradient(135deg,#f6c35b,#ff7a1a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#ff7a1a}
-#page-home .hero-food-img{filter:brightness(.84) saturate(1.06)}
-#page-home .hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 78% 50%,transparent 36%,rgba(7,6,5,.5) 96%),linear-gradient(90deg,rgba(7,6,5,.5),rgba(7,6,5,.12) 52%,transparent 74%)}
-#page-home .hero-content,#page-home .hero-actions{z-index:2}
-/* === SPRINT UI-1: Browse Cooks + Popular Dishes luxury === */
-#page-browse,#page-dishes{position:relative}
-#page-browse::before,#page-dishes::before{content:"";position:absolute;top:-30px;right:-40px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(216,154,43,.1),transparent 65%);pointer-events:none;z-index:0}
-#page-browse .page-header,#page-browse .filter-bar,#page-browse .cooks-grid-large,#page-dishes .page-header,#page-dishes .filter-bar,#page-dishes .dishes-grid{position:relative;z-index:1}
-#page-browse .page-header h1,#page-dishes .page-header h1{font-family:'Playfair Display',Georgia,serif;font-weight:800}
-.cooks-grid-large{grid-template-columns:repeat(auto-fill,minmax(264px,1fr))}
-.dishes-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-.cooks-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
-.cook-card,.dish-card{background:linear-gradient(160deg,rgba(20,18,15,.92),rgba(11,10,9,.94));border:1px solid rgba(216,154,43,.26);border-radius:18px;box-shadow:0 14px 34px rgba(0,0,0,.42)}
-.cook-card:hover,.dish-card:hover{border-color:rgba(246,195,91,.6);box-shadow:0 22px 48px rgba(0,0,0,.55),0 0 0 1px rgba(246,195,91,.2)}
-.cook-card-img::after,.dish-img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,7,6,.62));pointer-events:none}
-.fav-btn{border:1px solid rgba(246,195,91,.4);background:rgba(10,8,6,.55);backdrop-filter:blur(6px)}
-.fav-btn::after{font-size:15px;line-height:1}
-.fav-btn:not(.active)::after{content:'\2661';color:#f7ead2}
-.fav-btn.active::after{content:'\2665';color:#ff7a1a}
-.fav-btn:hover{border-color:rgba(246,195,91,.8);background:rgba(10,8,6,.72)}
-.fav-btn.active{background:rgba(255,122,26,.16);border-color:rgba(255,122,26,.5)}
-.cook-verified{background:linear-gradient(135deg,#f6c35b,#d89a2b);color:#241704}
-.info-pill{background:rgba(255,255,255,.04);border:1px solid rgba(216,154,43,.22);color:#ccc0ad}
-.verified-photo{background:rgba(34,197,94,.14);color:#34d369;border:1px solid rgba(34,197,94,.3)}
-.cook-price,.dish-price{color:#f0b24a}
-.cook-cuisine{color:#e0a83a}
-.dish-tag{background:rgba(10,8,6,.72);border:1px solid rgba(246,195,91,.45);color:#f3d49a;backdrop-filter:blur(6px);text-transform:capitalize;font-weight:800;z-index:2}
-.btn-add{background:linear-gradient(135deg,#f6c35b,#df941f);color:#241704;font-weight:800;border-radius:10px;box-shadow:0 8px 18px rgba(204,132,22,.28);transition:filter .15s ease,transform .12s ease}
-.btn-add:hover{filter:brightness(1.05);transform:translateY(-1px)}
-.btn-add:active{transform:translateY(0)}
-.filter-select{background:rgba(18,17,15,.78) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23e0a83a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center;border:1px solid rgba(216,154,43,.3);border-radius:12px;color:#e7dccb;padding:11px 34px 11px 14px;-webkit-appearance:none;appearance:none;min-height:44px}
-.filter-select:hover{border-color:rgba(246,195,91,.6)}
-.filter-select:focus{border-color:#e0a83a;box-shadow:0 0 0 3px rgba(240,160,40,.18);outline:none}
-#page-dishes .chip{border:1px solid rgba(216,154,43,.28);background:rgba(18,17,15,.7);color:#cfc3b2}
-#page-dishes .chip:hover,#page-dishes .chip.active,.filter-chips .chip.active{background:linear-gradient(135deg,#f6c35b,#df941f);border-color:transparent;color:#241704;box-shadow:0 8px 18px rgba(204,132,22,.3)}
-@media(max-width:720px){
-  .cooks-grid-large,.dishes-grid,.cooks-grid{grid-template-columns:1fr;padding-left:12px;padding-right:12px}
-  .cook-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px}
-  .cook-footer > div:first-child{min-width:0;overflow:hidden}
-  .cook-footer > div:last-child{flex:0 0 auto;justify-self:end}
-  .btn-add{flex:0 0 auto;white-space:nowrap}
-  #page-dishes .filter-bar{display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px}
-  #page-dishes .filter-bar .chip{width:auto;flex:0 0 auto;white-space:nowrap}
-}
-
-/* ============================================================
-   MOBILE PREMIUM REDESIGN — soft, elegant, auto light/dark.
-   Scoped to <=760px only; desktop/website is untouched.
-   ============================================================ */
-
-/* ---- Soft palettes (token re-theme, mobile only) ---- */
-@media (max-width:760px){
-  :root{
-    /* Culinary Noir — obsidian + gold + orange CTA (Stitch mobile reference) */
-    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
-    --orange:#f2ca50; --orange-hover:#e9c349;            /* gold = accents/active */
-    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
-    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
-    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
-    --radius:24px; --radius-sm:16px;
-    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
-    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
-    --m-ok:#9fd27a; --m-info:#f2ca50;
-    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; /* orange = primary buttons */
-    --glass:rgba(22,19,11,.72);
-  }
-}
-@media (max-width:760px) and (prefers-color-scheme:light){
-  :root{
-    /* Culinary Noir is dark-only on mobile (matches the Stitch reference) */
-    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
-    --orange:#f2ca50; --orange-hover:#e9c349;
-    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
-    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
-    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
-    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
-    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
-    --m-ok:#9fd27a; --m-info:#f2ca50;
-    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; --glass:rgba(22,19,11,.72);
-  }
-}
-@media (max-width:760px){
-  body.light-mode{
-    /* keep mobile on Culinary Noir even if the desktop light toggle is on */
-    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
-    --orange:#f2ca50; --orange-hover:#e9c349;
-    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
-    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
-    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
-    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
-    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
-    --m-ok:#9fd27a; --m-info:#f2ca50;
-    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; --glass:rgba(22,19,11,.72);
-  }
-}
-
-@media (max-width:760px){
-  body{ font-size:13.5px; letter-spacing:.1px; padding-bottom:calc(104px + env(safe-area-inset-bottom)); -webkit-font-smoothing:antialiased; }
-  body, .page, .section{ transition:background .3s ease, color .3s ease; }
-
-  /* ---- Floating bottom nav (premium pill) ---- */
-  .sidebar{
-    left:12px; right:12px; bottom:calc(10px + env(safe-area-inset-bottom));
-    width:auto; height:64px; border:1px solid var(--border); border-top:1px solid var(--border);
-    border-radius:22px;
-    background:color-mix(in srgb, var(--card) 88%, transparent);
-    backdrop-filter:blur(18px) saturate(1.1); -webkit-backdrop-filter:blur(18px) saturate(1.1);
-    box-shadow:var(--shadow);
-    padding-bottom:0;
-  }
-  body.light-mode .sidebar{ background:color-mix(in srgb, var(--card) 90%, transparent); }
-  .sidebar-nav{ height:100%; gap:2px; padding:8px 6px; align-items:center; }
-  .nav-item{
-    flex:1 1 0; min-width:0; max-width:none; gap:4px; padding:6px 2px;
-    font-size:9px; font-weight:700; border-radius:14px; color:var(--text3);
-    transition:color .2s ease, background .2s ease;
-  }
-  .nav-item svg{ width:19px; height:19px; transition:transform .2s ease; }
-  .nav-item.active{ color:var(--orange); background:var(--orange-light); }
-  .nav-item.active svg{ transform:translateY(-1px); }
-  .nav-item.active::before{ display:none; }
-  .nav-item:active{ transform:scale(.94); }
-  .nav-badge{ right:10px; top:5px; background:var(--orange); color:#1e1708; border:0; }
-
-  /* ---- Cards (dishes / cooks) ---- */
-  .cook-card,.dish-card{
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--radius); box-shadow:var(--m-soft); overflow:hidden;
-    min-height:120px; transition:transform .2s ease, box-shadow .2s ease;
-  }
-  .cook-card:active,.dish-card:active{ transform:scale(.99); }
-  .cook-card-img,.dish-img{ border-radius:var(--radius) 0 0 var(--radius); }
-  .cook-card-body,.dish-body{ padding:12px 13px; }
-  .dish-tag{ background:color-mix(in srgb, var(--bg) 62%, transparent); border:1px solid var(--border); color:var(--orange); backdrop-filter:blur(6px); border-radius:999px; font-weight:700; }
-  .info-pill{ background:var(--bg3); border:1px solid var(--border); color:var(--text2); border-radius:999px; }
-  .fav-btn{ background:color-mix(in srgb, var(--bg) 55%, transparent); border:1px solid var(--border); color:var(--text); backdrop-filter:blur(6px); }
-  .cook-name,.dish-body h3{ color:var(--text); }
-  .cook-cuisine,.dish-cook{ color:var(--text2); }
-  .cook-location,.cook-rating,.dish-body p,.dish-body > div:first-of-type{ color:var(--text3); }
-  .cook-price,.dish-price{ color:var(--orange); font-weight:800; }
-
-  /* ---- Primary buttons (soft gold gradient, comfy tap) ---- */
-  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-search,.btn-apply,.btn-send,.btn-reorder.btn-primary{
-    background:linear-gradient(135deg, var(--orange), var(--orange-hover));
-    color:#1f1708; font-weight:800; border-radius:13px; min-height:44px;
-    box-shadow:0 10px 22px var(--orange-glow);
-    transition:transform .12s ease, box-shadow .2s ease, filter .2s ease;
-  }
-  .btn-add:active,.btn-checkout:active,.btn-place-order:active,.hero-cta:active,.btn-search:active{ transform:translateY(1px) scale(.99); filter:brightness(1.03); }
-  .btn-add{ padding:9px 14px; font-size:12px; }
-  .btn-search{ border-radius:0 14px 14px 0; }
-  .btn-secondary,.btn-continue,.account-cancel{
-    background:var(--bg3); color:var(--text); border:1px solid var(--border);
-    border-radius:13px; min-height:44px; box-shadow:none;
-  }
-
-  /* ---- Hero (softer cinematic overlay) ---- */
-  .hero{ margin:12px 12px 14px; border-radius:20px; height:212px; box-shadow:var(--m-soft); border:1px solid var(--border); }
-  .hero::after{ background:linear-gradient(95deg, rgba(12,9,5,.74), rgba(12,9,5,.4) 60%, rgba(12,9,5,.12)); }
-  .hero-content h1{ color:#fbf3e6; letter-spacing:.2px; }
-  .hero-content p{ color:rgba(251,243,230,.82); }
-  .hero-cta{ background:linear-gradient(135deg, var(--orange), var(--orange-hover)); color:#1f1708; border-radius:12px; box-shadow:0 10px 22px var(--orange-glow); }
-
-  /* ---- Search + inputs + chips ---- */
-  .search-section{ padding:14px 12px 0; }
-  .search-bar{ border-radius:16px; border:1px solid var(--border); background:var(--card); box-shadow:var(--m-soft); }
-  .search-input input{ color:var(--text); }
-  .search-city{ border-top:1px solid var(--border); color:var(--text2); }
-  .chip,.country-search,.filter-select{ border-radius:12px; border:1px solid var(--border); background:var(--bg3); color:var(--text); }
-  .chip.active{ background:var(--orange-light); border-color:var(--orange); color:var(--orange); }
-  input,textarea,select,.form-input,.welcome-select,.cook-input,.chat-input,.country-search{ background:var(--bg2); color:var(--text); }
-  input:focus,textarea:focus,select:focus,.search-bar:focus-within{ box-shadow:0 0 0 3px var(--orange-glow); border-color:var(--orange); }
-  .section-header h2,.page-header h1{ color:var(--text); }
-  .view-all{ color:var(--orange); }
-
-  /* ---- Orders (route hardcoded light -> tokens, soft) ---- */
-  .orders-tab{ color:var(--text2); }
-  .orders-tab.active{ background:var(--orange-light); color:var(--orange); }
-  .order-card{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); border-radius:16px; }
-  .order-id{ color:var(--text); }
-  .order-date{ color:var(--text3); }
-  .order-info h3{ color:var(--text); }
-  .order-info p{ color:var(--text2); }
-  .order-price{ color:var(--text); }
-  .status-delivered,.status-completed{ background:rgba(95,184,122,.16); color:var(--m-ok); }
-  .status-pending,.status-preparing{ background:var(--orange-light); color:var(--orange); }
-  .btn-reorder{ background:transparent; border-top:1px solid var(--border); color:var(--orange); }
-
-  /* ---- Track order ---- */
-  .track-step.active{ background:var(--orange-light); border:1px solid var(--border); }
-  .track-step-dot{ background:var(--card); border-color:var(--border); color:var(--text2); }
-  .track-step:not(.done):not(.active)::before{ background:var(--border2); }
-  .track-step-text h3{ color:var(--text); }
-  .track-step-text p,.track-step-time{ color:var(--text3); }
-  .track-map{ background-color:var(--bg3); }
-  .track-title h2{ color:var(--text); }
-  .track-title p{ color:var(--text2); }
-  .driver-card{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); }
-
-  /* ---- Cook profile (hardcoded light -> tokens) ---- */
-  .cook-profile-hero{ background:var(--bg2); }
-  .cook-profile-hero::after{ background:linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 76%, var(--bg)); }
-  .cook-profile-avatar{ border-color:var(--card); background:var(--card); }
-  .cook-profile-details h1{ color:var(--text); }
-  .cook-profile-details p{ color:var(--m-ok); }
-  .cook-profile-details > div:first-of-type{ color:var(--text); }
-  .cook-profile-details .btn-apply{ background:linear-gradient(135deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; }
-  .cook-stat-val{ color:var(--text); }
-  .cook-stat-label{ color:var(--text3); }
-  .profile-about{ border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-  .profile-about h3,.profile-dishes-mobile-title,#profileDishesTitle{ color:var(--text); }
-  .profile-about p{ color:var(--text2); }
-  .profile-about small{ color:var(--text3); }
-
-  /* ---- Chat / messages ---- */
-  .chat-input-bar,.luxury-chat-input-bar{ bottom:calc(86px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--border); }
-  .chat-action-btn{ background:var(--bg3); color:var(--text); border:1px solid var(--border); }
-
-  /* ---- Cart / checkout / floating + toasts above the floating nav ---- */
-  .checkout-section{ background:var(--card); border:1px solid var(--border); border-radius:16px; }
-  .cart-floating-btn{ bottom:calc(90px + env(safe-area-inset-bottom)); border-radius:999px; box-shadow:0 12px 26px var(--orange-glow); }
-  .toast-container{ bottom:calc(92px + env(safe-area-inset-bottom)); }
-  .orders-list,.track-page,.cook-profile-body,.settings-lux-layout,.favorites-shell,.orders-shell{ padding-bottom:calc(100px + env(safe-area-inset-bottom)); }
-  #page-become,#page-settings{ padding-bottom:calc(100px + env(safe-area-inset-bottom)); }
-
-  /* ---- Generic panels / feature cards ---- */
-  .feature-card,.welcome-card,.modal,.driver-card,.cook-dish-manager,.cook-form{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); }
-  .welcome-card h1,.modal-body h2{ color:var(--text); }
-}
-
-/* ---- Re-tokenize premium "luxury-*" surfaces so they follow soft light/dark (mobile only) ---- */
-@media (max-width:760px){
-  .luxury-stat-card,.luxury-order-card,.refund-panel,.favorites-shell,
-  .saved-dish-card,.saved-cook-card,.messages-conversations,.luxury-chat-window,
-  .become-progress,.become-panel,.become-publish,.settings-lux-card{
-    background:var(--card)!important; border:1px solid var(--border)!important; box-shadow:var(--m-soft)!important;
-  }
-  .settings-profile-hero{ border:1px solid var(--border)!important; }
-  /* primary headings & body text -> tokens */
-  .luxury-order-body h3,.luxury-cook-line,.saved-cook-row,.saved-card-body h3,.saved-cook-title h3,
-  .refund-panel-head h2,.premium-empty h3,.luxury-chat-item .chat-name,.luxury-chat-header .chat-header-info h3,
-  .become-step strong,.settings-profile-copy h2,.settings-lux-row strong,.settings-action-list strong,
-  .empty-state h3{ color:var(--text)!important; }
-  .luxury-cook-line small,.luxury-address,.refund-panel-head p,.premium-empty p,
-  .saved-meta,.saved-card-facts,.saved-cook-body p,.luxury-chat-item .chat-preview,
-  .luxury-chat-header .chat-header-info p,.become-step span,.settings-profile-copy p,.settings-location,
-  .settings-lux-row small,.refund-item span,.refund-item p,.messages-day-chip,.empty-state p{ color:var(--text2)!important; }
-  .luxury-order-side small,.chat-time,.luxury-chat-messages .msg-time,.luxury-timeline-step,.saved-cook-title span{ color:var(--text3)!important; }
-  /* accent text stays gold */
-  .luxury-order-side strong,.luxury-order-side b,.saved-cook-row b,.settings-status-badge,
-  .settings-card-title h2,.settings-link-btn,.become-panel-title h2,.become-step.active strong,.become-step.active b{ color:var(--orange)!important; }
-  /* inner rows / chips / inputs / borders that used white-alpha -> tokens */
-  .luxury-chat-item,.settings-lux-row,.settings-action-list button,.refund-item,
-  .become-lux-form .cook-input,.luxury-chat-input-bar .chat-input,.messages-day-chip,.saved-cook-title span,
-  .luxury-chat-messages .msg.received .msg-bubble{ background:var(--bg2)!important; }
-  .luxury-chat-item,.refund-item,.settings-list,.settings-action-list,.settings-lux-row,.settings-action-list button,
-  .become-step b,.luxury-timeline-step span,.become-lux-form .cook-input,.luxury-chat-input-bar .chat-input,
-  .luxury-order-side,.luxury-chat-header,.luxury-chat-input-bar{ border-color:var(--border)!important; }
-  .luxury-chat-item .chat-name,.luxury-chat-item .chat-preview,.luxury-chat-item{ color:var(--text)!important; }
-  .luxury-chat-messages .msg.received .msg-bubble{ color:var(--text)!important; border:1px solid var(--border)!important; }
-  .luxury-chat-messages .msg.sent .msg-bubble{ background:linear-gradient(145deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; border-color:transparent!important; }
-  .luxury-order-timeline::before{ background:var(--border)!important; }
-  .luxury-timeline-step span{ background:var(--bg3)!important; }
-  .become-step b{ background:var(--bg3)!important; color:var(--text2)!important; }
-  .luxury-cook-avatar,.saved-cook-avatar,.luxury-chat-avatar,.lux-settings-avatar{ background:var(--bg3)!important; }
-  /* empty-state cards (e.g. home "No cooks found") -> soft, theme-aware */
-  .empty-state,.empty-state.empty-lux,.premium-empty,.premium-empty.compact{
-    background:radial-gradient(circle at 50% 30%,var(--orange-light),transparent 55%),var(--card)!important; border:1px solid var(--border)!important;
-  }
-  .empty-state p{ color:var(--text2)!important; }
-  /* gold buttons / rings stay gold; outline/quiet -> soft tokens */
-  .luxury-primary-btn,.luxury-send-btn,.chat-unread{ background:linear-gradient(135deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; }
-  .luxury-outline-btn,.luxury-round-action,.luxury-attach-btn,.settings-ring,.settings-card-title>span,.become-panel-title>span,.luxury-stat-icon,.premium-empty-icon{
-    background:var(--orange-light)!important; border:1px solid var(--border)!important; color:var(--orange)!important;
-  }
-  .luxury-quiet-btn,.luxury-outline-btn.muted{ color:var(--text2)!important; }
-}
-
-/* ============================================================
-   MOBILE PRO REDESIGN v2 — professional app layout (<=760px only).
-   CSS-only: desktop and all functions/handlers untouched.
-   ============================================================ */
-@media (max-width:760px){
-  body{ padding-bottom:calc(104px + env(safe-area-inset-bottom)); }
-
-  /* ---- 5-tab bottom nav: Home / Browse / Orders / Favorites / Profile ---- */
-  .nav-item.mobile-secondary{ display:none!important; }   /* Dishes, Messages, Become a Cook -> contextual access */
-  .sidebar-nav{ gap:2px; padding:8px 6px; justify-content:space-around; }
-  .nav-item{ flex:1 1 0; min-width:0; max-width:none; gap:4px; padding:7px 2px; font-size:9.5px; }
-  .nav-item .nav-label-mobile{ display:inline; }
-  .nav-item.active{ color:var(--orange); background:var(--orange-light); }
-  .nav-item.active svg{ transform:translateY(-1px); }
-
-  /* ---- Sticky search (home) ---- */
-  #page-home .search-section{ position:sticky; top:0; z-index:60; padding:10px 12px; background:linear-gradient(var(--bg), color-mix(in srgb,var(--bg) 80%, transparent)); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
-  .search-bar{ min-height:48px; }
-  .hero-cta{ display:none!important; }   /* search below replaces the in-hero CTA */
-
-  /* ---- Filter chips: horizontal scroll-snap ---- */
-  #page-home .filter-chips, #page-dishes .filter-bar{ display:flex; flex-wrap:nowrap; overflow-x:auto; gap:8px; padding:12px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
-  #page-home .filter-chips::-webkit-scrollbar, #page-dishes .filter-bar::-webkit-scrollbar{ display:none; }
-  #page-home .filter-chips .chip, #page-dishes .filter-bar .chip, #page-dishes .filter-bar .filter-select, #page-home .filter-chips .country-filter{ flex:0 0 auto; width:auto; white-space:nowrap; scroll-snap-align:start; }
-
-  /* ---- Vertical product cards: DISHES ---- */
-  .dishes-grid{ grid-template-columns:1fr; gap:16px; padding:14px 12px calc(112px + env(safe-area-inset-bottom)); }
-  .dishes-grid .dish-card{ display:flex; flex-direction:column; grid-template-columns:none; min-height:0; border-radius:18px; }
-  .dishes-grid .dish-img{ width:100%; height:208px; min-height:0; border-radius:18px 18px 0 0; }
-  .dishes-grid .dish-body{ padding:14px 16px 16px; }
-  .dishes-grid .dish-body h3{ font-size:18px; }
-  .dishes-grid .dish-body p{ font-size:12.5px; margin-bottom:8px; }
-  .dishes-grid .dish-footer{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:2px; }
-  .dishes-grid .dish-footer .btn-add{ min-height:42px; padding:0 20px; font-size:13px; }
-  .dish-tag{ top:12px; left:12px; }
-  .fav-btn{ top:12px; right:12px; width:38px; height:38px; }
-  /* keep cook-profile dish grid compact 2-col */
-  #profileDishesGrid.dishes-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:0 0 10px!important; }
-  #profileDishesGrid .dish-card{ display:block; }
-  #profileDishesGrid .dish-img{ height:128px; border-radius:12px; }
-
-  /* ---- Vertical product cards: COOKS ---- */
-  .cooks-grid, .cooks-grid-large{ grid-template-columns:1fr; gap:16px; padding:14px 12px calc(112px + env(safe-area-inset-bottom)); }
-  .cooks-grid .cook-card, .cooks-grid-large .cook-card{ display:flex; flex-direction:column; grid-template-columns:none; min-height:0; border-radius:18px; }
-  .cooks-grid .cook-card-img, .cooks-grid-large .cook-card-img{ width:100%; height:172px; min-height:0; border-radius:18px 18px 0 0; }
-  .cooks-grid .cook-card-body, .cooks-grid-large .cook-card-body{ padding:14px 16px 16px; }
-  .cook-name{ font-size:15px; }
-  .cook-footer .btn-add{ min-height:40px; padding:0 16px; }
-
-  /* ---- Forms: comfortable, iOS-safe (>=16px font prevents zoom) ---- */
-  input,textarea,select,.cook-input,.chat-input,.welcome-select,.country-search,.form-input{ min-height:46px; border-radius:13px; }
-  textarea{ min-height:96px; }
-
-  /* ---- Modal -> bottom sheet ---- */
-  .modal-overlay{ align-items:flex-end!important; }
-  .modal{ width:100%!important; max-width:100%!important; max-height:92dvh!important; border-radius:22px 22px 0 0!important; animation:sheetUp .3s cubic-bezier(.2,.8,.2,1); }
-  @keyframes sheetUp{ from{ transform:translateY(48px); opacity:.5 } to{ transform:translateY(0); opacity:1 } }
-  .modal-img{ border-radius:22px 22px 0 0; }
-
-  /* ---- Floating cart (premium pill) ---- */
-  .cart-floating-btn{ width:auto; min-width:56px; height:52px; border-radius:999px; padding:0 20px; bottom:calc(92px + env(safe-area-inset-bottom)); font-weight:800; box-shadow:0 14px 30px var(--orange-glow); }
-
-  /* ---- Page / section headers ---- */
-  .page-header{ padding:18px 14px 10px; }
-  .page-header h1,.section-header h2,.luxury-page-header h1{ font-family:'Playfair Display',serif; }
-  .section{ padding:16px 12px; }
-}
-
-/* ============================================================
-   MOBILE PRO REDESIGN v3 — theme cohesion + a11y + overflow.
-   Makes the 5 "luxury" detail pages follow the soft light/dark
-   palette (they were hardcoded dark); fixes remaining text leaks
-   and 360px overflow. <=760px only — desktop untouched.
-   ============================================================ */
-@media (max-width:760px){
-  /* ---- Cohesive, theme-aware page backgrounds (were hardcoded dark) ---- */
-  #page-orders,#page-favorites,#page-messages,#page-become,#page-settings{
-    background:radial-gradient(circle at 86% 6%,var(--orange-light),transparent 32%),var(--bg)!important;
-  }
-  #page-orders::before,#page-favorites::before,#page-messages::before,
-  #page-become::before,#page-settings::before{ opacity:.14!important; }
-
-  /* ---- Page/section headers that sit on the page background -> tokens ---- */
-  .luxury-page-header h1,.messages-page-header h1,.settings-lux-header h1{ color:var(--text)!important; text-shadow:none!important; }
-  .luxury-page-header p,.messages-page-header p{ color:var(--text2)!important; }
-  .settings-lux-header h1::after{ background:linear-gradient(90deg,var(--orange),transparent)!important; }
-  .messages-status-chip{ color:var(--orange)!important; border-color:var(--border)!important; background:var(--orange-light)!important; }
-
-  /* ---- Orders: stat cards, status pills, order meta ---- */
-  .luxury-stat-copy span,.luxury-stat-copy strong{ color:var(--text)!important; }
-  .luxury-stat-copy small{ color:var(--text2)!important; }
-  .luxury-order-top,.luxury-order-id{ color:var(--text2)!important; }
-  .luxury-status{ background:var(--orange-light)!important; color:var(--orange)!important; }
-  .luxury-status.status-delivered{ background:rgba(95,184,122,.16)!important; color:var(--m-ok)!important; }
-  .payment-chip{ background:rgba(95,184,122,.14)!important; color:var(--m-ok)!important; }
-  .refund-item strong{ color:var(--text)!important; }
-  /* timeline fits viewport (was repeat(4,92px) -> internal scroll/overflow at 360) */
-  .luxury-order-timeline{ grid-template-columns:repeat(4,minmax(0,1fr))!important; overflow-x:visible!important; margin-inline:0!important; }
-
-  /* ---- Favorites: tabs, sort, saved chips ---- */
-  .favorites-tabs{ background:var(--bg2)!important; border-color:var(--border)!important; }
-  .favorites-tab{ color:var(--text2)!important; }
-  .favorites-tab.active{ background:var(--orange-light)!important; color:var(--orange)!important; border-color:var(--orange)!important; }
-  .favorites-sort{ color:var(--text2)!important; }
-  .favorites-sort select{ background:var(--bg2)!important; color:var(--text)!important; border-color:var(--border)!important; }
-  .saved-tags span{ color:var(--orange)!important; border-color:var(--border)!important; }
-  .saved-heart{ background:color-mix(in srgb,var(--bg) 55%,transparent)!important; border-color:var(--border)!important; color:var(--orange)!important; }
-  .saved-cook-title span{ background:var(--bg3)!important; color:var(--text2)!important; }
-  .saved-cook-title span.online{ background:rgba(95,184,122,.16)!important; color:var(--m-ok)!important; }
-
-  /* ---- Messages: tabs, search, filter, order card ---- */
-  .messages-tab{ color:var(--text2)!important; border-color:var(--border)!important; }
-  .messages-tab.active{ color:var(--orange)!important; border-color:var(--orange)!important; background:var(--orange-light)!important; box-shadow:none!important; }
-  .messages-search{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text2)!important; }
-  .messages-search input{ color:var(--text)!important; }
-  .messages-filter-btn{ background:var(--bg3)!important; border-color:var(--border)!important; color:var(--orange)!important; }
-  .luxury-chat-messages{ background:transparent!important; }
-  .message-order-card{ background:var(--bg2)!important; border-color:var(--border)!important; }
-  .message-order-card strong{ color:var(--text)!important; }
-  .message-order-card span{ color:var(--text2)!important; }
-  .message-order-status,.message-order-total{ color:var(--orange)!important; }
-
-  /* ---- Become a Cook: hero overlay removed (art hidden on mobile) -> copy on page bg ---- */
-  .become-lux-hero{ background:transparent!important; }
-  .become-hero-copy h1{ color:var(--text)!important; }
-  .become-hero-copy h1 span{ color:var(--orange)!important; }
-  .become-hero-copy p{ color:var(--text2)!important; }
-  .become-hero-copy small{ color:var(--text3)!important; }
-  .become-panel-title p{ color:var(--text2)!important; }
-  .lux-field>span{ color:var(--text2)!important; }
-  .become-lux-form .cook-input{ color:var(--text)!important; }
-  .become-lux-form .cook-input::placeholder{ color:var(--text3)!important; }
-  .bio-count{ color:var(--text3)!important; }
-  .luxury-photo-action{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text)!important; }
-  .luxury-photo-action small{ color:var(--text2)!important; }
-  .become-photo-preview{ background:var(--bg2)!important; color:var(--text2)!important; }
-  .become-photo-preview small{ color:var(--text3)!important; }
-  .luxury-policy{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text2)!important; }
-  .publish-actions p{ color:var(--text2)!important; }
-  .publish-actions strong{ color:var(--text)!important; }
-
-  /* ---- Settings: hero text stays LIGHT (always over a dark-scrim photo) ---- */
-  .settings-profile-copy h2{ color:#fff6e8!important; }
-  .settings-profile-copy p{ color:rgba(255,246,232,.84)!important; }
-  .settings-location{ color:rgba(255,246,232,.72)!important; }
-  .settings-status-badge{ color:#f4bd62!important; background:rgba(0,0,0,.34)!important; border-color:rgba(224,154,43,.5)!important; }
-  .settings-link-btn{ color:#f4bd62!important; }
-  /* settings cards (on token page bg) -> tokens */
-  .settings-card-title p{ color:var(--text2)!important; }
-  .settings-mini-btn{ background:var(--orange-light)!important; border-color:var(--border)!important; color:var(--orange)!important; }
-  .settings-payment-card{ background:var(--bg2)!important; border-color:var(--border)!important; }
-  .settings-payment-card strong{ color:var(--text)!important; }
-  .settings-payment-card span{ color:var(--text2)!important; }
-  .settings-action-list button b{ color:var(--text3)!important; }
-  #page-settings .toggle{ border-color:var(--border)!important; background:var(--bg3)!important; }
-
-  /* ---- Accent-text legibility on soft-light (orange-as-text fails AA on cream) ---- */
-  /* handled per-theme in the light blocks below */
-
-  /* ---- Overflow: shells + bottom-sheet modal padding on phones ---- */
-  .orders-shell,.favorites-shell{ padding-left:14px!important; padding-right:14px!important; }
-  .favorites-shell{ margin-left:14px!important; margin-right:14px!important; }
-  .modal-body{ padding:16px 14px; }
-}
-
-/* Darker gold for orange-as-TEXT on soft-light (keeps gold buttons' lighter fill intact) */
-@media (max-width:760px) and (prefers-color-scheme:light){
-  .dish-price,.cook-price,.cook-rating,.view-all,
-  .message-order-status,.message-order-total,.saved-tags span,.saved-cook-row b{ color:#f2ca50!important; }
-  :root{ --text3:#99907c; }
-}
-@media (max-width:760px){
-  body.light-mode .dish-price,body.light-mode .cook-price,body.light-mode .cook-rating,body.light-mode .view-all,
-  body.light-mode .message-order-status,body.light-mode .message-order-total,
-  body.light-mode .saved-tags span,body.light-mode .saved-cook-row b{ color:#f2ca50!important; }
-  body.light-mode{ --text3:#99907c; }
-}
-
-/* ---- Tight phones (<=380px): reclaim horizontal space ---- */
-@media (max-width:380px){
-  .sidebar{ left:8px!important; right:8px!important; }
-  .nav-item{ padding:7px 1px!important; font-size:9px!important; }
-  #page-home .filter-chips,#page-dishes .filter-bar{ padding:10px 8px!important; }
-  .dishes-grid,.cooks-grid,.cooks-grid-large{ padding-left:10px!important; padding-right:10px!important; }
-}
-
-/* ============================================================
-   MOBILE WARM-HOMEMADE v4 — terracotta + cream, bolder & friendlier.
-   <=760px only. Desktop/website untouched.
-   ============================================================ */
-@media (max-width:760px){
-  /* Terracotta fills now carry warm-WHITE labels (were near-black) */
-  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-search,.btn-apply,.btn-send,.btn-reorder,
-  .cook-profile-details .btn-apply,.luxury-primary-btn,.luxury-send-btn,.become-publish-btn,
-  .chat-unread,.nav-badge,.hero-action-badge,.dish-tag,
-  .luxury-chat-messages .msg.sent .msg-bubble{ color:#fff7ee!important; }
-
-  /* Clean 4-tab bar: Home · Search · Orders · Profile (Favorites -> home ♥ quick action) */
-  .nav-item[onclick*="favorites"]{ display:none!important; }
-
-  /* Bigger, rounder, friendlier food cards */
-  .cook-card,.dish-card{ border-radius:24px; }
-  .dishes-grid .dish-card,.cooks-grid .cook-card,.cooks-grid-large .cook-card{ border-radius:24px; }
-  .dishes-grid .dish-img{ height:222px; border-radius:24px 24px 0 0; }
-  .cooks-grid .cook-card-img,.cooks-grid-large .cook-card-img{ height:186px; border-radius:24px 24px 0 0; }
-  .dishes-grid .dish-body h3{ font-size:19px; }
-  .hero{ border-radius:24px; }
-  .search-bar{ border-radius:18px!important; }
-
-  /* Solid terracotta badges + pill buttons = food-app energy */
-  .dish-tag{ background:var(--orange)!important; border:0!important; font-weight:800; }
-  .btn-add{ border-radius:999px!important; }
-  .chip,.country-search,.filter-select{ border-radius:999px!important; }
-  .chip.active{ background:var(--orange)!important; color:#fff7ee!important; border-color:var(--orange)!important; }
-
-  /* Warm accent tick beside section titles */
-  .section-header h2{ position:relative; padding-left:15px; }
-  .section-header h2::before{ content:""; position:absolute; left:0; top:50%; transform:translateY(-50%); width:5px; height:.78em; border-radius:3px; background:linear-gradient(var(--orange),var(--orange-hover)); }
-}
-
-/* ============================================================
-   CULINARY NOIR v5 — Stitch mobile design system (<=760px only).
-   Obsidian glassmorphism · gold accents · warm-orange CTAs ·
-   Playfair Display + Manrope. Desktop/website untouched.
-   ============================================================ */
-@media (max-width:760px){
-  body{ font-family:'Manrope',sans-serif; }
-
-  /* ---- Panels & overlays: true glass (translucent + 20px blur + cream edge) ---- */
-  .sidebar,.modal,.luxury-chat-window,.messages-conversations,.luxury-chat-input-bar,.chat-input-bar,
-  .luxury-stat-card,.settings-lux-card,.become-panel,.become-publish,.become-progress,.checkout-section{
-    background:var(--glass)!important;
-    -webkit-backdrop-filter:blur(20px) saturate(1.1); backdrop-filter:blur(20px) saturate(1.1);
-    border:1px solid var(--border)!important;
-  }
-
-  /* ---- Content cards: translucent surface + cream edge + soft gold glow (no blur = smooth scroll) ---- */
-  .cook-card,.dish-card,.order-card,.driver-card,.feature-card,.welcome-card,.cook-form,.cook-dish-manager,
-  .luxury-order-card,.refund-panel,.favorites-shell,.saved-dish-card,.saved-cook-card,.luxury-chat-item,
-  .message-order-card,.settings-payment-card,.settings-list,.settings-action-list{
-    background:var(--card)!important; border:1px solid var(--border)!important;
-    box-shadow:0 10px 30px -14px rgba(0,0,0,.6), 0 0 20px -10px var(--orange-glow)!important;
-  }
-
-  /* ---- Primary CTAs -> warm-orange pills with dark label ---- */
-  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-apply,.btn-send,.btn-reorder,
-  .cook-profile-details .btn-apply,.luxury-primary-btn,.luxury-send-btn,.become-publish-btn,.become-cta{
-    background:var(--cta)!important; background-image:none!important; color:var(--on-cta)!important;
-    border:0!important; border-radius:999px!important; font-weight:700!important; letter-spacing:.01em;
-    box-shadow:0 6px 22px -6px rgba(255,140,0,.45)!important;
-  }
-  .btn-add:active,.btn-checkout:active,.btn-place-order:active,.luxury-primary-btn:active{ transform:scale(.97); }
-  .luxury-chat-messages .msg.sent .msg-bubble{ background:var(--cta)!important; color:var(--on-cta)!important; border-color:transparent!important; }
-
-  /* ---- Secondary / outline -> gold edge pills ---- */
-  .btn-secondary,.btn-continue,.luxury-outline-btn,.account-cancel{
-    background:transparent!important; color:var(--orange)!important;
-    border:1px solid var(--orange)!important; border-radius:999px!important; box-shadow:none!important;
-  }
-
-  /* ---- Chips & segmented tabs: dark stroke; active = gold edge + tint ---- */
-  .chip,.country-search,.filter-select,.messages-tab,.favorites-tab{ background:var(--bg3)!important; border:1px solid var(--border)!important; color:var(--text2)!important; border-radius:999px!important; }
-  .chip.active,.messages-tab.active,.favorites-tab.active{ background:var(--orange-light)!important; border-color:var(--orange)!important; color:var(--orange)!important; }
-
-  /* ---- Inputs: 16px stroke + gold focus glow ---- */
-  input,textarea,select,.form-input,.welcome-select,.cook-input,.chat-input,.country-search{
-    background:var(--bg2)!important; border:1px solid var(--border)!important; border-radius:16px!important; color:var(--text)!important;
-  }
-  input:focus,textarea:focus,select:focus,.search-bar:focus-within,.cook-input:focus{
-    border-color:var(--orange)!important; box-shadow:0 0 0 3px var(--orange-glow), 0 6px 18px -10px var(--orange-glow)!important;
-  }
-  .search-bar{ background:var(--bg2)!important; border:1px solid var(--border)!important; border-radius:16px!important; }
-
-  /* ---- Glass bottom nav, gold active glow ---- */
-  .sidebar{ border-radius:24px!important; }
-  .nav-item{ color:var(--text3)!important; }
-  .nav-item.active{ color:var(--orange)!important; background:transparent!important; filter:drop-shadow(0 0 10px var(--orange-glow)); font-weight:700; }
-  .nav-item.active svg{ transform:translateY(-1px); }
-  .nav-badge,.hero-action-badge{ background:var(--cta)!important; color:var(--on-cta)!important; }
-
-  /* ---- Hero: gold Playfair headline over the scrim ---- */
-  .hero{ border-radius:24px; }
-  .hero-content h1{ color:var(--orange)!important; }
-
-  /* ---- Dish image tag -> glass chip ---- */
-  .dish-tag{ background:var(--glass)!important; color:var(--orange)!important; border:1px solid var(--border)!important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
-
-  /* ---- Floating cart / FAB -> warm orange ---- */
-  .cart-floating-btn{ background:var(--cta)!important; color:var(--on-cta)!important; box-shadow:0 10px 30px -6px rgba(255,140,0,.45)!important; }
-
-  /* ---- Status badges ---- */
-  .luxury-status,.status-pending,.status-preparing,.orders-tab.active{ background:var(--orange-light)!important; color:var(--orange)!important; }
-  .luxury-status.status-delivered,.status-delivered,.status-completed{ background:rgba(159,210,122,.16)!important; color:var(--m-ok)!important; }
-
-  /* ---- Tactile press feedback ---- */
-  .cook-card:active,.dish-card:active,.order-card:active,.luxury-chat-item:active{ transform:scale(.99); }
-}
 </style>
 </head>
 <body>
@@ -2500,11 +1821,11 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
       My Orders
       <span class="nav-badge" id="ordersNavBadge" hidden>0</span>
     </div>
-    <div class="nav-item mobile-secondary" onclick="showPage('favorites',this)">
+    <div class="nav-item" onclick="showPage('favorites',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Favorites
     </div>
-    <div class="nav-item" onclick="showPage('messages',this)">
+    <div class="nav-item mobile-secondary" onclick="showPage('messages',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Messages
       <span class="nav-badge" id="messagesNavBadge" hidden>0</span>
@@ -2527,16 +1848,6 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
     <div class="nav-item" onclick="showPage('settings',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Settings
-    </div>
-    <div class="sidebar-lang" id="sidebarLang" onclick="toggleSidebarLang(event)">
-      <span class="sl-globe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/></svg></span>
-      <span class="sl-code" id="sbLangCode">EN</span>
-      <svg class="sl-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      <div class="sidebar-lang-menu" id="sbLangMenu">
-        <button type="button" onclick="pickLang(event,'EN')">English</button>
-        <button type="button" onclick="pickLang(event,'AR')">العربية</button>
-        <button type="button" onclick="pickLang(event,'TR')">Türkçe</button>
-      </div>
     </div>
   </div>
 </aside>
@@ -2683,7 +1994,7 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
 
   <!-- MY ORDERS PAGE -->
   <div class="page" id="page-orders">
-    <div class="page-header luxury-page-header">
+    <div class="page-header">
       <h1>My Orders</h1>
       <p>Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     </div>
@@ -2693,14 +2004,12 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
       <button class="orders-tab" type="button" onclick="setOrderFilter(this,'completed')">Completed</button>
       <button class="orders-tab" type="button" onclick="setOrderFilter(this,'cancelled')">Canceled</button>
     </div>
-    <div class="luxury-stats" id="ordersStats"></div>
-    <div class="orders-shell">
-      <div class="orders-main">
-        <div class="orders-list" id="ordersList">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-      <aside class="refund-panel" id="refundPanel"></aside>
+    <div class="orders-list" id="ordersList">
+      <!-- Populated by JS -->
+    </div>
+    <div class="page-header refund-header" style="padding-top:20px">
+      <h1 style="font-size:24px">Refund requests</h1>
+      <p>No refund requests yet.</p>
     </div>
   </div>
 
@@ -2740,32 +2049,12 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
 
   <!-- FAVORITES PAGE -->
   <div class="page" id="page-favorites">
-    <div class="page-header luxury-page-header">
+    <div class="page-header">
       <h1>My Favorites</h1>
       <p>Your saved dishes and cooks</p>
     </div>
-    <div class="luxury-stats" id="favoritesStats"></div>
-    <div class="favorites-shell">
-      <div class="favorites-toolbar">
-        <div class="favorites-tabs" role="tablist" aria-label="Favorite filters">
-          <button class="favorites-tab active" type="button" data-fav-tab="all" onclick="setFavoritesTab('all',this)">All</button>
-          <button class="favorites-tab" type="button" data-fav-tab="dishes" onclick="setFavoritesTab('dishes',this)">Dishes</button>
-          <button class="favorites-tab" type="button" data-fav-tab="cooks" onclick="setFavoritesTab('cooks',this)">Cooks</button>
-        </div>
-        <label class="favorites-sort">Sort by
-          <select id="favoritesSort" onchange="renderFavorites()">
-            <option value="recent">Recently added</option>
-            <option value="name">Name</option>
-            <option value="price">Price/rating</option>
-          </select>
-        </label>
-      </div>
-      <div class="favorites-content">
-        <div class="favorites-grid luxury-favorites-grid" id="favoritesGrid">
-          <!-- Populated by JS -->
-        </div>
-        <aside class="favorites-encouragement" id="favoritesEncouragement"></aside>
-      </div>
+    <div class="favorites-grid" id="favoritesGrid">
+      <!-- Populated by JS -->
     </div>
   </div>
 
@@ -2863,29 +2152,29 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
   <!-- HELP & SUPPORT PAGE -->
   <div class="page" id="page-help">
     <div class="page-header">
-      <h1>Help <span class="gold-accent">&amp; Support</span></h1>
+      <h1>Help & Support</h1>
       <p>Find answers to common questions</p>
     </div>
     <div class="help-layout">
-      <div class="hs-cards">
-        <button class="hs-card" onclick="openSupportChat()">
-          <span class="hs-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-          <div class="hs-title">Live Chat</div>
-          <div class="hs-sub">Get instant help</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px">
+        <button class="feature-card" onclick="openSupportChat()" style="text-align:center;cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">💬</div>
+          <div style="font-weight:700;font-size:14px">Live Chat</div>
+          <div style="font-size:12px;color:var(--text3)">Get instant help</div>
         </button>
-        <a class="hs-card" href="mailto:support@hometaste.com">
-          <span class="hs-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg></span>
-          <div class="hs-title">Email Us</div>
-          <div class="hs-sub hs-gold">support@hometaste.com</div>
-        </a>
-        <a class="hs-card" href="tel:+902120000000">
-          <span class="hs-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 5-2 1.5a12 12 0 0 0 5 5l1.5-2 5 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3Z"/></svg></span>
-          <div class="hs-title">Call Us</div>
-          <div class="hs-sub">+90 212 000 00 00</div>
-        </a>
+        <button class="feature-card" onclick="showToast('Email support: support@hometaste.com','info')" style="cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">📧</div>
+          <div style="font-weight:700;font-size:14px">Email Us</div>
+          <div style="font-size:12px;color:var(--text3)">support@hometaste.com</div>
+        </button>
+        <button class="feature-card" onclick="showToast('Phone support: +90 212 000 00 00','info')" style="cursor:pointer">
+          <div style="font-size:30px;margin-bottom:8px">📞</div>
+          <div style="font-weight:700;font-size:14px">Call Us</div>
+          <div style="font-size:12px;color:var(--text3)">+90 212 000 00 00</div>
+        </button>
       </div>
       <div class="faq-section">
-        <h2 class="faq-heading">Frequently Asked <span class="gold-accent">Questions</span></h2>
+        <h2 style="margin-bottom:16px;font-size:20px">Frequently Asked Questions</h2>
         <div id="faqList"></div>
       </div>
     </div>
@@ -3124,7 +2413,6 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
 const cooks = [];
 const dishes = [];
 const demoOrders = [];
-const marketRefunds = [];
 
 const trackingSteps = [
   {key:'confirmed',title:'Order Confirmed',body:'Your order has been confirmed',time:'1:30 PM'},
@@ -3148,10 +2436,6 @@ const faqs = [
 // ===== STATE =====
 let cart = [];
 let favorites = new Set();
-let favoriteDishes = new Set();
-let favoritesTab = 'all';
-let messagesTab = 'all';
-let messagesSearch = '';
 let currentCook = null;
 let currentDish = null;
 let activeChatId = null;
@@ -3161,7 +2445,6 @@ let selectedCountry = 'TR';
 let selectedLanguage = 'EN';
 let currentUserName = 'User';
 let currentUserId = '';
-let currentUserEmail = '';
 let hostStateReady = false;
 let pendingOrderPlacement = false;
 let cookDishPhotoPreviewUrl = '';
@@ -3214,7 +2497,7 @@ const translations = {
     ordersTitle: 'My Orders',
     favoritesTitle: 'My Favorites',
     messagesTitle: 'Messages',
-    messagesBody: 'Chat with cooks, drivers, and support about your orders.',
+    messagesBody: 'Chat with your cooks',
     messagePlaceholder: 'Type a message...',
     helpTitle: 'Help & Support',
     settingsTitle: 'Settings',
@@ -3937,36 +3220,23 @@ function mapOrderForMobile(order) {
   const cook = cooks.find(item => sameId(item.id, order.cookId));
   const created = order.createdAt ? new Date(order.createdAt) : new Date();
   const label = orderLabelByStatus[order.status] || order.status || 'Order placed';
-  const itemCount = Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + Number(item.qty || 1), 0) : 1;
   return {
     id: order.id,
-    rawStatus: order.status || 'placed',
     dish: first?.name || dish?.name || 'Order',
     by: cook?.name || 'Cook',
     cookId: order.cookId,
     dishId: first?.dishId || dish?.id || '',
-    statusCode: order.status || 'placed',
-    cookCity: cook?.city || '',
-    cookCountry: cook?.country || selectedCountry,
-    cookAvatar: cook ? getCookProfilePhoto(cook) : defaultCookProfilePhoto,
-    cookEmoji: cook?.emoji || '',
     date: created.toLocaleString(),
     shortDate: created.toLocaleString(),
-    createdAt: created.getTime(),
+    statusCode: order.status || 'placed',
     status: label,
     statusClass: order.status === 'delivered' ? 'status-delivered' : order.status === 'cancelled' ? 'status-cancelled' : 'status-pending',
     price: `₺${Number(order.total || 0).toLocaleString('tr-TR')}`,
-    total: Number(order.total || first?.price || dish?.price || 0),
-    itemCount: `${itemCount} item${itemCount === 1 ? '' : 's'}`,
+    itemCount: `${Array.isArray(order.items) ? order.items.length : 1} item`,
     img: dish?.img || defaultDishPhoto,
     step: orderStepByStatus[order.status] || 1,
     action: order.status === 'delivered' ? 'Reorder' : 'Track Order',
-    track: label,
-    paymentMethod: order.paymentMethod || order.payment || 'cash',
-    paymentStatus: order.paymentStatus || (order.status === 'delivered' ? 'Paid' : 'Pending'),
-    address: order.deliveryAddress || order.address || order.customerAddress || '',
-    eta: order.eta || order.estimatedDelivery || '',
-    items: Array.isArray(order.items) ? order.items : []
+    track: label
   };
 }
 function mapMessagesForMobile(rawState) {
@@ -3991,17 +3261,7 @@ function mapMessagesForMobile(rawState) {
             time: `${created.getHours()}:${String(created.getMinutes()).padStart(2, '0')}`
           };
         }),
-      title: cook?.name || 'Cook',
-      avatar: cook ? getCookProfilePhoto(cook) : defaultCookProfilePhoto,
-      avatarFallback: cook?.emoji || '',
-      status: cook?.online ? 'Online' : 'Order chat',
-      active: !['delivered', 'cancelled', 'canceled', 'completed'].includes(String(order.status || '').toLowerCase()),
-      orderStatus: orderLabelByStatus[order.status] || order.status || 'Order placed',
-      orderTotal: Number(order.total || 0),
-      dishName: Array.isArray(order.items) && order.items[0] ? order.items[0].name || 'Order' : 'Order',
-      itemCount: Array.isArray(order.items) ? order.items.length : 0,
-      createdAt: order.createdAt || '',
-      phone: cook?.phone || ''
+      title: cook?.name || 'Cook'
     };
   }).filter(Boolean);
 }
@@ -4011,7 +3271,6 @@ function applyMarketplaceState(rawState) {
   const user = rawState.user || {};
   currentUserId = user.id || currentUserId;
   currentUserName = (user.name || currentUserName || 'User').trim() || 'User';
-  currentUserEmail = String(user.email || currentUserEmail || '').trim();
   localStorage.setItem('hometaste_user_name', currentUserName);
   if (user.country && isSupportedCountry(user.country)) {
     selectedCountry = user.country;
@@ -4038,9 +3297,6 @@ function applyMarketplaceState(rawState) {
   favorites = new Set((rawState.socialActions || [])
     .filter(action => action.type === 'follow' && action.cookId && sameId(action.userId, currentUserId))
     .map(action => String(action.cookId)));
-  favoriteDishes = new Set((rawState.socialActions || [])
-    .filter(action => action.type === 'favorite_dish' && action.dishId && sameId(action.userId, currentUserId))
-    .map(action => String(action.dishId)));
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
 	  const ownCook = cooks.find(cook => sameId(cook.userId, currentUserId));
@@ -4049,7 +3305,6 @@ function applyMarketplaceState(rawState) {
 	    setDesiredCookOnline(Boolean(ownCook.online));
 	  }
 	  demoOrders.splice(0, demoOrders.length, ...(rawState.orders || []).map(mapOrderForMobile));
-	  marketRefunds.splice(0, marketRefunds.length, ...(rawState.refunds || []).filter(refund => !refund.customerId || sameId(refund.customerId, currentUserId)));
 	  chatMessages = mapMessagesForMobile(rawState);
 	  renderCityFilterOptions();
 	  renderCuisineFilterOptions();
@@ -4097,9 +3352,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const initialPage = params.get('page');
   selectedCountry = params.get('country') || localStorage.getItem('hometaste_country') || selectedCountry;
   currentUserName = (params.get('user') || localStorage.getItem('hometaste_user_name') || 'User').trim() || 'User';
-  currentUserEmail = (params.get('email') || localStorage.getItem('hometaste_user_email') || '').trim();
   localStorage.setItem('hometaste_user_name', currentUserName);
-  if (currentUserEmail) localStorage.setItem('hometaste_user_email', currentUserEmail);
   if (!isSupportedCountry(selectedCountry)) selectedCountry = 'TR';
   localStorage.setItem('hometaste_country', selectedCountry);
   clearLegacyLocalDemoData();
@@ -4143,23 +3396,11 @@ function showPage(pageId, navEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
   if (page) page.classList.add('active');
-  let autoNav = navEl || document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
-  // On mobile the secondary tabs (Dishes/Messages/Become) are hidden; highlight a visible parent tab instead
-  if (autoNav && autoNav.classList.contains('mobile-secondary') && window.matchMedia('(max-width:760px)').matches) {
-    const parentTab = { dishes: 'browse', become: 'settings' }[pageId];
-    autoNav = parentTab ? document.querySelector(`.nav-item:not(.mobile-secondary)[onclick*="'${parentTab}'"]`) : null;
-  }
+  const autoNav = navEl || document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
   if (autoNav) autoNav.classList.add('active');
   if (pageId === 'checkout') updateCheckoutItems();
-  if (pageId === 'settings') {
-    ensureLuxurySettingsShell();
-    updateSettingsAccount();
-  }
-  if (pageId === 'become') {
-    ensureLuxuryBecomeShell();
-    renderMyCookDishManager();
-  }
-  if (pageId === 'messages') renderChatList();
+  if (pageId === 'settings') updateSettingsAccount();
+  if (pageId === 'become') renderMyCookDishManager();
   updateCartButtonVisibility(pageId);
   updateNavBadges();
   document.getElementById('cityDropdown')?.classList.remove('open');
@@ -4242,17 +3483,9 @@ function setLanguage(lang,e,silent=false){
   localStorage.setItem('hometaste_language', lang);
   document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : (lang === 'DE' ? 'de' : 'en'));
   document.body.dir = lang === 'AR' ? 'rtl' : 'ltr';
-  const sbCode = document.getElementById('sbLangCode');
-  if (sbCode) sbCode.textContent = lang;
   applyTranslations();
   if (!silent) showToast(tr('languageChanged'), 'success');
 }
-function toggleSidebarLang(e){ e.stopPropagation(); document.getElementById('sbLangMenu')?.classList.toggle('open'); }
-function pickLang(e,lang){ e.stopPropagation(); setLanguage(lang); document.getElementById('sbLangMenu')?.classList.remove('open'); }
-document.addEventListener('click', (e) => {
-  const lang = document.getElementById('sidebarLang');
-  if (lang && !lang.contains(e.target)) document.getElementById('sbLangMenu')?.classList.remove('open');
-});
 function setText(selector, text, all=false) {
   const nodes = all ? document.querySelectorAll(selector) : [document.querySelector(selector)];
   nodes.forEach(node => { if (node) node.textContent = displayText(text); });
@@ -4690,7 +3923,6 @@ function dishCard(d, staggerClass, options = {}) {
     <div class="dish-img">
       <img src="${escapeAttr(dishImg)}" alt="${escapeDisplayAttr(d.name)}" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
       <span class="dish-tag">${safeDisplayHtml(d.country || d.tag)}</span>
-      ${canManage ? '' : `<button class="fav-btn ${favoriteDishes.has(String(d.id)) ? 'active' : ''}" type="button" onclick='toggleDishFav(event,${jsArg(d.id)},this)' aria-label="Favorite dish"></button>`}
       ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
@@ -4799,207 +4031,6 @@ function renderFavorites() {
   grid.innerHTML = favDishes.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('');
 }
 
-function isDeliveredOrder(order) {
-  return ['delivered', 'received', 'completed'].includes(String(order.rawStatus || '').toLowerCase());
-}
-function isActiveOrder(order) {
-  const status = String(order.rawStatus || '').toLowerCase();
-  return status && !['delivered', 'received', 'completed', 'cancelled', 'canceled'].includes(status);
-}
-function renderLuxuryStat(icon, label, value, sub, outline) {
-  return `
-    <article class="luxury-stat-card">
-      <div class="luxury-stat-icon">${icon}</div>
-      <div class="luxury-stat-copy"><span>${label}</span><strong>${value}</strong><small>${sub}</small></div>
-      <div class="luxury-stat-outline">${outline || icon}</div>
-    </article>`;
-}
-function renderOrdersStats() {
-  const panel = document.getElementById('ordersStats');
-  if (!panel) return;
-  const active = demoOrders.filter(isActiveOrder).length;
-  const delivered = demoOrders.filter(isDeliveredOrder).length;
-  const spent = demoOrders.filter(isDeliveredOrder).reduce((sum, order) => sum + Number(order.total || 0), 0);
-  panel.innerHTML = [
-    renderLuxuryStat('▢', 'Active Orders', active, 'In progress', '▢'),
-    renderLuxuryStat('✓', 'Delivered Orders', delivered, 'Completed', '◯'),
-    renderLuxuryStat('▣', 'Total Spent', `${spent.toLocaleString('tr-TR')} EGP`, 'All time', '◎')
-  ].join('');
-}
-function renderOrderTimeline(order) {
-  const steps = ['Accepted', 'Cooking', 'Picked Up', 'Delivered'];
-  const activeIndex = Math.min(steps.length - 1, Math.max(0, Number(order.step || 1) - 1));
-  return `<div class="luxury-order-timeline">${steps.map((step, index) => `
-    <div class="luxury-timeline-step ${index < activeIndex ? 'done' : ''} ${index === activeIndex ? 'active' : ''}">
-      <span>${index < activeIndex ? '✓' : index + 1}</span><small>${step}</small>
-    </div>`).join('')}</div>`;
-}
-function renderRefundPanel() {
-  const panel = document.getElementById('refundPanel');
-  if (!panel) return;
-  if (!marketRefunds.length) {
-    panel.innerHTML = `
-      <div class="refund-panel-head"><h2>Refund requests</h2><p>Manage your refund requests and view their status.</p></div>
-      <div class="premium-empty compact">
-        <div class="premium-empty-icon">▣</div>
-        <h3>No refund requests yet</h3>
-        <p>If you have an issue with your order, you can request a refund.</p>
-        <button class="luxury-outline-btn" type="button" onclick="showToast('Refunds can be requested from eligible order cards.', 'info')">Learn how refunds work</button>
-      </div>`;
-    return;
-  }
-  panel.innerHTML = `
-    <div class="refund-panel-head"><h2>Refund requests</h2><p>Manage your refund requests and view their status.</p></div>
-    <div class="refund-list">${marketRefunds.map(refund => `
-      <article class="refund-item">
-        <strong>${refund.id || 'Refund request'}</strong>
-        <span>${refund.orderId || 'Order'} · ${refund.reason || 'Issue'} · ${refund.status || 'pending'}</span>
-        <p>${refund.details || 'No extra details provided.'}</p>
-      </article>`).join('')}</div>`;
-}
-function renderOrders() {
-  const ordersList = document.getElementById('ordersList');
-  if (!ordersList) return;
-  updateNavBadges();
-  renderOrdersStats();
-  renderRefundPanel();
-  if (!demoOrders.length) {
-    ordersList.innerHTML = `<div class="premium-empty orders-empty"><div class="premium-empty-icon">▤</div><h3>No orders yet</h3><p>Your real orders will appear here after checkout, with tracking and receipts in one clear view.</p><button class="luxury-primary-btn" type="button" onclick="showPage('dishes',document.querySelector('[onclick*=dishes]'))">Browse Dishes</button></div>`;
-    return;
-  }
-  ordersList.innerHTML = demoOrders.map(o => `
-  <article class="luxury-order-card">
-    <div class="luxury-order-top">
-      <span class="luxury-status ${o.statusClass}">${isActiveOrder(o) ? 'LIVE' : String(o.status || '').toUpperCase()}</span>
-      <span class="luxury-order-id">Order ID: #${o.id}</span>
-    </div>
-    <div class="luxury-order-body">
-      <img class="luxury-order-img" src="${o.img}" alt="${o.dish}" onerror="this.src='${defaultDishPhoto}'">
-      <div>
-        <h3>${o.dish}</h3>
-        <div class="luxury-cook-line">
-          <span class="luxury-cook-avatar"><img src="${o.cookAvatar}" alt="${o.by}" onerror="this.parentElement.textContent='${o.cookEmoji || ''}'"></span>
-          <span><strong>${o.by}</strong><small>${[o.cookCity, countryNames[o.cookCountry] || o.cookCountry].filter(Boolean).join(', ')}</small></span>
-        </div>
-        ${o.address ? `<p class="luxury-address">${o.address}</p>` : ''}
-      </div>
-      <div class="luxury-order-side">
-        ${o.eta ? `<small>ETA</small><strong>${o.eta}</strong>` : `<small>Status</small><strong>${o.status}</strong>`}
-        <span class="payment-chip">${o.paymentStatus}</span>
-        <b>${o.price}</b>
-      </div>
-    </div>
-    ${renderOrderTimeline(o)}
-    <div class="luxury-order-actions">
-      ${isDeliveredOrder(o) ? '' : `<button class="luxury-outline-btn" type="button" onclick="openTrackOrder('${o.id}')">Track Order</button>`}
-      <button class="luxury-outline-btn muted" type="button" onclick="viewReceipt('${o.id}')">View Receipt</button>
-      ${isDeliveredOrder(o) ? `<button class="luxury-primary-btn small" type="button" onclick="reorderFromOrder('${o.id}')">Reorder</button>` : ''}
-      ${!isDeliveredOrder(o) ? `<button class="luxury-quiet-btn" type="button" onclick="requestRefundSafe('${o.id}')">Report Issue</button>` : ''}
-    </div>
-  </article>`).join('');
-}
-function viewReceipt(orderId) {
-  const order = demoOrders.find(item => sameId(item.id, orderId));
-  showToast(order ? `Receipt for order #${order.id} is available from order details.` : 'Receipt is not available yet.', 'info');
-}
-function reorderFromOrder(orderId) {
-  const order = demoOrders.find(item => sameId(item.id, orderId));
-  const first = order?.items?.[0];
-  if (first?.dishId && dishes.some(dish => sameId(dish.id, first.dishId))) {
-    quickAddToCart(first.dishId);
-    return;
-  }
-  showToast(order ? `${order.dish} is not currently orderable.` : 'Order is not available.', 'info');
-}
-function requestRefundSafe(orderId) {
-  if (typeof requestRefund === 'function') requestRefund(orderId);
-  else showToast('Refund requests are not available in this view yet.', 'info');
-}
-function setFavoritesTab(tab, button) {
-  favoritesTab = tab;
-  document.querySelectorAll('.favorites-tab').forEach(item => item.classList.toggle('active', item === button || item.dataset.favTab === tab));
-  renderFavorites();
-}
-function favoriteDishItems() {
-  return dishes.filter(dish => favoriteDishes.has(String(dish.id))).map((dish, index) => ({ type: 'dish', dish, sortIndex: index }));
-}
-function favoriteCookItems() {
-  return cooks.filter(cook => favorites.has(String(cook.id))).map((cook, index) => ({ type: 'cook', cook, sortIndex: index }));
-}
-function sortFavoriteItems(items) {
-  const sort = document.getElementById('favoritesSort')?.value || 'recent';
-  return items.slice().sort((a, b) => {
-    if (sort === 'name') return String(a.dish?.name || a.cook?.name || '').localeCompare(String(b.dish?.name || b.cook?.name || ''));
-    if (sort === 'price') return Number(b.dish?.price || b.cook?.rating || 0) - Number(a.dish?.price || a.cook?.rating || 0);
-    return b.sortIndex - a.sortIndex;
-  });
-}
-function renderFavoriteDishCard(dish) {
-  const cook = cooks.find(item => sameId(item.id, dish.cookId));
-  return `
-    <article class="saved-dish-card">
-      <img class="saved-dish-img" src="${dish.img}" alt="${dish.name}" onerror="this.src='${defaultDishPhoto}'">
-      <button class="saved-heart active" type="button" onclick='toggleDishFav(event,${jsArg(dish.id)},this)' aria-label="Remove saved dish">♥</button>
-      <div class="saved-card-body">
-        <h3>${dish.name}</h3>
-        <div class="saved-meta">${dish.tag || dish.country || 'Home Kitchen'} · ${dish.country || countryNames[selectedCountry] || ''}</div>
-        <div class="saved-cook-row">
-          <span class="luxury-cook-avatar"><img src="${cook ? getCookProfilePhoto(cook) : defaultCookProfilePhoto}" alt="${cook?.name || 'Cook'}"></span>
-          <span>${cook?.name || 'Cook'}</span>
-          <b>★ ${cook?.rating || '5.0'}</b>
-        </div>
-        <div class="saved-card-facts"><span>${dish.prepTime || cook?.prepTime || '35 min'}</span><span>${dish.price} EGP</span></div>
-        <div class="saved-actions"><button class="luxury-outline-btn" type="button" onclick='openDishModal(${jsArg(dish.id)})'>View Dish</button><button class="luxury-primary-btn small" type="button" onclick='quickAddToCart(${jsArg(dish.id)})'>Add to Cart</button></div>
-      </div>
-    </article>`;
-}
-function renderFavoriteCookCard(cook) {
-  return `
-    <article class="saved-cook-card">
-      <div class="saved-cook-cover"><img src="${getCookCoverPhoto(cook)}" alt="${cook.name}" onerror="this.src='${defaultCookCoverPhoto}'"><button class="saved-heart active" type="button" onclick='toggleFav(event,${jsArg(cook.id)},this)' aria-label="Remove saved cook">♥</button></div>
-      <div class="saved-cook-body">
-        <span class="saved-cook-avatar"><img src="${getCookProfilePhoto(cook)}" alt="${cook.name}" onerror="this.parentElement.textContent='${cook.emoji}'"></span>
-        <div class="saved-cook-title"><h3>${cook.name}</h3><span class="${cook.online ? 'online' : ''}">${cook.online ? 'Online' : 'Offline'}</span></div>
-        <p>${cook.city}, ${countryNames[cook.country] || cook.country || ''}</p>
-        <div class="saved-tags">${String(cook.cuisine || 'Home Kitchen').split(/[,&]/).slice(0,3).map(tag => `<span>${tag.trim()}</span>`).join('')}</div>
-        <div class="saved-card-facts"><span>★ ${cook.rating} (${cook.reviews})</span><span>${cook.orders || 0}+ orders completed</span></div>
-        <button class="luxury-outline-btn wide" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View Profile</button>
-      </div>
-    </article>`;
-}
-function renderFavoritesStats(dishCount, cookCount) {
-  const panel = document.getElementById('favoritesStats');
-  if (!panel) return;
-  const recent = dishCount + cookCount;
-  panel.innerHTML = [
-    renderLuxuryStat('▱', 'Saved Dishes', dishCount, 'Dishes you love', '♨'),
-    renderLuxuryStat('♨', 'Saved Cooks', cookCount, 'Cooks you follow', '♨'),
-    renderLuxuryStat('◷', 'Recently Added', recent, 'Saved favorites', '✧')
-  ].join('');
-}
-function renderFavoritesEncouragement() {
-  const panel = document.getElementById('favoritesEncouragement');
-  if (!panel) return;
-  panel.innerHTML = `<div class="premium-empty compact"><div class="premium-empty-icon">♡</div><h3>Keep saving what you love</h3><p>Your favorite dishes and cooks will appear here.</p><button class="luxury-outline-btn" type="button" onclick="showPage('dishes',document.querySelector('[onclick*=dishes]'))">Browse Dishes</button></div>`;
-}
-function renderFavorites() {
-  const grid = document.getElementById('favoritesGrid');
-  if (!grid) return;
-  const dishItems = favoriteDishItems();
-  const cookItems = favoriteCookItems();
-  renderFavoritesStats(dishItems.length, cookItems.length);
-  renderFavoritesEncouragement();
-  const items = sortFavoriteItems([
-    ...(favoritesTab === 'cooks' ? [] : dishItems),
-    ...(favoritesTab === 'dishes' ? [] : cookItems)
-  ]);
-  if (!items.length) {
-    grid.innerHTML = `<div class="premium-empty favorites-empty"><div class="premium-empty-icon">♡</div><h3>Keep saving what you love</h3><p>Heart dishes or cooks to build your personal HomeTaste collection.</p><button class="luxury-primary-btn" type="button" onclick="showPage('dishes',document.querySelector('[onclick*=dishes]'))">Browse Dishes</button></div>`;
-    return;
-  }
-  grid.innerHTML = items.map(item => item.type === 'dish' ? renderFavoriteDishCard(item.dish) : renderFavoriteCookCard(item.cook)).join('');
-}
-
 // ===== FAVORITES TOGGLE =====
 async function toggleFav(e, cookId, btn) {
   e.stopPropagation();
@@ -5028,24 +4059,6 @@ async function toggleFav(e, cookId, btn) {
     renderHomeCooks();
     renderBrowseCooks();
     showToast(error.message, 'error');
-  }
-}
-
-async function toggleDishFav(e, dishId, btn) {
-  e.stopPropagation();
-  const id = String(dishId);
-  const dish = dishes.find(d => sameId(d.id, dishId));
-  const wasFavorite = favoriteDishes.has(id);
-  if (wasFavorite) { favoriteDishes.delete(id); btn.classList.remove('active'); }
-  else { favoriteDishes.add(id); btn.classList.add('active'); }
-  try {
-    const result = await sendMarketAction('market-favorites', { payload: { type: wasFavorite ? 'unfavorite_dish' : 'favorite_dish', dishId: id, cookId: dish ? dish.cookId : '' } });
-    if (result && result.mode === 'api' && result.state) applyMarketplaceState(result.state);
-    showToast(wasFavorite ? 'Removed from favorites' : 'Dish saved to favorites.', wasFavorite ? 'info' : 'success');
-  } catch (error) {
-    if (wasFavorite) { favoriteDishes.add(id); btn.classList.add('active'); }
-    else { favoriteDishes.delete(id); btn.classList.remove('active'); }
-    showToast(error && error.message ? error.message : 'Could not update favorite.', 'error');
   }
 }
 
@@ -5298,145 +4311,6 @@ function openChat(convId) {
 	  updateNavBadges();
 	  requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
 	}
-function ensureLuxuryMessagesShell() {
-  const page = document.getElementById('page-messages');
-  if (!page || page.dataset.luxuryReady === 'true') return;
-  page.dataset.luxuryReady = 'true';
-  page.innerHTML = `
-    <div class="page-header luxury-page-header messages-page-header">
-      <h1>Messages</h1>
-      <p>Chat with cooks, drivers, and support about your orders.</p>
-      <span class="messages-status-chip" id="messagesStatusChip">0 unread</span>
-    </div>
-    <div class="messages-layout luxury-messages-layout">
-      <aside class="messages-conversations">
-        <div class="messages-search-row">
-          <label class="messages-search"><span>⌕</span><input id="messagesSearchInput" type="search" placeholder="Search conversations..." oninput="setMessagesSearch(this.value)" aria-label="Search conversations"></label>
-          <button class="messages-filter-btn" type="button" onclick="showToast('Conversation filters are available below.', 'info')" aria-label="Conversation filters">≡</button>
-        </div>
-        <div class="messages-tabs" role="tablist" aria-label="Message filters">
-          <button class="messages-tab active" type="button" data-message-tab="all" onclick="setMessagesTab('all',this)">All</button>
-          <button class="messages-tab" type="button" data-message-tab="unread" onclick="setMessagesTab('unread',this)">Unread</button>
-          <button class="messages-tab" type="button" data-message-tab="active" onclick="setMessagesTab('active',this)">Active</button>
-        </div>
-        <div class="chat-list luxury-chat-list" id="chatList"></div>
-      </aside>
-      <section class="chat-window luxury-chat-window" id="chatWindow">
-        <div class="chat-header luxury-chat-header" id="chatHeader">
-          <div class="chat-avatar luxury-chat-avatar" id="chatHeaderAvatar"></div>
-          <div class="chat-header-info"><h3 id="chatHeaderName">Select a conversation</h3><p id="chatHeaderDesc">Order conversations appear here.</p></div>
-          <div class="chat-actions">
-            <button class="chat-action-btn luxury-round-action" type="button" onclick="callActiveConversation()" aria-label="Call">☎</button>
-            <button class="chat-action-btn luxury-round-action" type="button" onclick="openConversationMenu()" aria-label="Conversation menu">⋯</button>
-          </div>
-        </div>
-        <div class="messages-day-chip">Today</div>
-        <div class="chat-messages luxury-chat-messages" id="chatMessages"></div>
-        <div id="messageOrderSummary"></div>
-        <div class="chat-input-bar luxury-chat-input-bar">
-          <button class="chat-action-btn luxury-attach-btn" type="button" onclick="attachMessageFile()" aria-label="Attach file">⌕</button>
-          <input class="chat-input" id="chatInputField" type="text" placeholder="Type your message..." onkeydown="handleChatKey(event)" aria-label="Message text">
-          <button class="btn-send luxury-send-btn" type="button" onclick="sendChatMessage()" aria-label="Send message">➤</button>
-        </div>
-      </section>
-    </div>`;
-}
-function setMessagesSearch(value) {
-  messagesSearch = String(value || '').trim().toLowerCase();
-  renderChatList();
-}
-function setMessagesTab(tab, button) {
-  messagesTab = tab;
-  document.querySelectorAll('.messages-tab').forEach(item => item.classList.toggle('active', item === button || item.dataset.messageTab === tab));
-  renderChatList();
-}
-function filteredChatMessages() {
-  return chatMessages.filter(conv => {
-    if (messagesTab === 'unread' && !Number(conv.unread || 0)) return false;
-    if (messagesTab === 'active' && !conv.active) return false;
-    if (!messagesSearch) return true;
-    const last = conv.messages[conv.messages.length - 1] || {};
-    return [conv.title, conv.dishName, conv.orderStatus, last.text].some(value => String(value || '').toLowerCase().includes(messagesSearch));
-  });
-}
-function renderMessageEmpty(target, title, body, cta = true) {
-  target.innerHTML = `<div class="premium-empty messages-empty"><div class="premium-empty-icon">▱</div><h3>${title}</h3><p>${body}</p>${cta ? `<button class="luxury-primary-btn" type="button" onclick="showPage('browse',document.querySelector('[onclick*=browse]'))">Browse Cooks</button>` : ''}</div>`;
-}
-function messageAvatarHtml(conv, className = 'chat-avatar') {
-  return `<div class="${className} luxury-chat-avatar"><img src="${conv.avatar || defaultCookProfilePhoto}" alt="${conv.title}" onerror="this.parentElement.textContent='${conv.avatarFallback || ''}'"><span class="chat-online"></span></div>`;
-}
-function renderChatList() {
-  ensureLuxuryMessagesShell();
-  const list = document.getElementById('chatList');
-  if (!list) return;
-  const chip = document.getElementById('messagesStatusChip');
-  const totalUnread = chatMessages.reduce((sum, conv) => sum + Number(conv.unread || 0), 0);
-  if (chip) chip.textContent = `${totalUnread} unread`;
-  const searchInput = document.getElementById('messagesSearchInput');
-  if (searchInput && searchInput.value !== messagesSearch) searchInput.value = messagesSearch;
-  document.querySelectorAll('.messages-tab').forEach(item => item.classList.toggle('active', item.dataset.messageTab === messagesTab));
-  if (!chatMessages.length) {
-    renderMessageEmpty(list, 'No conversations yet', 'Order chats with cooks, drivers, and support will appear here after real orders.');
-    const msgs = document.getElementById('chatMessages');
-    if (msgs) renderMessageEmpty(msgs, 'No chat selected', 'Select a conversation or place an order to start a message thread.', false);
-    const summary = document.getElementById('messageOrderSummary');
-    if (summary) summary.innerHTML = '';
-    updateNavBadges();
-    return;
-  }
-  const visible = filteredChatMessages();
-  if (!visible.length) {
-    renderMessageEmpty(list, 'No matching conversations', 'Try a different search or filter.', false);
-    updateNavBadges();
-    return;
-  }
-  if (!activeChatId || !chatMessages.some(conv => sameId(conv.id, activeChatId))) activeChatId = visible[0]?.id || chatMessages[0]?.id;
-  list.innerHTML = visible.map(conv => {
-    const last = conv.messages[conv.messages.length - 1] || { text: 'No messages yet', time: '' };
-    return `<button class="chat-item luxury-chat-item ${sameId(conv.id, activeChatId) ? 'active' : ''}" type="button" onclick='openChat(${jsArg(conv.id)})'>${messageAvatarHtml(conv)}<div class="chat-meta"><div class="chat-name">${conv.title}</div><div class="chat-preview">${last.text}</div></div><div class="chat-side-meta"><div class="chat-time">${last.time}</div>${conv.unread ? `<div class="chat-unread">${conv.unread}</div>` : ''}</div></button>`;
-  }).join('');
-  updateNavBadges();
-}
-function openChat(convId) {
-  ensureLuxuryMessagesShell();
-  activeChatId = convId;
-  const conv = chatMessages.find(c => sameId(c.id, convId));
-  if (!conv) { renderChatList(); return; }
-  conv.unread = 0;
-  const avatar = document.getElementById('chatHeaderAvatar');
-  if (avatar) avatar.outerHTML = messageAvatarHtml(conv, 'chat-avatar');
-  document.getElementById('chatHeaderName').textContent = conv.title || 'Cook';
-  document.getElementById('chatHeaderDesc').textContent = `${conv.status || 'Order chat'}${conv.dishName ? ' · ' + conv.dishName : ''}`;
-  const msgs = document.getElementById('chatMessages');
-  if (!conv.messages.length) {
-    renderMessageEmpty(msgs, 'No messages yet', 'Send a message to start this order conversation.', false);
-  } else {
-    msgs.innerHTML = conv.messages.map(m => `<div class="msg ${m.from === 'user' ? 'sent' : 'received'}"><div class="msg-bubble">${m.text}</div><div class="msg-time">${m.time}</div></div>`).join('');
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-  const summary = document.getElementById('messageOrderSummary');
-  summary.innerHTML = conv.dishName ? `<article class="message-order-card"><div><strong>${conv.dishName}</strong><span>Order #${conv.id} · ${conv.itemCount || 1} item${conv.itemCount === 1 ? '' : 's'}</span></div><div class="message-order-status">${conv.orderStatus || 'Order chat'}</div><div class="message-order-total">${Number(conv.orderTotal || 0).toLocaleString('tr-TR')} EGP</div><button class="luxury-outline-btn" type="button" onclick="openMessageOrder('${conv.id}')">View Order</button></article>` : '';
-  renderChatList();
-  updateNavBadges();
-  requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
-}
-function callActiveConversation() {
-  const conv = chatMessages.find(c => sameId(c.id, activeChatId));
-  showToast(conv?.phone ? `Calling ${conv.title}...` : 'Phone contact is available after an active order is placed.', 'info');
-}
-function openConversationMenu() {
-  showToast('Conversation tools: order chat, delivery notes, and cook updates.', 'info');
-}
-function attachMessageFile() {
-  showToast('Attachments are not available for this conversation yet.', 'info');
-}
-function openMessageOrder(orderId) {
-  if (demoOrders.some(order => sameId(order.id, orderId))) {
-    openTrackOrder(orderId);
-    return;
-  }
-  showToast('Order details are not available in this view yet.', 'info');
-}
 function openSupportChat() {
   const greeting = `Hello ${displayText(currentUserName)}, welcome to HomeTaste.`;
   if (!supportMessages.some(message => message.text === greeting)) {
@@ -5544,78 +4418,6 @@ function handleCookDishPhoto(input, source='gallery'){
       preview.innerHTML = value ? `<img src="${escapeAttr(safeImageSrc(value))}" alt="Selected dish photo">` : 'No dish photo selected';
     }
     showToast(value ? 'Dish photo added. It will appear under your dishes only.' : 'Dish photo removed', 'info');
-  });
-}
-function ensureLuxuryBecomeShell() {
-  const page = document.getElementById('page-become');
-  if (!page || page.dataset.luxuryReady === 'true') return;
-  page.dataset.luxuryReady = 'true';
-  page.innerHTML = `
-    <section class="become-lux-hero">
-      <div class="become-hero-art left"></div>
-      <div class="become-hero-copy">
-        <h1>Become a <span>Cook</span> in minutes</h1>
-        <p>Create your cook profile, add your first dish, upload photos, and wait for HomeTaste admin approval before your food appears publicly.</p>
-        <button class="luxury-primary-btn become-cta" type="button" onclick="document.getElementById('cookDishInput')?.focus();document.getElementById('cookCreateForm')?.scrollIntoView({behavior:'smooth',block:'start'});showToast('Start with your first dish. Your cook name is your account username.','info')">Create my cook profile <span>→</span></button>
-        <small>Your profile and dish will be reviewed by HomeTaste admin before going public.</small>
-      </div>
-      <div class="become-hero-art right"></div>
-    </section>
-    <section class="become-progress" aria-label="Cook onboarding steps">
-      ${[
-        ['1','Profile','Tell us about you'],
-        ['2','First Dish','Add your signature dish'],
-        ['3','Photos','Add delicious photos'],
-        ['4','Publish','Review and submit']
-      ].map((step, index) => `<article class="become-step ${index === 0 ? 'active' : ''}"><b>${step[0]}</b><div><strong>${step[1]}</strong><span>${step[2]}</span></div></article>`).join('')}
-    </section>
-    <form class="cook-form become-lux-form" id="cookCreateForm" onsubmit="event.preventDefault();createCookDemo();">
-      <section class="become-panel wide">
-        <div class="become-panel-title"><span>▣</span><div><h2>Cook Profile</h2><p>Share your details with us</p></div></div>
-        <div class="become-field-grid">
-          <label class="lux-field"><span>Phone / WhatsApp</span><input id="cookPhoneInput" class="cook-input" placeholder="+90 ..." required></label>
-          <label class="lux-field"><span>Location / City</span><input class="cook-input" value="${document.getElementById('cityLabel')?.dataset.city || countryDefaults[selectedCountry]?.city || 'Istanbul'}" readonly></label>
-          <label class="lux-field wide"><span>Short Bio</span><textarea id="cookBioInput" class="cook-input" rows="4" maxlength="300" placeholder="Tell customers what you cook and where your food is from."></textarea><small class="bio-count">0 / 300</small></label>
-          <div class="profile-photo-actions wide become-profile-actions">
-            <button class="photo-action luxury-photo-action" type="button" onclick="openProfilePicturePanel()">▧ Profile Photo<small>Use your existing account photo tools</small></button>
-            <button class="photo-action luxury-photo-action" type="button" onclick="openProfileCoverPanel()">▤ Background Photo<small>Optional cover image for your cook profile</small></button>
-          </div>
-        </div>
-      </section>
-      <section class="become-panel wide">
-        <div class="become-panel-title"><span>▥</span><div><h2>First Dish</h2><p>Add the dish customers will see after approval</p></div></div>
-        <div class="become-field-grid">
-          <label class="lux-field"><span>Dish Name</span><input id="cookDishInput" class="cook-input" placeholder="Koshari, Molokhia, Mahshi..." required></label>
-          <label class="lux-field"><span>Dish Price</span><input id="cookPriceInput" class="cook-input" type="number" min="1" placeholder="150" required></label>
-          <label class="lux-field"><span>Preparation Time</span><input id="cookPrepInput" class="cook-input" placeholder="45 minutes" required></label>
-          <label class="lux-field"><span>Country / Cuisine</span><input id="cookDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt" required></label>
-        </div>
-      </section>
-      <section class="become-panel wide">
-        <div class="become-panel-title"><span>▧</span><div><h2>Photos</h2><p>Upload a real photo of your first dish</p></div></div>
-        <div class="profile-photo-actions become-photo-actions">
-          <button class="photo-action luxury-photo-action" type="button" onclick="document.getElementById('cookDishCameraInput').click()">▣ Take Dish Photo<small>Open camera capture if supported</small></button>
-          <button class="photo-action luxury-photo-action" type="button" onclick="document.getElementById('cookDishGalleryInput').click()">▤ Upload Dish Photo<small>Choose JPG, PNG, or WebP</small></button>
-          <div class="photo-preview become-photo-preview" id="cookDishPhotoPreview">No dish photo selected yet<br><small>Your dish photo will appear here</small></div>
-        </div>
-        <input id="cookDishCameraInput" type="file" accept="image/*" capture="environment" hidden onchange="handleCookDishPhoto(this,'camera')">
-        <input id="cookDishGalleryInput" type="file" accept="image/*" hidden onchange="handleCookDishPhoto(this,'gallery')">
-      </section>
-      <section class="become-publish wide">
-        <label class="policy-confirm luxury-policy">
-          <input id="cookPolicyConfirm" type="checkbox" required>
-          <span>I confirm this is my own kitchen profile and I understand my profile and dishes require admin approval before they appear publicly.</span>
-        </label>
-        <div class="publish-actions">
-          <button class="btn-apply become-publish-btn" type="submit">Publish my dish <span>→</span></button>
-          <p><strong>Admin approval required before your dish goes live.</strong><br>We will review your profile and notify you via message.</p>
-        </div>
-      </section>
-    </form>
-    <div class="cook-dish-manager become-manager" id="myCookDishManager"></div>`;
-  document.getElementById('cookBioInput')?.addEventListener('input', event => {
-    const count = page.querySelector('.bio-count');
-    if (count) count.textContent = `${event.target.value.length} / 300`;
   });
 }
 async function createCookDemo(){
@@ -5790,77 +4592,6 @@ function toggleFaq(i) {
 }
 
 // ===== SETTINGS =====
-function ensureLuxurySettingsShell() {
-  const page = document.getElementById('page-settings');
-  if (!page || page.dataset.luxuryReady === 'settings') return;
-  const cook = getMyCook();
-  page.innerHTML = `
-    <div class="page-header luxury-page-header settings-lux-header">
-      <h1>Settings</h1>
-      <p>Manage your profile, account preferences, payments, and security.</p>
-    </div>
-    <div class="settings-lux-layout">
-      <section class="settings-profile-hero" id="settingsProfileCover">
-        <div class="settings-profile-shade"></div>
-        <div class="settings-profile-content">
-          <div class="settings-avatar lux-settings-avatar" id="settingsProfileAvatar"></div>
-          <div class="settings-profile-copy">
-            <h2 id="settingsProfileName">Your account</h2>
-            <p id="settingsProfileEmail">HomeTaste account</p>
-            <div id="settingsProfileRegion" class="settings-location">Selected country account</div>
-            <span class="settings-status-badge" id="settingsStatusBadge">Premium Member</span>
-          </div>
-        </div>
-        <div class="settings-profile-actions">
-          <button class="settings-link-btn" type="button" onclick="openProfilePicturePanel()">Change Profile Photo <span>→</span></button>
-          <button class="settings-link-btn" type="button" onclick="openProfileCoverPanel()">Change Background <span>→</span></button>
-        </div>
-      </section>
-      <div class="settings-dashboard-grid">
-        <section class="settings-lux-card">
-          <div class="settings-card-title"><span>▱</span><div><h2>Notifications</h2><p>Choose what HomeTaste sends you</p></div></div>
-          <div class="settings-list">
-            <div class="settings-lux-row"><span class="settings-ring">▤</span><div><strong>Order Updates</strong><small>Get notified about your order status</small></div><div class="toggle on" onclick="toggleSetting(this)"></div></div>
-            <div class="settings-lux-row"><span class="settings-ring">▥</span><div><strong>New Dishes</strong><small>Alerts when favorite cooks add new dishes</small></div><div class="toggle on" onclick="toggleSetting(this)"></div></div>
-            <div class="settings-lux-row"><span class="settings-ring">◌</span><div><strong>Online</strong><small>Switch on when you have free time to cook</small><small id="cookOnlineStatus">Offline</small></div><div class="toggle" id="cookOnlineToggle" onclick="toggleOnlineSetting(this)"></div></div>
-            <div class="settings-lux-row"><span class="settings-ring">▢</span><div><strong>Messages</strong><small>New message notifications</small></div><div class="toggle on" onclick="toggleSetting(this)"></div></div>
-          </div>
-        </section>
-        <section class="settings-lux-card">
-          <div class="settings-card-title"><span>▧</span><div><h2>Account</h2><p>Profile, cook tools, and session</p></div></div>
-          <div class="settings-action-list">
-            <button type="button" onclick="showPage('become',document.querySelector('[onclick*=become]'))"><span class="settings-ring">♨</span><strong id="settingsCookAction">${cook ? 'Cook Dashboard' : 'Become a Cook'}</strong><b>›</b></button>
-            <button type="button" onclick="openPasswordPanel()"><span class="settings-ring">▣</span><strong>Change Password</strong><b>›</b></button>
-            <button type="button" onclick="openPaymentPanel()"><span class="settings-ring">▭</span><strong>Manage Payment Methods</strong><b>›</b></button>
-            <button class="danger" type="button" onclick="settingsSignOut()"><span class="settings-ring">↪</span><strong>Sign Out</strong><b>›</b></button>
-          </div>
-        </section>
-        <section class="settings-lux-card">
-          <div class="settings-card-title"><span>▭</span><div><h2>Payment Methods</h2><p>Manage your saved payment methods</p></div><button class="settings-mini-btn" type="button" onclick="openPaymentPanel()">Manage <span>›</span></button></div>
-          <div class="settings-payment-card" id="settingsPaymentSummary"></div>
-        </section>
-        <section class="settings-lux-card">
-          <div class="settings-card-title"><span>◈</span><div><h2>Security</h2><p>Keep your account secure</p></div></div>
-          <div class="settings-lux-row"><span class="settings-ring">◇</span><div><strong>Two-factor authentication</strong><small>Add an extra layer of security to your account</small></div><button class="settings-mini-btn" type="button" onclick="showToast('Two-factor authentication is not available yet.', 'info')">Enable</button></div>
-        </section>
-        <section class="settings-lux-card">
-          <div class="settings-card-title"><span>◌</span><div><h2>Language / Preferences</h2><p>Website language and display settings</p></div></div>
-          <div class="settings-lux-row"><span class="settings-ring">◎</span><div><strong>Language</strong><small id="settingsLanguageLabel">${settingsLanguageName()}</small></div><button class="settings-mini-btn" type="button" onclick="document.getElementById('sidebarLang')?.click()">Change</button></div>
-        </section>
-      </div>
-    </div>`;
-  page.dataset.luxuryReady = 'settings';
-}
-function settingsSignOut() {
-  if (parent.logout) {
-    parent.logout();
-    return;
-  }
-  showToast('Use the top Sign out button to leave your account.', 'info');
-}
-function settingsLanguageName() {
-  return ({ EN: 'English', TR: 'Turkish', DE: 'German', AR: 'Arabic' })[selectedLanguage] || 'English';
-}
 function toggleSetting(el) {
   el.classList.toggle('on');
   showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
@@ -5937,43 +4668,23 @@ function setSavedProfileCover(value) {
   localStorage.setItem(userProfileCoverKey(), value);
 }
 function updateSettingsAccount() {
-  const settingsPage = document.getElementById('page-settings');
-  if (settingsPage?.classList.contains('active')) ensureLuxurySettingsShell();
   const name = document.getElementById('settingsProfileName');
-  const email = document.getElementById('settingsProfileEmail');
   const region = document.getElementById('settingsProfileRegion');
   const avatar = document.getElementById('settingsProfileAvatar');
   const heroAvatar = document.getElementById('heroProfileAvatar');
   const cover = document.getElementById('settingsProfileCover');
   const onlineToggle = document.getElementById('cookOnlineToggle');
   const onlineStatus = document.getElementById('cookOnlineStatus');
-  const statusBadge = document.getElementById('settingsStatusBadge');
-  const cookAction = document.getElementById('settingsCookAction');
-  const languageLabel = document.getElementById('settingsLanguageLabel');
-  const paymentSummary = document.getElementById('settingsPaymentSummary');
   const photo = getSavedProfilePicture();
   const coverPhoto = getSavedProfileCover();
   const cook = getMyCook();
-  const initial = String(currentUserName || 'U').trim().charAt(0).toUpperCase() || 'U';
   if (name) name.textContent = displayText(currentUserName || 'Your account');
-  if (email) email.textContent = displayText(currentUserEmail || 'HomeTaste account');
   if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
-  if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : `<span>${safeDisplayHtml(initial)}</span>`;
-  if (heroAvatar) heroAvatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : `<span>${safeDisplayHtml(initial)}</span>`;
-  if (statusBadge) statusBadge.textContent = cook ? (cook.online ? 'Cook · Online' : 'Cook · Offline') : 'Premium Member';
-  if (cookAction) cookAction.textContent = cook ? 'Cook Dashboard' : 'Become a Cook';
-  if (languageLabel) languageLabel.textContent = settingsLanguageName();
-  if (paymentSummary) {
-    const saved = getSavedPaymentMethods();
-    const label = saved[0] || 'Visa / Mastercard';
-    paymentSummary.innerHTML = `<div><strong>${safeDisplayHtml(label)}</strong><span>${saved.length ? `${saved.length} saved method${saved.length === 1 ? '' : 's'}` : 'Default methods available at checkout'}</span></div><em>Default</em>`;
-  }
+  if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : '👤';
+  if (heroAvatar) heroAvatar.innerHTML = photo ? `<img src="${escapeAttr(safeImageSrc(photo))}" alt="${escapeDisplayAttr(currentUserName)} profile picture">` : '👤';
   if (cover) {
-    const heroCover = cover.classList.contains('settings-profile-hero');
-    cover.style.backgroundImage = coverPhoto
-      ? `linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.24) 52%,rgba(0,0,0,.4)),url('${safeCssImageUrl(coverPhoto)}')`
-      : (heroCover ? `linear-gradient(90deg,rgba(0,0,0,.76),rgba(0,0,0,.36) 52%,rgba(0,0,0,.3)),url('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1400&q=75')` : '');
-    if (!heroCover) cover.textContent = coverPhoto ? '' : 'No background photo yet';
+    cover.style.backgroundImage = coverPhoto ? `url('${safeCssImageUrl(coverPhoto)}')` : '';
+    cover.textContent = coverPhoto ? '' : 'No background photo yet';
   }
   if (onlineToggle) onlineToggle.classList.toggle('on', Boolean(cook?.online));
   if (onlineStatus) {

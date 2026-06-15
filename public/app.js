@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-stitch-noir-4";
+const APP_BUILD = "20260612-final-audit-15";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -149,18 +149,18 @@ const appTranslations = {
     status_placed: "Bestellung aufgegeben", status_accepted: "Bestellung angenommen", status_preparing: "Wird gekocht", status_ready: "Vom Koch fertig", status_picked_up: "Fahrer hat abgeholt", status_out_for_delivery: "Unterwegs", status_near_you: "In deiner Nahe", status_delivered: "Geliefert", status_cancelled: "Storniert"
   },
   AR: {
-    role_owner: "Ù…Ø¯ÙŠØ±", role_customer: "Ø¹Ù…ÙŠÙ„", role_cook: "Ø·Ø§Ù‡", role_driver: "Ø³Ø§Ø¦Ù‚",
-    view: "Ø¹Ø±Ø¶", signedInAs: "Ù…Ø³Ø¬Ù„ Ø¨Ø§Ø³Ù…", signOut: "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬", languageChanged: "ØªÙ… ØªØºÙŠÙŠØ± Ø§Ù„Ù„ØºØ© Ø¥Ù„Ù‰", darkOn: "ØªÙ… ØªØ´ØºÙŠÙ„ Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„Ø¯Ø§ÙƒÙ†.", darkOff: "ØªÙ… ØªØ´ØºÙŠÙ„ Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„ÙØ§ØªØ­.",
-    changeLanguage: "ØªØºÙŠÙŠØ± Ù„ØºØ© Ø§Ù„Ù…ÙˆÙ‚Ø¹", darkMode: "Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„Ø¯Ø§ÙƒÙ†", selectAddress: "Ø§Ø®ØªØ± Ø¹Ù†ÙˆØ§Ù†Ùƒ", enterAddress: "Ø§Ø¯Ø®Ù„ Ù…Ø¯ÙŠÙ†Ø© Ø£Ùˆ Ø¹Ù†ÙˆØ§Ù†Ø§ Ø£ÙˆÙ„Ø§.", addressSaved: "ØªÙ… Ø­ÙØ¸ Ø§Ù„Ø¹Ù†ÙˆØ§Ù†.", locationUnavailable: "Ø§Ù„Ù…ÙˆÙ‚Ø¹ ØºÙŠØ± Ù…ØªØ§Ø­ ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ù…ØªØµÙØ­.", locationBlocked: "ØªÙ… Ø­Ø¸Ø± Ø¥Ø°Ù† Ø§Ù„Ù…ÙˆÙ‚Ø¹. Ø§ÙƒØªØ¨ Ù…Ù†Ø·Ù‚ØªÙƒ Ø¨Ø¯Ù„Ø§ Ù…Ù† Ø°Ù„Ùƒ.", locatingAddress: "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù†Ùƒ...", locationFound: "ØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ø¹Ù†ÙˆØ§Ù†.", currentLocation: "Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ø­Ø§Ù„ÙŠ", addressLookupFailed: "ØªØ¹Ø°Ø± Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ø³Ù… Ø§Ù„Ø´Ø§Ø±Ø¹. ÙŠÙ…ÙƒÙ†Ùƒ ÙƒØªØ§Ø¨Ø© Ø§Ù„Ø¹Ù†ÙˆØ§Ù†.",
-    nav_driver_dashboard: "Ù…Ø±ÙƒØ² Ø§Ù„Ø³Ø§Ø¦Ù‚", nav_driver_orders: "Ø§Ù„ØªÙˆØµÙŠÙ„Ø§Øª", nav_driver_chat: "Ø¯Ø±Ø¯Ø´Ø© Ø§Ù„Ø·Ù„Ø¨", nav_driver_settings: "Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ",
-    nav_dashboard: "Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…", nav_admin: "ØªØ­ÙƒÙ… Ø§Ù„Ù…Ø¯ÙŠØ±", nav_orders: "Ø§Ù„Ø·Ù„Ø¨Ø§Øª", nav_chat: "Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©", nav_settings: "Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ", nav_browse: "ØªØµÙØ­ Ø§Ù„Ø·Ø¹Ø§Ù…", nav_subscriptions: "Ø®Ø·Ø· Ø§Ù„ÙˆØ¬Ø¨Ø§Øª", nav_become: "ÙƒÙ† Ø·Ø§Ù‡ÙŠØ§", nav_cook: "Ø§Ø³ØªÙˆØ¯ÙŠÙˆ Ø§Ù„Ø·Ø§Ù‡ÙŠ",
-    auth_script: "Ù…Ø±Ø­Ø¨Ø§ Ø¨Ø¹ÙˆØ¯ØªÙƒ Ø¥Ù„Ù‰", auth_hero: "Ø³Ø¬Ù„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø§ÙƒØªØ´Ø§Ù ÙˆØ¬Ø¨Ø§Øª Ù…Ù†Ø²Ù„ÙŠØ© Ù„Ø°ÙŠØ°Ø© Ù…ØµÙ†ÙˆØ¹Ø© Ø¨Ø­Ø¨.", auth_secure: "ØªØ³Ø¬ÙŠÙ„<br>Ø¢Ù…Ù†", auth_trusted: "Ù…Ù†ØµØ©<br>Ù…ÙˆØ«ÙˆÙ‚Ø©", auth_cooks: "Ù…Ø¬ØªÙ…Ø¹<br>Ø·Ù‡Ø§Ø© Ø§Ù„Ù…Ù†Ø²Ù„",
-    signIn: "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„", signUp: "Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨", createAccount: "Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨", loginSubtitle: "Ø³Ø¬Ù„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¥Ù„Ù‰ Ø­Ø³Ø§Ø¨ HomeTaste", signupSubtitle: "Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨ HomeTaste", country: "Ø§Ù„Ø¯ÙˆÙ„Ø©", turkey: "ØªØ±ÙƒÙŠØ§", germany: "Ø£Ù„Ù…Ø§Ù†ÙŠØ§", fullName: "Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„", yourName: "Ø§Ø³Ù…Ùƒ", phone: "Ø§Ù„Ù‡Ø§ØªÙ", emailAddress: "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ", emailPlaceholder: "Ø§Ø¯Ø®Ù„ Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ", password: "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±", passwordPlaceholder: "Ø§Ø¯Ø®Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±", rememberMe: "ØªØ°ÙƒØ±Ù†ÙŠ", forgotPassword: "Ù†Ø³ÙŠØª ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±ØŸ", continueWith: "Ø£Ùˆ ØªØ§Ø¨Ø¹ Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù…", noAccount: "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ Ø­Ø³Ø§Ø¨ØŸ", hasAccount: "Ù„Ø¯ÙŠÙƒ Ø­Ø³Ø§Ø¨ Ø¨Ø§Ù„ÙØ¹Ù„ØŸ", passwordReset: "Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±", resetPlaceholder: "Ø¨Ø±ÙŠØ¯ Ø±Ø§Ø¨Ø· Ø§Ù„Ø¥Ø¹Ø§Ø¯Ø©", sendReset: "Ø¥Ø±Ø³Ø§Ù„ Ø±Ø§Ø¨Ø· Ø§Ù„Ø¥Ø¹Ø§Ø¯Ø©",
-    dashboardTitle: "Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…", dashboardOwnerSubtitle: "Ø¹Ø±Ø¶ ØªØ´ØºÙŠÙ„ ÙƒØ§Ù…Ù„ Ù„Ù„Ù…Ø¯ÙŠØ±.", dashboardSubtitle: "Ù…Ø³Ø§Ø­Ø© Ø¹Ù…Ù„ HomeTaste Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø©.", driverHubTitle: "Ù…Ø±ÙƒØ² Ø§Ù„Ø³Ø§Ø¦Ù‚", driverHubSubtitle: "Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ù…ØªØ§Ø­Ø© ÙˆØ§Ù„Ù…Ù„Ø§Ø­Ø© ÙˆØ§Ù„Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ù…Ø¨Ø§Ø´Ø± ÙˆØ­Ø§Ù„Ø© Ø§Ù„ØªÙˆØµÙŠÙ„ ÙˆØ§Ù„Ø£Ø±Ø¨Ø§Ø­ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©.", available: "Ù…ØªØ§Ø­", assigned: "Ù…Ø¹ÙŠÙ†", onRoad: "Ø¹Ù„Ù‰ Ø§Ù„Ø·Ø±ÙŠÙ‚", dailyEarning: "Ø§Ù„Ø£Ø±Ø¨Ø§Ø­ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©", availableOrders: "Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ù…ØªØ§Ø­Ø©", noAvailableOrders: "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª Ù…ØªØ§Ø­Ø© Ø¨Ø¹Ø¯.", yourDeliveries: "ØªÙˆØµÙŠÙ„Ø§ØªÙƒ", acceptToStart: "Ø§Ù‚Ø¨Ù„ Ø·Ù„Ø¨Ø§ Ù„Ø¨Ø¯Ø¡ Ø§Ù„ØªÙˆØµÙŠÙ„.",
-    dishes: "Ø§Ù„Ø£Ø·Ø¨Ø§Ù‚", cooks: "Ø§Ù„Ø·Ù‡Ø§Ø©", yourOrders: "Ø·Ù„Ø¨Ø§ØªÙƒ", orderValue: "Ù‚ÙŠÙ…Ø© Ø§Ù„Ø·Ù„Ø¨Ø§Øª", whatYouCanDo: "Ù…Ø§ ÙŠÙ…ÙƒÙ†Ùƒ ÙØ¹Ù„Ù‡", browseOrderFood: "ØªØµÙØ­ Ø§Ù„Ø·Ø¹Ø§Ù… ÙˆØ§Ø·Ù„Ø¨", trackOrders: "ØªØªØ¨Ø¹ Ø§Ù„Ø·Ù„Ø¨Ø§Øª", messageAroundOrders: "Ø±Ø§Ø³Ù„ Ø­ÙˆÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª", openAdmin: "Ø§ÙØªØ­ ØªØ­ÙƒÙ… Ø§Ù„Ù…Ø¯ÙŠØ±", openCookStudio: "Ø§ÙØªØ­ Ø§Ø³ØªÙˆØ¯ÙŠÙˆ Ø§Ù„Ø·Ø§Ù‡ÙŠ", applyAsCook: "Ù‚Ø¯Ù… ÙƒØ·Ø§Ù‡", featuredDishes: "Ø£Ø·Ø¨Ø§Ù‚ Ù…Ù…ÙŠØ²Ø©", noFeatured: "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø·Ø¨Ø§Ù‚ Ù…Ù…ÙŠØ²Ø© Ø¨Ø¹Ø¯.",
-    profileTitle: "Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ", profileSubtitle: "ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙˆÙ…Ø³ØªÙˆÙ‰ Ø§Ù„ÙˆØµÙˆÙ„ Ø§Ù„Ø­Ø§Ù„ÙŠ.", ordersTitle: "Ø§Ù„Ø·Ù„Ø¨Ø§Øª", deliveriesTitle: "Ø§Ù„ØªÙˆØµÙŠÙ„Ø§Øª", browseTitle: "ØªØµÙØ­ Ø§Ù„Ø·Ø¹Ø§Ù…", chatTitle: "Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©", cookStudioTitle: "Ø§Ø³ØªÙˆØ¯ÙŠÙˆ Ø§Ù„Ø·Ø§Ù‡ÙŠ", adminTitle: "ØªØ­ÙƒÙ… Ø§Ù„Ù…Ø¯ÙŠØ±", becomeCookTitle: "ÙƒÙ† Ø·Ø§Ù‡ÙŠØ§", subscriptionsTitle: "Ù„ÙˆØ­Ø© Ø®Ø·Ø· Ø§Ù„ÙˆØ¬Ø¨Ø§Øª",
-    cart: "Ø§Ù„Ø³Ù„Ø©", add: "Ø¥Ø¶Ø§ÙØ©", subscribe: "Ø§Ø´ØªØ±Ùƒ", noOrders: "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª Ø¨Ø¹Ø¯.", status: "Ø§Ù„Ø­Ø§Ù„Ø©", actions: "Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", customer: "Ø§Ù„Ø¹Ù…ÙŠÙ„", driver: "Ø§Ù„Ø³Ø§Ø¦Ù‚", total: "Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ", order: "Ø§Ù„Ø·Ù„Ø¨", items: "Ø§Ù„Ø¹Ù†Ø§ØµØ±", openChat: "Ø§ÙØªØ­ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©", chat: "Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©",
-    status_placed: "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø·Ù„Ø¨", status_accepted: "ØªÙ… Ù‚Ø¨ÙˆÙ„ Ø§Ù„Ø·Ù„Ø¨", status_preparing: "Ù‚ÙŠØ¯ Ø§Ù„Ø·Ø¨Ø®", status_ready: "Ø§Ù†ØªÙ‡Ù‰ Ø§Ù„Ø·Ø§Ù‡ÙŠ", status_picked_up: "Ø§Ø³ØªÙ„Ù… Ø§Ù„Ø³Ø§Ø¦Ù‚", status_out_for_delivery: "ÙÙŠ Ø§Ù„Ø·Ø±ÙŠÙ‚", status_near_you: "Ù‚Ø±ÙŠØ¨ Ù…Ù†Ùƒ", status_delivered: "ØªÙ… Ø§Ù„ØªÙˆØµÙŠÙ„", status_cancelled: "Ù…Ù„ØºÙŠ"
+    role_owner: "مدير", role_customer: "عميل", role_cook: "طاه", role_driver: "سائق",
+    view: "عرض", signedInAs: "مسجل باسم", signOut: "تسجيل الخروج", languageChanged: "تم تغيير اللغة إلى", darkOn: "تم تشغيل الوضع الداكن.", darkOff: "تم تشغيل الوضع الفاتح.",
+    changeLanguage: "تغيير لغة الموقع", darkMode: "الوضع الداكن", selectAddress: "اختر عنوانك", enterAddress: "ادخل مدينة أو عنوانا أولا.", addressSaved: "تم حفظ العنوان.", locationUnavailable: "الموقع غير متاح في هذا المتصفح.", locationBlocked: "تم حظر إذن الموقع. اكتب منطقتك بدلا من ذلك.", locatingAddress: "جاري العثور على عنوانك...", locationFound: "تم العثور على العنوان.", currentLocation: "الموقع الحالي", addressLookupFailed: "تعذر العثور على اسم الشارع. يمكنك كتابة العنوان.",
+    nav_driver_dashboard: "مركز السائق", nav_driver_orders: "التوصيلات", nav_driver_chat: "دردشة الطلب", nav_driver_settings: "الملف الشخصي",
+    nav_dashboard: "لوحة التحكم", nav_admin: "تحكم المدير", nav_orders: "الطلبات", nav_chat: "الدردشة", nav_settings: "الملف الشخصي", nav_browse: "تصفح الطعام", nav_subscriptions: "خطط الوجبات", nav_become: "كن طاهيا", nav_cook: "استوديو الطاهي",
+    auth_script: "مرحبا بعودتك إلى", auth_hero: "سجل الدخول لمتابعة اكتشاف وجبات منزلية لذيذة مصنوعة بحب.", auth_secure: "تسجيل<br>آمن", auth_trusted: "منصة<br>موثوقة", auth_cooks: "مجتمع<br>طهاة المنزل",
+    signIn: "تسجيل الدخول", signUp: "إنشاء حساب", createAccount: "إنشاء حساب", loginSubtitle: "سجل الدخول إلى حساب HomeTaste", signupSubtitle: "أنشئ حساب HomeTaste", country: "الدولة", turkey: "تركيا", germany: "ألمانيا", fullName: "الاسم الكامل", yourName: "اسمك", phone: "الهاتف", emailAddress: "البريد الإلكتروني", emailPlaceholder: "ادخل بريدك الإلكتروني", password: "كلمة المرور", passwordPlaceholder: "ادخل كلمة المرور", rememberMe: "تذكرني", forgotPassword: "نسيت كلمة المرور؟", continueWith: "أو تابع باستخدام", noAccount: "ليس لديك حساب؟", hasAccount: "لديك حساب بالفعل؟", passwordReset: "إعادة تعيين كلمة المرور", resetPlaceholder: "بريد رابط الإعادة", sendReset: "إرسال رابط الإعادة",
+    dashboardTitle: "لوحة التحكم", dashboardOwnerSubtitle: "عرض تشغيل كامل للمدير.", dashboardSubtitle: "مساحة عمل HomeTaste المباشرة.", driverHubTitle: "مركز السائق", driverHubSubtitle: "الطلبات المتاحة والملاحة والموقع المباشر وحالة التوصيل والأرباح اليومية.", available: "متاح", assigned: "معين", onRoad: "على الطريق", dailyEarning: "الأرباح اليومية", availableOrders: "الطلبات المتاحة", noAvailableOrders: "لا توجد طلبات متاحة بعد.", yourDeliveries: "توصيلاتك", acceptToStart: "اقبل طلبا لبدء التوصيل.",
+    dishes: "الأطباق", cooks: "الطهاة", yourOrders: "طلباتك", orderValue: "قيمة الطلبات", whatYouCanDo: "ما يمكنك فعله", browseOrderFood: "تصفح الطعام واطلب", trackOrders: "تتبع الطلبات", messageAroundOrders: "راسل حول الطلبات", openAdmin: "افتح تحكم المدير", openCookStudio: "افتح استوديو الطاهي", applyAsCook: "قدم كطاه", featuredDishes: "أطباق مميزة", noFeatured: "لا توجد أطباق مميزة بعد.",
+    profileTitle: "الملف الشخصي", profileSubtitle: "تفاصيل الحساب ومستوى الوصول الحالي.", ordersTitle: "الطلبات", deliveriesTitle: "التوصيلات", browseTitle: "تصفح الطعام", chatTitle: "الدردشة", cookStudioTitle: "استوديو الطاهي", adminTitle: "تحكم المدير", becomeCookTitle: "كن طاهيا", subscriptionsTitle: "لوحة خطط الوجبات",
+    cart: "السلة", add: "إضافة", subscribe: "اشترك", noOrders: "لا توجد طلبات بعد.", status: "الحالة", actions: "الإجراءات", customer: "العميل", driver: "السائق", total: "الإجمالي", order: "الطلب", items: "العناصر", openChat: "افتح الدردشة", chat: "الدردشة",
+    status_placed: "تم إنشاء الطلب", status_accepted: "تم قبول الطلب", status_preparing: "قيد الطبخ", status_ready: "انتهى الطاهي", status_picked_up: "استلم السائق", status_out_for_delivery: "في الطريق", status_near_you: "قريب منك", status_delivered: "تم التوصيل", status_cancelled: "ملغي"
   }
 };
 
@@ -343,16 +343,6 @@ async function handleMarketplaceMessage(event) {
     }
     return;
   }
-  if (event.data.action === "market-favorites") {
-    try {
-      state = await api("/api/favorites", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
-      reply({ action: "market-sync", ok: true, state });
-      updateRolePanelVisibility();
-    } catch (err) {
-      reply({ action: "market-error", error: err.message });
-    }
-    return;
-  }
   if (event.data.action === "market-message") {
     try {
       state = await api("/api/messages", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
@@ -421,7 +411,7 @@ function setAppLanguage(language) {
 
 function refreshDarkToggleButtons() {
   document.querySelectorAll("#darkToggle").forEach((button) => {
-    button.textContent = appDarkMode ? "ðŸŒ™" : "â˜€";
+    button.textContent = appDarkMode ? "🌙" : "☀";
     button.setAttribute("aria-label", t("darkMode"));
     button.setAttribute("title", t("darkMode"));
   });
@@ -439,7 +429,7 @@ function toggleDarkMode() {
 function languageMenuHtml() {
   return `
     <div class="language-control">
-      <button class="icon-action" id="languageToggle" type="button" aria-label="${t("changeLanguage")}" title="${t("changeLanguage")}">ðŸŒ</button>
+      <button class="icon-action" id="languageToggle" type="button" aria-label="${t("changeLanguage")}" title="${t("changeLanguage")}">🌐</button>
       <div class="language-menu" id="languageMenu">
         ${Object.entries(languageMeta).map(([code, meta]) => `<button type="button" data-language="${code}">${meta.label}</button>`).join("")}
       </div>
@@ -470,8 +460,8 @@ function locationOverlay() {
         <div class="address-box">
           <label>${t("enterStreet", "Enter your street address")}</label>
           <input id="locationInput" placeholder="${t("streetPostal", "Street, Postal Code")}">
-          <button class="locate-me" id="useBrowserLocation" type="button"><span>â—Ž</span> ${t("locateMe", "Locate me")}</button>
-          <button class="address-submit" id="searchLocation" type="button">â†’</button>
+          <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> ${t("locateMe", "Locate me")}</button>
+          <button class="address-submit" id="searchLocation" type="button">→</button>
         </div>
         <h3 class="popular-title">${t("popularLocations", "Popular locations")}</h3>
         <div class="popular-locations">
@@ -645,7 +635,7 @@ function setLocateButtonLoading(loading) {
   const button = document.querySelector("#useBrowserLocation");
   if (!button) return;
   button.disabled = loading;
-  button.innerHTML = `<span>â—Ž</span> ${loading ? t("locatingAddress") : t("locateMe", "Locate me")}`;
+  button.innerHTML = `<span>◎</span> ${loading ? t("locatingAddress") : t("locateMe", "Locate me")}`;
 }
 
 function useBrowserLocation() {
@@ -1655,116 +1645,95 @@ function renderAuth(error = "") {
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
       <circle cx="12" cy="12" r="3"></circle>
     </svg>`;
-  const lockIcon = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="10" width="16" height="10" rx="2"></rect>
-      <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-    </svg>`;
-  const userIcon = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="8" r="4"></circle>
-      <path d="M4 21a8 8 0 0 1 16 0"></path>
-    </svg>`;
-  const phoneIcon = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6.4 6.4l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z"></path>
-    </svg>`;
-  const emailIcon = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-      <path d="m3 7 9 6 9-6"></path>
-    </svg>`;
-  const googleColorIcon = `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5Z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7Z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.9 26.7 36 24 36c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 39.6 16.2 44 24 44Z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C39.9 36.1 44 30.6 44 24c0-1.3-.1-2.3-.4-3.5Z"/></svg>`;
   app.innerHTML = `
     <main class="auth-wrap">
-      <section class="auth-frame">
-        <header class="auth-frame-top">
-          <div class="auth-brand">
-            <div class="chef-mark">${chefIcon}</div>
-            <strong>Home<span>Taste</span></strong>
-          </div>
-          <div class="auth-nav-actions">
-            <div class="auth-language-tabs" aria-label="${t("changeLanguage")}">
-              ${["EN", "TR", "AR"].map((code) => `<button type="button" data-language="${code}" class="${appLanguage === code ? "active" : ""}">${code}</button>`).join("")}
-            </div>
-            <button class="auth-nav-link ${mode === "login" ? "active" : ""}" type="button" id="showLogin">${t("signIn")}</button>
-            <button class="auth-register-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">Sign Up</button>
-          </div>
-        </header>
-        <div class="auth-frame-body">
-          <section class="auth-hero">
-            <div class="auth-hero-copy">
-              <p class="script-line">GLOBAL HOMEMADE FOOD</p>
-              <h1>Authentic meals, cinematic taste.</h1>
-              <p>Discover real home cooks through a premium food marketplace built for trust.</p>
-            </div>
-          </section>
-          <section class="auth-card">
-            <div class="auth-doodle" aria-hidden="true">*</div>
-            <div class="mobile-auth-logo">
-              <div class="chef-badge">${chefIcon}</div>
-              <strong>Home<span>Taste</span></strong>
-            </div>
-            <p class="auth-kicker">Hello!</p>
-            <h2>${isLogin ? "Welcome back" : "Create your account"}</h2>
-            <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
-            ${error ? `<div class="notice error">${error}</div>` : ""}
-            <form class="form" id="authForm">
-              <input type="hidden" name="country" value="${countryValue}">
-              ${mode === "signup" && countryValue === "TR" ? `<input type="hidden" name="nationalId" value="11111111111">` : ""}
-              ${mode === "signup" ? `
-                <div class="field auth-input-field"><label>${t("fullName")}</label><span class="auth-field-icon">${userIcon}</span><input class="input" name="name" placeholder="${t("yourName")}"></div>
-                <div class="field auth-input-field"><label>${t("phone")}</label><span class="auth-field-icon">${phoneIcon}</span><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
-              ` : ""}
-              <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">${emailIcon}</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
-              <div class="field auth-input-field password-field">
-                <label>${t("password")}</label>
-                <span class="auth-field-icon">${lockIcon}</span>
-                <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="" required>
-                <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
-              </div>
-              ${isLogin ? `
-                <div class="auth-row">
-                  <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email on this device</span></label>
-                  <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
-                </div>
-                ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
-              ` : ""}
-              <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span></button>
-            </form>
-            <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
-            <div class="oauth-grid">
-              <button class="button secondary oauth-button" type="button" data-oauth="google"><b class="g-icon">${googleColorIcon}</b><span>Continue with Google</span></button>
-            </div>
-            <button class="auth-mode-link" type="button" id="switchMode">
-              ${isLogin ? "Don't have an account?" : t("hasAccount")} <strong>${isLogin ? "Sign Up" : t("signIn")}</strong>
-            </button>
-            <form class="form mini-form" id="resetRequestForm">
-              <div class="field"><label>${t("passwordReset")}</label><input class="input" type="email" name="email" placeholder="${t("resetPlaceholder")}"></div>
-              <button class="button secondary" type="submit">${t("sendReset")}</button>
-              <div class="reset-result" id="resetResult" aria-live="polite"></div>
-            </form>
-          </section>
+      <section class="auth-hero">
+        <div class="auth-brand">
+          <div class="chef-mark">${chefIcon}</div>
+          <strong>Home<span>Taste</span></strong>
         </div>
-        <div class="auth-info-strip">
-          <span>Secure login</span>
-          <span>Trusted home cooks</span>
-          <span>Global homemade dishes</span>
-          <span>Private support</span>
+        <div class="auth-hero-copy">
+          <p class="script-line">Welcome Back to</p>
+          <h1>Home<span>Taste</span></h1>
+          <div class="chef-divider"><span></span><b>${chefIcon}</b><span></span></div>
+          <p>Sign in to continue discovering delicious homemade meals made with love.</p>
         </div>
+        <div class="auth-trust">
+          <div><b>♙</b><span>Secure<br>Login</span></div>
+          <div><b>♡</b><span>Trusted<br>Platform</span></div>
+          <div><b>♚</b><span>Home Cooks<br>Community</span></div>
+        </div>
+      </section>
+      <section class="auth-card">
+        <div class="auth-doodle" aria-hidden="true">✧ ⌂ ✧</div>
+        <div class="auth-tools">
+          ${languageMenuHtml()}
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+        </div>
+        <div class="auth-switch">
+          <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">${t("signIn")}</button>
+          <button class="auth-switch-btn ${mode === "signup" ? "active" : ""}" type="button" id="showSignup">${t("createAccount")}</button>
+        </div>
+        <div class="mobile-auth-logo">
+          <div class="chef-badge">${chefIcon}</div>
+          <strong>Home<span>Taste</span></strong>
+        </div>
+        <h2>${isLogin ? t("signIn") : t("signUp")}</h2>
+        <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
+        ${error ? `<div class="notice error">${error}</div>` : ""}
+        <form class="form" id="authForm">
+          <input type="hidden" name="country" value="${countryValue}">
+          ${mode === "signup" ? `
+            ${countryValue === "TR" ? `<div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" pattern="\\d{11}" maxlength="11" placeholder="11 digit T.C. Kimlik" required></div>` : ""}
+            <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
+            <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
+          ` : ""}
+          <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
+          <div class="field auth-input-field password-field">
+            <label>${t("password")}</label>
+            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="" required>
+            <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
+          </div>
+          ${isLogin ? `
+            <div class="auth-row">
+              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email on this device</span></label>
+              <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
+            </div>
+            ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
+          ` : ""}
+          <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span><b>→</b></button>
+        </form>
+        <div class="auth-separator"><span></span><small>${t("continueWith")}</small><span></span></div>
+        <div class="oauth-grid">
+          <button class="button secondary oauth-button" type="button" data-oauth="google"><b>G</b><span>Google</span></button>
+        </div>
+        <button class="auth-mode-link" type="button" id="switchMode">
+          ${isLogin ? t("noAccount") : t("hasAccount")} <strong>${isLogin ? t("signUp") : t("signIn")}</strong> <span>→</span>
+        </button>
+        <form class="form mini-form" id="resetRequestForm">
+          <div class="field"><label>${t("passwordReset")}</label><input class="input" type="email" name="email" placeholder="${t("resetPlaceholder")}"></div>
+          <button class="button secondary" type="submit">${t("sendReset")}</button>
+          <div class="reset-result" id="resetResult" aria-live="polite"></div>
+        </form>
       </section>
     </main>
   `;
 
+  document.querySelector(".script-line").textContent = t("auth_script");
+  document.querySelector(".auth-hero-copy p:last-child").textContent = t("auth_hero");
+  const trust = document.querySelectorAll(".auth-trust span");
+  if (trust[0]) trust[0].innerHTML = t("auth_secure");
+  if (trust[1]) trust[1].innerHTML = t("auth_trusted");
+  if (trust[2]) trust[2].innerHTML = t("auth_cooks");
   bindPreferenceControls();
-  document.querySelector("#showLogin")?.addEventListener("click", () => {
+  document.querySelector("#showLogin").onclick = () => {
     mode = "login";
     renderAuth();
-  });
-  document.querySelector("#showSignup")?.addEventListener("click", () => {
+  };
+  document.querySelector("#showSignup").onclick = () => {
     mode = "signup";
     renderAuth();
-  });
+  };
   document.querySelector("#switchMode").onclick = () => {
     mode = mode === "login" ? "signup" : "login";
     renderAuth();
@@ -1894,7 +1863,7 @@ function renderApp() {
           ${navItems().map(([key, label]) => `<button class="${page === key ? "active" : ""}" data-page="${key}">${label}</button>`).join("")}
         </nav>
         <div class="shell-preferences">
-          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "ðŸŒ™" : "â˜€"}</button>
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
         </div>
         <div class="sidebar-footer">
           ${t("signedInAs")} <strong>${state.user.name}</strong><br>
@@ -2376,8 +2345,8 @@ function driverOrderCard(order) {
         <span class="price">${money(order.deliveryFee || 0)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
-      <div class="meta">${t("pickup")}: ${cookName(order.cookId)} Â· ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
-      <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min Â· ${route.distanceKm || "-"} km Â· ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
+      <div class="meta">${t("pickup")}: ${cookName(order.cookId)} · ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
+      <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
       ${routeMap(order)}
       <div class="toolbar" style="margin:10px 0 0">
         ${!assigned ? `<button class="button small" data-driver-accept="${order.id}">${t("acceptOrder")}</button>` : orderActionButtons(order)}
@@ -2399,7 +2368,7 @@ function routeMap(order) {
       <span class="map-dot pickup"></span>
       <span class="map-line"></span>
       <span class="map-dot dropoff"></span>
-    <strong>${route.provider || "openstreetmap"} Â· ${route.distanceKm || "-"} km Â· ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
+    <strong>${route.provider || "openstreetmap"} · ${route.distanceKm || "-"} km · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
     </div>
   `;
 }
@@ -3356,9 +3325,6 @@ async function handleAuthLinkParams() {
   const reset = params.get("reset");
   const authToken = params.get("authToken");
   const authError = params.get("authError");
-  const authModeParam = params.get("authmode");
-  if (authModeParam === "signup") mode = "signup";
-  else if (authModeParam === "login") mode = "login";
   try {
     if (authError) {
       toast(authError, true);

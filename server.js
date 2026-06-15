@@ -3122,10 +3122,7 @@ async function staticFile(req, res, pathname) {
       ".svg": "image/svg+xml"
     }[ext] || "application/octet-stream";
     const data = await readFile(filePath);
-    // HTML must always revalidate so version-busted asset URLs (app.js?v=, styles.css?v=)
-    // actually reach the browser; versioned static assets can be cached safely.
-    const cacheControl = ext === ".html" ? "no-cache" : "public, max-age=86400";
-    res.writeHead(200, { "content-type": type, "cache-control": cacheControl });
+    res.writeHead(200, { "content-type": type });
     res.end(data);
   } catch {
     const wantsHtml = !path.extname(clean) || path.extname(clean) === ".html";
