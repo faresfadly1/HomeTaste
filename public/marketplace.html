@@ -10,25 +10,25 @@
 /* ======== RESET & BASE ======== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0e0e0e;
-  --bg2:#161616;
-  --bg3:#1f1f1f;
-  --bg4:#272727;
-  --card:#1a1a1a;
-  --orange:#f97316;
-  --orange-hover:#ea6c0a;
-  --orange-light:rgba(249,115,22,0.12);
-  --orange-glow:rgba(249,115,22,0.3);
-  --text:#f0f0f0;
-  --text2:#a8a8a8;
-  --text3:#6b6b6b;
-  --border:#2a2a2a;
-  --border2:#333;
+  --bg:#fff8ef;
+  --bg2:#ffffff;
+  --bg3:#fff3e6;
+  --bg4:#f6eadc;
+  --card:#ffffff;
+  --orange:#ff6a1a;
+  --orange-hover:#f25c0b;
+  --orange-light:rgba(255,106,26,.12);
+  --orange-glow:rgba(255,106,26,.24);
+  --text:#211914;
+  --text2:#6f6257;
+  --text3:#9a8d80;
+  --border:#eadccb;
+  --border2:#decfbd;
   --sidebar:240px;
   --cart:280px;
   --radius:12px;
   --radius-sm:8px;
-  --shadow:0 4px 24px rgba(0,0,0,0.5);
+  --shadow:0 10px 30px rgba(89,55,28,.10);
   --transition:0.25s ease;
 }
 html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}
@@ -44,17 +44,38 @@ button,input,select,textarea{min-width:0}
 button{touch-action:manipulation}
 img,svg,video,iframe{max-width:100%}
 body.light-mode{
-  --bg:#f8f5f0;
+  --bg:#fff8ef;
   --bg2:#ffffff;
-  --bg3:#f0ebe4;
-  --bg4:#e8ded2;
+  --bg3:#fff3e6;
+  --bg4:#f6eadc;
   --card:#ffffff;
-  --text:#171411;
-  --text2:#665b51;
-  --text3:#8a7d71;
-  --border:#ded6cb;
-  --border2:#cabfaf;
-  --shadow:0 4px 24px rgba(42,30,18,0.12);
+  --orange:#ff6a1a;
+  --orange-hover:#f25c0b;
+  --orange-light:rgba(255,106,26,.12);
+  --orange-glow:rgba(255,106,26,.24);
+  --text:#211914;
+  --text2:#6f6257;
+  --text3:#9a8d80;
+  --border:#eadccb;
+  --border2:#decfbd;
+  --shadow:0 10px 30px rgba(89,55,28,.10);
+}
+body.dark-mode{
+  --bg:#0e0e0e;
+  --bg2:#161616;
+  --bg3:#1f1f1f;
+  --bg4:#272727;
+  --card:#1a1a1a;
+  --orange:#f97316;
+  --orange-hover:#ea6c0a;
+  --orange-light:rgba(249,115,22,0.12);
+  --orange-glow:rgba(249,115,22,0.3);
+  --text:#f0f0f0;
+  --text2:#a8a8a8;
+  --text3:#6b6b6b;
+  --border:#2a2a2a;
+  --border2:#333;
+  --shadow:0 4px 24px rgba(0,0,0,0.5);
 }
 h1,h2,h3,h4{font-family:'Playfair Display',serif}
 a{text-decoration:none;color:inherit}
@@ -484,7 +505,7 @@ ul{list-style:none}
 .cook-card-img{
   width:100%;height:160px;object-fit:cover;
   position:relative;overflow:hidden;
-  background:var(--bg3);
+  background:linear-gradient(135deg,#fff8ef,#fff3e6);
 }
 .cook-card-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.4s ease}
 .cook-card:hover .cook-card-img img{transform:scale(1.07)}
@@ -502,13 +523,15 @@ ul{list-style:none}
 .cook-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .cook-avatar{
   width:32px;height:32px;border-radius:50%;
-  object-fit:cover;background:var(--bg3);
+  object-fit:cover;background:linear-gradient(135deg,#fff8ef,#fff0df);
   border:2px solid var(--border2);
-  font-size:14px;display:grid;place-items:center;
+  color:var(--orange);font-size:12px;font-weight:900;
+  display:grid;place-items:center;position:relative;
   overflow:hidden;
 }
-.cook-avatar img{width:100%;height:100%;object-fit:cover}
-.cook-name{font-size:13px;font-weight:600}
+.cook-avatar img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1;background:#fff8ef}
+.avatar-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--orange);font-weight:900}
+.cook-name{font-size:13px;font-weight:600;min-width:0}
 .cook-cuisine{font-size:11px;color:var(--orange);font-weight:500}
 .cook-verified{
   width:16px;height:16px;background:var(--orange);
@@ -528,8 +551,9 @@ ul{list-style:none}
   display:flex;align-items:center;justify-content:space-between;
   margin-top:8px;padding-top:8px;
   border-top:1px solid var(--border);
+  min-width:0;
 }
-.cook-dish{font-size:13px;font-weight:600}
+.cook-dish{font-size:13px;font-weight:600;min-width:0}
 .cook-price{font-size:14px;font-weight:700;color:var(--orange)}
 
 /* How it works */
@@ -963,10 +987,11 @@ ul{list-style:none}
 }
 .modal-cook-avatar{
   width:44px;height:44px;border-radius:50%;
-  background:var(--bg4);font-size:20px;display:grid;place-items:center;
-  overflow:hidden;
+  background:linear-gradient(135deg,#fff8ef,#fff0df);font-size:14px;
+  color:var(--orange);font-weight:900;display:grid;place-items:center;
+  overflow:hidden;position:relative;
 }
-.modal-cook-avatar img{width:100%;height:100%;object-fit:cover}
+.modal-cook-avatar img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1;background:#fff8ef}
 .modal-cook-info h4{font-size:14px;font-weight:700}
 .modal-cook-info p{font-size:12px;color:var(--text3)}
 .modal-footer{display:flex;align-items:center;justify-content:space-between}
@@ -1132,12 +1157,14 @@ ul{list-style:none}
 
 /* ======== COOK PROFILE PAGE ======== */
 .cook-profile-hero{
-  height:220px;background:linear-gradient(135deg,#1a0a00,#0e0e0e);
+  height:220px;background:linear-gradient(135deg,#fff8ef,#fff3e6);
   position:relative;overflow:hidden;
 }
 .cook-profile-hero-bg{
-  position:absolute;inset:0;opacity:0.2;
-  background:url('https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=1200&q=60') center/cover;
+  position:absolute;inset:0;opacity:0.38;
+  background:linear-gradient(135deg,#fff8ef,#fff3e6);
+  background-position:center;
+  background-size:cover;
 }
 .cook-profile-info{
   position:relative;z-index:2;padding:32px;
@@ -1146,11 +1173,12 @@ ul{list-style:none}
 .cook-profile-avatar{
   width:90px;height:90px;border-radius:50%;
   border:4px solid var(--orange);
-  background:var(--bg3);font-size:36px;
+  background:linear-gradient(135deg,#fff8ef,#fff0df);font-size:28px;
+  color:var(--orange);font-weight:900;
   display:grid;place-items:center;flex-shrink:0;
-  overflow:hidden;
+  overflow:hidden;position:relative;
 }
-.cook-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.cook-profile-avatar img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1;background:#fff8ef}
 .cook-profile-details h1{font-size:26px;font-weight:900;margin-bottom:4px}
 .cook-profile-details p{font-size:14px;color:var(--text2)}
 .cook-profile-body{padding:24px 32px}
@@ -1194,8 +1222,10 @@ ul{list-style:none}
 /* ======== EMPTY STATE ======== */
 .empty-state{
   text-align:center;padding:64px 32px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:18px;color:var(--text);
 }
-.empty-icon{font-size:56px;margin-bottom:16px;opacity:0.5}
+.empty-icon{font-size:56px;margin-bottom:16px;color:var(--orange);opacity:0.85}
 .empty-state h3{font-size:20px;font-weight:700;margin-bottom:8px;font-family:'DM Sans',sans-serif}
 .empty-state p{font-size:14px;color:var(--text3)}
 
@@ -1496,13 +1526,27 @@ ul{list-style:none}
   .fav-btn{width:28px;height:28px;font-size:13px;top:8px;right:8px}
   .cook-card-body,.dish-body{padding:10px;min-width:0}
   .cook-meta{gap:7px;margin-bottom:5px}
+  .cook-meta > div:last-child{min-width:0}
   .cook-avatar{width:26px;height:26px;font-size:12px}
   .cook-name{font-size:13px;line-height:1.15}
+  .cook-name,
+  .cook-dish{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
   .cook-cuisine,.cook-location,.cook-rating{font-size:10.5px}
+  .cook-cuisine{color:var(--orange);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cook-location{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cook-rating{flex-shrink:0;white-space:nowrap}
   .info-pill{font-size:9.5px;padding:3px 6px;margin-top:4px}
-  .cook-footer{gap:8px;margin-top:6px;padding-top:6px}
+  .cook-footer{gap:8px;margin-top:6px;padding-top:6px;min-width:0}
+  .cook-footer > div:first-child{min-width:0;flex:1}
+  .cook-footer > div:last-child{flex-shrink:0;min-width:0}
   .cook-dish{font-size:12px}
   .cook-price{font-size:13px;white-space:nowrap}
+  .cook-avatar img,
+  .cook-card-img img{width:100%;height:100%;object-fit:cover}
   .dish-tag{font-size:9px;padding:3px 7px;top:8px;left:8px}
   .dish-body h3{font-size:14px}
   .dish-body p{font-size:11px;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -1510,7 +1554,7 @@ ul{list-style:none}
   .dish-footer{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
   .dish-cook{font-size:10.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dish-price{font-size:14px}
-  .btn-add{padding:7px 10px;font-size:11px;min-height:34px}
+  .btn-add{padding:7px 9px;font-size:11px;min-height:34px;white-space:nowrap}
   .page-header{padding:18px 10px 12px}
   .filter-bar{display:grid;grid-template-columns:1fr;padding:0 10px 16px;gap:8px}
   .filter-select,.filter-bar .chip{width:100%;min-height:38px;font-size:13px}
@@ -1606,14 +1650,14 @@ ul{list-style:none}
   .driver-card{border-radius:18px;box-shadow:0 8px 24px rgba(69,42,21,.08)}
   .profile-mobile-topbar{
     display:flex;position:absolute;top:10px;left:10px;right:10px;z-index:4;
-    justify-content:space-between;align-items:center;color:#fff;
+    justify-content:space-between;align-items:center;color:var(--orange);
   }
   .profile-mobile-topbar button{
-    width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.28);
+    width:34px;height:34px;border-radius:50%;background:rgba(255,248,239,.82);
     backdrop-filter:blur(8px);display:grid;place-items:center;font-size:20px;
   }
   .cook-profile-hero{
-    min-height:320px;height:320px;border-radius:0 0 26px 26px;background:#21170f;overflow:visible;
+    min-height:320px;height:320px;border-radius:0 0 26px 26px;background:linear-gradient(135deg,#fff8ef,#fff3e6);overflow:visible;
   }
   .cook-profile-hero-bg{opacity:1;filter:none;background-size:cover;background-position:center;border-radius:0 0 26px 26px;overflow:hidden}
   .cook-profile-hero::after{
@@ -2669,14 +2713,25 @@ const countryDefaults = {
   TR: { city: 'Istanbul', cities: ['Istanbul', 'Ankara', 'Gaziantep'] },
   DE: { city: 'Berlin', cities: ['Berlin', 'Munich'] }
 };
-const profilePhotos = [
-  'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=900&q=75',
-  'https://images.unsplash.com/photo-1566554273541-37a9ca77b91f?w=900&q=75',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=900&q=75',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=900&q=75',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=900&q=75',
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=900&q=75',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=75'
+const lightFoodPlaceholder = (label, icon = '🍲') => `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+  <rect width="900" height="620" fill="#fff8ef"/>
+  <circle cx="710" cy="116" r="138" fill="#fff3e6"/>
+  <circle cx="160" cy="512" r="170" fill="#ff6a1a" opacity=".10"/>
+  <rect x="236" y="176" width="428" height="268" rx="42" fill="#ffffff" stroke="#eadccb" stroke-width="6"/>
+  <circle cx="450" cy="292" r="92" fill="#fff3e6" stroke="#ff6a1a" stroke-width="10"/>
+  <path d="M350 330c45 55 155 55 200 0" fill="none" stroke="#ff6a1a" stroke-width="18" stroke-linecap="round"/>
+  <text x="450" y="286" text-anchor="middle" dominant-baseline="middle" font-size="68">${icon}</text>
+  <text x="450" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#ff6a1a">${label}</text>
+</svg>`)}`;
+const deprecatedProfilePhotoUrls = [
+  'photo-1577219491135-ce391730fb2c',
+  'photo-1566554273541-37a9ca77b91f',
+  'photo-1494790108377-be9c29b29330',
+  'photo-1580489944761-15a19d654956',
+  'photo-1507003211169-0a1dd7228f2d',
+  'photo-1438761681033-6461ffad8d80',
+  'photo-1500648767791-00dcc994a43e'
 ];
 const coverPhotos = [
   'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=1200&q=75',
@@ -2687,9 +2742,9 @@ const coverPhotos = [
   'https://images.unsplash.com/photo-1528712306091-ed0763094c98?w=1200&q=75',
   'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=1200&q=75'
 ];
-const defaultCookProfilePhoto = profilePhotos[0];
-const defaultCookCoverPhoto = coverPhotos[0];
-const defaultDishPhoto = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=900&q=75';
+const defaultCookProfilePhoto = '';
+const defaultCookCoverPhoto = lightFoodPlaceholder('HomeTaste Kitchen', '👨‍🍳');
+const defaultDishPhoto = lightFoodPlaceholder('Homemade Dish', '🍲');
 const allCountries = [
   'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria',
   'Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
@@ -2713,7 +2768,7 @@ const allCountries = [
   'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
 ];
 cooks.forEach((c,i)=>{
-  const profilePhoto = c.profilePhoto || profilePhotos[i % profilePhotos.length];
+  const profilePhoto = c.profilePhoto || '';
   const coverPhoto = c.coverPhoto || coverPhotos[i % coverPhotos.length];
   Object.assign(c,{
     availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
@@ -2724,7 +2779,7 @@ cooks.forEach((c,i)=>{
     verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
     profilePhoto,
     coverPhoto,
-    img: c.cardPhoto || coverPhoto || profilePhoto || c.img
+    img: c.cardPhoto || coverPhoto || c.img || defaultCookCoverPhoto
   });
 });
 dishes.forEach((d,i)=>Object.assign(d,{
@@ -2741,6 +2796,22 @@ function sameId(a, b) {
 }
 function jsArg(value) {
   return JSON.stringify(String(value ?? ''));
+}
+function cookInitials(cook) {
+  const words = String(cook?.name || 'HomeTaste Cook').trim().split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
+  return initials || 'HT';
+}
+function avatarFallbackHtml(cook) {
+  return `<span class="avatar-fallback">${cookInitials(cook)}</span>`;
+}
+function cookAvatarInnerHtml(cook, photo = getCookProfilePhoto(cook)) {
+  return `${avatarFallbackHtml(cook)}${photo ? `<img src="${photo}" alt="${cook.name} profile photo" onerror="this.remove()">` : ''}`;
+}
+function isLikelyProfileAvatarImage(url, cook) {
+  const value = String(url || '');
+  if (!value) return false;
+  return value === cook?.profilePhoto || deprecatedProfilePhotoUrls.some(fragment => value.includes(fragment));
 }
 let hostBridgeReady = false;
 function hasHostWindow() {
@@ -2857,8 +2928,8 @@ function nextDishId() {
 function normalizeCustomCook(cook) {
   const ownerKey = cook.ownerKey || userSlug();
   const isOwner = ownerKey === userSlug();
-  const profilePhoto = cook.profilePhoto || (isOwner ? getSavedProfilePicture() : '') || defaultCookProfilePhoto;
-  const coverPhoto = cook.coverPhoto || (isOwner ? getSavedProfileCover() : '') || defaultCookCoverPhoto;
+  const profilePhoto = cook.profilePhoto || (isOwner ? getSavedProfilePicture() : '') || '';
+  const coverPhoto = cook.coverPhoto || (isOwner ? getSavedProfileCover() : '') || '';
   return {
     ...cook,
     id: cook.id || nextCookId(),
@@ -2879,7 +2950,7 @@ function normalizeCustomCook(cook) {
     speedRating: cook.speedRating || '5.0',
     profilePhoto,
     coverPhoto,
-    img: coverPhoto || profilePhoto
+    img: coverPhoto || cook.img || defaultCookCoverPhoto
   };
 }
 function loadCustomCookData() {
@@ -2932,14 +3003,18 @@ function isMyCook(cookId) {
 }
 function getCookProfilePhoto(cook) {
   const saved = isMyCook(cook.id) ? getSavedProfilePicture() : '';
-  return saved || cook.profilePhoto || defaultCookProfilePhoto;
+  return saved || cook.profilePhoto || '';
 }
 function getCookCoverPhoto(cook) {
   const saved = isMyCook(cook.id) ? getSavedProfileCover() : '';
+  const profilePhoto = getCookProfilePhoto(cook);
+  const firstDishImage = dishes.find(dish => sameId(dish.cookId, cook.id) && dish.img)?.img || '';
+  const cardImage = cook.img && cook.img !== profilePhoto && !isLikelyProfileAvatarImage(cook.img, cook) ? cook.img : '';
   if (saved) return saved;
   if (cook.coverPhoto) return cook.coverPhoto;
-  if (cook.isCustom) return defaultCookCoverPhoto;
-  return cook.img || cook.profilePhoto || defaultCookCoverPhoto;
+  if (cardImage) return cardImage;
+  if (firstDishImage) return firstDishImage;
+  return defaultCookCoverPhoto;
 }
 function syncMyCookPhotos() {
   const cook = getMyCook();
@@ -3038,8 +3113,8 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     price: firstDish?.price || 0,
     verified: Boolean(cook.verified),
     verifiedPhoto: Boolean(profilePhoto),
-    img: coverPhoto || profilePhoto || firstDish?.img || defaultCookCoverPhoto,
-    profilePhoto: profilePhoto || defaultCookProfilePhoto,
+    img: coverPhoto || firstDish?.img || defaultCookCoverPhoto,
+    profilePhoto,
     coverPhoto,
     bio: cook.bio || 'Fresh homemade food from this cook.',
     orders: (rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length,
@@ -3399,7 +3474,7 @@ function applyTranslations() {
 
   document.querySelectorAll('.empty-state h3').forEach(node => {
     if (node.textContent.includes('Cart') || node.textContent.includes('Sepet') || node.textContent.includes('السلة')) node.textContent = tr('cartEmpty');
-    if (node.textContent.includes('No cooks') || node.textContent.includes('Aşçı') || node.textContent.includes('طهاة')) node.textContent = tr('noCooks');
+    if (!node.textContent.includes('near you') && (node.textContent.includes('No cooks') || node.textContent.includes('Aşçı') || node.textContent.includes('طهاة'))) node.textContent = tr('noCooks');
   });
   document.querySelectorAll('.empty-state p').forEach(node => {
     if (node.textContent.includes('dish') || node.textContent.includes('yemek') || node.textContent.includes('طعام')) node.textContent = tr('addFood');
@@ -3416,7 +3491,11 @@ document.addEventListener('click',(event)=>{
 window.addEventListener('message', (event) => {
   if (event.origin !== location.origin || event.data?.source !== 'HomeTaste') return;
   if (event.data.name === 'language') setLanguage(event.data.value, null, true);
-  if (event.data.name === 'theme') document.body.classList.toggle('light-mode', event.data.value !== 'dark');
+  if (event.data.name === 'theme') {
+    const dark = event.data.value === 'dark';
+    document.body.classList.toggle('dark-mode', dark);
+    document.body.classList.toggle('light-mode', !dark);
+  }
   if (event.data.action === 'password-result') handlePasswordResult(event.data);
   if (event.data.action === 'market-sync') {
     hostBridgeReady = true;
@@ -3557,7 +3636,7 @@ function renderHomeCooks() {
   const list = countryCooks().slice(0, 4);
   grid.innerHTML = list.length
     ? list.map((c, i) => cookCard(c, `stagger-${i+1}`)).join('')
-    : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No cooks yet</h3><p>Published real cooks will appear here after admin approval.</p></div>`;
+    : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No cooks near you yet</h3><p>Try another city or check back soon.</p></div>`;
 }
 function renderBrowseCooks() {
   const grid = document.getElementById('browseGrid');
@@ -3578,7 +3657,7 @@ function cookCard(c, staggerClass) {
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
-        <div class="cook-avatar"><img src="${profilePhoto}" alt="${c.name} profile photo" onerror="this.parentElement.textContent='${c.emoji}'"></div>
+        <div class="cook-avatar">${cookAvatarInnerHtml(c, profilePhoto)}</div>
         <div>
           <div class="cook-name">${c.name} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
           <div class="cook-cuisine">${c.cuisine}</div>
@@ -3619,7 +3698,7 @@ function dishCard(d, staggerClass, options = {}) {
   return `
   <div class="dish-card ${staggerClass}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
-      <img src="${d.img}" alt="${d.name}" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%232a2a2a%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%F0%9F%8D%BD%3C%2Ftext%3E%3C%2Fsvg%3E'">
+      <img src="${d.img}" alt="${d.name}" onerror="this.src='${defaultDishPhoto}'">
       <span class="dish-tag">${d.tag}</span>
       ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>` : ''}
     </div>
@@ -3850,7 +3929,7 @@ function openDishModal(dishId) {
   document.getElementById('modalTags').innerHTML = `<span class="modal-tag">${dish.country || dish.tag || 'Country not set'}</span>`;
   document.getElementById('modalOptions').innerHTML = `<span class="modal-tag">⏱ ${dish.prepTime}</span><span class="modal-tag">🌍 ${dish.country || dish.tag || 'Country not set'}</span>`;
   document.getElementById('modalCook').innerHTML = cook ? `
-    <div class="modal-cook-avatar"><img src="${getCookProfilePhoto(cook)}" alt="${cook.name}" onerror="this.parentElement.textContent='${cook.emoji}'"></div>
+    <div class="modal-cook-avatar">${cookAvatarInnerHtml(cook)}</div>
     <div class="modal-cook-info">
       <h4>${cook.name}</h4>
       <p>${cook.cuisine} · ⭐ ${cook.rating} (${cook.reviews} reviews) · ${cook.responseTime}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${cook.phone}</p>
@@ -3874,7 +3953,7 @@ function openCookProfile(cookId) {
   const profilePhoto = getCookProfilePhoto(cook);
   const coverPhoto = getCookCoverPhoto(cook);
   document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url('${coverPhoto}')`;
-  document.getElementById('profileAvatar').innerHTML = `<img src="${profilePhoto}" alt="${cook.name}" onerror="this.parentElement.textContent='${cook.emoji}'">`;
+  document.getElementById('profileAvatar').innerHTML = cookAvatarInnerHtml(cook, profilePhoto);
   document.getElementById('profileName').textContent = cook.name;
   document.getElementById('profileCuisine').textContent = `${cook.cuisine} · ${cook.online ? 'Online' : 'Offline'}`;
   document.getElementById('profileRating').textContent = cook.rating;
@@ -4118,7 +4197,7 @@ async function createCookDemo(){
   const country = document.getElementById('cookDishCountryInput').value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
   const price = Number(document.getElementById('cookPriceInput').value) || 150;
-  const profilePhoto = getSavedProfilePicture() || defaultCookProfilePhoto;
+  const profilePhoto = getSavedProfilePicture() || '';
   const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
   const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
   const online = getDesiredCookOnline();
@@ -4411,7 +4490,7 @@ async function removeProfilePicture() {
   pendingProfilePicture = '';
   const cook = getMyCook();
   if (cook) {
-    cook.profilePhoto = defaultCookProfilePhoto;
+    cook.profilePhoto = '';
     cook.img = getCookCoverPhoto(cook);
     saveCustomCookData();
     refreshCookAndDishViews();
