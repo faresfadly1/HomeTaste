@@ -172,6 +172,7 @@ textarea { min-height: 88px; resize: vertical; }
   color: var(--muted);
   font-weight: 800;
   background: rgba(224,162,52,.12);
+  position: relative;
 }
 .admin-review-cover img,
 .admin-review-dish img {
@@ -179,18 +180,40 @@ textarea { min-height: 88px; resize: vertical; }
   height: 100%;
   object-fit: cover;
 }
+.admin-review-cover b {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.58);
+  color: #fff;
+  font-size: 11px;
+}
 .admin-review-profile {
   position: absolute;
   left: 14px;
   bottom: -22px;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
 }
 .admin-review-profile .profile-avatar {
   width: 64px;
   height: 64px;
   border: 3px solid var(--panel);
 }
+.admin-review-profile span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
 .admin-review-body {
-  padding: 32px 14px 14px;
+  padding: 48px 14px 14px;
   display: grid;
   gap: 12px;
 }

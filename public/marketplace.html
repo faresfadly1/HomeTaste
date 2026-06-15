@@ -2193,8 +2193,8 @@ ul{list-style:none}
           <div class="summary-items" id="checkoutItems"></div>
           <div class="summary-totals">
             <div class="summary-row"><span>Subtotal</span><span id="checkoutSubtotal">370 ₺</span></div>
-            <div class="summary-row"><span>Delivery fee</span><span>30 ₺</span></div>
-            <div class="summary-row"><span>Service fee</span><span>15 ₺</span></div>
+            <div class="summary-row"><span>Delivery fee</span><span id="checkoutDeliveryFee">30 ₺</span></div>
+            <div class="summary-row"><span>Service fee</span><span id="checkoutServiceFee">15 ₺</span></div>
             <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
           </div>
           <button class="btn-place-order" onclick="placeOrder()">Place Order →</button>
@@ -2575,7 +2575,7 @@ function tr(key) {
   if (Object.prototype.hasOwnProperty.call(translations.EN, key)) return translations.EN[key];
   return key;
 }
-const checkoutPaymentMethods = ['💳 Bank / credit card', '🏦 Iban', '💵 Cash on delivery'];
+const checkoutPaymentMethods = ['💳 Credit card', '🏦 IBAN', '💵 Cash on delivery'];
 const paymentMethodsByCountry = {
   TR: checkoutPaymentMethods,
   DE: checkoutPaymentMethods,
@@ -3196,7 +3196,7 @@ function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
   const saved = getSavedPaymentMethods();
   const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
-  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" data-payment-label="${m}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
+  wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" data-payment-label="${m}" data-payment-method="${paymentValue(m)}" onclick="selectPayment(this)"><div>${m.split(' ')[0]}</div><span>${m.replace(/^\S+\s/,'')}</span></div>`).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
     ? `Your saved payment methods: ${methods.map(m=>m.replace(/^\S+\s/,'')).join(', ')}`
@@ -4481,17 +4481,27 @@ function updateCheckoutItems() {
       <span class="summary-item-price">${item.price * item.qty} ₺</span>
     </div>`).join('');
   document.getElementById('checkoutSubtotal').textContent = sub + ' ₺';
-  document.getElementById('checkoutTotal').textContent = (sub + 30 + 15) + ' ₺';
+  const serviceFee = Math.round(sub * 0.15 * 100) / 100;
+  const deliveryFee = cart.length ? 30 : 0;
+  document.getElementById('checkoutDeliveryFee').textContent = deliveryFee + ' ₺';
+  document.getElementById('checkoutServiceFee').textContent = serviceFee + ' ₺';
+  document.getElementById('checkoutTotal').textContent = (sub + deliveryFee + serviceFee) + ' ₺';
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
+}
+function paymentValue(method) {
+  const name = paymentName(method).toLowerCase();
+  if (name === 'iban') return 'iban';
+  if (name === 'cash on delivery') return 'cash';
+  return 'stripe';
 }
 function renderPaymentDetails(method) {
   const panel = document.getElementById('paymentDetails');
   if (!panel) return;
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
-  if (name === 'Bank / credit card') {
+  if (name === 'Credit card') {
     panel.innerHTML = `
       <p class="payment-details-title">Card details</p>
       <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
@@ -4562,8 +4572,26 @@ function selectPayment(el) {
 async function placeOrder() {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
+  const activePayment = document.querySelector('#paymentMethods .payment-method.active');
+  const paymentMethod = activePayment?.dataset.paymentMethod || paymentValue(activePayment?.dataset.paymentLabel || '') || 'cash';
+  const scheduleActive = document.querySelector('#deliveryTimeOptions .payment-method.active')?.dataset.deliveryTime === 'schedule';
+  let savedSchedule = {};
   try {
-    const result = await sendMarketAction('market-place-order', { payload: { items, paymentMethod: 'cash' } });
+    savedSchedule = JSON.parse(localStorage.getItem('hometaste_delivery_schedule') || '{}') || {};
+  } catch {
+    savedSchedule = {};
+  }
+  const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
+  try {
+    const result = await sendMarketAction('market-place-order', {
+      payload: {
+        items,
+        paymentMethod,
+        deliveryAddress: currentSavedAddress(),
+        customerLocation: currentSavedLocationQuery(),
+        scheduledFor
+      }
+    });
     pendingOrderPlacement = true;
     if (result.mode === 'host') {
       showToast('Placing your real order...', 'info');

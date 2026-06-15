@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-june7-ui-fixes-01";
+const APP_BUILD = "20260615-admin-checkout-audit-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -64,7 +64,8 @@ const statusLabels = {
 const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered"];
 const paymentLabels = {
   cash: "Cash on delivery",
-  stripe: "Stripe",
+  iban: "IBAN",
+  stripe: "Credit card",
   iyzico: "iyzico",
   paytr: "PayTR",
   visa: "Visa",
@@ -1300,11 +1301,21 @@ function verificationTags(cook) {
 function adminCookRequestHtml(cook) {
   const user = userForCook(cook);
   const cookDishes = dishesForCook(cook.id);
+  const profilePhoto = cook.profilePhoto || user?.profilePhoto || "";
+  const coverPhoto = cook.coverPhoto || user?.profileCover || "";
+  const phone = cook.phone || user?.phone || "";
+  const nationalId = user?.nationalId ? `•••••••${String(user.nationalId).slice(-4)}` : "No T.C. Kimlik";
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
-        <div class="admin-review-cover">${cook.coverPhoto ? `<img src="${cook.coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
-        <div class="admin-review-profile">${profilePhotoHtml(cook.profilePhoto || user?.profilePhoto, cook.name)}</div>
+        <div class="admin-review-cover">
+          ${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}
+          <b>Background photo</b>
+        </div>
+        <div class="admin-review-profile">
+          ${profilePhotoHtml(profilePhoto, cook.name)}
+          <span>Profile photo</span>
+        </div>
       </div>
       <div class="admin-review-body">
         <div class="admin-review-heading">
@@ -1323,8 +1334,10 @@ function adminCookRequestHtml(cook) {
         <div class="admin-review-grid">
           <div><small>Name</small><strong>${user?.name || cook.name}</strong></div>
           <div><small>Email</small><strong>${user?.email || "No email"}</strong></div>
-          <div><small>Phone</small><strong>${cook.phone || user?.phone || "No phone"}</strong></div>
+          <div><small>Phone number</small><strong>${phone || "No phone"}</strong></div>
+          <div><small>T.C. Kimlik</small><strong>${nationalId}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
+          <div><small>Profile media</small><strong>${profilePhoto ? "Profile photo uploaded" : "No profile photo"} / ${coverPhoto ? "Background uploaded" : "No background"}</strong></div>
         </div>
         <div class="admin-review-bio">
           <small>Bio</small>
@@ -1408,6 +1421,7 @@ function renderAuth(error = "") {
           ${mode === "signup" ? `
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
+            <div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" maxlength="11" placeholder="11 digits"></div>
           ` : ""}
           <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
           <div class="field auth-input-field password-field">
@@ -2011,20 +2025,14 @@ function renderCart() {
       <div class="row"><span>${t("delivery")}</span><strong>${money(deliveryFee)}</strong></div>
       <div class="row"><span>${t("commissionAfterDelivery")}</span><strong>${money(commission)}</strong></div>
       <div class="row"><span>${t("payoutAfterCommission")}</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
-      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
+      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
       <form class="form" id="checkoutForm">
         <div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
+          <option value="stripe">Credit card</option>
+          <option value="iban">IBAN</option>
           <option value="cash">${paymentLabel("cash")}</option>
-          <option value="iyzico">iyzico hosted checkout</option>
-          <option value="stripe">Stripe card / wallet</option>
-          <option value="paytr">PayTR secure checkout</option>
-          <option value="visa">Visa via Stripe</option>
-          <option value="mastercard">Mastercard via Stripe</option>
-          <option value="troy">Troy via iyzico</option>
-          <option value="google_pay">Google Pay via Stripe</option>
-          <option value="turkish_bank_card">Turkish bank card via iyzico</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>
