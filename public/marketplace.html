@@ -269,6 +269,14 @@ ul{list-style:none}
   margin-top:8px;transition:all var(--transition);
 }
 .btn-continue:hover{background:var(--bg4);color:var(--text)}
+.btn-cart-back{
+  width:100%;padding:11px;border-radius:10px;
+  background:#fff;color:var(--text);
+  border:1px solid var(--border);
+  font-size:13px;font-weight:800;
+  margin-top:8px;transition:all var(--transition);
+}
+.btn-cart-back:hover{border-color:var(--orange);color:var(--orange)}
 .cart-secure{
   display:flex;align-items:center;gap:8px;
   margin-top:10px;padding:10px;
@@ -1326,7 +1334,7 @@ ul{list-style:none}
     max-width:100%;
     overflow-x:hidden;
   }
-  button,.btn-search,.btn-add,.btn-reorder,.btn-apply,.btn-secondary,.btn-checkout,.btn-continue,.btn-place-order,.track-back-btn,.account-cancel{
+  button,.btn-search,.btn-add,.btn-reorder,.btn-apply,.btn-secondary,.btn-checkout,.btn-continue,.btn-cart-back,.btn-place-order,.track-back-btn,.account-cancel{
     max-width:100%;
     min-height:40px;
     line-height:1.15;
@@ -1570,8 +1578,15 @@ ul{list-style:none}
   .chat-input-bar{padding:10px}
   .chat-action-btn{width:34px;height:34px}
   .cart-panel{width:100dvw;max-width:100dvw;z-index:800}
-  .cart-panel.open{z-index:10050}
-  .cart-footer{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  .cart-footer{
+    position:sticky;
+    bottom:calc(86px + env(safe-area-inset-bottom));
+    z-index:3;
+    background:linear-gradient(180deg,rgba(255,248,239,.96),#fff8ef);
+    box-shadow:0 -12px 28px rgba(89,55,28,.08);
+    padding-bottom:14px;
+  }
+  .cart-items{padding-bottom:calc(210px + env(safe-area-inset-bottom))}
   .cart-floating-btn{right:14px;bottom:calc(100px + env(safe-area-inset-bottom));padding:10px 12px;font-size:12px}
   .checkout-layout{display:block;padding:10px 10px calc(130px + env(safe-area-inset-bottom))}
   .order-summary{position:static;top:auto}
@@ -2355,6 +2370,7 @@ ul{list-style:none}
     <div class="cart-row"><span>Delivery fee</span><span id="cartDeliveryFee">0 ₺</span></div>
     <div class="cart-total"><span>Total</span><span id="cartTotal">0 ₺</span></div>
     <button class="btn-checkout" id="cartCheckoutBtn" onclick="checkoutFromCart()">Checkout</button>
+    <button class="btn-cart-back" onclick="backFromCart()">← Back</button>
     <button class="btn-continue" onclick="toggleCart(false);showPage('dishes',document.querySelector('[onclick*=&quot;dishes&quot;]'))">Continue Shopping</button>
     <div class="cart-secure">
       🔒 <span>All payments are secure. Your data is protected.</span>
@@ -3986,6 +4002,9 @@ function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
   toggleCart(false);
   showPage('checkout', null);
+}
+function backFromCart() {
+  toggleCart(false);
 }
 function backToCartFromCheckout() {
   const homeNav = document.querySelector(".nav-item[onclick*=\"'home'\"]");
