@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HomeTaste – Real Cooks. Real Food. Real People.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,600;1,700&family=DM+Sans:wght@300;400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* RESET & BASE */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1906,42 +1906,46 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
 /* ---- Soft palettes (token re-theme, mobile only) ---- */
 @media (max-width:760px){
   :root{
-    /* warm cocoa night — cozy homemade (default + system dark) */
-    --bg:#1a1410; --bg2:#221a13; --bg3:#2b2118; --bg4:#352920; --card:#241b13;
-    --orange:#e8763f; --orange-hover:#d8602a;
-    --orange-light:rgba(232,118,63,.16); --orange-glow:rgba(232,118,63,.26);
-    --text:#f2e8d8; --text2:#bdaf9b; --text3:#8c7e6c;
-    --border:rgba(232,118,63,.18); --border2:rgba(255,255,255,.07);
-    --radius:22px; --radius-sm:14px;
-    --shadow:0 14px 38px rgba(0,0,0,.46);
-    --m-soft:0 10px 28px rgba(0,0,0,.36);
-    --m-ok:#7fa352; --m-info:#e8763f;
+    /* Culinary Noir — obsidian + gold + orange CTA (Stitch mobile reference) */
+    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
+    --orange:#f2ca50; --orange-hover:#e9c349;            /* gold = accents/active */
+    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
+    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
+    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
+    --radius:24px; --radius-sm:16px;
+    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
+    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
+    --m-ok:#9fd27a; --m-info:#f2ca50;
+    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; /* orange = primary buttons */
+    --glass:rgba(22,19,11,.72);
   }
 }
 @media (max-width:760px) and (prefers-color-scheme:light){
   :root{
-    /* warm cream daylight — homemade kitchen (system light) */
-    --bg:#f9f1e3; --bg2:#fdf8ee; --bg3:#f1e6d3; --bg4:#e8dac3; --card:#fffdf7;
-    --orange:#c6531f; --orange-hover:#aa4417;
-    --orange-light:rgba(198,83,31,.12); --orange-glow:rgba(198,83,31,.2);
-    --text:#352718; --text2:#6d5b46; --text3:#94826a;
-    --border:rgba(150,90,40,.16); --border2:rgba(70,45,20,.1);
-    --shadow:0 14px 34px rgba(120,70,30,.12);
-    --m-soft:0 10px 26px rgba(120,70,30,.1);
-    --m-ok:#5f7a3f; --m-info:#aa4417;
+    /* Culinary Noir is dark-only on mobile (matches the Stitch reference) */
+    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
+    --orange:#f2ca50; --orange-hover:#e9c349;
+    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
+    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
+    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
+    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
+    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
+    --m-ok:#9fd27a; --m-info:#f2ca50;
+    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; --glass:rgba(22,19,11,.72);
   }
 }
 @media (max-width:760px){
   body.light-mode{
-    /* manual light always wins */
-    --bg:#f9f1e3; --bg2:#fdf8ee; --bg3:#f1e6d3; --bg4:#e8dac3; --card:#fffdf7;
-    --orange:#c6531f; --orange-hover:#aa4417;
-    --orange-light:rgba(198,83,31,.12); --orange-glow:rgba(198,83,31,.2);
-    --text:#352718; --text2:#6d5b46; --text3:#94826a;
-    --border:rgba(150,90,40,.16); --border2:rgba(70,45,20,.1);
-    --shadow:0 14px 34px rgba(120,70,30,.12);
-    --m-soft:0 10px 26px rgba(120,70,30,.1);
-    --m-ok:#5f7a3f; --m-info:#aa4417;
+    /* keep mobile on Culinary Noir even if the desktop light toggle is on */
+    --bg:#16130b; --bg2:#1f1b13; --bg3:#231f17; --bg4:#2d2a21; --card:#231f17;
+    --orange:#f2ca50; --orange-hover:#e9c349;
+    --orange-light:rgba(242,202,80,.14); --orange-glow:rgba(242,202,80,.20);
+    --text:#eae1d4; --text2:#d0c5af; --text3:#99907c;
+    --border:rgba(245,245,220,.10); --border2:rgba(245,245,220,.06);
+    --shadow:0 12px 40px -10px rgba(242,202,80,.16);
+    --m-soft:0 8px 30px -12px rgba(0,0,0,.5);
+    --m-ok:#9fd27a; --m-info:#f2ca50;
+    --cta:#ff8c00; --cta-hover:#fd8b00; --on-cta:#241a00; --glass:rgba(22,19,11,.72);
   }
 }
 
@@ -2295,14 +2299,14 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
 /* Darker gold for orange-as-TEXT on soft-light (keeps gold buttons' lighter fill intact) */
 @media (max-width:760px) and (prefers-color-scheme:light){
   .dish-price,.cook-price,.cook-rating,.view-all,
-  .message-order-status,.message-order-total,.saved-tags span,.saved-cook-row b{ color:#a8431a!important; }
-  :root{ --text3:#7c6f57; }
+  .message-order-status,.message-order-total,.saved-tags span,.saved-cook-row b{ color:#f2ca50!important; }
+  :root{ --text3:#99907c; }
 }
 @media (max-width:760px){
   body.light-mode .dish-price,body.light-mode .cook-price,body.light-mode .cook-rating,body.light-mode .view-all,
   body.light-mode .message-order-status,body.light-mode .message-order-total,
-  body.light-mode .saved-tags span,body.light-mode .saved-cook-row b{ color:#a8431a!important; }
-  body.light-mode{ --text3:#7c6f57; }
+  body.light-mode .saved-tags span,body.light-mode .saved-cook-row b{ color:#f2ca50!important; }
+  body.light-mode{ --text3:#99907c; }
 }
 
 /* ---- Tight phones (<=380px): reclaim horizontal space ---- */
@@ -2345,6 +2349,84 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
   /* Warm accent tick beside section titles */
   .section-header h2{ position:relative; padding-left:15px; }
   .section-header h2::before{ content:""; position:absolute; left:0; top:50%; transform:translateY(-50%); width:5px; height:.78em; border-radius:3px; background:linear-gradient(var(--orange),var(--orange-hover)); }
+}
+
+/* ============================================================
+   CULINARY NOIR v5 — Stitch mobile design system (<=760px only).
+   Obsidian glassmorphism · gold accents · warm-orange CTAs ·
+   Playfair Display + Manrope. Desktop/website untouched.
+   ============================================================ */
+@media (max-width:760px){
+  body{ font-family:'Manrope',sans-serif; }
+
+  /* ---- Panels & overlays: true glass (translucent + 20px blur + cream edge) ---- */
+  .sidebar,.modal,.luxury-chat-window,.messages-conversations,.luxury-chat-input-bar,.chat-input-bar,
+  .luxury-stat-card,.settings-lux-card,.become-panel,.become-publish,.become-progress,.checkout-section{
+    background:var(--glass)!important;
+    -webkit-backdrop-filter:blur(20px) saturate(1.1); backdrop-filter:blur(20px) saturate(1.1);
+    border:1px solid var(--border)!important;
+  }
+
+  /* ---- Content cards: translucent surface + cream edge + soft gold glow (no blur = smooth scroll) ---- */
+  .cook-card,.dish-card,.order-card,.driver-card,.feature-card,.welcome-card,.cook-form,.cook-dish-manager,
+  .luxury-order-card,.refund-panel,.favorites-shell,.saved-dish-card,.saved-cook-card,.luxury-chat-item,
+  .message-order-card,.settings-payment-card,.settings-list,.settings-action-list{
+    background:var(--card)!important; border:1px solid var(--border)!important;
+    box-shadow:0 10px 30px -14px rgba(0,0,0,.6), 0 0 20px -10px var(--orange-glow)!important;
+  }
+
+  /* ---- Primary CTAs -> warm-orange pills with dark label ---- */
+  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-apply,.btn-send,.btn-reorder,
+  .cook-profile-details .btn-apply,.luxury-primary-btn,.luxury-send-btn,.become-publish-btn,.become-cta{
+    background:var(--cta)!important; background-image:none!important; color:var(--on-cta)!important;
+    border:0!important; border-radius:999px!important; font-weight:700!important; letter-spacing:.01em;
+    box-shadow:0 6px 22px -6px rgba(255,140,0,.45)!important;
+  }
+  .btn-add:active,.btn-checkout:active,.btn-place-order:active,.luxury-primary-btn:active{ transform:scale(.97); }
+  .luxury-chat-messages .msg.sent .msg-bubble{ background:var(--cta)!important; color:var(--on-cta)!important; border-color:transparent!important; }
+
+  /* ---- Secondary / outline -> gold edge pills ---- */
+  .btn-secondary,.btn-continue,.luxury-outline-btn,.account-cancel{
+    background:transparent!important; color:var(--orange)!important;
+    border:1px solid var(--orange)!important; border-radius:999px!important; box-shadow:none!important;
+  }
+
+  /* ---- Chips & segmented tabs: dark stroke; active = gold edge + tint ---- */
+  .chip,.country-search,.filter-select,.messages-tab,.favorites-tab{ background:var(--bg3)!important; border:1px solid var(--border)!important; color:var(--text2)!important; border-radius:999px!important; }
+  .chip.active,.messages-tab.active,.favorites-tab.active{ background:var(--orange-light)!important; border-color:var(--orange)!important; color:var(--orange)!important; }
+
+  /* ---- Inputs: 16px stroke + gold focus glow ---- */
+  input,textarea,select,.form-input,.welcome-select,.cook-input,.chat-input,.country-search{
+    background:var(--bg2)!important; border:1px solid var(--border)!important; border-radius:16px!important; color:var(--text)!important;
+  }
+  input:focus,textarea:focus,select:focus,.search-bar:focus-within,.cook-input:focus{
+    border-color:var(--orange)!important; box-shadow:0 0 0 3px var(--orange-glow), 0 6px 18px -10px var(--orange-glow)!important;
+  }
+  .search-bar{ background:var(--bg2)!important; border:1px solid var(--border)!important; border-radius:16px!important; }
+
+  /* ---- Glass bottom nav, gold active glow ---- */
+  .sidebar{ border-radius:24px!important; }
+  .nav-item{ color:var(--text3)!important; }
+  .nav-item.active{ color:var(--orange)!important; background:transparent!important; filter:drop-shadow(0 0 10px var(--orange-glow)); font-weight:700; }
+  .nav-item.active svg{ transform:translateY(-1px); }
+  .nav-badge,.hero-action-badge{ background:var(--cta)!important; color:var(--on-cta)!important; }
+
+  /* ---- Hero: gold Playfair headline over the scrim ---- */
+  .hero{ border-radius:24px; }
+  .hero-content h1{ color:var(--orange)!important; }
+
+  /* ---- Dish image tag -> glass chip ---- */
+  .dish-tag{ background:var(--glass)!important; color:var(--orange)!important; border:1px solid var(--border)!important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+
+  /* ---- Floating cart / FAB -> warm orange ---- */
+  .cart-floating-btn{ background:var(--cta)!important; color:var(--on-cta)!important; box-shadow:0 10px 30px -6px rgba(255,140,0,.45)!important; }
+
+  /* ---- Status badges ---- */
+  .luxury-status,.status-pending,.status-preparing,.orders-tab.active{ background:var(--orange-light)!important; color:var(--orange)!important; }
+  .luxury-status.status-delivered,.status-delivered,.status-completed{ background:rgba(159,210,122,.16)!important; color:var(--m-ok)!important; }
+
+  /* ---- Tactile press feedback ---- */
+  .cook-card:active,.dish-card:active,.order-card:active,.luxury-chat-item:active{ transform:scale(.99); }
 }
 </style>
 </head>
