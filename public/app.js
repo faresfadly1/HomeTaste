@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-stitch-noir-3";
+const APP_BUILD = "20260615-stitch-noir-4";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -673,47 +673,18 @@ function useBrowserLocation() {
   );
 }
 
-let lastWakeToastAt = 0;
-function notifyServerWaking() {
-  const now = Date.now();
-  if (now - lastWakeToastAt < 8000) return;
-  lastWakeToastAt = now;
-  toast(t("serverWaking", "Connecting to the server… first load can take up to a minute."));
-}
 async function api(path, options = {}) {
   if (useStaticApi) return staticApi(path, options);
-  const url = configuredApiBase ? `${configuredApiBase}${path}` : path;
-  const method = String(options.method || "GET").toUpperCase();
-  const headers = {
-    "content-type": "application/json",
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {})
-  };
-  const attempt = (timeoutMs) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(url, { ...options, headers, signal: controller.signal }).finally(() => clearTimeout(timer));
-  };
-  let res;
-  try {
-    res = await attempt(20000);
-  } catch (err) {
-    // Network failure / timeout — usually the (free-tier) server waking from sleep.
-    if (configuredApiBase) notifyServerWaking();
-    if (method === "GET") {
-      res = await attempt(45000); // safe to retry idempotent reads through a cold start
-    } else {
-      const wakeErr = new Error(t("serverWakingRetry", "The server is starting up. Please tap again in a few seconds."));
-      wakeErr.network = true;
-      throw wakeErr;
+  const res = await fetch(configuredApiBase ? `${configuredApiBase}${path}` : path, {
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
     }
-  }
+  });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const apiErr = new Error(data.error || t("somethingWrong", "Something went wrong."));
-    apiErr.status = res.status;
-    throw apiErr;
-  }
+  if (!res.ok) throw new Error(data.error || "Something went wrong.");
   return data;
 }
 
@@ -763,17 +734,10 @@ async function refresh() {
     state = await api("/api/state");
     syncSavedLocationFromUser(state.user);
     renderApp();
-  } catch (err) {
-    if (err && err.status === 401) {
-      // genuine auth failure -> sign out
-      token = null;
-      localStorage.removeItem(storageKey);
-      renderAuth();
-    } else {
-      // network / cold-start: keep the session and retry shortly instead of dropping the user to login
-      notifyServerWaking();
-      setTimeout(() => refresh(), 5000);
-    }
+  } catch {
+    token = null;
+    localStorage.removeItem(storageKey);
+    renderAuth();
   } finally {
     refreshInFlight = false;
   }

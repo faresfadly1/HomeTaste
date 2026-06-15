@@ -3632,19 +3632,7 @@ async function marketApi(path, options = {}) {
     ...(options.headers || {}),
     authorization: `Bearer ${token}`
   };
-  const method = String(options.method || 'GET').toUpperCase();
-  const attempt = (timeoutMs) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(`${MARKET_API_BASE}${path}`, { ...options, headers, signal: controller.signal }).finally(() => clearTimeout(timer));
-  };
-  let res;
-  try {
-    res = await attempt(20000);
-  } catch (err) {
-    if (method === 'GET') { res = await attempt(45000); }   // retry reads through a cold start
-    else throw new Error('The server is starting up. Please try that again in a few seconds.');
-  }
+  const res = await fetch(`${MARKET_API_BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'HomeTaste could not save this action.');
   return data;
@@ -4083,24 +4071,14 @@ function requestMarketplaceState() {
     }, posted ? 250 : 0);
   }
 }
-async function loadPublicMarketplaceState(retries = 4) {
+async function loadPublicMarketplaceState() {
   if (hostStateReady) return;
-  const attempt = (timeoutMs) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    return fetch(`${MARKET_API_BASE}/api/marketplace`, { headers: { accept: 'application/json' }, signal: controller.signal }).finally(() => clearTimeout(timer));
-  };
   try {
-    const res = await attempt(20000);
-    if (!res.ok) throw new Error('bad status');
+    const res = await fetch(`${MARKET_API_BASE}/api/marketplace`, { headers: { accept: 'application/json' } });
+    if (!res.ok) return;
     applyMarketplaceState(await res.json());
   } catch {
-    if (hostStateReady) return;
-    if (retries > 0) {            // server likely waking from sleep — keep trying before showing empty
-      setTimeout(() => loadPublicMarketplaceState(retries - 1), 5000);
-    } else {
-      loadCustomCookData();
-    }
+    if (!hostStateReady) loadCustomCookData();
   }
 }
 function clearLegacyLocalDemoData() {
