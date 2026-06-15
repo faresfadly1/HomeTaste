@@ -752,6 +752,7 @@ ul{list-style:none}
   padding:9px 14px;border-radius:10px;background:var(--bg3);
   border:1px solid var(--border);font-size:13px;font-weight:800;color:var(--text2);
 }
+.checkout-back-btn{margin-bottom:14px}
 
 /* ======== FAVORITES ======== */
 .favorites-grid{
@@ -1569,8 +1570,11 @@ ul{list-style:none}
   .chat-input-bar{padding:10px}
   .chat-action-btn{width:34px;height:34px}
   .cart-panel{width:100dvw;max-width:100dvw;z-index:800}
-  .cart-floating-btn{right:14px;bottom:calc(82px + env(safe-area-inset-bottom));padding:10px 12px;font-size:12px}
-  .checkout-layout{padding:10px}
+  .cart-panel.open{z-index:10050}
+  .cart-footer{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  .cart-floating-btn{right:14px;bottom:calc(100px + env(safe-area-inset-bottom));padding:10px 12px;font-size:12px}
+  .checkout-layout{display:block;padding:10px 10px calc(130px + env(safe-area-inset-bottom))}
+  .order-summary{position:static;top:auto}
   .checkout-section{padding:16px}
   .payment-methods{grid-template-columns:1fr}
   .order-card{align-items:flex-start}
@@ -2289,6 +2293,7 @@ ul{list-style:none}
   <!-- CHECKOUT PAGE -->
   <div class="page" id="page-checkout">
     <div class="page-header">
+      <button class="track-back-btn checkout-back-btn" type="button" onclick="backToCartFromCheckout()">← Back to cart</button>
       <h1>Checkout</h1>
       <p>Complete your order</p>
     </div>
@@ -3427,7 +3432,7 @@ function updateCartButtonVisibility(pageId) {
   const currentPage = pageId || document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
   const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
-  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', cartCount === 0 || ['messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
+  document.querySelector('.cart-floating-btn')?.classList.toggle('hidden', cartCount === 0 || ['checkout', 'messages', 'support-chat', 'orders', 'track-order', 'cook-profile'].includes(currentPage) || cartOpen);
 }
 function setLanguage(lang,e,silent=false){
   if(e) e.stopPropagation(); selectedLanguage = lang;
@@ -3981,6 +3986,11 @@ function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
   toggleCart(false);
   showPage('checkout', null);
+}
+function backToCartFromCheckout() {
+  const homeNav = document.querySelector(".nav-item[onclick*=\"'home'\"]");
+  showPage('home', homeNav);
+  toggleCart(true);
 }
 function addToCart(dish) {
   const existing = cart.find(i => sameId(i.id, dish.id));
