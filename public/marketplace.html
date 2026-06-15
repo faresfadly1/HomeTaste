@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HomeTaste – Real Cooks. Real Food. Real People.</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -2135,7 +2136,7 @@ ul{list-style:none}
         <input id="cookDishGalleryInput" type="file" accept="image/*" hidden onchange="handleCookDishPhoto(this,'gallery')">
       </div>
       <div class="wide photo-preview" id="cookDishPhotoPreview">No dish photo selected</div>
-      <div class="wide"><button class="btn-apply" onclick="createCookDemo()">Publish my dish →</button></div>
+      <div class="wide"><button class="btn-apply" onclick="createCookDemo(this)">Publish my dish →</button></div>
     </div>
     <div class="cook-dish-manager" id="myCookDishManager"></div>
     <div class="become-features">
@@ -2320,7 +2321,7 @@ ul{list-style:none}
             <div class="summary-row"><span>Service fee</span><span id="checkoutServiceFee">15 ₺</span></div>
             <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
           </div>
-          <button class="btn-place-order" onclick="placeOrder()">Place Order →</button>
+          <button class="btn-place-order" onclick="placeOrder(this)">Place Order →</button>
           <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px">
             🔒 All payments are secure and encrypted
           </div>
@@ -2806,7 +2807,7 @@ function avatarFallbackHtml(cook) {
   return `<span class="avatar-fallback">${cookInitials(cook)}</span>`;
 }
 function cookAvatarInnerHtml(cook, photo = getCookProfilePhoto(cook)) {
-  return `${avatarFallbackHtml(cook)}${photo ? `<img src="${photo}" alt="${cook.name} profile photo" onerror="this.remove()">` : ''}`;
+  return `${avatarFallbackHtml(cook)}${photo ? `<img src="${photo}" alt="${cook.name} profile photo" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
 }
 function isLikelyProfileAvatarImage(url, cook) {
   const value = String(url || '');
@@ -2814,13 +2815,17 @@ function isLikelyProfileAvatarImage(url, cook) {
   return value === cook?.profilePhoto || deprecatedProfilePhotoUrls.some(fragment => value.includes(fragment));
 }
 let hostBridgeReady = false;
+let marketRequestSeq = 0;
+const pendingHostActions = new Map();
+const pendingMarketActions = new Set();
+let countryMenuTimer = null;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
 }
-function postHostAction(action, payload = {}) {
+function postHostAction(action, payload = {}, requestId = '') {
   if (!hasHostWindow()) return false;
   if (action !== 'market-state-request' && !hostBridgeReady) return false;
-  parent.postMessage({ source: 'HomeTaste', action, ...payload }, location.origin);
+  parent.postMessage({ source: 'HomeTaste', action, requestId, ...payload }, location.origin);
   return true;
 }
 function marketAuthToken() {
@@ -2829,16 +2834,34 @@ function marketAuthToken() {
 async function marketApi(path, options = {}) {
   const token = marketAuthToken();
   if (!token) throw new Error('Please sign in first.');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   const headers = {
     accept: 'application/json',
     'content-type': 'application/json',
     ...(options.headers || {}),
     authorization: `Bearer ${token}`
   };
-  const res = await fetch(`${MARKET_API_BASE}${path}`, { ...options, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'HomeTaste could not save this action.');
-  return data;
+  try {
+    const res = await fetch(`${MARKET_API_BASE}${path}`, { ...options, headers, signal: controller.signal });
+    const text = await res.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text.slice(0, 240) };
+      }
+    }
+    if (!res.ok) throw new Error(data.error || data.message || 'HomeTaste could not save this action.');
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+    if (error instanceof TypeError) throw new Error('Network error. Please check your connection and try again.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 async function syncMarketplaceFromApi(stateOrResult = null) {
   const nextState = stateOrResult?.state || stateOrResult || await marketApi('/api/state');
@@ -2900,10 +2923,47 @@ async function runStandaloneMarketAction(action, payload = {}) {
       throw new Error('This mobile action is not available.');
   }
 }
+function waitForHostAction(action, payload = {}) {
+  const requestId = `market_${Date.now()}_${++marketRequestSeq}`;
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pendingHostActions.delete(requestId);
+      reject(new Error('Request timed out. Please try again.'));
+    }, 15000);
+    pendingHostActions.set(requestId, { resolve, reject, timeout });
+    if (!postHostAction(action, payload, requestId)) {
+      clearTimeout(timeout);
+      pendingHostActions.delete(requestId);
+      reject(new Error('HomeTaste is still syncing. Please try again.'));
+    }
+  });
+}
 async function sendMarketAction(action, payload = {}) {
-  if (postHostAction(action, payload)) return { mode: 'host' };
-  const state = await runStandaloneMarketAction(action, payload);
-  return { mode: 'api', state };
+  const key = `${action}:${payload.dishId || payload.orderId || payload.payload?.dishId || payload.payload?.cookId || ''}`;
+  if (pendingMarketActions.has(key)) throw new Error('Please wait for the current action to finish.');
+  pendingMarketActions.add(key);
+  try {
+    if (hasHostWindow() && hostBridgeReady) return await waitForHostAction(action, payload);
+    const state = await runStandaloneMarketAction(action, payload);
+    return { mode: 'api', state };
+  } finally {
+    pendingMarketActions.delete(key);
+  }
+}
+async function withMarketButton(button, loadingText, callback) {
+  if (!button) return callback();
+  if (button.disabled) return null;
+  const oldHtml = button.innerHTML;
+  button.disabled = true;
+  button.classList.add('is-busy');
+  button.innerHTML = loadingText;
+  try {
+    return await callback();
+  } finally {
+    button.disabled = false;
+    button.classList.remove('is-busy');
+    button.innerHTML = oldHtml;
+  }
 }
 function customCooksKey() { return 'hometaste_custom_cooks_v2'; }
 function customDishesKey() { return 'hometaste_custom_dishes_v2'; }
@@ -3507,13 +3567,30 @@ window.addEventListener('message', (event) => {
       document.getElementById('successOverlay')?.classList.add('open');
     }
     if (event.data.ok) showToast('Live data updated.', 'success');
+    if (event.data.requestId && pendingHostActions.has(event.data.requestId)) {
+      const pending = pendingHostActions.get(event.data.requestId);
+      clearTimeout(pending.timeout);
+      pendingHostActions.delete(event.data.requestId);
+      pending.resolve({ mode: 'host', state: event.data.state, placedOrder: Boolean(event.data.placedOrder) });
+    }
   }
-  if (event.data.action === 'market-error') showToast(event.data.error || 'Live update failed.', 'error');
+  if (event.data.action === 'market-error') {
+    const error = new Error(event.data.error || 'Live update failed.');
+    let handledPending = false;
+    if (event.data.requestId && pendingHostActions.has(event.data.requestId)) {
+      const pending = pendingHostActions.get(event.data.requestId);
+      clearTimeout(pending.timeout);
+      pendingHostActions.delete(event.data.requestId);
+      pending.reject(error);
+      handledPending = true;
+    }
+    if (!handledPending) showToast(error.message, 'error');
+  }
 });
 
 // ===== SEARCH (FIXED: live filtering) =====
 function toggleCityDropdown() {
-  document.getElementById('cityDropdown').classList.toggle('open');
+  document.getElementById('cityDropdown')?.classList.toggle('open');
 }
 function countryCooks() {
   return cooks.filter(c => (c.country || selectedCountry || 'TR') === selectedCountry);
@@ -3581,8 +3658,11 @@ function openCountryMenu() {
   document.getElementById('countryCuisineMenu')?.classList.add('open');
 }
 function filterCountryMenu(value) {
-  renderCountryMenu(value);
-  document.getElementById('countryCuisineMenu')?.classList.add('open');
+  clearTimeout(countryMenuTimer);
+  countryMenuTimer = setTimeout(() => {
+    renderCountryMenu(value);
+    document.getElementById('countryCuisineMenu')?.classList.add('open');
+  }, 120);
 }
 function selectCountryCuisine(country) {
   const input = document.getElementById('countryCuisineSearch');
@@ -3624,7 +3704,9 @@ function doSearch() {
 
 // ===== FILTERS =====
 function filterChip(el, type) {
-  el.closest('.filter-chips, .filter-bar').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  const group = el?.closest('.filter-chips, .filter-bar');
+  if (!group) return;
+  group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderDishes();
   showToast(`Showing ${type === 'all' ? 'all' : type} dishes`, 'info');
@@ -3652,7 +3734,7 @@ function cookCard(c, staggerClass) {
   return `
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
-      <img src="${coverPhoto}" alt="${c.name}" onerror="this.src='${defaultCookCoverPhoto}'">
+      <img src="${coverPhoto}" alt="${c.name}" loading="lazy" decoding="async" onerror="this.src='${defaultCookCoverPhoto}'">
       <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
@@ -3698,9 +3780,9 @@ function dishCard(d, staggerClass, options = {}) {
   return `
   <div class="dish-card ${staggerClass}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
-      <img src="${d.img}" alt="${d.name}" onerror="this.src='${defaultDishPhoto}'">
+      <img src="${d.img}" alt="${d.name}" loading="lazy" decoding="async" onerror="this.src='${defaultDishPhoto}'">
       <span class="dish-tag">${d.tag}</span>
-      ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>` : ''}
+      ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
       <h3>${d.name}</h3>
@@ -3735,7 +3817,7 @@ function renderOrders() {
       </div>
       <span class="order-status ${o.statusClass}">${o.status}</span>
     </div>
-    <div class="order-img"><img src="${o.img}" alt="${o.dish}" onerror="this.parentElement.textContent='🍽️'"></div>
+    <div class="order-img"><img src="${o.img}" alt="${o.dish}" loading="lazy" decoding="async" onerror="this.parentElement.textContent='🍽️'"></div>
     <div class="order-info">
       <h3>${o.dish}</h3>
       <p>by ${o.by}</p>
@@ -3831,7 +3913,7 @@ function renderCart() {
   } else {
     itemsEl.innerHTML = cart.map(item => `
     <div class="cart-item" id="cart-item-${item.id}">
-      <img class="cart-item-img" src="${item.img}" alt="${item.name}" onerror="this.style.background='var(--bg3)'">
+      <img class="cart-item-img" src="${item.img}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.style.background='var(--bg3)'">
       <div class="cart-item-info">
         <div class="cart-item-name">${item.name}</div>
         <div class="cart-item-by">by ${item.by}</div>
@@ -4142,7 +4224,7 @@ async function sendChatMessage() {
 
 
 // ===== BECOME A COOK DEMO (FIXED: validation) =====
-function compressImageFile(file, onReady, maxSize = 1200, quality = 0.82) {
+function compressImageFile(file, onReady, maxSize = 1200, quality = 0.75) {
   const reader = new FileReader();
   reader.onload = () => {
     const rawValue = String(reader.result || '');
@@ -4169,6 +4251,11 @@ function readImageAsDataUrl(input, onReady) {
     showToast('Please choose an image file.', 'error');
     return onReady('');
   }
+  if (file.size > 8 * 1024 * 1024) {
+    input.value = '';
+    showToast('Image is too large. Please choose an image under 8 MB.', 'error');
+    return onReady('');
+  }
   compressImageFile(file, onReady);
 }
 function handleCookDishPhoto(input, source='gallery'){
@@ -4183,7 +4270,7 @@ function handleCookDishPhoto(input, source='gallery'){
     showToast(value ? 'Dish photo added. It will appear under your dishes only.' : 'Dish photo removed', 'info');
   });
 }
-async function createCookDemo(){
+async function createCookDemo(button = null){
   const name = currentUserName || 'HomeTaste cook';
   const phone = document.getElementById('cookPhoneInput').value.trim();
   const policyConfirmed = document.getElementById('cookPolicyConfirm')?.checked;
@@ -4198,29 +4285,31 @@ async function createCookDemo(){
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
   const price = Number(document.getElementById('cookPriceInput').value) || 150;
   const profilePhoto = getSavedProfilePicture() || '';
-  const coverPhoto = getSavedProfileCover() || defaultCookCoverPhoto;
-  const dishPhoto = cookDishPhotoPreviewUrl || defaultDishPhoto;
+  const coverPhoto = getSavedProfileCover() || '';
+  const dishPhoto = cookDishPhotoPreviewUrl || '';
   const online = getDesiredCookOnline();
+  await withMarketButton(button, 'Posting...', async () => {
 	  try {
 	    const result = await sendMarketAction('market-create-cook-dish', {
-    payload: {
-      name: dish,
-      description: bio,
-      price,
-      prepMinutes: parsePrepMinutes(prep),
-      image: dishPhoto,
-      country,
-      bio,
-      profilePhoto,
-      coverPhoto,
-      online
-    }
-  });
+      payload: {
+        name: dish,
+        description: bio,
+        price,
+        prepMinutes: parsePrepMinutes(prep),
+        image: dishPhoto,
+        country,
+        bio,
+        profilePhoto,
+        coverPhoto,
+        online
+      }
+    });
 	    cookDishPhotoPreviewUrl = '';
-	    showToast(result.mode === 'host' ? 'Publishing your real dish for admin review...' : 'Cook request sent to admin and dish saved.', result.mode === 'host' ? 'info' : 'success');
+	    showToast(result.mode === 'host' ? 'Cook request sent to admin and dish saved.' : 'Cook request sent to admin and dish saved.', 'success');
 	  } catch (error) {
 	    showToast(error.message, 'error');
 	  }
+  });
 		}
 function renderMyCookDishManager(){
   const manager = document.getElementById('myCookDishManager');
@@ -4255,7 +4344,7 @@ function renderMyCookDishManager(){
         <div class="welcome-label">Dish photo</div>
         <div class="profile-photo-actions">
           <button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${cook.name}</small></button>
-          <button class="photo-action" type="button" onclick="publishExtraDish()">Publish Dish<small>Add it to your cook profile</small></button>
+          <button class="photo-action" type="button" onclick="publishExtraDish(this)">Publish Dish<small>Add it to your cook profile</small></button>
         </div>
         <input id="extraDishPhotoInput" type="file" accept="image/*" hidden onchange="handleExtraDishPhoto(this)">
       </div>
@@ -4264,9 +4353,9 @@ function renderMyCookDishManager(){
     <div class="manager-dishes">
       ${cookDishes.length ? cookDishes.map(d => `
         <div class="manager-dish">
-          <img src="${d.img}" alt="${d.name}" onerror="this.src='${defaultDishPhoto}'">
+          <img src="${d.img}" alt="${d.name}" loading="lazy" decoding="async" onerror="this.src='${defaultDishPhoto}'">
           <div><strong>${d.name}</strong><br><span>${d.price} ₺ · ${d.prepTime || '45 min'}</span></div>
-          <button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)})'>Remove</button>
+          <button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button>
         </div>
       `).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}
     </div>
@@ -4280,7 +4369,7 @@ function handleExtraDishPhoto(input){
     if (value) showToast('Dish photo selected.', 'info');
   });
 }
-async function publishExtraDish(){
+async function publishExtraDish(button = null){
   const cook = getMyCook();
   if (!cook) { showToast('Create your cook profile first.', 'error'); return; }
   const name = document.getElementById('extraDishNameInput')?.value.trim();
@@ -4290,24 +4379,26 @@ async function publishExtraDish(){
   const country = document.getElementById('extraDishCountryInput')?.value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }
   const desc = document.getElementById('extraDishDescInput')?.value.trim() || cook.bio || 'Fresh homemade dish from this cook.';
-  try {
-    const result = await sendMarketAction('market-add-dish', {
-      payload: {
-        name,
-        description: desc,
-        price,
-        prepMinutes: parsePrepMinutes(prepTime),
-        image: extraDishPhotoPreviewUrl || defaultDishPhoto,
-        country
-      }
-    });
-    extraDishPhotoPreviewUrl = '';
-    showToast(result.mode === 'host' ? 'Publishing dish...' : 'Dish published on your cook profile.', result.mode === 'host' ? 'info' : 'success');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
+  await withMarketButton(button, 'Publishing...', async () => {
+    try {
+      const result = await sendMarketAction('market-add-dish', {
+        payload: {
+          name,
+          description: desc,
+          price,
+          prepMinutes: parsePrepMinutes(prepTime),
+          image: extraDishPhotoPreviewUrl || '',
+          country
+        }
+      });
+      extraDishPhotoPreviewUrl = '';
+      showToast(result.mode === 'host' ? 'Dish published on your cook profile.' : 'Dish published on your cook profile.', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
-async function removeCookDish(event, dishId){
+async function removeCookDish(event, dishId, button = null){
   event?.stopPropagation();
   const cook = getMyCook();
   const index = dishes.findIndex(d => sameId(d.id, dishId));
@@ -4316,18 +4407,20 @@ async function removeCookDish(event, dishId){
     showToast('You can remove only dishes from your cook profile.', 'error');
     return;
   }
-  try {
-    const result = await sendMarketAction('market-remove-dish', { dishId: dish.apiId || dish.id });
-    cart = cart.filter(item => !sameId(item.id, dishId));
-    if (currentDish && sameId(currentDish.id, dishId)) closeDishModal();
-    renderCart();
-    if (document.getElementById('page-cook-profile')?.classList.contains('active') && currentCook && sameId(currentCook.id, cook.id)) {
-      openCookProfile(cook.id);
+  await withMarketButton(button, 'Removing...', async () => {
+    try {
+      const result = await sendMarketAction('market-remove-dish', { dishId: dish.apiId || dish.id });
+      cart = cart.filter(item => !sameId(item.id, dishId));
+      if (currentDish && sameId(currentDish.id, dishId)) closeDishModal();
+      renderCart();
+      if (document.getElementById('page-cook-profile')?.classList.contains('active') && currentCook && sameId(currentCook.id, cook.id)) {
+        openCookProfile(cook.id);
+      }
+      showToast(result.mode === 'host' ? `${dish.name} removed from your profile.` : `${dish.name} removed from your profile.`, 'info');
+    } catch (error) {
+      showToast(error.message, 'error');
     }
-    showToast(result.mode === 'host' ? 'Removing dish...' : `${dish.name} removed from your profile.`, 'info');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
+  });
 }
 
 // ===== FAQ =====
@@ -4420,7 +4513,7 @@ function updateSettingsAccount() {
   const cook = getMyCook();
   if (name) name.textContent = currentUserName || 'Your account';
   if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
-  if (avatar) avatar.innerHTML = photo ? `<img src="${photo}" alt="${currentUserName} profile picture">` : '👤';
+  if (avatar) avatar.innerHTML = photo ? `<img src="${photo}" alt="${currentUserName} profile picture" loading="lazy" decoding="async">` : '👤';
   document.getElementById('cookOnlineToggle')?.classList.toggle('on', Boolean(cook?.online));
   syncMyCookPhotos();
   if (currentCook && cook && sameId(currentCook.id, cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
@@ -4442,7 +4535,7 @@ function openProfilePicturePanel() {
   openAccountModal(`
     <h2>Change Profile Picture</h2>
     <p class="account-hint">Take a fresh photo or upload one from your device, then press Save picture.</p>
-    <div class="profile-picture-preview" id="profilePicturePreview">${photo ? `<img src="${photo}" alt="Current profile picture">` : 'No profile picture selected'}</div>
+    <div class="profile-picture-preview" id="profilePicturePreview">${photo ? `<img src="${photo}" alt="Current profile picture" loading="lazy" decoding="async">` : 'No profile picture selected'}</div>
     <div class="profile-picture-actions">
       <button class="photo-action" type="button" onclick="document.getElementById('profileCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
       <button class="photo-action" type="button" onclick="document.getElementById('profileGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
@@ -4452,7 +4545,7 @@ function openProfilePicturePanel() {
     <div class="account-actions">
       <button class="account-cancel" type="button" onclick="removeProfilePicture()">Remove photo</button>
       <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
-      <button class="btn-place-order" type="button" onclick="saveProfilePicture()">Save picture</button>
+      <button class="btn-place-order" type="button" onclick="saveProfilePicture(this)">Save picture</button>
     </div>
   `);
 }
@@ -4462,23 +4555,25 @@ function handleProfilePicture(input) {
   if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
   compressImageFile(file, value => {
     pendingProfilePicture = value;
-    document.getElementById('profilePicturePreview').innerHTML = `<img src="${value}" alt="New profile picture">`;
+    document.getElementById('profilePicturePreview').innerHTML = `<img src="${value}" alt="New profile picture" loading="lazy" decoding="async">`;
     showToast('Picture selected. Press Save picture to confirm.', 'info');
   });
 }
-async function saveProfilePicture() {
+async function saveProfilePicture(button = null) {
   if (!pendingProfilePicture) return showToast('Choose a photo first.', 'error');
-  setSavedProfilePicture(pendingProfilePicture);
-  try {
-    await sendMarketAction('market-profile', { profile: { profilePhoto: pendingProfilePicture } });
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-  pendingProfilePicture = '';
-  updateSettingsAccount();
-  refreshCookAndDishViews();
-  document.getElementById('accountModal')?.classList.remove('open');
-  showToast('Profile picture saved.', 'success');
+  await withMarketButton(button, 'Saving...', async () => {
+    try {
+      await sendMarketAction('market-profile', { profile: { profilePhoto: pendingProfilePicture } });
+      setSavedProfilePicture(pendingProfilePicture);
+      pendingProfilePicture = '';
+      updateSettingsAccount();
+      refreshCookAndDishViews();
+      document.getElementById('accountModal')?.classList.remove('open');
+      showToast('Profile picture saved.', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
 async function removeProfilePicture() {
   localStorage.removeItem(userProfilePictureKey());
@@ -4505,7 +4600,7 @@ function openProfileCoverPanel() {
   openAccountModal(`
     <h2>Change Background Photo</h2>
     <p class="account-hint">This photo is used as the large background image on your cook profile.</p>
-    <div class="profile-picture-preview" id="profileCoverPreview">${cover ? `<img src="${cover}" alt="Current background photo">` : 'No background photo selected'}</div>
+    <div class="profile-picture-preview" id="profileCoverPreview">${cover ? `<img src="${cover}" alt="Current background photo" loading="lazy" decoding="async">` : 'No background photo selected'}</div>
     <div class="profile-picture-actions">
       <button class="photo-action" type="button" onclick="document.getElementById('coverCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
       <button class="photo-action" type="button" onclick="document.getElementById('coverGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
@@ -4515,7 +4610,7 @@ function openProfileCoverPanel() {
     <div class="account-actions">
       <button class="account-cancel" type="button" onclick="removeProfileCover()">Remove background</button>
       <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
-      <button class="btn-place-order" type="button" onclick="saveProfileCover()">Save background</button>
+      <button class="btn-place-order" type="button" onclick="saveProfileCover(this)">Save background</button>
     </div>
   `);
 }
@@ -4525,23 +4620,25 @@ function handleProfileCover(input) {
   if (!file.type.startsWith('image/')) return showToast('Please choose an image file.', 'error');
   compressImageFile(file, value => {
     pendingProfileCover = value;
-    document.getElementById('profileCoverPreview').innerHTML = `<img src="${value}" alt="New background photo">`;
+    document.getElementById('profileCoverPreview').innerHTML = `<img src="${value}" alt="New background photo" loading="lazy" decoding="async">`;
     showToast('Background selected. Press Save background to confirm.', 'info');
   });
 }
-async function saveProfileCover() {
+async function saveProfileCover(button = null) {
   if (!pendingProfileCover) return showToast('Choose a background photo first.', 'error');
-  setSavedProfileCover(pendingProfileCover);
-  try {
-    await sendMarketAction('market-profile', { profile: { profileCover: pendingProfileCover } });
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-  pendingProfileCover = '';
-  updateSettingsAccount();
-  refreshCookAndDishViews();
-  document.getElementById('accountModal')?.classList.remove('open');
-  showToast('Background photo saved.', 'success');
+  await withMarketButton(button, 'Saving...', async () => {
+    try {
+      await sendMarketAction('market-profile', { profile: { profileCover: pendingProfileCover } });
+      setSavedProfileCover(pendingProfileCover);
+      pendingProfileCover = '';
+      updateSettingsAccount();
+      refreshCookAndDishViews();
+      document.getElementById('accountModal')?.classList.remove('open');
+      showToast('Background photo saved.', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
 async function removeProfileCover() {
   localStorage.removeItem(userProfileCoverKey());
@@ -4631,19 +4728,26 @@ function resetPaymentMethods() {
 
 // ===== CHECKOUT =====
 function updateCheckoutItems() {
+  const checkoutItems = document.getElementById('checkoutItems');
+  if (!checkoutItems) return;
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  document.getElementById('checkoutItems').innerHTML = cart.map(item => `
+  checkoutItems.innerHTML = cart.map(item => `
     <div class="summary-item">
-      <img src="${item.img}" alt="${item.name}" onerror="this.style.background='var(--bg3)'">
+      <img src="${item.img}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.style.background='var(--bg3)'">
       <span class="summary-item-name">${item.name} ×${item.qty}</span>
       <span class="summary-item-price">${item.price * item.qty} ₺</span>
     </div>`).join('');
-  document.getElementById('checkoutSubtotal').textContent = sub + ' ₺';
+  const subtotalEl = document.getElementById('checkoutSubtotal');
+  const deliveryEl = document.getElementById('checkoutDeliveryFee');
+  const serviceEl = document.getElementById('checkoutServiceFee');
+  const totalEl = document.getElementById('checkoutTotal');
+  if (!subtotalEl || !deliveryEl || !serviceEl || !totalEl) return;
+  subtotalEl.textContent = sub + ' ₺';
   const serviceFee = Math.round(sub * 0.15 * 100) / 100;
   const deliveryFee = cart.length ? 30 : 0;
-  document.getElementById('checkoutDeliveryFee').textContent = deliveryFee + ' ₺';
-  document.getElementById('checkoutServiceFee').textContent = serviceFee + ' ₺';
-  document.getElementById('checkoutTotal').textContent = (sub + deliveryFee + serviceFee) + ' ₺';
+  deliveryEl.textContent = deliveryFee + ' ₺';
+  serviceEl.textContent = serviceFee + ' ₺';
+  totalEl.textContent = (sub + deliveryFee + serviceFee) + ' ₺';
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
@@ -4722,12 +4826,14 @@ function saveDeliverySchedule() {
   showToast(`Delivery scheduled for ${date} at ${time}.`, 'success');
 }
 function selectPayment(el) {
-  el.closest('.payment-methods,.checkout-section').querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
+  const group = el?.closest('.payment-methods,.checkout-section');
+  if (!group) return;
+  group.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
   el.classList.add('active');
   if (el.closest('#paymentMethods')) renderPaymentDetails(el.dataset.paymentLabel || el.textContent);
   if (el.closest('#deliveryTimeOptions')) renderDeliveryTimeDetails(el.dataset.deliveryTime || 'asap');
 }
-async function placeOrder() {
+async function placeOrder(button = null) {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
   const activePayment = document.querySelector('#paymentMethods .payment-method.active');
@@ -4740,30 +4846,39 @@ async function placeOrder() {
     savedSchedule = {};
   }
   const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
-  try {
-    const result = await sendMarketAction('market-place-order', {
-      payload: {
-        items,
-        paymentMethod,
-        deliveryAddress: currentSavedAddress(),
-        customerLocation: currentSavedLocationQuery(),
-        scheduledFor
+  await withMarketButton(button, 'Placing...', async () => {
+    try {
+      pendingOrderPlacement = true;
+      const result = await sendMarketAction('market-place-order', {
+        payload: {
+          items,
+          paymentMethod,
+          deliveryAddress: currentSavedAddress(),
+          customerLocation: currentSavedLocationQuery(),
+          scheduledFor
+        }
+      });
+      pendingOrderPlacement = false;
+      if (result.mode === 'host') {
+        cart = [];
+        renderCart();
+        updateCartBadge();
+        document.getElementById('successOverlay')?.classList.add('open');
+        updateNavBadges();
+        showToast('Order placed and saved.', 'success');
+        return;
       }
-    });
-    pendingOrderPlacement = true;
-    if (result.mode === 'host') {
-      showToast('Placing your real order...', 'info');
-      return;
+      cart = [];
+      renderCart();
+      updateCartBadge();
+      document.getElementById('successOverlay')?.classList.add('open');
+      updateNavBadges();
+      showToast('Order placed and saved.', 'success');
+    } catch (error) {
+      pendingOrderPlacement = false;
+      showToast(error.message, 'error');
     }
-    cart = [];
-    renderCart();
-    updateCartBadge();
-    document.getElementById('successOverlay').classList.add('open');
-    updateNavBadges();
-    showToast('Order placed and saved.', 'success');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
+  });
 }
 
 // ===== COOK FILTERS =====

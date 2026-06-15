@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-mobile-cook-image-polish-01";
+const APP_BUILD = "20260616-mobile-stability-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -28,6 +28,12 @@ let authProviderStatus = null;
 let authProviderStatusPromise = null;
 let ownerRefreshTimer = null;
 let refreshInFlight = false;
+let searchRenderTimer = null;
+const pendingActions = new Set();
+const API_TIMEOUT_MS = 15000;
+const MAX_UPLOAD_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1200;
+const IMAGE_COMPRESSION_QUALITY = 0.75;
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -213,7 +219,7 @@ function sendPreferenceToMarketplace(name, value) {
 
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
-  const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", ...payload }, event.origin);
+  const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", requestId: event.data.requestId || "", ...payload }, event.origin);
   if (event.data.action === "market-page") {
     currentMarketPage = event.data.page || "home";
     updateRolePanelVisibility();
@@ -626,17 +632,36 @@ function useBrowserLocation() {
 
 async function api(path, options = {}) {
   if (useStaticApi) return staticApi(path, options);
-  const res = await fetch(configuredApiBase ? `${configuredApiBase}${path}` : path, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {})
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const res = await fetch(configuredApiBase ? `${configuredApiBase}${path}` : path, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+      }
+    });
+    const text = await res.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text.slice(0, 240) };
+      }
     }
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Something went wrong.");
-  return data;
+    if (!res.ok) throw new Error(data.error || data.message || "Server error. Please try again.");
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Request timed out. Please try again.");
+    if (err instanceof TypeError) throw new Error("Network error. Please check your connection and try again.");
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function getAuthProviderStatus() {
@@ -1217,10 +1242,18 @@ function setPage(next) {
   renderApp();
 }
 
+function debounceRenderApp(delay = 180) {
+  clearTimeout(searchRenderTimer);
+  searchRenderTimer = setTimeout(() => {
+    searchRenderTimer = null;
+    renderApp();
+  }, delay);
+}
+
 function setButtonBusy(button, busy, label = "") {
   if (!button) return;
   if (busy) {
-    button.dataset.originalText = button.textContent;
+    if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
     button.disabled = true;
     button.classList.add("is-busy");
     if (label) button.textContent = label;
@@ -1231,6 +1264,18 @@ function setButtonBusy(button, busy, label = "") {
   if (button.dataset.originalText) {
     button.textContent = button.dataset.originalText;
     delete button.dataset.originalText;
+  }
+}
+
+async function withPendingAction(key, button, callback, loadingText = "Loading...") {
+  if (pendingActions.has(key)) return null;
+  pendingActions.add(key);
+  setButtonBusy(button, true, loadingText);
+  try {
+    return await callback();
+  } finally {
+    pendingActions.delete(key);
+    setButtonBusy(button, false);
   }
 }
 
@@ -1271,14 +1316,51 @@ function escapeAttr(value) {
     .replace(/>/g, "&gt;");
 }
 
-function readImageFile(file) {
+function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
-    if (!file) return resolve("");
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Could not read the selected image."));
-    reader.readAsDataURL(file);
+    reader.onerror = () => reject(new Error("Could not process the selected image."));
+    reader.readAsDataURL(blob);
   });
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read the selected image."));
+    };
+    image.src = url;
+  });
+}
+
+async function readImageFile(file) {
+  if (!file) return "";
+  if (!file.type.startsWith("image/")) throw new Error("Please choose a valid image file.");
+  if (file.size > MAX_UPLOAD_IMAGE_BYTES) throw new Error("Image is too large. Please choose an image under 8 MB.");
+  if (file.type === "image/gif" || file.type === "image/svg+xml") return blobToDataUrl(file);
+  const image = await loadImageFromFile(file);
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+  const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+  const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) return blobToDataUrl(file);
+  ctx.fillStyle = "#fff8ef";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, 0, 0, width, height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", IMAGE_COMPRESSION_QUALITY));
+  if (!blob) throw new Error("Could not compress the selected image.");
+  return blobToDataUrl(blob);
 }
 
 async function imageFromForm(form, fileName, urlName = "") {
@@ -1294,7 +1376,7 @@ function profileInitials(name) {
 
 function profilePhotoHtml(src, name, className = "profile-avatar") {
   return src
-    ? `<img class="${className}" src="${src}" alt="${name}">`
+    ? `<img class="${className}" src="${src}" alt="${name}" loading="lazy" decoding="async">`
     : `<div class="${className} avatar-fallback">${profileInitials(name)}</div>`;
 }
 
@@ -1321,7 +1403,7 @@ function adminCookRequestHtml(cook) {
     <div class="admin-review-card">
       <div class="admin-review-media">
         <div class="admin-review-cover">
-          ${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}
+          ${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo" loading="lazy" decoding="async">` : `<span>No background photo</span>`}
           <b>Background photo</b>
         </div>
         <div class="admin-review-profile">
@@ -1364,7 +1446,7 @@ function adminCookRequestHtml(cook) {
         <div class="admin-review-dishes">
           ${cookDishes.map((dish) => `
             <div class="admin-review-dish">
-              ${dish.image ? `<img src="${dish.image}" alt="${dish.name}">` : `<div class="admin-review-dish-empty">Dish</div>`}
+              ${dish.image ? `<img src="${dish.image}" alt="${dish.name}" loading="lazy" decoding="async">` : `<div class="admin-review-dish-empty">Dish</div>`}
               <div>
                 <strong>${dish.name}</strong>
                 <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div>
@@ -2054,7 +2136,7 @@ function dishCard(dish) {
   const cook = byId(state.cooks, dish.cookId);
   return `
     <article class="card dish-card">
-      <img src="${dish.image}" alt="${dish.name}">
+      <img src="${dish.image}" alt="${dish.name}" loading="lazy" decoding="async">
       <div class="dish-body">
         <h3>${dish.name}</h3>
         <div class="meta">${dish.description}</div>
@@ -2448,7 +2530,7 @@ function bindPage() {
     button.onclick = () => changeQty(button.dataset.qty, Number(button.dataset.delta));
   });
   const search = document.querySelector("#search");
-  if (search) search.oninput = (event) => { filters.q = event.target.value; renderApp(); };
+  if (search) search.oninput = (event) => { filters.q = event.target.value; debounceRenderApp(); };
   const city = document.querySelector("#cityFilter");
   if (city) city.onchange = (event) => { filters.city = event.target.value; renderApp(); };
   const checkout = document.querySelector("#checkoutForm");
@@ -2465,13 +2547,13 @@ function bindPage() {
   if (cookApply) cookApply.onsubmit = applyCook;
   document.querySelector("#cleanupDemoData")?.addEventListener("click", cleanupDemoData);
   document.querySelectorAll("[data-toggle-dish]").forEach((button) => {
-    button.onclick = () => toggleDish(button.dataset.toggleDish);
+    button.onclick = () => toggleDish(button.dataset.toggleDish, button);
   });
   document.querySelectorAll("[data-delete-dish]").forEach((button) => {
     button.onclick = () => deleteDish(button.dataset.deleteDish);
   });
   document.querySelectorAll("[data-cook-online]").forEach((button) => {
-    button.onclick = () => toggleCookOnline(button.dataset.cookOnline === "true");
+    button.onclick = () => toggleCookOnline(button.dataset.cookOnline === "true", button);
   });
   document.querySelectorAll("[data-admin-online-cook]").forEach((button) => {
     button.onclick = () => adminToggleCookOnline(button.dataset.adminOnlineCook);
@@ -2721,67 +2803,88 @@ async function placeOrder(event) {
 async function createDish(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const input = Object.fromEntries(new FormData(form).entries());
-  try {
-    const image = await imageFromForm(form, "imageFile", "image");
-    if (image) input.image = image;
-    state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
-    toast("Dish created.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  const submitButton = event.submitter || form.querySelector("[type='submit']");
+  const startedPage = page;
+  await withPendingAction("createDish", submitButton, async () => {
+    const input = Object.fromEntries(new FormData(form).entries());
+    try {
+      const image = await imageFromForm(form, "imageFile", "image");
+      if (image) input.image = image;
+      state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
+      toast("Dish created.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Posting...");
 }
 
 async function adminAddDish(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const input = Object.fromEntries(new FormData(form).entries());
-  try {
-    const image = await imageFromForm(form, "imageFile", "image");
-    if (image) input.image = image;
-    state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
-    toast("Dish added for cook.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  const submitButton = event.submitter || form.querySelector("[type='submit']");
+  const startedPage = page;
+  await withPendingAction("adminAddDish", submitButton, async () => {
+    const input = Object.fromEntries(new FormData(form).entries());
+    try {
+      const image = await imageFromForm(form, "imageFile", "image");
+      if (image) input.image = image;
+      state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
+      toast("Dish added for cook.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Posting...");
 }
 
 async function createMealPlan(event) {
   event.preventDefault();
-  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-  try {
-    state = await api("/api/meal-plans", { method: "POST", body: JSON.stringify(input) });
-    toast("Subscription plan created.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  const form = event.currentTarget;
+  const submitButton = event.submitter || form.querySelector("[type='submit']");
+  const startedPage = page;
+  await withPendingAction("createMealPlan", submitButton, async () => {
+    const input = Object.fromEntries(new FormData(form).entries());
+    try {
+      state = await api("/api/meal-plans", { method: "POST", body: JSON.stringify(input) });
+      toast("Subscription plan created.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Creating...");
 }
 
 async function applyCook(event) {
   event.preventDefault();
-  const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-  try {
-    state = await api("/api/cooks/apply", { method: "POST", body: JSON.stringify(input) });
-    toast("Cook application submitted.");
-    page = "become";
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  const form = event.currentTarget;
+  const submitButton = event.submitter || form.querySelector("[type='submit']");
+  await withPendingAction("applyCook", submitButton, async () => {
+    const input = Object.fromEntries(new FormData(form).entries());
+    try {
+      state = await api("/api/cooks/apply", { method: "POST", body: JSON.stringify(input) });
+      toast("Cook application submitted.");
+      page = "become";
+      renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Submitting...");
 }
 
-async function toggleDish(dishId) {
+async function toggleDish(dishId, button = null) {
   const dish = byId(state.dishes, dishId);
-  try {
-    state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ available: !dish.available, scope: isOwner() ? "matching" : "single" }) });
-    toast("Dish visibility updated.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  if (!dish) return;
+  const startedPage = page;
+  await withPendingAction(`toggleDish:${dishId}`, button, async () => {
+    try {
+      state = await api(`/api/dishes/${dishId}`, { method: "PATCH", body: JSON.stringify({ available: !dish.available, scope: isOwner() ? "matching" : "single" }) });
+      toast("Dish visibility updated.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Saving...");
 }
 
 async function deleteDish(dishId) {
@@ -2798,14 +2901,17 @@ async function deleteDish(dishId) {
   }
 }
 
-async function toggleCookOnline(online) {
-  try {
-    state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online }) });
-    toast(online ? "You are online." : "You are offline.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+async function toggleCookOnline(online, button = null) {
+  const startedPage = page;
+  await withPendingAction(`toggleCookOnline:${online}`, button, async () => {
+    try {
+      state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online }) });
+      toast(online ? "You are online." : "You are offline.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Saving...");
 }
 
 async function featureDish(dishId) {
@@ -2917,22 +3023,26 @@ async function adminDeleteUser(userId) {
 async function updateProfileMedia(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  try {
-    const profilePhoto = await imageFromForm(form, "profilePhotoFile");
-    const profileCover = await imageFromForm(form, "profileCoverFile");
-    const payload = {};
-    if (profilePhoto) payload.profilePhoto = profilePhoto;
-    if (profileCover) payload.profileCover = profileCover;
-    if (!Object.keys(payload).length) {
-      toast("Choose a profile or background photo first.", true);
-      return;
+  const submitButton = event.submitter || form.querySelector("[type='submit']");
+  const startedPage = page;
+  await withPendingAction("updateProfileMedia", submitButton, async () => {
+    try {
+      const profilePhoto = await imageFromForm(form, "profilePhotoFile");
+      const profileCover = await imageFromForm(form, "profileCoverFile");
+      const payload = {};
+      if (profilePhoto) payload.profilePhoto = profilePhoto;
+      if (profileCover) payload.profileCover = profileCover;
+      if (!Object.keys(payload).length) {
+        toast("Choose a profile or background photo first.", true);
+        return;
+      }
+      state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(payload) });
+      toast("Profile photos saved.");
+      if (page === startedPage) renderApp();
+    } catch (err) {
+      toast(err.message, true);
     }
-    state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(payload) });
-    toast("Profile photos saved.");
-    renderApp();
-  } catch (err) {
-    toast(err.message, true);
-  }
+  }, "Saving...");
 }
 
 async function reviewRefund(refundId, outcome) {
