@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260612-final-audit-15";
+const APP_BUILD = "20260607-ui-order-flow-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -7,17 +7,13 @@ const chefLogoIcon = `
     <path d="M17 29c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8"></path>
   </svg>`;
 const storageKey = "hometaste_token";
-const legacySavedLoginKey = "hometaste_saved_login";
-const savedEmailKey = "hometaste_saved_email";
+const savedLoginKey = "hometaste_saved_login";
 const currentScript = document.querySelector('script[src*="app.js"]');
 const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
 const isGitHubPages = window.location.hostname.endsWith("github.io");
 const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
 const useStaticApi = isGitHubPages && !configuredApiBase;
 const staticDbKey = "hometaste_static_db";
-const staticSessionTtlMs = 7 * 24 * 60 * 60 * 1000;
-const maxBrowserImageBytes = 500 * 1024;
-const allowedBrowserImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 let token = localStorage.getItem(storageKey);
 let state = null;
@@ -46,10 +42,9 @@ const routePageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "home";
   return marketplaceRoutes.has(segment) ? segment : "home";
 };
-const appRoutes = new Set(["admin", "browse", "orders", "subscriptions", "become", "settings"]);
+const appRoutes = new Set(["browse", "orders", "subscriptions", "become", "settings"]);
 const routeAppPageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
-  if (segment === "driver") return "dashboard";
   if (segment === "messages") return "chat";
   return appRoutes.has(segment) ? segment : "dashboard";
 };
@@ -69,8 +64,7 @@ const statusLabels = {
 const statusSteps = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered"];
 const paymentLabels = {
   cash: "Cash on delivery",
-  iban: "IBAN transfer",
-  stripe: "Credit card",
+  stripe: "Stripe",
   iyzico: "iyzico",
   paytr: "PayTR",
   visa: "Visa",
@@ -111,7 +105,7 @@ const appTranslations = {
     dishes: "Dishes", cooks: "Cooks", yourOrders: "Your orders", orderValue: "Order value", whatYouCanDo: "What you can do", browseOrderFood: "Browse and order food", trackOrders: "Track orders", messageAroundOrders: "Message around orders", openAdmin: "Open admin control", openCookStudio: "Open cook studio", applyAsCook: "Apply as cook", featuredDishes: "Featured dishes", noFeatured: "No featured dishes yet.",
     subscriptionsTitle: "Meal Plan Dashboard", subscriptionsSubtitle: "Active plan, pause, resume, and skip-week controls for weekly subscriptions.", activeSubscriptions: "Active subscriptions", noSubscriptions: "No subscriptions yet. Pick a weekly plan below.", weeklyPlans: "Available weekly plans", noMealPlans: "No meal plans are available.", subscribe: "Subscribe", mealsWeekly: "meals weekly", nextDelivery: "Next delivery", notScheduled: "Not scheduled", skippedWeeks: "Skipped weeks", pause: "Pause", resume: "Resume", skipWeek: "Skip week", cancel: "Cancel",
     adminTitle: "Admin Control", adminSubtitle: "All users, registrations, cooks, orders, revenue, and marketplace controls.", users: "Users", drivers: "Drivers", pendingCooks: "Pending cooks", revenue: "Revenue", commission15: "15% commission", refundReview: "Refund review", cookVerification: "Cook verification", approve: "Approve", pending: "Pending", suspend: "Suspend", verifyId: "Verify ID", verifyAddress: "Verify address", verifyPhone: "Verify phone", dishControls: "Dish controls", availableLower: "available", hidden: "hidden", feature: "Feature", unfeature: "Unfeature", hide: "Hide", show: "Show", registrationData: "All registration data", person: "Person", contact: "Contact", registration: "Registration", cookProfile: "Cook profile", changeRole: "Change role", noPhone: "No phone", noCity: "No city", verified: "verified", notVerified: "not verified", eaterAccount: "Eater account", fulfillmentControl: "All orders and fulfillment control", noOrders: "No orders yet.", paymentEscrow: "Payment escrow and payouts", noPaymentRecords: "No payment records yet.", cookPayout: "Cook payout", customerNoteEmpty: "No customer note", outcome: "Outcome", noRefundRequests: "No refund requests yet.",
-    browseTitle: "Browse Food", browseSubtitle: "Search real dishes, add them to a cart, and place persisted orders.", searchPlaceholder: "Search dish, cook, city, tag", allCities: "All cities", noDishMatches: "No dishes match your search.", subscriptionMeals: "Subscription meals", cart: "Cart", cartEmpty: "Your cart is empty.", subtotal: "Subtotal", delivery: "Delivery", commissionAfterDelivery: "HomeTaste commission (15%)", payoutAfterCommission: "Cook payout", totalPaid: "Total paid to HomeTaste", deliveryAddress: "Delivery address", scheduleOrder: "Schedule order", paymentMethod: "Payment method", notes: "Notes", notesPlaceholder: "Allergies, spice level, delivery notes", placeOrder: "Place order", cookFallback: "Cook", add: "Add", followCook: "Follow cook", like: "Like", comment: "Comment", sharePhoto: "Share photo",
+    browseTitle: "Browse Food", browseSubtitle: "Search real dishes, add them to a cart, and place persisted orders.", searchPlaceholder: "Search dish, cook, city, tag", allCities: "All cities", noDishMatches: "No dishes match your search.", subscriptionMeals: "Subscription meals", cart: "Cart", cartEmpty: "Your cart is empty.", subtotal: "Subtotal", delivery: "Delivery", commissionAfterDelivery: "HomeTaste commission after delivery", payoutAfterCommission: "Cook payout after commission", totalPaid: "Total paid to HomeTaste", deliveryAddress: "Delivery address", scheduleOrder: "Schedule order", paymentMethod: "Payment method", notes: "Notes", notesPlaceholder: "Allergies, spice level, delivery notes", placeOrder: "Place order", cookFallback: "Cook", add: "Add", followCook: "Follow cook", like: "Like", comment: "Comment", sharePhoto: "Share photo",
     deliveriesTitle: "Deliveries", ordersTitle: "Orders", deliveriesSubtitle: "Receive food from cooks, start delivery, and mark handoff updates live.", ordersSubtitle: "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.", order: "Order", items: "Items", driver: "Driver", total: "Total", status: "Status", actions: "Actions", pickup: "Pickup", dropoff: "Dropoff", customerAddress: "Customer address", eta: "ETA", scheduled: "Scheduled", asap: "ASAP", acceptOrder: "Accept order", navigate: "Navigate", updateLocation: "Update location", customer: "Customer", commission: "Commission", payout: "payout", openChat: "Open chat", lastUpdate: "Last update", noHistory: "No history yet", noActionNeeded: "No action needed", receiveFood: "Receive food", startDelivery: "Start delivery", nearCustomer: "Near customer", markDelivered: "Mark delivered", waitingForCook: "Waiting for cook", startPreparing: "Start preparing", foodFinished: "Food finished", waitingForDriver: "Waiting for driver", waiting: "Waiting", confirmReceived: "Confirm received", driverQueue: "Driver queue", driverQueueBody: "See ready orders, receive them from cooks, then update delivery progress for the customer and admin.", noAssignedDeliveries: "No assigned deliveries yet.", cookOrderFlow: "Cook order flow", cookOrderBody: "Use these buttons when the customer order moves forward. When food is finished, press Food finished.", noActiveCookOrders: "No active cook orders yet.", reportIssue: "Report issue",
     chatTitle: "Chat", chatSubtitle: "Every message is saved and tied to an order.", conversations: "Conversations", startChatEmpty: "Create an order to start chat.", noChatSelected: "No chat selected.", noMessages: "No messages yet.", message: "Message", messagePlaceholder: "Ask about timing, spice, pickup, delivery", sendMessage: "Send message",
     cookStudioTitle: "Cook Studio", cookStudioSubtitle: "Manage your profile, dishes, availability, and incoming orders.", businessSummary: "Business summary", popularDish: "Popular dish", noOrdersYet: "No orders yet", likes: "Likes", comments: "Comments", customerPhotos: "Customer photos", createSubscriptionPlan: "Create subscription plan", name: "Name", mealsPerWeek: "Meals per week", priceTl: "Price TL", description: "Description", createPlan: "Create plan", addDish: "Add dish", prepMinutes: "Prep minutes", imageUrl: "Image URL", tagsComma: "Tags, comma separated", createDish: "Create dish", yourDishes: "Your dishes", noDishesYet: "No dishes yet.",
@@ -213,12 +207,6 @@ function sendPreferenceToMarketplace(name, value) {
   frame.contentWindow.postMessage({ source: "HomeTaste", name, value }, window.location.origin);
 }
 
-function sendStateToMarketplace(extra = {}) {
-  const frame = marketplaceFrame();
-  if (!frame?.contentWindow || !state) return;
-  frame.contentWindow.postMessage({ source: "HomeTaste", action: "market-sync", state, ...extra }, window.location.origin);
-}
-
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
   const reply = (payload) => event.source?.postMessage({ source: "HomeTaste", ...payload }, event.origin);
@@ -234,20 +222,8 @@ async function handleMarketplaceMessage(event) {
   if (event.data.action === "market-profile") {
     try {
       state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
-      syncSavedLocationFromUser(state.user);
       reply({ action: "market-sync", ok: true, state });
-      updateRolePanelVisibility();
-    } catch (err) {
-      reply({ action: "market-error", error: err.message });
-    }
-    return;
-  }
-  if (event.data.action === "market-location") {
-    try {
-      state = await api("/api/users/profile", { method: "PATCH", body: JSON.stringify(event.data.profile || {}) });
-      syncSavedLocationFromUser(state.user);
-      reply({ action: "market-sync", ok: true, state });
-      updateAddressButton();
+      renderApp();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -257,7 +233,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: event.data.online }) });
       reply({ action: "market-sync", ok: true, state });
-      updateRolePanelVisibility();
+      renderApp();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -274,8 +250,6 @@ async function handleMarketplaceMessage(event) {
             bio: payload.bio || "Fresh home cooking.",
             profilePhoto: payload.profilePhoto || "",
             profileCover: payload.coverPhoto || "",
-            phone: payload.phone || "",
-            city: payload.city || state.user.city || "",
             online: Boolean(payload.online)
           })
         });
@@ -337,7 +311,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/social", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      updateRolePanelVisibility();
+      renderApp();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -347,7 +321,7 @@ async function handleMarketplaceMessage(event) {
     try {
       state = await api("/api/messages", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
       reply({ action: "market-sync", ok: true, state });
-      updateRolePanelVisibility();
+      renderApp();
     } catch (err) {
       reply({ action: "market-error", error: err.message });
     }
@@ -496,22 +470,6 @@ function readableLocationLabel(value) {
   return clean && !isCoordinateLabel(clean) ? clean : "";
 }
 
-function inferCityFromLocation(value) {
-  return String(value || "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .find((part) => !isCoordinateLabel(part) && !/^\d{4,}$/.test(part)) || "";
-}
-
-function syncSavedLocationFromUser(user = state?.user) {
-  if (!user?.id) return;
-  const label = readableLocationLabel(user.authMeta?.locationLabel) || readableLocationLabel(user.city);
-  const query = user.authMeta?.locationQuery || label;
-  if (label) localStorage.setItem(`hometaste_address_${user.id}`, label);
-  if (query) localStorage.setItem(`hometaste_location_query_${user.id}`, query);
-}
-
 function setLocationMap(query, label = query) {
   const cleanQuery = String(query || label || "").trim();
   const cleanLabel = readableLocationLabel(label) || t("currentLocation");
@@ -535,15 +493,11 @@ function userLocationQueryKey() {
 }
 
 function currentSavedAddress() {
-  return readableLocationLabel(state?.user?.authMeta?.locationLabel)
-    || readableLocationLabel(localStorage.getItem(userAddressKey()))
-    || readableLocationLabel(localStorage.getItem("hometaste_location_label"))
-    || readableLocationLabel(state?.user?.city)
-    || "";
+  return readableLocationLabel(localStorage.getItem(userAddressKey())) || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
 }
 
 function currentSavedLocationQuery() {
-  return state?.user?.authMeta?.locationQuery || localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
+  return localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -551,7 +505,7 @@ function updateAddressButton(value = currentSavedAddress()) {
   if (label) label.textContent = value || t("selectAddress");
 }
 
-async function confirmLocation(value, mapQuery = value) {
+function confirmLocation(value, mapQuery = value) {
   const clean = value.trim();
   if (!clean) return toast(t("enterAddress"), true);
   const label = readableLocationLabel(clean) || t("currentLocation");
@@ -560,23 +514,6 @@ async function confirmLocation(value, mapQuery = value) {
   setLocationMap(mapQuery, label);
   updateAddressButton(label);
   closeLocation();
-  if (state?.user) {
-    try {
-      state = await api("/api/users/profile", {
-        method: "PATCH",
-        body: JSON.stringify({
-          city: inferCityFromLocation(label) || state.user.city || "",
-          locationLabel: label,
-          locationQuery: mapQuery || label
-        })
-      });
-      syncSavedLocationFromUser(state.user);
-      sendStateToMarketplace({ ok: true });
-    } catch (err) {
-      toast(err.message, true);
-      return;
-    }
-  }
   toast(t("addressSaved"));
 }
 
@@ -709,7 +646,7 @@ async function refreshOAuthButtons(root = document) {
     const available = Boolean(status[provider]);
     button.hidden = false;
     button.disabled = false;
-    button.title = available ? "" : `${oauthProviderLabel(provider)} sign-in is not configured.`;
+    button.title = available ? "" : `${oauthProviderLabel(provider)} sign-in is not configured yet.`;
   });
   root.querySelectorAll(".oauth-grid").forEach((grid) => {
     grid.hidden = false;
@@ -722,7 +659,6 @@ async function refresh() {
   refreshInFlight = true;
   try {
     state = await api("/api/state");
-    syncSavedLocationFromUser(state.user);
     renderApp();
   } catch {
     token = null;
@@ -733,14 +669,11 @@ async function refresh() {
   }
 }
 
-function stopOwnerRefresh() {
-  if (!ownerRefreshTimer) return;
-  clearInterval(ownerRefreshTimer);
-  ownerRefreshTimer = null;
-}
-
 function scheduleOwnerRefresh() {
-  stopOwnerRefresh();
+  if (ownerRefreshTimer) {
+    clearInterval(ownerRefreshTimer);
+    ownerRefreshTimer = null;
+  }
   if (state?.user?.role === "owner" && page === "admin") {
     ownerRefreshTimer = setInterval(() => refresh(), 10000);
   }
@@ -798,49 +731,6 @@ function saveStaticDb(db) {
   localStorage.setItem(staticDbKey, JSON.stringify(db));
 }
 
-function staticAppError(message) {
-  throw new Error(message);
-}
-
-function staticText(value, field, { min = 0, max = 500, fallback = "" } = {}) {
-  const clean = String(value ?? fallback).trim();
-  if (clean.length < min) staticAppError(`${field} is required.`);
-  if (clean.length > max) staticAppError(`${field} must be ${max} characters or less.`);
-  return clean;
-}
-
-function staticNumber(value, field, { min = 0, max = 100000, fallback = 0 } = {}) {
-  const number = value === undefined || value === null || value === "" ? Number(fallback) : Number(value);
-  if (!Number.isFinite(number) || number < min || number > max) staticAppError(`${field} must be between ${min} and ${max}.`);
-  return number;
-}
-
-function staticValidPhone(phone) {
-  const clean = String(phone || "").trim();
-  return !clean || /^[+\d\s-]{7,24}$/.test(clean);
-}
-
-function staticValidateImage(value, field = "Image") {
-  const clean = String(value || "").trim();
-  if (!clean) return "";
-  if (/^https?:\/\/[^\s"'<>]{1,1200}$/i.test(clean)) return clean;
-  const match = clean.match(/^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/);
-  if (!match || !allowedBrowserImageTypes.has(match[1])) staticAppError(`${field} must be a JPEG, PNG, WebP, or safe image URL.`);
-  const bytes = Math.floor((match[2].length * 3) / 4) - (match[2].endsWith("==") ? 2 : match[2].endsWith("=") ? 1 : 0);
-  if (bytes > maxBrowserImageBytes) staticAppError(`${field} must be smaller than 500 KB.`);
-  return clean;
-}
-
-function staticCanPublish(cook) {
-  return cook && !["rejected", "suspended"].includes(cook.status);
-}
-
-function staticDeleteSessionsForUser(db, userId, exceptToken = "") {
-  Object.entries(db.sessions || {}).forEach(([sessionToken, session]) => {
-    if (session.userId === userId && sessionToken !== exceptToken) delete db.sessions[sessionToken];
-  });
-}
-
 function staticSafeUser(user) {
   if (!user) return null;
   const { passwordHash, ...rest } = user;
@@ -849,16 +739,6 @@ function staticSafeUser(user) {
 
 function staticCookForUser(db, userId) {
   return db.cooks.find((cook) => cook.userId === userId) || null;
-}
-
-function staticSyncCookProfileFromUser(db, cook) {
-  const owner = db.users.find((item) => item.id === cook?.userId);
-  if (!owner) return cook;
-  cook.name = owner.name || cook.name || "HomeTaste cook";
-  cook.city = owner.city || cook.city || "";
-  cook.profilePhoto = owner.profilePhoto || "";
-  cook.coverPhoto = owner.profileCover || "";
-  return cook;
 }
 
 function staticNotifyOwners(db, text, data = {}) {
@@ -948,34 +828,13 @@ function staticVisibleOrders(db, user) {
   return db.orders.filter((order) => order.customerId === user.id);
 }
 
-const staticPublicUrlFields = new Set(["profilePhoto", "profileCover", "coverPhoto", "image", "photo", "checkoutUrl", "pendingEmailVerificationUrl", "pendingPasswordResetUrl"]);
-
-function staticPublicUrl(value) {
-  const clean = String(value || "").trim();
-  if (!clean) return "";
-  if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(clean)) return clean;
-  if (/^https?:\/\/[^\s"'<>]{1,2000}$/i.test(clean)) return clean;
-  if (/^\/[^\s"'<>]{0,1200}$/i.test(clean)) return clean;
-  return "";
-}
-
-function staticPublicValue(value, key = "") {
-  if (Array.isArray(value)) return value.map((item) => staticPublicValue(item, key));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([entryKey, entryValue]) => [entryKey, staticPublicValue(entryValue, entryKey)]));
-  }
-  if (typeof value === "string") return staticPublicUrlFields.has(key) ? staticPublicUrl(value) : escapeHtml(value);
-  return value;
-}
-
 function staticPublicState(db, user) {
-  db.cooks.forEach((cook) => staticSyncCookProfileFromUser(db, cook));
   const cooks = user?.role === "owner"
     ? db.cooks
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const visible = user ? staticVisibleOrders(db, user) : [];
-  return staticPublicValue({
+  return {
     user: staticSafeUser(user),
     cooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
@@ -992,46 +851,12 @@ function staticPublicState(db, user) {
       orders: db.orders.length,
       revenue: db.orders.reduce((sum, order) => sum + order.total, 0)
     } : null
-  });
+  };
 }
 
 function staticUserByToken(db) {
   const session = token ? db.sessions[token] : null;
-  if (session) {
-    const expiresAt = session.expiresAt ? new Date(session.expiresAt).getTime() : new Date(session.createdAt || 0).getTime() + staticSessionTtlMs;
-    if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) {
-      delete db.sessions[token];
-      saveStaticDb(db);
-      return null;
-    }
-  }
   return session ? db.users.find((user) => user.id === session.userId) || null : null;
-}
-
-function staticSession(userId) {
-  return {
-    userId,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + staticSessionTtlMs).toISOString()
-  };
-}
-
-function staticHashHex(buffer) {
-  return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function staticPasswordHash(password, salt = crypto.randomUUID?.() || `${Date.now()}${Math.random()}`) {
-  const data = new TextEncoder().encode(`${salt}:${password}`);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return `sha256:${salt}:${staticHashHex(hash)}`;
-}
-
-async function staticVerifyPassword(password, stored) {
-  const value = String(stored || "");
-  if (!value.startsWith("sha256:")) return value === password;
-  const [, salt, expected] = value.split(":");
-  if (!salt || !expected) return false;
-  return await staticPasswordHash(password, salt) === value;
 }
 
 async function staticApi(path, options = {}) {
@@ -1048,10 +873,9 @@ async function staticApi(path, options = {}) {
   if (method === "PATCH" && path === "/api/auth/password") {
     const user = staticUserByToken(db);
     if (!user) throw new Error("Please sign in first.");
-    if (!(await staticVerifyPassword(String(input.currentPassword || ""), user.passwordHash))) throw new Error("Current password is incorrect.");
+    if (user.passwordHash !== String(input.currentPassword || "")) throw new Error("Current password is incorrect.");
     if (String(input.newPassword || "").length < 8) throw new Error("New password must be at least 8 characters.");
-    user.passwordHash = await staticPasswordHash(String(input.newPassword));
-    staticDeleteSessionsForUser(db, user.id, token);
+    user.passwordHash = String(input.newPassword);
     saveStaticDb(db);
     return { ok: true };
   }
@@ -1060,22 +884,17 @@ async function staticApi(path, options = {}) {
   if (!user) throw new Error("Please sign in first.");
 
   if (method === "PATCH" && path === "/api/users/profile") {
-    user.authMeta ||= {};
-    if ("profilePhoto" in input) user.profilePhoto = staticValidateImage(input.profilePhoto, "Profile photo");
-    if ("profileCover" in input) user.profileCover = staticValidateImage(input.profileCover, "Background photo");
-    if (input.name) user.name = staticText(input.name, "Name", { min: 1, max: 80 });
-    if (input.city !== undefined) user.city = staticText(input.city || "", "City", { max: 100 });
-    if (input.country !== undefined && ["TR", "DE"].includes(input.country)) user.country = input.country;
-    if (input.locationLabel !== undefined || input.address !== undefined) user.authMeta.locationLabel = staticText(input.locationLabel ?? input.address ?? "", "Location label", { max: 180 });
-    if (input.locationQuery !== undefined || input.customerLocation !== undefined) user.authMeta.locationQuery = staticText(input.locationQuery ?? input.customerLocation ?? "", "Location query", { max: 180 });
-    if (input.phone) {
-      const phone = staticText(input.phone, "Phone number", { max: 24 });
-      if (!staticValidPhone(phone)) staticAppError("Enter a valid phone number.");
-      user.phone = phone;
-    }
+    if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
+    if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
+    if (input.name) user.name = String(input.name).trim();
+    if (input.city) user.city = String(input.city).trim();
+    if (input.phone) user.phone = String(input.phone).trim();
     const cook = staticCookForUser(db, user.id);
     if (cook) {
-      staticSyncCookProfileFromUser(db, cook);
+      if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
+      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
+      if (input.name) cook.name = user.name;
+      if (input.city) cook.city = user.city;
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1084,7 +903,6 @@ async function staticApi(path, options = {}) {
   if (method === "PATCH" && path === "/api/cooks/online") {
     const cook = staticCookForUser(db, user.id);
     if (!cook) throw new Error("Create a cook profile first.");
-    if (cook.status !== "approved") throw new Error("Admin approval is required before going online.");
     cook.online = Boolean(input.online);
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1092,20 +910,13 @@ async function staticApi(path, options = {}) {
 
   if (method === "POST" && path === "/api/cooks/apply") {
     if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
-    if (input.phone) {
-      const phone = staticText(input.phone, "Phone number", { max: 24 });
-      if (!staticValidPhone(phone)) staticAppError("Enter a valid phone number.");
-      user.phone = phone;
-    }
-    if (input.profilePhoto) user.profilePhoto = staticValidateImage(input.profilePhoto, "Profile photo");
-    if (input.profileCover) user.profileCover = staticValidateImage(input.profileCover, "Background photo");
     const cook = {
       id: `cook_${Date.now()}`,
       userId: user.id,
-      name: staticText(user.name || input.name || "HomeTaste cook", "Cook name", { min: 1, max: 80 }),
-      cuisine: staticText(input.cuisine || input.country || "Home Kitchen", "Cuisine", { min: 1, max: 80 }),
-      city: staticText(user.city || input.city || "Istanbul", "City", { min: 1, max: 100 }),
-      bio: staticText(input.bio || "Fresh home cooking.", "Bio", { min: 1, max: 700 }),
+      name: String(user.name || input.name || "HomeTaste cook").trim(),
+      cuisine: String(input.cuisine || input.country || "Home Kitchen").trim(),
+      city: String(user.city || input.city || "Istanbul").trim(),
+      bio: String(input.bio || "Fresh home cooking.").trim(),
       verified: false,
       status: "pending",
       rating: 5,
@@ -1113,8 +924,8 @@ async function staticApi(path, options = {}) {
       followers: 0,
       availability: "",
       responseTime: "New cook",
-      profilePhoto: user.profilePhoto || staticValidateImage(input.profilePhoto || "", "Profile photo"),
-      coverPhoto: user.profileCover || staticValidateImage(input.profileCover || "", "Background photo"),
+      profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
+      coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
       online: Boolean(input.online),
       createdAt: new Date().toISOString()
     };
@@ -1128,24 +939,20 @@ async function staticApi(path, options = {}) {
   if (method === "POST" && path === "/api/dishes") {
     const cook = staticCookForUser(db, user.id);
     if (!cook && user.role !== "owner") throw new Error("Only cooks can add dishes.");
-    const targetCookId = user.role === "owner" && input.cookId ? String(input.cookId).trim() : cook?.id;
-    const targetCook = db.cooks.find((item) => item.id === targetCookId);
-    if (!targetCook) throw new Error("Cook profile not found.");
-    if (user.role !== "owner" && !staticCanPublish(targetCook)) throw new Error("This cook profile cannot publish dishes.");
-    const country = staticText(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
     const dish = {
       id: `dish_${Date.now()}`,
-      cookId: targetCook.id,
-      name: staticText(input.name, "Dish name", { min: 1, max: 120 }),
-      description: staticText(input.description || "", "Dish description", { max: 1000 }),
-      price: staticNumber(input.price, "Dish price", { min: 1, max: 100000 }),
-      prepMinutes: Math.round(staticNumber(input.prepMinutes, "Prep time", { min: 5, max: 240, fallback: 30 })),
-      image: staticValidateImage(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80", "Dish photo"),
-      country,
-      tags: [country].filter(Boolean),
+      cookId: user.role === "owner" && input.cookId ? input.cookId : cook.id,
+      name: String(input.name || "").trim(),
+      description: String(input.description || "").trim(),
+      price: Number(input.price || 0),
+      prepMinutes: Number(input.prepMinutes || 30),
+      image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
+      country: String(input.country || input.tags || "").split(",")[0].trim(),
+      tags: [String(input.country || input.tags || "").split(",")[0].trim()].filter(Boolean),
       available: true,
       featured: false
     };
+    if (!dish.name || dish.price <= 0) throw new Error("Dish name and price are required.");
     db.dishes.push(dish);
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1156,20 +963,19 @@ async function staticApi(path, options = {}) {
     if (!dish) throw new Error("Dish not found.");
     const cook = staticCookForUser(db, user.id);
     if (user.role !== "owner" && cook?.id !== dish.cookId) throw new Error("No access to this dish.");
-    if (user.role !== "owner" && !staticCanPublish(cook)) throw new Error("This cook profile cannot update dishes.");
     const targets = user.role === "owner" && input.scope === "matching"
       ? db.dishes.filter((item) => dishMatchKey(item) === dishMatchKey(dish))
       : [dish];
     targets.forEach((target) => {
       if ("available" in input) target.available = Boolean(input.available);
       if ("featured" in input && user.role === "owner") target.featured = Boolean(input.featured);
-      if (input.name) target.name = staticText(input.name, "Dish name", { min: 1, max: 120 });
-      if (input.price !== undefined) target.price = staticNumber(input.price, "Dish price", { min: 1, max: 100000 });
-      if (input.description !== undefined) target.description = staticText(input.description || "", "Dish description", { max: 1000 });
-      if (input.prepMinutes !== undefined) target.prepMinutes = Math.round(staticNumber(input.prepMinutes, "Prep time", { min: 5, max: 240 }));
-      if (input.image !== undefined) target.image = staticValidateImage(input.image || "", "Dish photo");
+      if (input.name) target.name = String(input.name).trim();
+      if (input.price) target.price = Number(input.price);
+      if (input.description !== undefined) target.description = String(input.description || "").trim();
+      if (input.prepMinutes) target.prepMinutes = Number(input.prepMinutes);
+      if (input.image !== undefined) target.image = String(input.image || "").trim();
       if (input.country !== undefined || input.tags !== undefined) {
-        target.country = staticText(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
+        target.country = String(input.country || input.tags || "").split(",")[0].trim();
         target.tags = target.country ? [target.country] : [];
       }
     });
@@ -1195,24 +1001,16 @@ async function staticApi(path, options = {}) {
   if (method === "POST" && path === "/api/orders") {
     const items = Array.isArray(input.items) ? input.items : [];
     if (!items.length) throw new Error("Cart is empty.");
-    if (items.length > 50) throw new Error("Cart has too many items.");
     const normalized = items.map((item) => {
       const dish = db.dishes.find((d) => d.id === item.dishId && d.available);
-      const dishCook = dish ? db.cooks.find((cook) => cook.id === dish.cookId) : null;
-      if (!dish || dishCook?.status !== "approved") throw new Error("A dish in your cart is unavailable.");
-      return {
-        dishId: dish.id,
-        name: dish.name,
-        qty: Math.round(staticNumber(item.qty || 1, "Quantity", { min: 1, max: 20, fallback: 1 })),
-        price: dish.price
-      };
+      if (!dish) throw new Error("A dish in your cart is unavailable.");
+      return { dishId: dish.id, name: dish.name, qty: Math.max(1, Number(item.qty || 1)), price: dish.price };
     });
     const firstDish = db.dishes.find((dish) => dish.id === normalized[0].dishId);
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) throw new Error("Please order from one cook at a time.");
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
     const driver = db.users.find((item) => item.role === "driver");
-    const serviceFee = Math.round(subtotal * 0.15 * 100) / 100;
     const createdAt = new Date().toISOString();
     const order = {
       id: `ord_${Date.now()}`,
@@ -1222,13 +1020,13 @@ async function staticApi(path, options = {}) {
       items: normalized,
       subtotal,
       deliveryFee: 30,
-      serviceFee,
-      total: subtotal + 30 + serviceFee,
+      serviceFee: 15,
+      total: subtotal + 45,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
-      paymentMethod: ["stripe", "iban", "cash"].includes(input.paymentMethod) ? input.paymentMethod : "cash",
-      deliveryAddress: staticText(input.deliveryAddress || "", "Delivery address", { max: 240 }),
-      notes: staticText(input.notes || "", "Order notes", { max: 500 }),
+      paymentMethod: String(input.paymentMethod || "cash"),
+      deliveryAddress: String(input.deliveryAddress || "").trim(),
+      notes: String(input.notes || "").trim(),
       createdAt,
       updatedAt: createdAt
     };
@@ -1258,7 +1056,7 @@ async function staticApi(path, options = {}) {
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, mark near you, or mark delivered.");
     order.status = nextStatus;
     order.updatedAt = new Date().toISOString();
-    order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: staticText(input.note || "", "Status note", { max: 300 }) });
+    order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
     for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
       db.notifications.push({ id: `not_${Date.now()}_${userId}`, userId, text: `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, createdAt: order.updatedAt, read: false });
@@ -1272,7 +1070,8 @@ async function staticApi(path, options = {}) {
     if (!order) throw new Error("Order not found.");
     const cook = staticCookForUser(db, user.id);
     if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId && user.id !== order.driverId) throw new Error("No access to this chat.");
-    const text = staticText(input.text, "Message", { min: 1, max: 1000 });
+    const text = String(input.text || "").trim();
+    if (!text) throw new Error("Message cannot be empty.");
     db.messages.push({
       id: `msg_${Date.now()}`,
       orderId: order.id,
@@ -1285,80 +1084,20 @@ async function staticApi(path, options = {}) {
     return staticPublicState(db, user);
   }
 
-  if (method === "POST" && path === "/api/social") {
-    const type = String(input.type || "").trim();
-    if (!["follow", "like", "comment", "photo"].includes(type)) throw new Error("Invalid social action.");
-    const cookId = String(input.cookId || "").trim();
-    const dishId = String(input.dishId || "").trim();
-    if (type === "follow" && !cookId) throw new Error("Cook is required.");
-    if (type === "like" && !dishId) throw new Error("Dish is required.");
-    const socialCook = cookId ? db.cooks.find((cook) => cook.id === cookId) : null;
-    const socialDish = dishId ? db.dishes.find((dish) => dish.id === dishId) : null;
-    if (cookId && !socialCook) throw new Error("Cook not found.");
-    if (dishId && !socialDish) throw new Error("Dish not found.");
-    if (socialCook && socialCook.status !== "approved" && user.role !== "owner" && socialCook.userId !== user.id) throw new Error("Cook is not public yet.");
-    if (socialDish) {
-      const dishCook = db.cooks.find((cook) => cook.id === socialDish.cookId);
-      if (dishCook?.status !== "approved" && user.role !== "owner" && dishCook?.userId !== user.id) throw new Error("Dish is not public yet.");
-    }
-    if (type === "follow" || type === "like") {
-      const existing = db.socialActions.find((action) => (
-        action.userId === user.id
-        && action.type === type
-        && (type === "follow" ? action.cookId === cookId : action.dishId === dishId)
-      ));
-      if (existing) {
-        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
-        const cook = db.cooks.find((item) => item.id === cookId);
-        if (cook) cook.followers = db.socialActions.filter((action) => action.type === "follow" && action.cookId === cookId).length;
-        saveStaticDb(db);
-        return staticPublicState(db, user);
-      }
-    }
-    const action = {
-      id: `soc_${Date.now()}`,
-      userId: user.id,
-      cookId: cookId || null,
-      dishId: dishId || null,
-      type,
-      text: staticText(input.text || "", "Comment", { max: 500 }),
-      photo: staticValidateImage(input.photo || "", "Shared photo"),
-      createdAt: new Date().toISOString()
-    };
-    if (type === "comment" && !action.text) throw new Error("Comment text is required.");
-    if (type === "photo" && !action.photo) throw new Error("Photo URL is required.");
-    db.socialActions.unshift(action);
-    const cook = db.cooks.find((item) => item.id === cookId);
-    if (cook) cook.followers = db.socialActions.filter((item) => item.type === "follow" && item.cookId === cookId).length;
-    saveStaticDb(db);
-    return staticPublicState(db, user);
-  }
-
   if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/cooks/")) {
     const cook = db.cooks.find((item) => item.id === path.split("/").pop());
     if (!cook) throw new Error("Cook not found.");
-    if (["approved", "pending", "rejected", "suspended"].includes(input.status)) {
-      cook.status = input.status;
-      if (cook.status === "rejected" || cook.status === "suspended") {
-        cook.online = false;
-        if (cook.userId) staticDeleteSessionsForUser(db, cook.userId);
-      }
-    }
+    if (["approved", "pending", "rejected", "suspended"].includes(input.status)) cook.status = input.status;
     if ("verified" in input) cook.verified = Boolean(input.verified);
-    if ("online" in input) cook.online = cook.status === "approved" && Boolean(input.online);
-    if (input.name) cook.name = staticText(input.name, "Cook name", { min: 1, max: 80 });
-    if (input.cuisine) cook.cuisine = staticText(input.cuisine, "Cuisine", { min: 1, max: 80 });
-    if (input.city) cook.city = staticText(input.city, "City", { min: 1, max: 100 });
-    if (input.bio !== undefined) cook.bio = staticText(input.bio || "", "Bio", { max: 700 });
-    if (input.profilePhoto !== undefined) cook.profilePhoto = staticValidateImage(input.profilePhoto || "", "Profile photo");
-    if (input.profileCover !== undefined) cook.coverPhoto = staticValidateImage(input.profileCover || "", "Background photo");
+    if ("online" in input) cook.online = Boolean(input.online);
+    if (input.name) cook.name = String(input.name).trim();
+    if (input.cuisine) cook.cuisine = String(input.cuisine).trim();
+    if (input.city) cook.city = String(input.city).trim();
+    if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
+    if (input.profilePhoto !== undefined) cook.profilePhoto = String(input.profilePhoto || "").trim();
+    if (input.profileCover !== undefined) cook.coverPhoto = String(input.profileCover || "").trim();
     if (input.verification) {
-      const allowedVerification = {};
-      ["id", "address", "phone"].forEach((key) => {
-        if (["verified", "pending", "rejected"].includes(input.verification[key])) allowedVerification[key] = input.verification[key];
-      });
-      if (input.verification.notes !== undefined) allowedVerification.notes = staticText(input.verification.notes || "", "Verification notes", { max: 500 });
-      cook.verification = { ...(cook.verification || {}), ...allowedVerification, updatedAt: new Date().toISOString() };
+      cook.verification = { ...(cook.verification || {}), ...input.verification, updatedAt: new Date().toISOString() };
       cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
     }
     const cookUser = db.users.find((item) => item.id === cook.userId);
@@ -1409,45 +1148,37 @@ async function staticApi(path, options = {}) {
   throw new Error("Route not found.");
 }
 
-async function staticAuth(input) {
+function staticAuth(input) {
   const db = loadStaticDb();
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
   if (mode === "login") {
     const user = db.users.find((item) => item.email === email);
-    if (!user || !(await staticVerifyPassword(password, user.passwordHash))) throw new Error("Invalid email or password.");
-    if (!String(user.passwordHash || "").startsWith("sha256:")) user.passwordHash = await staticPasswordHash(password);
+    if (!user || user.passwordHash !== password) throw new Error("Invalid email or password.");
     const nextToken = `static_${Date.now()}`;
-    db.sessions[nextToken] = staticSession(user.id);
+    db.sessions[nextToken] = { userId: user.id, createdAt: new Date().toISOString() };
     saveStaticDb(db);
     return { token: nextToken, state: staticPublicState(db, user) };
   }
-  const name = staticText(input.name || email.split("@")[0] || "HomeTaste User", "Name", { min: 1, max: 80 });
+  const name = String(input.name || email.split("@")[0] || "HomeTaste User").trim();
   if (!name || !email || password.length < 8) throw new Error("Name, email, and an 8 character password are required.");
   if (db.users.some((user) => user.email === email)) throw new Error("That email already exists.");
-  const country = ["TR", "DE"].includes(input.country) ? input.country : "TR";
-  const nationalId = String(input.nationalId || "").replace(/\D/g, "");
-  if (country === "TR" && nationalId.length !== 11) throw new Error("T.C. Kimlik must be 11 digits.");
-  const phone = staticText(input.phone || "", "Phone number", { max: 24 });
-  if (!staticValidPhone(phone)) throw new Error("Enter a valid phone number.");
   const user = {
     id: `usr_${Date.now()}`,
     name,
     email,
-    passwordHash: await staticPasswordHash(password),
+    passwordHash: password,
     role: "customer",
-    city: staticText(input.city || (country === "DE" ? "Berlin" : "Istanbul"), "City", { min: 1, max: 100 }),
-    country,
-    phone,
-    nationalId,
+    city: String(input.city || (input.country === "DE" ? "Berlin" : "Istanbul")).trim(),
+    country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
+    phone: String(input.phone || "").trim(),
     profilePhoto: "",
     profileCover: "",
     createdAt: new Date().toISOString()
   };
   db.users.push(user);
   const nextToken = `static_${Date.now()}`;
-  db.sessions[nextToken] = staticSession(user.id);
+  db.sessions[nextToken] = { userId: user.id, createdAt: new Date().toISOString() };
   saveStaticDb(db);
   return { token: nextToken, state: staticPublicState(db, user) };
 }
@@ -1480,59 +1211,45 @@ function setButtonBusy(button, busy, label = "") {
 }
 
 function savedLoginCredentials() {
-  const directEmail = String(localStorage.getItem(savedEmailKey) || "").trim();
-  if (directEmail) return { email: directEmail, country: authCountry };
   try {
-    const saved = JSON.parse(localStorage.getItem(legacySavedLoginKey) || "null");
-    localStorage.removeItem(legacySavedLoginKey);
+    const saved = JSON.parse(localStorage.getItem(savedLoginKey) || "null");
     if (!saved || typeof saved !== "object") return null;
-    const email = String(saved.email || "").trim();
-    if (email) localStorage.setItem(savedEmailKey, email);
     return {
-      email,
+      email: String(saved.email || ""),
+      password: String(saved.password || ""),
       country: ["TR", "DE"].includes(saved.country) ? saved.country : authCountry
     };
   } catch {
-    localStorage.removeItem(legacySavedLoginKey);
     return null;
   }
 }
 
 function saveLoginCredentials(input) {
   const email = String(input.email || "").trim();
-  localStorage.removeItem(legacySavedLoginKey);
-  if (!email) return;
-  localStorage.setItem(savedEmailKey, email);
+  const password = String(input.password || "");
+  if (!email || !password) return;
+  localStorage.setItem(savedLoginKey, JSON.stringify({
+    email,
+    password,
+    country: ["TR", "DE"].includes(input.country) ? input.country : authCountry
+  }));
 }
 
 function clearLoginCredentials() {
-  localStorage.removeItem(legacySavedLoginKey);
-  localStorage.removeItem(savedEmailKey);
+  localStorage.removeItem(savedLoginKey);
 }
 
 function escapeAttr(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 function readImageFile(file) {
   return new Promise((resolve, reject) => {
     if (!file) return resolve("");
-    if (!allowedBrowserImageTypes.has(file.type)) return reject(new Error("Choose a JPEG, PNG, or WebP image."));
-    if (file.size > maxBrowserImageBytes) return reject(new Error("Image must be smaller than 500 KB."));
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(new Error("Could not read the selected image."));
@@ -1544,7 +1261,7 @@ async function imageFromForm(form, fileName, urlName = "") {
   const file = form.elements[fileName]?.files?.[0];
   if (file) return readImageFile(file);
   if (!urlName) return "";
-  return staticValidateImage(form.elements[urlName]?.value || "", "Image");
+  return String(form.elements[urlName]?.value || "").trim();
 }
 
 function profileInitials(name) {
@@ -1553,8 +1270,8 @@ function profileInitials(name) {
 
 function profilePhotoHtml(src, name, className = "profile-avatar") {
   return src
-    ? `<img class="${escapeAttr(className)}" src="${escapeAttr(src)}" alt="${escapeAttr(name)}">`
-    : `<div class="${escapeAttr(className)} avatar-fallback">${escapeHtml(profileInitials(name))}</div>`;
+    ? `<img class="${className}" src="${src}" alt="${name}">`
+    : `<div class="${className} avatar-fallback">${profileInitials(name)}</div>`;
 }
 
 function userForCook(cook) {
@@ -1572,20 +1289,17 @@ function verificationTags(cook) {
 function adminCookRequestHtml(cook) {
   const user = userForCook(cook);
   const cookDishes = dishesForCook(cook.id);
-  const coverPhoto = cook.coverPhoto || user?.profileCover || "";
-  const profilePhoto = cook.profilePhoto || user?.profilePhoto || "";
-  const phone = user?.phone || cook.phone || "No phone submitted";
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
-        <div class="admin-review-cover">${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
-        <div class="admin-review-profile">${profilePhotoHtml(profilePhoto, cook.name)}</div>
+        <div class="admin-review-cover">${cook.coverPhoto ? `<img src="${cook.coverPhoto}" alt="${cook.name} background photo">` : `<span>No background photo</span>`}</div>
+        <div class="admin-review-profile">${profilePhotoHtml(cook.profilePhoto || user?.profilePhoto, cook.name)}</div>
       </div>
       <div class="admin-review-body">
         <div class="admin-review-heading">
           <div>
             <strong>${cook.name}</strong>
-            <div class="meta">${cook.cuisine || "Home Kitchen"} in ${cook.city || user?.city || "No city"} - ${user?.country || cook.country || "TR"} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
+            <div class="meta">${cook.cuisine || "Home Kitchen"} in ${cook.city || user?.city || "No city"} - <span class="status">${cook.status}</span> - ${cook.online ? "online" : "offline"}</div>
           </div>
           <div class="toolbar" style="margin:0;justify-content:flex-end">
             <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
@@ -1598,8 +1312,7 @@ function adminCookRequestHtml(cook) {
         <div class="admin-review-grid">
           <div><small>Name</small><strong>${user?.name || cook.name}</strong></div>
           <div><small>Email</small><strong>${user?.email || "No email"}</strong></div>
-          <div><small>Phone number</small><strong>${phone}</strong></div>
-          <div><small>T.C. Kimlik</small><strong>${user?.nationalId || "Not provided"}</strong></div>
+          <div><small>Phone</small><strong>${cook.phone || user?.phone || "No phone"}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
         </div>
         <div class="admin-review-bio">
@@ -1618,7 +1331,7 @@ function adminCookRequestHtml(cook) {
               ${dish.image ? `<img src="${dish.image}" alt="${dish.name}">` : `<div class="admin-review-dish-empty">Dish</div>`}
               <div>
                 <strong>${dish.name}</strong>
-                <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.prepMinutes || 35} min - ${dish.available ? t("availableLower") : t("hidden")}</div>
+                <div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div>
                 <p>${dish.description || "No dish description."}</p>
               </div>
             </div>
@@ -1633,7 +1346,7 @@ function renderAuth(error = "") {
   applyAppearance();
   const isLogin = mode === "login";
   const rememberedLogin = isLogin ? savedLoginCredentials() : null;
-  const countryValue = "TR";
+  const countryValue = rememberedLogin?.country || authCountry;
   const chefIcon = `
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1682,21 +1395,26 @@ function renderAuth(error = "") {
         <p class="auth-subtitle">${isLogin ? t("loginSubtitle") : t("signupSubtitle")}</p>
         ${error ? `<div class="notice error">${error}</div>` : ""}
         <form class="form" id="authForm">
-          <input type="hidden" name="country" value="${countryValue}">
+          <div class="field">
+            <label>${t("country")}</label>
+            <select class="input" id="authCountry" name="country">
+              <option value="TR" ${countryValue === "TR" ? "selected" : ""}>${t("turkey")}</option>
+              <option value="DE" ${countryValue === "DE" ? "selected" : ""}>${t("germany")}</option>
+            </select>
+          </div>
           ${mode === "signup" ? `
-            ${countryValue === "TR" ? `<div class="field"><label>T.C. Kimlik</label><input class="input" name="nationalId" inputmode="numeric" pattern="\\d{11}" maxlength="11" placeholder="11 digit T.C. Kimlik" required></div>` : ""}
             <div class="field"><label>${t("fullName")}</label><input class="input" name="name" placeholder="${t("yourName")}"></div>
             <div class="field"><label>${t("phone")}</label><input class="input" name="phone" placeholder="+90 555 000 0000"></div>
           ` : ""}
           <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
           <div class="field auth-input-field password-field">
             <label>${t("password")}</label>
-            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="" required>
+            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="${escapeAttr(rememberedLogin?.password)}" required>
             <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
           </div>
           ${isLogin ? `
             <div class="auth-row">
-              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email on this device</span></label>
+              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email and password on this device</span></label>
               <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
             </div>
             ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
@@ -1757,6 +1475,11 @@ function renderAuth(error = "") {
     document.querySelector("#passwordToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
     document.querySelector("#passwordToggle").title = show ? "Hide password" : "Show password";
   };
+  document.querySelector("#authCountry")?.addEventListener("change", (event) => {
+    authCountry = event.target.value;
+    localStorage.setItem("hometaste_country", authCountry);
+    renderAuth();
+  });
   document.querySelectorAll("[data-oauth]").forEach((button) => {
     button.onclick = () => startOAuth(button.dataset.oauth);
   });
@@ -1764,27 +1487,23 @@ function renderAuth(error = "") {
   document.querySelector("#resetRequestForm").onsubmit = requestPasswordReset;
   document.querySelector("#authForm").onsubmit = async (event) => {
     event.preventDefault();
-    const submitButton = event.currentTarget.querySelector("[type='submit']");
-    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
-    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const rememberLogin = input.rememberLogin === "on";
-    delete input.rememberLogin;
-    try {
-      if (mode === "signup" && input.country === "TR" && !/^\d{11}$/.test(String(input.nationalId || ""))) {
-        throw new Error("T.C. Kimlik must be 11 digits.");
-      }
-      if (useStaticApi) {
-        const data = await staticAuth(input);
+	    const submitButton = event.currentTarget.querySelector("[type='submit']");
+	    setButtonBusy(submitButton, true, isLogin ? t("signIn") : t("signUp"));
+	    const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+	    const rememberLogin = input.rememberLogin === "on";
+	    delete input.rememberLogin;
+	    try {
+	      if (useStaticApi) {
+	        const data = staticAuth(input);
         token = data.token;
         localStorage.setItem(storageKey, token);
         authCountry = input.country || authCountry;
-        localStorage.setItem("hometaste_country", authCountry);
-        if (isLogin) {
-          if (rememberLogin) saveLoginCredentials(input);
-          else clearLoginCredentials();
-        }
-        state = data.state;
-        syncSavedLocationFromUser(state.user);
+	        localStorage.setItem("hometaste_country", authCountry);
+	        if (isLogin) {
+	          if (rememberLogin) saveLoginCredentials(input);
+	          else clearLoginCredentials();
+	        }
+	        state = data.state;
         page = "dashboard";
         renderApp();
         return;
@@ -1793,13 +1512,12 @@ function renderAuth(error = "") {
       token = data.token;
       localStorage.setItem(storageKey, token);
       authCountry = input.country || authCountry;
-      localStorage.setItem("hometaste_country", authCountry);
-      if (isLogin) {
-        if (rememberLogin) saveLoginCredentials(input);
-        else clearLoginCredentials();
-      }
-      state = data.state;
-      syncSavedLocationFromUser(state.user);
+	      localStorage.setItem("hometaste_country", authCountry);
+	      if (isLogin) {
+	        if (rememberLogin) saveLoginCredentials(input);
+	        else clearLoginCredentials();
+	      }
+	      state = data.state;
       if (data.verificationUrl) toast("Account created. Email verification link is ready in Profile.");
       page = "dashboard";
       renderApp();
@@ -1847,11 +1565,11 @@ function navItems() {
 function renderApp() {
   applyAppearance();
   if (!state?.user) {
-    stopOwnerRefresh();
+    scheduleOwnerRefresh();
     return renderAuth();
   }
-  scheduleOwnerRefresh();
   if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
+  scheduleOwnerRefresh();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -1889,6 +1607,23 @@ function renderMarketplaceFrame() {
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
     <div class="market-shell">
+      <header class="market-top">
+        <div class="brand compact">
+          <div class="mark">${chefLogoIcon}</div>
+          <div><h1>HomeTaste</h1></div>
+        </div>
+        <button class="market-location" type="button" id="openLocation">
+          <span class="market-location-pin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          </span>
+          <span class="market-location-text">${currentSavedAddress() || t("selectAddress")}</span>
+        </button>
+        <div class="market-user">
+          ${languageMenuHtml()}
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+          <button class="button secondary small" id="logout">${t("signOut")}</button>
+        </div>
+      </header>
       <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
         <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}&v=${APP_BUILD}"></iframe>
         <aside class="role-panel">
@@ -1897,10 +1632,13 @@ function renderMarketplaceFrame() {
       </div>
     </div>
   `;
+  document.querySelector("#openLocation").onclick = openLocation;
+  updateAddressButton();
+  bindPreferenceControls();
+  document.querySelector("#logout").onclick = logout;
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
     sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
-    sendStateToMarketplace();
     updateRolePanelVisibility();
   });
   bindPage();
@@ -1910,7 +1648,6 @@ async function logout() {
   const previousToken = token;
   token = null;
   state = null;
-  stopOwnerRefresh();
   localStorage.removeItem(storageKey);
   renderAuth();
   if (!useStaticApi && previousToken) {
@@ -2090,7 +1827,7 @@ function renderAdmin() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" value="150"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" min="1" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2124,10 +1861,7 @@ function renderAdmin() {
 	                  <div class="toolbar" style="margin:0">
 	                    <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
 	                    <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
-	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
 	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
-	                    <button class="button small secondary" data-admin-online-cook="${cook.id}">${cook.online ? "Set offline" : "Set online"}</button>
-	                    <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
 	                    <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
 	                  </div>
 	                </td>
@@ -2146,7 +1880,7 @@ function renderAdmin() {
 	          return `
           <tr>
             <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
-            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div><div class="meta">T.C. ${user.nationalId || "Not provided"}</div></td>
+            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
             <td>${new Date(user.createdAt).toLocaleString()}</td>
             <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
             <td>
@@ -2277,15 +2011,21 @@ function renderCart() {
       <div class="row"><span>${t("subtotal")}</span><strong>${money(subtotal)}</strong></div>
       <div class="row"><span>${t("delivery")}</span><strong>${money(deliveryFee)}</strong></div>
       <div class="row"><span>${t("commissionAfterDelivery")}</span><strong>${money(commission)}</strong></div>
-      <div class="row"><span>${t("payoutAfterCommission")}</span><strong>${money(subtotal)}</strong></div>
-      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
+      <div class="row"><span>${t("payoutAfterCommission")}</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
+      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee : 0)}</strong></div>
       <form class="form" id="checkoutForm">
         <div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
-          <option value="stripe">${paymentLabel("stripe")}</option>
-          <option value="iban">${paymentLabel("iban")}</option>
           <option value="cash">${paymentLabel("cash")}</option>
+          <option value="iyzico">iyzico hosted checkout</option>
+          <option value="stripe">Stripe card / wallet</option>
+          <option value="paytr">PayTR secure checkout</option>
+          <option value="visa">Visa via Stripe</option>
+          <option value="mastercard">Mastercard via Stripe</option>
+          <option value="troy">Troy via iyzico</option>
+          <option value="google_pay">Google Pay via Stripe</option>
+          <option value="turkish_bank_card">Turkish bank card via iyzico</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>
@@ -2573,7 +2313,7 @@ function renderCookStudio() {
           <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
           <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
           <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp"></div>
+          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/*"></div>
           <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
           <button class="button">${t("createDish")}</button>
         </form>
@@ -2622,8 +2362,8 @@ function renderSettings() {
           ${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}
         </div>
         <form class="form" id="profileMediaForm" style="margin:14px 0">
-          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/jpeg,image/png,image/webp"></div>
-          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/jpeg,image/png,image/webp"></div>
+          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/*"></div>
+          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/*"></div>
           <button class="button secondary" type="submit">Save profile photos</button>
         </form>
         <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
@@ -2806,6 +2546,11 @@ async function startOAuth(provider) {
   const button = document.querySelector(`[data-oauth="${provider}"]`);
   setButtonBusy(button, true, oauthProviderLabel(provider));
   try {
+    if (authProviderStatus && !authProviderStatus[provider]) {
+      refreshOAuthButtons();
+      toast(`${oauthProviderLabel(provider)} sign-in is not configured yet.`, true);
+      return;
+    }
     const data = await api("/api/auth/oauth/start", { method: "POST", body: JSON.stringify({ provider }) });
     if (data.url) {
       location.href = data.url;
@@ -3002,9 +2747,6 @@ async function createMealPlan(event) {
 async function applyCook(event) {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
-  input.profilePhoto = state.user.profilePhoto || "";
-  input.profileCover = state.user.profileCover || "";
-  input.phone = state.user.phone || "";
   try {
     state = await api("/api/cooks/apply", { method: "POST", body: JSON.stringify(input) });
     toast("Cook application submitted.");
@@ -3252,19 +2994,9 @@ async function updateDriverLocation(orderId) {
 }
 
 async function socialAction(input) {
-  const wasActive = state.socialActions?.some((action) => (
-    action.userId === state.user?.id
-    && action.type === input.type
-    && (input.type === "follow" ? action.cookId === input.cookId : action.dishId === input.dishId)
-  ));
   try {
     state = await api("/api/social", { method: "POST", body: JSON.stringify(input) });
-    const message = input.type === "follow"
-      ? (wasActive ? "Cook unfollowed." : "Cook followed.")
-      : input.type === "like"
-        ? (wasActive ? "Dish unliked." : "Dish liked.")
-        : "Saved.";
-    toast(message);
+    toast(input.type === "follow" ? "Cook followed." : "Dish liked.");
     renderApp();
   } catch (err) {
     toast(err.message, true);
