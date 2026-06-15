@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-admin-checkout-audit-01";
+const APP_BUILD = "20260615-remove-blank-role-panel-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -359,7 +359,7 @@ window.addEventListener("message", handleMarketplaceMessage);
 function updateRolePanelVisibility() {
   const content = document.querySelector(".market-content");
   if (!content || !state?.user) return;
-  const hideCustomerPanel = !isCook() && !isDriver();
+  const hideCustomerPanel = !isDriver();
   content.classList.toggle("panel-hidden", hideCustomerPanel);
 }
 
@@ -1616,7 +1616,7 @@ function renderApp() {
 function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
-  const hideCustomerPanel = !isCook() && !isDriver();
+  const hideCustomerPanel = !isDriver();
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
     <div class="market-shell">
