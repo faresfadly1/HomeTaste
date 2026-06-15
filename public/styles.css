@@ -1423,3 +1423,50 @@ html[dir="rtl"] .auth-info-strip span{text-align:right}
 @media (max-width:1024px){.auth-frame{min-height:calc(100dvh - 28px)}.auth-frame-body{grid-template-columns:minmax(0,1fr) minmax(360px,.86fr)}.auth-card,.auth-card:where(body.app-light *){padding:34px 28px}.auth-card h2,body.app-light .auth-card h2{font-size:38px}.auth-hero{padding:34px;background-position:center}}
 @media (max-width:768px){.auth-wrap{padding:12px}.auth-frame{grid-template-rows:auto auto 1fr auto;border-radius:24px}.auth-frame-top{min-height:auto;padding:16px;flex-wrap:wrap}.auth-brand{flex:1 1 auto}.auth-nav{order:3;width:100%;gap:8px;justify-content:flex-start}.auth-frame-body{grid-template-columns:1fr}.auth-hero{min-height:220px;padding:22px 24px}.auth-card,.auth-card:where(body.app-light *){padding:28px 22px}.auth-info-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.auth-info-strip span{min-height:48px;padding:10px 16px}}
 @media (max-width:430px){.auth-wrap{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))}.auth-frame{border-radius:20px}.auth-frame-top{padding:12px;gap:10px}.auth-brand strong{font-size:20px}.chef-mark{width:38px;height:38px}.auth-nav{gap:2px}.auth-nav button,.auth-nav-link,.auth-register-btn{padding:8px 9px;font-size:12px}.auth-nav-actions{width:100%;justify-content:space-between}.auth-hero{min-height:158px;padding:16px 18px}.auth-hero-copy h1{font-size:27px}.auth-hero-copy p:last-child{display:none}.auth-card,.auth-card:where(body.app-light *){padding:22px 16px 24px}.auth-kicker{font-size:22px}.auth-card h2,body.app-light .auth-card h2{font-size:29px}.auth-subtitle,body.app-light .auth-subtitle{margin-bottom:18px}.auth-card .form{gap:12px}.auth-card .input,.auth-card textarea,.auth-card select,body.app-light .auth-card .input,body.app-light .auth-card textarea,body.app-light .auth-card select{min-height:54px;border-radius:10px}.auth-field-icon{bottom:16px}.password-toggle{bottom:8px}.auth-row{font-size:12px}.auth-submit,.oauth-button,body.app-light .oauth-button{min-height:54px}.auth-separator{margin:18px 0 12px}.auth-info-strip{grid-template-columns:1fr}.auth-info-strip span{min-height:38px;border-left:0;border-top:1px solid rgba(244,195,105,.1)}}
+
+/* ============================================================
+   CULINARY NOIR (mobile shell) — admin / driver / auth, <=760px only.
+   Matches the Stitch reference. Desktop/web version untouched.
+   ============================================================ */
+@media (max-width:760px){
+  /* Re-theme the shell tokens to obsidian + gold (covers admin & driver) */
+  :root, body.app-dark, body.app-light{
+    --bg:#16130b; --panel:#1f1b13; --panel-2:#231f17; --line:rgba(245,245,220,.10);
+    --text:#eae1d4; --muted:#d0c5af; --soft:#99907c; --brand:#f2ca50; --brand-2:#f2ca50;
+  }
+  body, body.app-dark, body.app-light{ background:#16130b; color:#eae1d4; }
+  h1,h2,h3,h4,.topbar h1,.stat strong,.price{ font-family:'Playfair Display',serif; }
+
+  /* Glass panels / cards / stat tiles with a soft gold glow */
+  .panel,.card,.stat{
+    background:rgba(22,19,11,.72)!important;
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    border:1px solid rgba(245,245,220,.10)!important; border-radius:18px!important;
+    box-shadow:0 10px 30px -14px rgba(0,0,0,.6), 0 0 22px -10px rgba(242,202,80,.18)!important;
+  }
+  .stat strong{ color:#f2ca50; }
+  .price{ color:#f2ca50; }
+  .pill,.tag{ border-radius:999px; border:1px solid rgba(245,245,220,.12); color:#d0c5af; background:rgba(245,245,220,.04); }
+
+  /* Primary actions -> warm-orange pills; gold reserved for accents */
+  .button{ background:#ff8c00!important; color:#241a00!important; border-radius:999px!important; font-weight:800; box-shadow:0 6px 20px -6px rgba(255,140,0,.45)!important; }
+  .button.secondary{ background:transparent!important; color:#f2ca50!important; border:1px solid #f2ca50!important; box-shadow:none!important; }
+  .button.good{ background:#9fd27a!important; color:#102008!important; }
+  .button.bad{ background:#ffb4ab!important; color:#3a0a06!important; }
+
+  /* Inputs: 14px stroke + gold focus glow */
+  .input,textarea,select{ background:rgba(255,255,255,.05)!important; border:1px solid rgba(245,245,220,.12)!important; border-radius:14px!important; color:#eae1d4!important; }
+  .input:focus,textarea:focus,select:focus{ border-color:#f2ca50!important; box-shadow:0 0 0 3px rgba(242,202,80,.2)!important; }
+
+  /* Admin tables */
+  .table th{ color:#99907c; }
+  .table th,.table td{ border-bottom:1px solid rgba(245,245,220,.10); }
+  .status{ color:#f2ca50; }
+
+  /* ---- Auth: align the already-dark glass frame to Culinary Noir ---- */
+  /* primary CTA -> warm orange pill (matches the Stitch "Sign Up" button) */
+  .auth-submit{ background:linear-gradient(100deg,#ffa238,#ff8c00 56%,#f57c00)!important; color:#241a00!important;
+    box-shadow:0 16px 34px -8px rgba(255,140,0,.46),0 0 30px -10px rgba(255,140,0,.3)!important; }
+  .auth-submit b{ background:rgba(0,0,0,.16)!important; color:#241a00!important; }
+  .auth-register-btn.active{ background:linear-gradient(180deg,#f6c66d,#d99224)!important; color:#1a1208!important; }
+}
