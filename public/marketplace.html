@@ -1897,6 +1897,455 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
   #page-dishes .filter-bar{display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px}
   #page-dishes .filter-bar .chip{width:auto;flex:0 0 auto;white-space:nowrap}
 }
+
+/* ============================================================
+   MOBILE PREMIUM REDESIGN — soft, elegant, auto light/dark.
+   Scoped to <=760px only; desktop/website is untouched.
+   ============================================================ */
+
+/* ---- Soft palettes (token re-theme, mobile only) ---- */
+@media (max-width:760px){
+  :root{
+    /* warm cocoa night — cozy homemade (default + system dark) */
+    --bg:#1a1410; --bg2:#221a13; --bg3:#2b2118; --bg4:#352920; --card:#241b13;
+    --orange:#e8763f; --orange-hover:#d8602a;
+    --orange-light:rgba(232,118,63,.16); --orange-glow:rgba(232,118,63,.26);
+    --text:#f2e8d8; --text2:#bdaf9b; --text3:#8c7e6c;
+    --border:rgba(232,118,63,.18); --border2:rgba(255,255,255,.07);
+    --radius:22px; --radius-sm:14px;
+    --shadow:0 14px 38px rgba(0,0,0,.46);
+    --m-soft:0 10px 28px rgba(0,0,0,.36);
+    --m-ok:#7fa352; --m-info:#e8763f;
+  }
+}
+@media (max-width:760px) and (prefers-color-scheme:light){
+  :root{
+    /* warm cream daylight — homemade kitchen (system light) */
+    --bg:#f9f1e3; --bg2:#fdf8ee; --bg3:#f1e6d3; --bg4:#e8dac3; --card:#fffdf7;
+    --orange:#c6531f; --orange-hover:#aa4417;
+    --orange-light:rgba(198,83,31,.12); --orange-glow:rgba(198,83,31,.2);
+    --text:#352718; --text2:#6d5b46; --text3:#94826a;
+    --border:rgba(150,90,40,.16); --border2:rgba(70,45,20,.1);
+    --shadow:0 14px 34px rgba(120,70,30,.12);
+    --m-soft:0 10px 26px rgba(120,70,30,.1);
+    --m-ok:#5f7a3f; --m-info:#aa4417;
+  }
+}
+@media (max-width:760px){
+  body.light-mode{
+    /* manual light always wins */
+    --bg:#f9f1e3; --bg2:#fdf8ee; --bg3:#f1e6d3; --bg4:#e8dac3; --card:#fffdf7;
+    --orange:#c6531f; --orange-hover:#aa4417;
+    --orange-light:rgba(198,83,31,.12); --orange-glow:rgba(198,83,31,.2);
+    --text:#352718; --text2:#6d5b46; --text3:#94826a;
+    --border:rgba(150,90,40,.16); --border2:rgba(70,45,20,.1);
+    --shadow:0 14px 34px rgba(120,70,30,.12);
+    --m-soft:0 10px 26px rgba(120,70,30,.1);
+    --m-ok:#5f7a3f; --m-info:#aa4417;
+  }
+}
+
+@media (max-width:760px){
+  body{ font-size:13.5px; letter-spacing:.1px; padding-bottom:calc(104px + env(safe-area-inset-bottom)); -webkit-font-smoothing:antialiased; }
+  body, .page, .section{ transition:background .3s ease, color .3s ease; }
+
+  /* ---- Floating bottom nav (premium pill) ---- */
+  .sidebar{
+    left:12px; right:12px; bottom:calc(10px + env(safe-area-inset-bottom));
+    width:auto; height:64px; border:1px solid var(--border); border-top:1px solid var(--border);
+    border-radius:22px;
+    background:color-mix(in srgb, var(--card) 88%, transparent);
+    backdrop-filter:blur(18px) saturate(1.1); -webkit-backdrop-filter:blur(18px) saturate(1.1);
+    box-shadow:var(--shadow);
+    padding-bottom:0;
+  }
+  body.light-mode .sidebar{ background:color-mix(in srgb, var(--card) 90%, transparent); }
+  .sidebar-nav{ height:100%; gap:2px; padding:8px 6px; align-items:center; }
+  .nav-item{
+    flex:1 1 0; min-width:0; max-width:none; gap:4px; padding:6px 2px;
+    font-size:9px; font-weight:700; border-radius:14px; color:var(--text3);
+    transition:color .2s ease, background .2s ease;
+  }
+  .nav-item svg{ width:19px; height:19px; transition:transform .2s ease; }
+  .nav-item.active{ color:var(--orange); background:var(--orange-light); }
+  .nav-item.active svg{ transform:translateY(-1px); }
+  .nav-item.active::before{ display:none; }
+  .nav-item:active{ transform:scale(.94); }
+  .nav-badge{ right:10px; top:5px; background:var(--orange); color:#1e1708; border:0; }
+
+  /* ---- Cards (dishes / cooks) ---- */
+  .cook-card,.dish-card{
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:var(--m-soft); overflow:hidden;
+    min-height:120px; transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .cook-card:active,.dish-card:active{ transform:scale(.99); }
+  .cook-card-img,.dish-img{ border-radius:var(--radius) 0 0 var(--radius); }
+  .cook-card-body,.dish-body{ padding:12px 13px; }
+  .dish-tag{ background:color-mix(in srgb, var(--bg) 62%, transparent); border:1px solid var(--border); color:var(--orange); backdrop-filter:blur(6px); border-radius:999px; font-weight:700; }
+  .info-pill{ background:var(--bg3); border:1px solid var(--border); color:var(--text2); border-radius:999px; }
+  .fav-btn{ background:color-mix(in srgb, var(--bg) 55%, transparent); border:1px solid var(--border); color:var(--text); backdrop-filter:blur(6px); }
+  .cook-name,.dish-body h3{ color:var(--text); }
+  .cook-cuisine,.dish-cook{ color:var(--text2); }
+  .cook-location,.cook-rating,.dish-body p,.dish-body > div:first-of-type{ color:var(--text3); }
+  .cook-price,.dish-price{ color:var(--orange); font-weight:800; }
+
+  /* ---- Primary buttons (soft gold gradient, comfy tap) ---- */
+  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-search,.btn-apply,.btn-send,.btn-reorder.btn-primary{
+    background:linear-gradient(135deg, var(--orange), var(--orange-hover));
+    color:#1f1708; font-weight:800; border-radius:13px; min-height:44px;
+    box-shadow:0 10px 22px var(--orange-glow);
+    transition:transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .btn-add:active,.btn-checkout:active,.btn-place-order:active,.hero-cta:active,.btn-search:active{ transform:translateY(1px) scale(.99); filter:brightness(1.03); }
+  .btn-add{ padding:9px 14px; font-size:12px; }
+  .btn-search{ border-radius:0 14px 14px 0; }
+  .btn-secondary,.btn-continue,.account-cancel{
+    background:var(--bg3); color:var(--text); border:1px solid var(--border);
+    border-radius:13px; min-height:44px; box-shadow:none;
+  }
+
+  /* ---- Hero (softer cinematic overlay) ---- */
+  .hero{ margin:12px 12px 14px; border-radius:20px; height:212px; box-shadow:var(--m-soft); border:1px solid var(--border); }
+  .hero::after{ background:linear-gradient(95deg, rgba(12,9,5,.74), rgba(12,9,5,.4) 60%, rgba(12,9,5,.12)); }
+  .hero-content h1{ color:#fbf3e6; letter-spacing:.2px; }
+  .hero-content p{ color:rgba(251,243,230,.82); }
+  .hero-cta{ background:linear-gradient(135deg, var(--orange), var(--orange-hover)); color:#1f1708; border-radius:12px; box-shadow:0 10px 22px var(--orange-glow); }
+
+  /* ---- Search + inputs + chips ---- */
+  .search-section{ padding:14px 12px 0; }
+  .search-bar{ border-radius:16px; border:1px solid var(--border); background:var(--card); box-shadow:var(--m-soft); }
+  .search-input input{ color:var(--text); }
+  .search-city{ border-top:1px solid var(--border); color:var(--text2); }
+  .chip,.country-search,.filter-select{ border-radius:12px; border:1px solid var(--border); background:var(--bg3); color:var(--text); }
+  .chip.active{ background:var(--orange-light); border-color:var(--orange); color:var(--orange); }
+  input,textarea,select,.form-input,.welcome-select,.cook-input,.chat-input,.country-search{ background:var(--bg2); color:var(--text); }
+  input:focus,textarea:focus,select:focus,.search-bar:focus-within{ box-shadow:0 0 0 3px var(--orange-glow); border-color:var(--orange); }
+  .section-header h2,.page-header h1{ color:var(--text); }
+  .view-all{ color:var(--orange); }
+
+  /* ---- Orders (route hardcoded light -> tokens, soft) ---- */
+  .orders-tab{ color:var(--text2); }
+  .orders-tab.active{ background:var(--orange-light); color:var(--orange); }
+  .order-card{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); border-radius:16px; }
+  .order-id{ color:var(--text); }
+  .order-date{ color:var(--text3); }
+  .order-info h3{ color:var(--text); }
+  .order-info p{ color:var(--text2); }
+  .order-price{ color:var(--text); }
+  .status-delivered,.status-completed{ background:rgba(95,184,122,.16); color:var(--m-ok); }
+  .status-pending,.status-preparing{ background:var(--orange-light); color:var(--orange); }
+  .btn-reorder{ background:transparent; border-top:1px solid var(--border); color:var(--orange); }
+
+  /* ---- Track order ---- */
+  .track-step.active{ background:var(--orange-light); border:1px solid var(--border); }
+  .track-step-dot{ background:var(--card); border-color:var(--border); color:var(--text2); }
+  .track-step:not(.done):not(.active)::before{ background:var(--border2); }
+  .track-step-text h3{ color:var(--text); }
+  .track-step-text p,.track-step-time{ color:var(--text3); }
+  .track-map{ background-color:var(--bg3); }
+  .track-title h2{ color:var(--text); }
+  .track-title p{ color:var(--text2); }
+  .driver-card{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); }
+
+  /* ---- Cook profile (hardcoded light -> tokens) ---- */
+  .cook-profile-hero{ background:var(--bg2); }
+  .cook-profile-hero::after{ background:linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 76%, var(--bg)); }
+  .cook-profile-avatar{ border-color:var(--card); background:var(--card); }
+  .cook-profile-details h1{ color:var(--text); }
+  .cook-profile-details p{ color:var(--m-ok); }
+  .cook-profile-details > div:first-of-type{ color:var(--text); }
+  .cook-profile-details .btn-apply{ background:linear-gradient(135deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; }
+  .cook-stat-val{ color:var(--text); }
+  .cook-stat-label{ color:var(--text3); }
+  .profile-about{ border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .profile-about h3,.profile-dishes-mobile-title,#profileDishesTitle{ color:var(--text); }
+  .profile-about p{ color:var(--text2); }
+  .profile-about small{ color:var(--text3); }
+
+  /* ---- Chat / messages ---- */
+  .chat-input-bar,.luxury-chat-input-bar{ bottom:calc(86px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--border); }
+  .chat-action-btn{ background:var(--bg3); color:var(--text); border:1px solid var(--border); }
+
+  /* ---- Cart / checkout / floating + toasts above the floating nav ---- */
+  .checkout-section{ background:var(--card); border:1px solid var(--border); border-radius:16px; }
+  .cart-floating-btn{ bottom:calc(90px + env(safe-area-inset-bottom)); border-radius:999px; box-shadow:0 12px 26px var(--orange-glow); }
+  .toast-container{ bottom:calc(92px + env(safe-area-inset-bottom)); }
+  .orders-list,.track-page,.cook-profile-body,.settings-lux-layout,.favorites-shell,.orders-shell{ padding-bottom:calc(100px + env(safe-area-inset-bottom)); }
+  #page-become,#page-settings{ padding-bottom:calc(100px + env(safe-area-inset-bottom)); }
+
+  /* ---- Generic panels / feature cards ---- */
+  .feature-card,.welcome-card,.modal,.driver-card,.cook-dish-manager,.cook-form{ background:var(--card); border:1px solid var(--border); box-shadow:var(--m-soft); }
+  .welcome-card h1,.modal-body h2{ color:var(--text); }
+}
+
+/* ---- Re-tokenize premium "luxury-*" surfaces so they follow soft light/dark (mobile only) ---- */
+@media (max-width:760px){
+  .luxury-stat-card,.luxury-order-card,.refund-panel,.favorites-shell,
+  .saved-dish-card,.saved-cook-card,.messages-conversations,.luxury-chat-window,
+  .become-progress,.become-panel,.become-publish,.settings-lux-card{
+    background:var(--card)!important; border:1px solid var(--border)!important; box-shadow:var(--m-soft)!important;
+  }
+  .settings-profile-hero{ border:1px solid var(--border)!important; }
+  /* primary headings & body text -> tokens */
+  .luxury-order-body h3,.luxury-cook-line,.saved-cook-row,.saved-card-body h3,.saved-cook-title h3,
+  .refund-panel-head h2,.premium-empty h3,.luxury-chat-item .chat-name,.luxury-chat-header .chat-header-info h3,
+  .become-step strong,.settings-profile-copy h2,.settings-lux-row strong,.settings-action-list strong,
+  .empty-state h3{ color:var(--text)!important; }
+  .luxury-cook-line small,.luxury-address,.refund-panel-head p,.premium-empty p,
+  .saved-meta,.saved-card-facts,.saved-cook-body p,.luxury-chat-item .chat-preview,
+  .luxury-chat-header .chat-header-info p,.become-step span,.settings-profile-copy p,.settings-location,
+  .settings-lux-row small,.refund-item span,.refund-item p,.messages-day-chip,.empty-state p{ color:var(--text2)!important; }
+  .luxury-order-side small,.chat-time,.luxury-chat-messages .msg-time,.luxury-timeline-step,.saved-cook-title span{ color:var(--text3)!important; }
+  /* accent text stays gold */
+  .luxury-order-side strong,.luxury-order-side b,.saved-cook-row b,.settings-status-badge,
+  .settings-card-title h2,.settings-link-btn,.become-panel-title h2,.become-step.active strong,.become-step.active b{ color:var(--orange)!important; }
+  /* inner rows / chips / inputs / borders that used white-alpha -> tokens */
+  .luxury-chat-item,.settings-lux-row,.settings-action-list button,.refund-item,
+  .become-lux-form .cook-input,.luxury-chat-input-bar .chat-input,.messages-day-chip,.saved-cook-title span,
+  .luxury-chat-messages .msg.received .msg-bubble{ background:var(--bg2)!important; }
+  .luxury-chat-item,.refund-item,.settings-list,.settings-action-list,.settings-lux-row,.settings-action-list button,
+  .become-step b,.luxury-timeline-step span,.become-lux-form .cook-input,.luxury-chat-input-bar .chat-input,
+  .luxury-order-side,.luxury-chat-header,.luxury-chat-input-bar{ border-color:var(--border)!important; }
+  .luxury-chat-item .chat-name,.luxury-chat-item .chat-preview,.luxury-chat-item{ color:var(--text)!important; }
+  .luxury-chat-messages .msg.received .msg-bubble{ color:var(--text)!important; border:1px solid var(--border)!important; }
+  .luxury-chat-messages .msg.sent .msg-bubble{ background:linear-gradient(145deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; border-color:transparent!important; }
+  .luxury-order-timeline::before{ background:var(--border)!important; }
+  .luxury-timeline-step span{ background:var(--bg3)!important; }
+  .become-step b{ background:var(--bg3)!important; color:var(--text2)!important; }
+  .luxury-cook-avatar,.saved-cook-avatar,.luxury-chat-avatar,.lux-settings-avatar{ background:var(--bg3)!important; }
+  /* empty-state cards (e.g. home "No cooks found") -> soft, theme-aware */
+  .empty-state,.empty-state.empty-lux,.premium-empty,.premium-empty.compact{
+    background:radial-gradient(circle at 50% 30%,var(--orange-light),transparent 55%),var(--card)!important; border:1px solid var(--border)!important;
+  }
+  .empty-state p{ color:var(--text2)!important; }
+  /* gold buttons / rings stay gold; outline/quiet -> soft tokens */
+  .luxury-primary-btn,.luxury-send-btn,.chat-unread{ background:linear-gradient(135deg,var(--orange),var(--orange-hover))!important; color:#1f1708!important; }
+  .luxury-outline-btn,.luxury-round-action,.luxury-attach-btn,.settings-ring,.settings-card-title>span,.become-panel-title>span,.luxury-stat-icon,.premium-empty-icon{
+    background:var(--orange-light)!important; border:1px solid var(--border)!important; color:var(--orange)!important;
+  }
+  .luxury-quiet-btn,.luxury-outline-btn.muted{ color:var(--text2)!important; }
+}
+
+/* ============================================================
+   MOBILE PRO REDESIGN v2 — professional app layout (<=760px only).
+   CSS-only: desktop and all functions/handlers untouched.
+   ============================================================ */
+@media (max-width:760px){
+  body{ padding-bottom:calc(104px + env(safe-area-inset-bottom)); }
+
+  /* ---- 5-tab bottom nav: Home / Browse / Orders / Favorites / Profile ---- */
+  .nav-item.mobile-secondary{ display:none!important; }   /* Dishes, Messages, Become a Cook -> contextual access */
+  .sidebar-nav{ gap:2px; padding:8px 6px; justify-content:space-around; }
+  .nav-item{ flex:1 1 0; min-width:0; max-width:none; gap:4px; padding:7px 2px; font-size:9.5px; }
+  .nav-item .nav-label-mobile{ display:inline; }
+  .nav-item.active{ color:var(--orange); background:var(--orange-light); }
+  .nav-item.active svg{ transform:translateY(-1px); }
+
+  /* ---- Sticky search (home) ---- */
+  #page-home .search-section{ position:sticky; top:0; z-index:60; padding:10px 12px; background:linear-gradient(var(--bg), color-mix(in srgb,var(--bg) 80%, transparent)); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+  .search-bar{ min-height:48px; }
+  .hero-cta{ display:none!important; }   /* search below replaces the in-hero CTA */
+
+  /* ---- Filter chips: horizontal scroll-snap ---- */
+  #page-home .filter-chips, #page-dishes .filter-bar{ display:flex; flex-wrap:nowrap; overflow-x:auto; gap:8px; padding:12px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+  #page-home .filter-chips::-webkit-scrollbar, #page-dishes .filter-bar::-webkit-scrollbar{ display:none; }
+  #page-home .filter-chips .chip, #page-dishes .filter-bar .chip, #page-dishes .filter-bar .filter-select, #page-home .filter-chips .country-filter{ flex:0 0 auto; width:auto; white-space:nowrap; scroll-snap-align:start; }
+
+  /* ---- Vertical product cards: DISHES ---- */
+  .dishes-grid{ grid-template-columns:1fr; gap:16px; padding:14px 12px calc(112px + env(safe-area-inset-bottom)); }
+  .dishes-grid .dish-card{ display:flex; flex-direction:column; grid-template-columns:none; min-height:0; border-radius:18px; }
+  .dishes-grid .dish-img{ width:100%; height:208px; min-height:0; border-radius:18px 18px 0 0; }
+  .dishes-grid .dish-body{ padding:14px 16px 16px; }
+  .dishes-grid .dish-body h3{ font-size:18px; }
+  .dishes-grid .dish-body p{ font-size:12.5px; margin-bottom:8px; }
+  .dishes-grid .dish-footer{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:2px; }
+  .dishes-grid .dish-footer .btn-add{ min-height:42px; padding:0 20px; font-size:13px; }
+  .dish-tag{ top:12px; left:12px; }
+  .fav-btn{ top:12px; right:12px; width:38px; height:38px; }
+  /* keep cook-profile dish grid compact 2-col */
+  #profileDishesGrid.dishes-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:0 0 10px!important; }
+  #profileDishesGrid .dish-card{ display:block; }
+  #profileDishesGrid .dish-img{ height:128px; border-radius:12px; }
+
+  /* ---- Vertical product cards: COOKS ---- */
+  .cooks-grid, .cooks-grid-large{ grid-template-columns:1fr; gap:16px; padding:14px 12px calc(112px + env(safe-area-inset-bottom)); }
+  .cooks-grid .cook-card, .cooks-grid-large .cook-card{ display:flex; flex-direction:column; grid-template-columns:none; min-height:0; border-radius:18px; }
+  .cooks-grid .cook-card-img, .cooks-grid-large .cook-card-img{ width:100%; height:172px; min-height:0; border-radius:18px 18px 0 0; }
+  .cooks-grid .cook-card-body, .cooks-grid-large .cook-card-body{ padding:14px 16px 16px; }
+  .cook-name{ font-size:15px; }
+  .cook-footer .btn-add{ min-height:40px; padding:0 16px; }
+
+  /* ---- Forms: comfortable, iOS-safe (>=16px font prevents zoom) ---- */
+  input,textarea,select,.cook-input,.chat-input,.welcome-select,.country-search,.form-input{ min-height:46px; border-radius:13px; }
+  textarea{ min-height:96px; }
+
+  /* ---- Modal -> bottom sheet ---- */
+  .modal-overlay{ align-items:flex-end!important; }
+  .modal{ width:100%!important; max-width:100%!important; max-height:92dvh!important; border-radius:22px 22px 0 0!important; animation:sheetUp .3s cubic-bezier(.2,.8,.2,1); }
+  @keyframes sheetUp{ from{ transform:translateY(48px); opacity:.5 } to{ transform:translateY(0); opacity:1 } }
+  .modal-img{ border-radius:22px 22px 0 0; }
+
+  /* ---- Floating cart (premium pill) ---- */
+  .cart-floating-btn{ width:auto; min-width:56px; height:52px; border-radius:999px; padding:0 20px; bottom:calc(92px + env(safe-area-inset-bottom)); font-weight:800; box-shadow:0 14px 30px var(--orange-glow); }
+
+  /* ---- Page / section headers ---- */
+  .page-header{ padding:18px 14px 10px; }
+  .page-header h1,.section-header h2,.luxury-page-header h1{ font-family:'Playfair Display',serif; }
+  .section{ padding:16px 12px; }
+}
+
+/* ============================================================
+   MOBILE PRO REDESIGN v3 — theme cohesion + a11y + overflow.
+   Makes the 5 "luxury" detail pages follow the soft light/dark
+   palette (they were hardcoded dark); fixes remaining text leaks
+   and 360px overflow. <=760px only — desktop untouched.
+   ============================================================ */
+@media (max-width:760px){
+  /* ---- Cohesive, theme-aware page backgrounds (were hardcoded dark) ---- */
+  #page-orders,#page-favorites,#page-messages,#page-become,#page-settings{
+    background:radial-gradient(circle at 86% 6%,var(--orange-light),transparent 32%),var(--bg)!important;
+  }
+  #page-orders::before,#page-favorites::before,#page-messages::before,
+  #page-become::before,#page-settings::before{ opacity:.14!important; }
+
+  /* ---- Page/section headers that sit on the page background -> tokens ---- */
+  .luxury-page-header h1,.messages-page-header h1,.settings-lux-header h1{ color:var(--text)!important; text-shadow:none!important; }
+  .luxury-page-header p,.messages-page-header p{ color:var(--text2)!important; }
+  .settings-lux-header h1::after{ background:linear-gradient(90deg,var(--orange),transparent)!important; }
+  .messages-status-chip{ color:var(--orange)!important; border-color:var(--border)!important; background:var(--orange-light)!important; }
+
+  /* ---- Orders: stat cards, status pills, order meta ---- */
+  .luxury-stat-copy span,.luxury-stat-copy strong{ color:var(--text)!important; }
+  .luxury-stat-copy small{ color:var(--text2)!important; }
+  .luxury-order-top,.luxury-order-id{ color:var(--text2)!important; }
+  .luxury-status{ background:var(--orange-light)!important; color:var(--orange)!important; }
+  .luxury-status.status-delivered{ background:rgba(95,184,122,.16)!important; color:var(--m-ok)!important; }
+  .payment-chip{ background:rgba(95,184,122,.14)!important; color:var(--m-ok)!important; }
+  .refund-item strong{ color:var(--text)!important; }
+  /* timeline fits viewport (was repeat(4,92px) -> internal scroll/overflow at 360) */
+  .luxury-order-timeline{ grid-template-columns:repeat(4,minmax(0,1fr))!important; overflow-x:visible!important; margin-inline:0!important; }
+
+  /* ---- Favorites: tabs, sort, saved chips ---- */
+  .favorites-tabs{ background:var(--bg2)!important; border-color:var(--border)!important; }
+  .favorites-tab{ color:var(--text2)!important; }
+  .favorites-tab.active{ background:var(--orange-light)!important; color:var(--orange)!important; border-color:var(--orange)!important; }
+  .favorites-sort{ color:var(--text2)!important; }
+  .favorites-sort select{ background:var(--bg2)!important; color:var(--text)!important; border-color:var(--border)!important; }
+  .saved-tags span{ color:var(--orange)!important; border-color:var(--border)!important; }
+  .saved-heart{ background:color-mix(in srgb,var(--bg) 55%,transparent)!important; border-color:var(--border)!important; color:var(--orange)!important; }
+  .saved-cook-title span{ background:var(--bg3)!important; color:var(--text2)!important; }
+  .saved-cook-title span.online{ background:rgba(95,184,122,.16)!important; color:var(--m-ok)!important; }
+
+  /* ---- Messages: tabs, search, filter, order card ---- */
+  .messages-tab{ color:var(--text2)!important; border-color:var(--border)!important; }
+  .messages-tab.active{ color:var(--orange)!important; border-color:var(--orange)!important; background:var(--orange-light)!important; box-shadow:none!important; }
+  .messages-search{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text2)!important; }
+  .messages-search input{ color:var(--text)!important; }
+  .messages-filter-btn{ background:var(--bg3)!important; border-color:var(--border)!important; color:var(--orange)!important; }
+  .luxury-chat-messages{ background:transparent!important; }
+  .message-order-card{ background:var(--bg2)!important; border-color:var(--border)!important; }
+  .message-order-card strong{ color:var(--text)!important; }
+  .message-order-card span{ color:var(--text2)!important; }
+  .message-order-status,.message-order-total{ color:var(--orange)!important; }
+
+  /* ---- Become a Cook: hero overlay removed (art hidden on mobile) -> copy on page bg ---- */
+  .become-lux-hero{ background:transparent!important; }
+  .become-hero-copy h1{ color:var(--text)!important; }
+  .become-hero-copy h1 span{ color:var(--orange)!important; }
+  .become-hero-copy p{ color:var(--text2)!important; }
+  .become-hero-copy small{ color:var(--text3)!important; }
+  .become-panel-title p{ color:var(--text2)!important; }
+  .lux-field>span{ color:var(--text2)!important; }
+  .become-lux-form .cook-input{ color:var(--text)!important; }
+  .become-lux-form .cook-input::placeholder{ color:var(--text3)!important; }
+  .bio-count{ color:var(--text3)!important; }
+  .luxury-photo-action{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text)!important; }
+  .luxury-photo-action small{ color:var(--text2)!important; }
+  .become-photo-preview{ background:var(--bg2)!important; color:var(--text2)!important; }
+  .become-photo-preview small{ color:var(--text3)!important; }
+  .luxury-policy{ background:var(--bg2)!important; border-color:var(--border)!important; color:var(--text2)!important; }
+  .publish-actions p{ color:var(--text2)!important; }
+  .publish-actions strong{ color:var(--text)!important; }
+
+  /* ---- Settings: hero text stays LIGHT (always over a dark-scrim photo) ---- */
+  .settings-profile-copy h2{ color:#fff6e8!important; }
+  .settings-profile-copy p{ color:rgba(255,246,232,.84)!important; }
+  .settings-location{ color:rgba(255,246,232,.72)!important; }
+  .settings-status-badge{ color:#f4bd62!important; background:rgba(0,0,0,.34)!important; border-color:rgba(224,154,43,.5)!important; }
+  .settings-link-btn{ color:#f4bd62!important; }
+  /* settings cards (on token page bg) -> tokens */
+  .settings-card-title p{ color:var(--text2)!important; }
+  .settings-mini-btn{ background:var(--orange-light)!important; border-color:var(--border)!important; color:var(--orange)!important; }
+  .settings-payment-card{ background:var(--bg2)!important; border-color:var(--border)!important; }
+  .settings-payment-card strong{ color:var(--text)!important; }
+  .settings-payment-card span{ color:var(--text2)!important; }
+  .settings-action-list button b{ color:var(--text3)!important; }
+  #page-settings .toggle{ border-color:var(--border)!important; background:var(--bg3)!important; }
+
+  /* ---- Accent-text legibility on soft-light (orange-as-text fails AA on cream) ---- */
+  /* handled per-theme in the light blocks below */
+
+  /* ---- Overflow: shells + bottom-sheet modal padding on phones ---- */
+  .orders-shell,.favorites-shell{ padding-left:14px!important; padding-right:14px!important; }
+  .favorites-shell{ margin-left:14px!important; margin-right:14px!important; }
+  .modal-body{ padding:16px 14px; }
+}
+
+/* Darker gold for orange-as-TEXT on soft-light (keeps gold buttons' lighter fill intact) */
+@media (max-width:760px) and (prefers-color-scheme:light){
+  .dish-price,.cook-price,.cook-rating,.view-all,
+  .message-order-status,.message-order-total,.saved-tags span,.saved-cook-row b{ color:#a8431a!important; }
+  :root{ --text3:#7c6f57; }
+}
+@media (max-width:760px){
+  body.light-mode .dish-price,body.light-mode .cook-price,body.light-mode .cook-rating,body.light-mode .view-all,
+  body.light-mode .message-order-status,body.light-mode .message-order-total,
+  body.light-mode .saved-tags span,body.light-mode .saved-cook-row b{ color:#a8431a!important; }
+  body.light-mode{ --text3:#7c6f57; }
+}
+
+/* ---- Tight phones (<=380px): reclaim horizontal space ---- */
+@media (max-width:380px){
+  .sidebar{ left:8px!important; right:8px!important; }
+  .nav-item{ padding:7px 1px!important; font-size:9px!important; }
+  #page-home .filter-chips,#page-dishes .filter-bar{ padding:10px 8px!important; }
+  .dishes-grid,.cooks-grid,.cooks-grid-large{ padding-left:10px!important; padding-right:10px!important; }
+}
+
+/* ============================================================
+   MOBILE WARM-HOMEMADE v4 — terracotta + cream, bolder & friendlier.
+   <=760px only. Desktop/website untouched.
+   ============================================================ */
+@media (max-width:760px){
+  /* Terracotta fills now carry warm-WHITE labels (were near-black) */
+  .btn-add,.btn-checkout,.btn-place-order,.hero-cta,.btn-search,.btn-apply,.btn-send,.btn-reorder,
+  .cook-profile-details .btn-apply,.luxury-primary-btn,.luxury-send-btn,.become-publish-btn,
+  .chat-unread,.nav-badge,.hero-action-badge,.dish-tag,
+  .luxury-chat-messages .msg.sent .msg-bubble{ color:#fff7ee!important; }
+
+  /* Clean 4-tab bar: Home · Search · Orders · Profile (Favorites -> home ♥ quick action) */
+  .nav-item[onclick*="favorites"]{ display:none!important; }
+
+  /* Bigger, rounder, friendlier food cards */
+  .cook-card,.dish-card{ border-radius:24px; }
+  .dishes-grid .dish-card,.cooks-grid .cook-card,.cooks-grid-large .cook-card{ border-radius:24px; }
+  .dishes-grid .dish-img{ height:222px; border-radius:24px 24px 0 0; }
+  .cooks-grid .cook-card-img,.cooks-grid-large .cook-card-img{ height:186px; border-radius:24px 24px 0 0; }
+  .dishes-grid .dish-body h3{ font-size:19px; }
+  .hero{ border-radius:24px; }
+  .search-bar{ border-radius:18px!important; }
+
+  /* Solid terracotta badges + pill buttons = food-app energy */
+  .dish-tag{ background:var(--orange)!important; border:0!important; font-weight:800; }
+  .btn-add{ border-radius:999px!important; }
+  .chip,.country-search,.filter-select{ border-radius:999px!important; }
+  .chip.active{ background:var(--orange)!important; color:#fff7ee!important; border-color:var(--orange)!important; }
+
+  /* Warm accent tick beside section titles */
+  .section-header h2{ position:relative; padding-left:15px; }
+  .section-header h2::before{ content:""; position:absolute; left:0; top:50%; transform:translateY(-50%); width:5px; height:.78em; border-radius:3px; background:linear-gradient(var(--orange),var(--orange-hover)); }
+}
 </style>
 </head>
 <body>
@@ -1969,7 +2418,7 @@ body[dir="rtl"] .sidebar-lang .sl-chev{margin-left:0;margin-right:auto}
       My Orders
       <span class="nav-badge" id="ordersNavBadge" hidden>0</span>
     </div>
-    <div class="nav-item" onclick="showPage('favorites',this)">
+    <div class="nav-item mobile-secondary" onclick="showPage('favorites',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Favorites
     </div>
@@ -3612,7 +4061,12 @@ function showPage(pageId, navEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
   if (page) page.classList.add('active');
-  const autoNav = navEl || document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
+  let autoNav = navEl || document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
+  // On mobile the secondary tabs (Dishes/Messages/Become) are hidden; highlight a visible parent tab instead
+  if (autoNav && autoNav.classList.contains('mobile-secondary') && window.matchMedia('(max-width:760px)').matches) {
+    const parentTab = { dishes: 'browse', become: 'settings' }[pageId];
+    autoNav = parentTab ? document.querySelector(`.nav-item:not(.mobile-secondary)[onclick*="'${parentTab}'"]`) : null;
+  }
   if (autoNav) autoNav.classList.add('active');
   if (pageId === 'checkout') updateCheckoutItems();
   if (pageId === 'settings') {
