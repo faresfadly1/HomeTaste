@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-admin-driver-dark-only-01";
+const APP_BUILD = "20260616-login-language-only-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1643,7 +1643,6 @@ function renderMarketplaceFrame() {
           <span class="market-location-text">${currentSavedAddress() || t("selectAddress")}</span>
         </button>
         <div class="market-user">
-          ${languageMenuHtml()}
           <button class="button secondary small" id="logout">${t("signOut")}</button>
         </div>
       </header>
