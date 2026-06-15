@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260615-light-hero-small-nav-01";
+const APP_BUILD = "20260615-admin-driver-dark-only-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -21,7 +21,7 @@ let page = null;
 let mode = "login";
 let authCountry = localStorage.getItem("hometaste_country") || "TR";
 let appLanguage = localStorage.getItem("hometaste_language") || "EN";
-let appDarkMode = localStorage.getItem("hometaste_theme") !== "light";
+let appDarkMode = localStorage.getItem("hometaste_theme") === "dark";
 let cart = JSON.parse(localStorage.getItem("hometaste_cart") || "[]");
 let filters = { q: "", city: "", tag: "" };
 let authProviderStatus = null;
@@ -36,6 +36,8 @@ const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id)
 const isOwner = () => state?.user?.role === "owner";
 const isCook = () => state?.user?.role === "cook";
 const isDriver = () => state?.user?.role === "driver";
+const canUseDarkMode = () => isOwner() || isDriver();
+const shouldUseDarkMode = () => canUseDarkMode() && appDarkMode;
 const roleLabel = (role) => t(`role_${role}`, role === "owner" ? "admin" : role);
 const marketplaceRoutes = new Set(["home", "browse", "dishes", "orders", "favorites", "messages", "become", "help", "settings"]);
 const routePageFromLocation = () => {
@@ -190,8 +192,9 @@ function toast(message, error = false) {
 }
 
 function applyAppearance() {
-  document.body.classList.toggle("app-dark", appDarkMode);
-  document.body.classList.toggle("app-light", !appDarkMode);
+  const dark = shouldUseDarkMode();
+  document.body.classList.toggle("app-dark", dark);
+  document.body.classList.toggle("app-light", !dark);
   const meta = languageMeta[appLanguage] || languageMeta.EN;
   document.documentElement.lang = meta.html;
   document.documentElement.dir = meta.dir;
@@ -396,20 +399,29 @@ function setAppLanguage(language) {
 }
 
 function refreshDarkToggleButtons() {
+  const dark = shouldUseDarkMode();
   document.querySelectorAll("#darkToggle").forEach((button) => {
-    button.textContent = appDarkMode ? "🌙" : "☀";
+    button.textContent = dark ? "🌙" : "☀";
     button.setAttribute("aria-label", t("darkMode"));
     button.setAttribute("title", t("darkMode"));
   });
 }
 
 function toggleDarkMode() {
+  if (!canUseDarkMode()) {
+    appDarkMode = false;
+    localStorage.setItem("hometaste_theme", "light");
+    applyAppearance();
+    sendPreferenceToMarketplace("theme", "light");
+    refreshDarkToggleButtons();
+    return;
+  }
   appDarkMode = !appDarkMode;
   localStorage.setItem("hometaste_theme", appDarkMode ? "dark" : "light");
   applyAppearance();
-  sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+  sendPreferenceToMarketplace("theme", shouldUseDarkMode() ? "dark" : "light");
   refreshDarkToggleButtons();
-  toast(appDarkMode ? t("darkOn") : t("darkOff"));
+  toast(shouldUseDarkMode() ? t("darkOn") : t("darkOff"));
 }
 
 function languageMenuHtml() {
@@ -1404,7 +1416,6 @@ function renderAuth(error = "") {
         <div class="auth-doodle" aria-hidden="true">✧ ⌂ ✧</div>
         <div class="auth-tools">
           ${languageMenuHtml()}
-          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
         </div>
         <div class="auth-switch">
           <button class="auth-switch-btn ${mode === "login" ? "active" : ""}" type="button" id="showLogin">${t("signIn")}</button>
@@ -1594,7 +1605,7 @@ function renderApp() {
           ${navItems().map(([key, label]) => `<button class="${page === key ? "active" : ""}" data-page="${key}">${label}</button>`).join("")}
         </nav>
         <div class="shell-preferences">
-          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
+          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${shouldUseDarkMode() ? "🌙" : "☀"}</button>
         </div>
         <div class="sidebar-footer">
           ${t("signedInAs")} <strong>${state.user.name}</strong><br>
@@ -1633,7 +1644,6 @@ function renderMarketplaceFrame() {
         </button>
         <div class="market-user">
           ${languageMenuHtml()}
-          <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${appDarkMode ? "🌙" : "☀"}</button>
           <button class="button secondary small" id="logout">${t("signOut")}</button>
         </div>
       </header>
@@ -1651,7 +1661,7 @@ function renderMarketplaceFrame() {
   document.querySelector("#logout").onclick = logout;
   marketplaceFrame().addEventListener("load", () => {
     sendPreferenceToMarketplace("language", appLanguage);
-    sendPreferenceToMarketplace("theme", appDarkMode ? "dark" : "light");
+    sendPreferenceToMarketplace("theme", "light");
     updateRolePanelVisibility();
   });
   bindPage();
