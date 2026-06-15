@@ -265,13 +265,21 @@ ul{list-style:none}
 /* ======== HOME PAGE ======== */
 .hero{
   position:relative;height:340px;overflow:hidden;
-  background:linear-gradient(135deg,#1a0a00 0%,#0e0e0e 60%,#1a1a0a 100%);
+  background:#fff8ef;
 }
 .hero-bg{
   position:absolute;inset:0;
-  background:url('https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80') center/cover no-repeat;
-  opacity:0.18;
-  filter:blur(2px);
+  background:url('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1400&q=90') center right/cover no-repeat;
+  opacity:1;
+  filter:none;
+}
+.hero::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,248,239,.96),rgba(255,248,239,.66) 44%,rgba(255,248,239,.08) 76%);
 }
 .hero-content{
   position:relative;z-index:2;
@@ -280,7 +288,7 @@ ul{list-style:none}
 }
 .hero-content h1{
   font-size:40px;font-weight:900;line-height:1.1;
-  color:#fff;margin-bottom:12px;
+  color:#2b1b14;margin-bottom:12px;
 }
 .hero-content h1 span{color:var(--orange)}
 .hero-desc{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px}
@@ -302,6 +310,7 @@ ul{list-style:none}
 }
 .hero-avatar:first-child{margin-left:0}
 .hero-food-img{
+  display:none;
   position:absolute;right:32px;top:20px;
   width:280px;height:220px;border-radius:20px;
   object-fit:cover;
@@ -1276,7 +1285,7 @@ ul{list-style:none}
   :root{--sidebar:0px;--cart:100vw}
   html,body{width:100%;max-width:100%;min-height:100dvh;overflow-x:hidden}
   body{
-    padding-bottom:calc(118px + env(safe-area-inset-bottom));
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
     font-size:13px;
     background:var(--bg);
   }
@@ -1294,41 +1303,38 @@ ul{list-style:none}
   }
   .sidebar{
     position:fixed;
-    left:14px;
-    right:14px;
+    left:28px;
+    right:28px;
     top:auto;
-    bottom:calc(12px + env(safe-area-inset-bottom));
+    bottom:calc(16px + env(safe-area-inset-bottom));
     width:auto;
-    height:82px;
+    height:68px;
     z-index:9999;
     border-right:0;
     border-top:0;
-    border-radius:30px;
-    padding:8px 10px;
+    border-radius:999px;
+    padding:6px 10px;
     overflow:hidden;
-    background:
-      linear-gradient(180deg,rgba(45,45,48,.55),rgba(14,14,16,.78));
-    backdrop-filter:blur(26px) saturate(180%);
-    -webkit-backdrop-filter:blur(26px) saturate(180%);
-    border:1px solid rgba(255,255,255,.13);
+    background:rgba(255,255,255,.78);
+    backdrop-filter:blur(24px) saturate(170%);
+    -webkit-backdrop-filter:blur(24px) saturate(170%);
+    border:1px solid rgba(234,220,203,.85);
     box-shadow:
-      0 22px 55px rgba(0,0,0,.65),
-      0 0 34px rgba(255,106,0,.22),
-      inset 0 1px 0 rgba(255,255,255,.16),
-      inset 0 -24px 42px rgba(0,0,0,.32);
+      0 16px 36px rgba(89,55,28,.16),
+      0 0 26px rgba(255,106,26,.10),
+      inset 0 1px 0 rgba(255,255,255,.95);
   }
   .sidebar::before{
     content:'';
     position:absolute;
     inset:0;
     background:
-      radial-gradient(circle at top left,rgba(255,255,255,.18),transparent 34%),
-      radial-gradient(circle at bottom right,rgba(255,106,0,.18),transparent 38%);
+      radial-gradient(circle at top left,rgba(255,255,255,.72),transparent 34%),
+      radial-gradient(circle at bottom right,rgba(255,106,26,.14),transparent 40%);
     pointer-events:none;
   }
   body.light-mode .sidebar{
-    background:
-      linear-gradient(180deg,rgba(45,45,48,.55),rgba(14,14,16,.78));
+    background:rgba(255,255,255,.78);
   }
   .sidebar-nav{
     position:relative;
@@ -1347,52 +1353,52 @@ ul{list-style:none}
   .nav-item{
     position:relative;
     z-index:2;
-    width:72px;
-    height:64px;
+    width:58px;
+    height:56px;
     min-width:0;
     max-width:100%;
     justify-content:center;
     flex-direction:column;
     align-items:center;
-    gap:5px;
+    gap:3px;
     margin:0;
     padding:0;
     border-radius:22px;
     border:0;
     background:transparent;
-    font-size:12px;
+    font-size:11px;
     font-weight:500;
     line-height:1.05;
     text-align:center;
     overflow:visible;
-    color:rgba(255,255,255,.68);
+    color:#4d4038;
     -webkit-tap-highlight-color:transparent;
   }
-  .nav-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.86)}
+  .nav-item:hover{background:rgba(255,106,26,.08);color:#2b1b14}
   .mobile-secondary{display:none}
   .mobile-profile{display:flex}
   .nav-label-desktop{display:none}
   .nav-label-mobile{display:inline}
-  body.light-mode .sidebar .nav-item{color:rgba(255,255,255,.68)}
-  body.light-mode .sidebar .nav-item.active{color:#ff7a1a}
-  .nav-item svg{width:24px;height:24px;stroke-width:2.2}
+  body.light-mode .sidebar .nav-item{color:#4d4038}
+  body.light-mode .sidebar .nav-item.active{color:#ff6a1a}
+  .nav-item svg{width:20px;height:20px;stroke-width:2.2}
   .nav-item.active{
-    color:#ff7a1a;
+    color:#ff6a1a;
     background:
-      linear-gradient(180deg,rgba(255,122,26,.28),rgba(255,122,26,.10));
+      linear-gradient(180deg,rgba(255,106,26,.16),rgba(255,106,26,.06));
     box-shadow:
-      0 0 28px rgba(255,106,0,.28),
-      inset 0 1px 0 rgba(255,255,255,.15);
+      0 8px 18px rgba(255,106,26,.14),
+      inset 0 1px 0 rgba(255,255,255,.85);
   }
   .nav-item.active::before{
     left:50%;
     top:-7px;
     transform:translateX(-50%);
-    width:44px;
-    height:5px;
+    width:34px;
+    height:4px;
     border-radius:999px;
-    background:#ff7a1a;
-    box-shadow:0 0 20px rgba(255,106,0,.9);
+    background:#ff6a1a;
+    box-shadow:0 0 14px rgba(255,106,26,.72);
   }
   .nav-badge{position:absolute;right:4px;top:4px;margin:0;font-size:8px;min-width:15px;height:15px;padding:1px 4px}
   .main{margin-left:0;padding-bottom:0;width:100%;max-width:100%}
@@ -1418,9 +1424,9 @@ ul{list-style:none}
   .country-search{
     font-size:16px;
   }
-  .hero{margin:10px 10px 12px;border-radius:16px;height:206px;min-height:0}
-  .hero-bg{opacity:.34;filter:none;background-position:center}
-  .hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.42) 62%,rgba(0,0,0,.18))}
+  .hero{margin:10px 10px 12px;border-radius:24px;height:250px;min-height:0;background:#fff8ef}
+  .hero-bg{opacity:1;filter:none;background-position:center right}
+  .hero::after{background:linear-gradient(90deg,rgba(255,248,239,.98),rgba(255,248,239,.72) 46%,rgba(255,248,239,.06) 82%)}
   .hero-content{padding:38px 18px 18px;max-width:calc(100% - 22px)}
   .hero-content h1{
     max-width:330px;
@@ -1432,7 +1438,7 @@ ul{list-style:none}
   .hero-content p{
     max-width:250px;
     margin-bottom:12px;
-    color:rgba(255,246,236,.84);
+    color:#7a6a5f;
     font-size:13px;
     line-height:1.35;
     display:-webkit-box;
@@ -1449,8 +1455,8 @@ ul{list-style:none}
     padding:0 14px;
     border:0;
     border-radius:11px;
-    background:linear-gradient(135deg,var(--orange),#f4b13e);
-    color:#1c1107;
+    background:linear-gradient(135deg,#ff6a1a,#ff8a2a);
+    color:#fff;
     font-weight:900;
     font-size:13px;
     box-shadow:0 10px 24px rgba(224,134,24,.32);
@@ -1690,8 +1696,8 @@ ul{list-style:none}
   .hero-content h1{font-size:24px;max-width:310px}
   .hero-content p{font-size:12.5px;margin-bottom:10px}
   .page-header h1{font-size:19px}
-  .nav-item{font-size:11px;padding-inline:0}
-  .nav-item svg{width:23px;height:23px}
+  .nav-item{font-size:10.5px;padding-inline:0}
+  .nav-item svg{width:19px;height:19px}
   .cook-card,.dish-card{grid-template-columns:96px minmax(0,1fr)}
   .orders-tab{font-size:9px;padding:8px 4px}
   .cook-stats{grid-template-columns:1fr}
@@ -1701,10 +1707,10 @@ ul{list-style:none}
 }
 @media(max-width:360px){
   body{font-size:12px}
-  .sidebar{left:10px;right:10px;height:76px}
+  .sidebar{left:20px;right:20px;height:64px}
   .sidebar-nav{gap:1px;padding:0}
-  .nav-item{width:62px;height:58px;font-size:11px;border-radius:20px}
-  .nav-item svg{width:22px;height:22px}
+  .nav-item{width:52px;height:52px;font-size:10px;border-radius:19px}
+  .nav-item svg{width:18px;height:18px}
   .hero{height:190px;margin:8px 8px 10px}
   .hero-content{padding:32px 14px 14px;max-width:calc(100% - 12px)}
   .hero-content h1{font-size:23px;max-width:292px;line-height:1.06}
