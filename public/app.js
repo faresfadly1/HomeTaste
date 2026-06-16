@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-iban-live-01";
+const APP_BUILD = "20260616-mobile-ui-polish-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1703,8 +1703,8 @@ function renderApp() {
           <button class="icon-action" id="darkToggle" type="button" aria-label="${t("darkMode")}" title="${t("darkMode")}">${shouldUseDarkMode() ? "🌙" : "☀"}</button>
         </div>
         <div class="sidebar-footer">
-          ${t("signedInAs")} <strong>${state.user.name}</strong><br>
-          ${state.user.email}
+          <span class="signed-in-label">${t("signedInAs")} <strong>${state.user.name}</strong></span>
+          <span class="signed-in-email">${state.user.email}</span>
           <button class="logout" id="logout">${t("signOut")}</button>
         </div>
       </aside>

@@ -236,7 +236,7 @@ ul{list-style:none}
 .cart-item-by{font-size:11px;color:var(--text3)}
 .cart-qty{display:flex;align-items:center;gap:6px;margin-top:6px}
 .qty-btn{
-  width:22px;height:22px;border-radius:6px;
+  width:30px;height:30px;border-radius:8px;
   background:var(--bg4);color:var(--text);
   font-size:14px;display:grid;place-items:center;
   transition:background var(--transition);
@@ -1533,7 +1533,7 @@ ul{list-style:none}
     min-height:118px;
     border-radius:14px 0 0 14px;
   }
-  .fav-btn{width:28px;height:28px;font-size:13px;top:8px;right:8px}
+  .fav-btn{width:38px;height:38px;font-size:15px;top:8px;right:8px}
   .cook-card-body,.dish-body{padding:10px;min-width:0}
   .cook-meta{gap:7px;margin-bottom:5px}
   .cook-meta > div:last-child{min-width:0}
@@ -1625,16 +1625,27 @@ ul{list-style:none}
     text-overflow:ellipsis;
   }
   .cart-item-by{font-size:13px}
-  .cart-qty{margin-top:8px}
+  .cart-qty{margin-top:8px;gap:10px}
+  .qty-btn{
+    width:38px;
+    min-width:38px;
+    height:40px;
+    border-radius:10px;
+    font-size:16px;
+  }
   .cart-item-price{
     font-size:16px;
     font-weight:900;
     white-space:nowrap;
   }
   .cart-remove{
-    width:32px;
-    height:32px;
+    width:40px;
+    height:40px;
     font-size:22px;
+  }
+  .cart-close{
+    width:40px;
+    height:40px;
   }
   .cart-floating-btn{right:14px;bottom:calc(100px + env(safe-area-inset-bottom));padding:10px 12px;font-size:12px}
   .checkout-layout{display:block;padding:10px 10px calc(130px + env(safe-area-inset-bottom))}
