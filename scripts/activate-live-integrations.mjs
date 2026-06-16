@@ -57,16 +57,12 @@ function present(values, keys) {
   return keys.filter((key) => Boolean(values[key]));
 }
 
-function missing(values, keys) {
-  return keys.filter((key) => !values[key]);
+let values = {};
+if (existsSync(envPath)) {
+  values = parseEnv(await readFile(envPath, "utf8"));
+} else {
+  console.log(`No ${envPath} found. Continuing with IBAN/manual payment mode and existing Railway variables.`);
 }
-
-if (!existsSync(envPath)) {
-  console.error(`Missing ${envPath}. Create it from .env.railway.local.example and paste real provider keys.`);
-  process.exit(1);
-}
-
-let values = parseEnv(await readFile(envPath, "utf8"));
 values.IYZICO_BASE_URL ||= "https://sandbox-api.iyzipay.com";
 values.PAYTR_TEST_MODE ||= "1";
 
@@ -76,17 +72,11 @@ const paytrReady = Boolean(values.PAYTR_MERCHANT_ID && values.PAYTR_MERCHANT_KEY
 const firebaseReady = Boolean(values.FIREBASE_PROJECT_ID && values.FIREBASE_CLIENT_EMAIL && values.FIREBASE_PRIVATE_KEY);
 const oneSignalReady = Boolean(values.ONESIGNAL_APP_ID && values.ONESIGNAL_REST_API_KEY);
 
-const missingRequired = [];
-if (!stripeReady) missingRequired.push("Stripe: STRIPE_SECRET_KEY");
-if (!iyzicoReady) missingRequired.push("iyzico: IYZICO_API_KEY, IYZICO_SECRET_KEY");
-if (!paytrReady) missingRequired.push("PayTR: PAYTR_MERCHANT_ID, PAYTR_MERCHANT_KEY, PAYTR_MERCHANT_SALT");
-if (!firebaseReady && !oneSignalReady) missingRequired.push("Push: either Firebase keys or OneSignal keys");
-
-if (missingRequired.length) {
-  console.error("Provider credentials are incomplete:");
-  for (const item of missingRequired) console.error(`- ${item}`);
-  console.error(`\nMissing empty keys in ${envPath}: ${missing(values, allVars).join(", ") || "none"}`);
-  process.exit(1);
+if (!stripeReady && !iyzicoReady && !paytrReady) {
+  console.log("Using IBAN/manual payment mode. Stripe, iyzico, and PayTR keys are optional.");
+}
+if (!firebaseReady && !oneSignalReady) {
+  console.log("Using in-app/order notifications. Firebase and OneSignal keys are optional.");
 }
 
 try {
@@ -100,10 +90,14 @@ try {
 }
 
 const keysToSet = present(values, allVars);
-console.log(`Setting ${keysToSet.length} Railway variables without printing secret values...`);
-for (const key of keysToSet) {
-  run("npx", ["--yes", "@railway/cli", "variable", "set", key, "--stdin", "--skip-deploys"], { stdin: values[key] });
-  console.log(`OK   ${key}`);
+if (keysToSet.length) {
+  console.log(`Setting ${keysToSet.length} Railway variables without printing secret values...`);
+  for (const key of keysToSet) {
+    run("npx", ["--yes", "@railway/cli", "variable", "set", key, "--stdin", "--skip-deploys"], { stdin: values[key] });
+    console.log(`OK   ${key}`);
+  }
+} else {
+  console.log("No optional provider variables to set.");
 }
 
 console.log("Redeploying Railway...");

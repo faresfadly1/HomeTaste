@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-mobile-flow-audit-01";
+const APP_BUILD = "20260616-iban-live-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -2134,9 +2134,9 @@ function renderCart() {
         <div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
-          <option value="stripe">Credit card</option>
           <option value="iban">IBAN</option>
           <option value="cash">${paymentLabel("cash")}</option>
+          <option value="stripe">Credit card</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>

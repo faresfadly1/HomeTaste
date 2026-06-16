@@ -52,13 +52,13 @@ npm run check:prod
 
 The production check verifies the GitHub Pages routes, the routed marketplace pages, and the live API health endpoint.
 
-After real Railway provider keys are added, verify full live activation:
+After deploying the backend, verify full live activation:
 
 ```bash
 npm run check:live
 ```
 
-`check:live` fails until Stripe, iyzico, PayTR, at least one push provider, OpenStreetMap tracking, and Supabase are active in the live Railway health response.
+`check:live` passes when the live API reports IBAN/manual payment or an external gateway, in-app notifications or a push provider, OpenStreetMap tracking, and Supabase. Stripe, iyzico, PayTR, Firebase, and OneSignal keys are optional for the first IBAN-based launch.
 
 ## System accounts
 
@@ -206,8 +206,8 @@ Once Supabase and the hosted backend are connected:
 - customers can subscribe to weekly meal plans from a dedicated dashboard, then pause, resume, skip a week, or cancel
 - customers can follow cooks, like dishes, comment, and share food photos
 - HomeTaste records 15% commission and the cook payout after delivery
-- real payment gateway hooks exist for Stripe, iyzico, and PayTR; provider secrets must be configured on the backend host
-- push notification device registration exists for Firebase FCM and OneSignal; order accepted, food ready, driver near, and delivered updates use the same notification pipeline
+- IBAN/manual payment is ready for launch, while optional real payment gateway hooks exist for Stripe, iyzico, and PayTR if provider secrets are configured later
+- in-app order notifications are ready for launch, while optional push notification device registration exists for Firebase FCM and OneSignal
 - live tracking stores route provider, ETA, driver/customer coordinates, and location history for Google Maps, Mapbox, or OpenStreetMap clients
 - customers can report refund issues for food not delivered, spoiled food, wrong orders, or missing items
 - mobile app planning starts in [docs/mobile-flutter-plan.md](docs/mobile-flutter-plan.md)

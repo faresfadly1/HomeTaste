@@ -11,7 +11,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260612-final-audit-15";
+const backendBuild = "20260616-iban-live-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -118,6 +118,7 @@ const healthPayload = () => ({
   },
   payments: configuredGateways(),
   push: {
+    inApp: true,
     firebase: Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey),
     oneSignal: Boolean(oneSignalAppId && oneSignalRestApiKey)
   },
@@ -652,6 +653,9 @@ function applyCascadeRemoval(db, removed) {
 
 function configuredGateways() {
   return {
+    iban: true,
+    cash: true,
+    manual: true,
     stripe: Boolean(stripeSecretKey),
     iyzico: Boolean(iyzicoApiKey && iyzicoSecretKey),
     paytr: Boolean(paytrMerchantId && paytrMerchantKey && paytrMerchantSalt)
