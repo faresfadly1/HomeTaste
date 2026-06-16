@@ -147,6 +147,7 @@ textarea { min-height: 88px; resize: vertical; }
   font-weight: 900;
 }
 .button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+.button.secondary.is-selected { background: rgba(249, 115, 22, .14); color: var(--brand-2); border-color: rgba(249, 115, 22, .38); }
 .button.good { background: var(--good); }
 .button.bad { background: var(--bad); }
 .button.small { padding: 8px 10px; font-size: 12px; }

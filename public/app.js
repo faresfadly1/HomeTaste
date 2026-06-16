@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-popular-cooks-refresh-01";
+const APP_BUILD = "20260616-dish-favorites-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -2147,6 +2147,8 @@ function renderCart() {
 
 function dishCard(dish) {
   const cook = byId(state.cooks, dish.cookId);
+  const liked = state.socialActions?.some((action) => action.userId === state.user?.id && action.type === "like" && action.dishId === dish.id);
+  const followed = state.socialActions?.some((action) => action.userId === state.user?.id && action.type === "follow" && action.cookId === dish.cookId);
   return `
     <article class="card dish-card">
       <img src="${dish.image}" alt="${dish.name}" loading="lazy" decoding="async">
@@ -2157,8 +2159,8 @@ function dishCard(dish) {
         <div class="meta">${cook?.name || t("cookFallback")} - ${cook?.city || ""} - ${dish.prepMinutes} min - ${cook?.online ? "online" : "offline"}</div>
         <div class="price-row"><span class="price">${money(dish.price)}</span><button class="button small" data-add="${dish.id}">${t("add")}</button></div>
         <div class="toolbar" style="margin:0">
-          <button class="button small secondary" data-social="follow" data-cook="${dish.cookId}">${t("followCook")}</button>
-          <button class="button small secondary" data-social="like" data-dish="${dish.id}" data-cook="${dish.cookId}">${t("like")}</button>
+          <button class="button small secondary ${followed ? "is-selected" : ""}" data-social="follow" data-cook="${dish.cookId}" aria-pressed="${followed ? "true" : "false"}">${followed ? "Following" : t("followCook")}</button>
+          <button class="button small secondary ${liked ? "is-selected" : ""}" data-social="like" data-dish="${dish.id}" data-cook="${dish.cookId}" aria-pressed="${liked ? "true" : "false"}">${liked ? "Liked" : t("like")}</button>
           <button class="button small secondary" data-comment="${dish.id}" data-cook="${dish.cookId}">${t("comment")}</button>
           <button class="button small secondary" data-photo="${dish.id}" data-cook="${dish.cookId}">${t("sharePhoto")}</button>
         </div>
@@ -3135,7 +3137,7 @@ async function updateDriverLocation(orderId) {
 async function socialAction(input) {
   try {
     state = await api("/api/social", { method: "POST", body: JSON.stringify(input) });
-    toast(input.type === "follow" ? "Cook followed." : "Dish liked.");
+    if (!["follow", "like"].includes(input.type)) toast("Saved.");
     renderApp();
   } catch (err) {
     toast(err.message, true);

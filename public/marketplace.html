@@ -2511,6 +2511,7 @@ const faqs = [
 // ===== STATE =====
 let cart = [];
 let favorites = new Set();
+let dishFavorites = new Set();
 let currentCook = null;
 let currentDish = null;
 let activeChatId = null;
@@ -3397,9 +3398,13 @@ function applyMarketplaceState(rawState) {
   const normalizedDishes = (rawState.dishes || []).filter(dish => dish.available !== false).map(normalizeMarketDish);
   const normalizedCooks = (rawState.cooks || []).map(cook => normalizeMarketCook(cook, normalizedDishes, rawState));
   favorites.clear();
+  dishFavorites.clear();
   (rawState.socialActions || [])
     .filter(action => action.type === 'follow' && sameId(action.userId, currentUserId))
     .forEach(action => favorites.add(String(action.cookId)));
+  (rawState.socialActions || [])
+    .filter(action => action.type === 'like' && sameId(action.userId, currentUserId))
+    .forEach(action => dishFavorites.add(String(action.dishId)));
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
 	  const ownCook = cooks.find(cook => sameId(cook.userId, currentUserId));
@@ -3742,7 +3747,6 @@ window.addEventListener('message', (event) => {
       renderCart();
       document.getElementById('successOverlay')?.classList.add('open');
     }
-    if (event.data.ok) showToast('Live data updated.', 'success');
     if (event.data.requestId && pendingHostActions.has(event.data.requestId)) {
       const pending = pendingHostActions.get(event.data.requestId);
       clearTimeout(pending.timeout);
@@ -3973,11 +3977,13 @@ function renderDishes(container = 'dishesGrid') {
 function dishCard(d, staggerClass, options = {}) {
   const cook = cooks.find(c => sameId(c.id, d.cookId));
   const canManage = options.manage && isMyCook(d.cookId);
+  const isDishFav = dishFavorites.has(String(d.id));
   return `
   <div class="dish-card ${staggerClass}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
       <img src="${d.img}" alt="${d.name}" loading="lazy" decoding="async" onerror="this.src='${defaultDishPhoto}'">
       <span class="dish-tag">${d.tag}</span>
+      <button class="fav-btn dish-fav-btn ${isDishFav ? 'active' : ''}" type="button" aria-label="${isDishFav ? 'Remove dish from favorites' : 'Add dish to favorites'}" aria-pressed="${isDishFav ? 'true' : 'false'}" onclick='toggleDishFavorite(event,${jsArg(d.id)},${jsArg(d.cookId)},this)'></button>
       ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
@@ -4078,7 +4084,14 @@ function reorder(dish) {
 
 // ===== RENDER FAVORITES =====
 function renderFavorites() {
-  const favDishes = countryDishes().filter(d => favorites.has(String(d.cookId)));
+  const seen = new Set();
+  const favDishes = countryDishes().filter(d => {
+    const key = String(d.id);
+    const selected = dishFavorites.has(key) || favorites.has(String(d.cookId));
+    if (!selected || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const grid = document.getElementById('favoritesGrid');
   if (favDishes.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💔</div><h3>No favorites yet</h3><p>Heart dishes or cooks to save them here</p></div>`;
@@ -4105,10 +4118,8 @@ async function toggleFav(e, cookId, btn) {
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
     if (result.mode === 'api') applyMarketplaceState(result.state);
-    showToast(wasFavorite ? 'Removed from favorites' : 'Added to favorites', wasFavorite ? 'info' : 'success');
   } catch (error) {
     if (isLocalSyncFallback(error)) {
-      showToast(wasFavorite ? 'Removed from favorites' : 'Added to favorites', wasFavorite ? 'info' : 'success');
       return;
     }
     if (wasFavorite) {
@@ -4120,6 +4131,41 @@ async function toggleFav(e, cookId, btn) {
     }
     renderHomeCooks();
     renderBrowseCooks();
+    renderFavorites();
+    showToast(error.message, 'error');
+  }
+}
+
+async function toggleDishFavorite(e, dishId, cookId, btn) {
+  e.stopPropagation();
+  const id = String(dishId);
+  const wasFavorite = dishFavorites.has(id);
+  if (wasFavorite) {
+    dishFavorites.delete(id);
+    btn?.classList.remove('active');
+    btn?.setAttribute('aria-pressed', 'false');
+    btn?.setAttribute('aria-label', 'Add dish to favorites');
+  } else {
+    dishFavorites.add(id);
+    btn?.classList.add('active');
+    btn?.setAttribute('aria-pressed', 'true');
+    btn?.setAttribute('aria-label', 'Remove dish from favorites');
+  }
+  renderDishes();
+  if (currentCook && document.getElementById('page-cook-profile')?.classList.contains('active')) openCookProfile(currentCook.id);
+  renderFavorites();
+  try {
+    const result = await sendMarketAction('market-social', { payload: { type: 'like', dishId: id, cookId: String(cookId || '') } });
+    if (result.mode === 'api') applyMarketplaceState(result.state);
+  } catch (error) {
+    if (isLocalSyncFallback(error)) return;
+    if (wasFavorite) {
+      dishFavorites.add(id);
+    } else {
+      dishFavorites.delete(id);
+    }
+    renderDishes();
+    if (currentCook && document.getElementById('page-cook-profile')?.classList.contains('active')) openCookProfile(currentCook.id);
     renderFavorites();
     showToast(error.message, 'error');
   }
@@ -4318,10 +4364,8 @@ async function followCookFromProfile() {
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
     if (result.mode === 'api') applyMarketplaceState(result.state);
-    showToast(wasFollowing ? 'Unfollowed cook.' : 'Cook saved to favorites.', wasFollowing ? 'info' : 'success');
   } catch (error) {
     if (isLocalSyncFallback(error)) {
-      showToast(wasFollowing ? 'Unfollowed cook.' : 'Cook saved to favorites.', wasFollowing ? 'info' : 'success');
       return;
     }
     if (wasFollowing) {
