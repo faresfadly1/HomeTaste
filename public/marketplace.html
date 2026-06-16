@@ -2063,10 +2063,10 @@ ul{list-style:none}
       <p>Track your food clearly from cook acceptance to driver pickup, delivery, and final receipt.</p>
     </div>
     <div class="orders-tabs">
-      <button class="orders-tab active" type="button">All</button>
-      <button class="orders-tab" type="button">Ongoing</button>
-      <button class="orders-tab" type="button">Completed</button>
-      <button class="orders-tab" type="button">Canceled</button>
+      <button class="orders-tab active" type="button" onclick="setOrdersFilter(this,'all')">All</button>
+      <button class="orders-tab" type="button" onclick="setOrdersFilter(this,'ongoing')">Ongoing</button>
+      <button class="orders-tab" type="button" onclick="setOrdersFilter(this,'completed')">Completed</button>
+      <button class="orders-tab" type="button" onclick="setOrdersFilter(this,'cancelled')">Canceled</button>
     </div>
     <div class="orders-list" id="ordersList">
       <!-- Populated by JS -->
@@ -2505,6 +2505,8 @@ let currentDish = null;
 let activeChatId = null;
 let chatMessages = JSON.parse(JSON.stringify(messages)); // deep copy
 let supportMessages = [];
+let activeOrdersFilter = 'all';
+let cartFulfillmentMode = 'delivery';
 let selectedCountry = 'TR';
 let selectedLanguage = 'EN';
 let currentUserName = 'User';
@@ -3004,6 +3006,11 @@ async function sendMarketAction(action, payload = {}) {
   } finally {
     pendingMarketActions.delete(key);
   }
+}
+function isLocalSyncFallback(error) {
+  const message = String(error?.message || '');
+  return !marketAuthToken() && (!hasHostWindow() || !hostBridgeReady) &&
+    (message.includes('Please sign in first') || message.includes('still syncing') || message.includes('timed out'));
 }
 async function withMarketButton(button, loadingText, callback) {
   if (!button) return callback();
@@ -3879,7 +3886,13 @@ function renderOrders() {
     ordersList.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><h3>No orders yet</h3><p>Your real orders will appear here after checkout.</p></div>`;
     return;
   }
-  ordersList.innerHTML = demoOrders.map(o => `
+  const filteredOrders = demoOrders.filter(order => orderMatchesFilter(order, activeOrdersFilter));
+  if (!filteredOrders.length) {
+    const label = activeOrdersFilter === 'ongoing' ? 'ongoing' : activeOrdersFilter === 'completed' ? 'completed' : 'canceled';
+    ordersList.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><h3>No ${label} orders</h3><p>Orders in this status will appear here.</p></div>`;
+    return;
+  }
+  ordersList.innerHTML = filteredOrders.map(o => `
   <div class="order-card">
     <div class="order-card-head">
       <div>
@@ -3904,6 +3917,20 @@ function renderOrders() {
     </div>
     <button class="btn-reorder" onclick="${o.action === 'Track Order' ? `openTrackOrder('${o.id}')` : `reorder('${o.dish.replace(/'/g, "\\'")}')`}">${o.action}</button>
   </div>`).join('');
+}
+function orderMatchesFilter(order, filter) {
+  if (filter === 'all') return true;
+  const statusText = String(`${order.status || ''} ${order.statusClass || ''}`).toLowerCase();
+  if (filter === 'completed') return statusText.includes('delivered') || statusText.includes('completed');
+  if (filter === 'cancelled') return statusText.includes('cancel') || statusText.includes('canceled');
+  if (filter === 'ongoing') return !orderMatchesFilter(order, 'completed') && !orderMatchesFilter(order, 'cancelled');
+  return true;
+}
+function setOrdersFilter(button, filter) {
+  activeOrdersFilter = filter || 'all';
+  document.querySelectorAll('.orders-tab').forEach(tab => tab.classList.remove('active'));
+  button?.classList.add('active');
+  renderOrders();
 }
 function openTrackOrder(orderId) {
   const order = demoOrders.find(item => sameId(item.id, orderId)) || demoOrders[0];
@@ -3962,6 +3989,10 @@ async function toggleFav(e, cookId, btn) {
     if (result.mode === 'api') applyMarketplaceState(result.state);
     showToast(wasFavorite ? 'Removed from favorites' : 'Added to favorites', wasFavorite ? 'info' : 'success');
   } catch (error) {
+    if (isLocalSyncFallback(error)) {
+      showToast(wasFavorite ? 'Removed from favorites' : 'Added to favorites', wasFavorite ? 'info' : 'success');
+      return;
+    }
     if (wasFavorite) {
       favorites.add(id);
       btn.classList.add('active');
@@ -4044,8 +4075,10 @@ function updateNavBadges() {
   setNavBadge('messagesNavBadge', chatMessages.reduce((sum, conv) => sum + Number(conv.unread || 0), 0));
 }
 function cartTab(btn, type) {
+  cartFulfillmentMode = type === 'pickup' ? 'pickup' : 'delivery';
   document.querySelectorAll('.cart-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  showToast(cartFulfillmentMode === 'pickup' ? 'Pickup selected. The cook will confirm pickup details.' : 'Delivery selected.', 'info');
 }
 function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
@@ -4169,6 +4202,10 @@ async function followCookFromProfile() {
     if (result.mode === 'api') applyMarketplaceState(result.state);
     showToast(wasFollowing ? 'Unfollowed cook.' : 'Cook saved to favorites.', wasFollowing ? 'info' : 'success');
   } catch (error) {
+    if (isLocalSyncFallback(error)) {
+      showToast(wasFollowing ? 'Unfollowed cook.' : 'Cook saved to favorites.', wasFollowing ? 'info' : 'success');
+      return;
+    }
     if (wasFollowing) {
       favorites.add(cookKey);
       currentCook.followers = previousFollowers;
