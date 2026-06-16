@@ -1994,7 +1994,7 @@ ul{list-style:none}
     <div class="filter-chips" id="filterChips">
       <div class="chip active" onclick="filterChip(this,'all')">All Dishes</div>
       <div class="country-filter">
-        <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" onclick="openCountryMenu()" oninput="filterCountryMenu(this.value)" onfocus="openCountryMenu()">
+        <input class="country-search" id="countryCuisineSearch" placeholder="Search all 195 countries" autocomplete="off" oninput="filterCountryMenu(this.value)">
         <div class="country-menu" id="countryCuisineMenu"></div>
       </div>
     </div>
@@ -2887,6 +2887,9 @@ let marketRequestSeq = 0;
 const pendingHostActions = new Map();
 const pendingMarketActions = new Set();
 let countryMenuTimer = null;
+let marketplaceRefreshTimer = null;
+let lastMarketplaceFingerprint = '';
+const MARKETPLACE_REFRESH_MS = 8000;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
 }
@@ -3199,6 +3202,53 @@ function refreshCookAndDishViews() {
   renderMyCookDishManager();
 }
 
+function marketplaceFingerprint(rawState) {
+  return JSON.stringify({
+    user: rawState?.user ? {
+      id: rawState.user.id,
+      name: rawState.user.name,
+      country: rawState.user.country,
+      city: rawState.user.city,
+      profilePhoto: rawState.user.profilePhoto,
+      profileCover: rawState.user.profileCover
+    } : null,
+    cooks: (rawState?.cooks || []).map(cook => [
+      cook.id,
+      cook.userId,
+      cook.name,
+      cook.city,
+      cook.country,
+      cook.cuisine,
+      cook.status,
+      cook.online,
+      cook.verified,
+      cook.profilePhoto,
+      cook.coverPhoto,
+      cook.followers
+    ]),
+    dishes: (rawState?.dishes || []).map(dish => [
+      dish.id,
+      dish.cookId,
+      dish.name,
+      dish.price,
+      dish.prepMinutes,
+      dish.image,
+      dish.country,
+      dish.available,
+      dish.featured
+    ]),
+    orders: (rawState?.orders || []).map(order => [order.id, order.cookId, order.status, order.updatedAt, order.total]),
+    social: rawState?.social || null,
+    socialActions: (Array.isArray(rawState?.socialActions) ? rawState.socialActions : []).map(action => [
+      action.id,
+      action.userId,
+      action.cookId,
+      action.dishId,
+      action.type
+    ])
+  });
+}
+
 const MARKET_API_BASE = location.hostname.endsWith('github.io') ? 'https://hometaste-api-production.up.railway.app' : '';
 const orderStepByStatus = { placed:1, accepted:1, preparing:2, ready:3, picked_up:4, out_for_delivery:4, near_you:5, delivered:6, cancelled:1 };
 const orderLabelByStatus = {
@@ -3330,6 +3380,9 @@ function mapMessagesForMobile(rawState) {
 }
 function applyMarketplaceState(rawState) {
   if (!rawState) return;
+  const nextFingerprint = marketplaceFingerprint(rawState);
+  if (hostStateReady && nextFingerprint === lastMarketplaceFingerprint) return;
+  lastMarketplaceFingerprint = nextFingerprint;
   hostStateReady = true;
   const user = rawState.user || {};
   currentUserId = user.id || currentUserId;
@@ -3378,6 +3431,9 @@ function requestMarketplaceState() {
 }
 async function loadPublicMarketplaceState() {
   if (hostStateReady) return;
+  await refreshPublicMarketplaceState();
+}
+async function refreshPublicMarketplaceState() {
   try {
     const res = await fetch(`${MARKET_API_BASE}/api/marketplace`, { headers: { accept: 'application/json' } });
     if (!res.ok) return;
@@ -3385,6 +3441,36 @@ async function loadPublicMarketplaceState() {
   } catch {
     if (!hostStateReady) loadCustomCookData();
   }
+}
+function shouldRefreshMarketplaceNow() {
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
+  const cartOpen = document.getElementById('cartPanel')?.classList.contains('open');
+  const welcomeVisible = document.getElementById('welcomeOverlay')?.style.display !== 'none';
+  return !document.hidden &&
+    !cartOpen &&
+    !welcomeVisible &&
+    !['checkout', 'support-chat'].includes(activePage) &&
+    pendingHostActions.size === 0 &&
+    pendingMarketActions.size === 0;
+}
+function refreshMarketplaceFast() {
+  if (!shouldRefreshMarketplaceNow()) return;
+  if (hasHostWindow()) {
+    const posted = postHostAction('market-state-request');
+    if (posted || hostBridgeReady) return;
+  }
+  if (marketAuthToken()) {
+    runStandaloneMarketAction('market-state-request').catch(error => console.warn(error));
+  } else {
+    refreshPublicMarketplaceState();
+  }
+}
+function scheduleMarketplaceRefresh() {
+  if (marketplaceRefreshTimer) return;
+  marketplaceRefreshTimer = setInterval(refreshMarketplaceFast, MARKETPLACE_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshMarketplaceFast();
+  });
 }
 function clearLegacyLocalDemoData() {
   if (localStorage.getItem('hometaste_live_storage_cleaned_20260606') === 'yes') return;
@@ -3432,6 +3518,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
   requestMarketplaceState();
   loadPublicMarketplaceState();
+  scheduleMarketplaceRefresh();
   if (initialPage) {
     const targetNav = document.querySelector(`.nav-item[onclick*="'${initialPage}'"]`);
     showPage(initialPage, targetNav);
@@ -3737,14 +3824,34 @@ function bindCountrySelector() {
   input.dataset.bound = 'yes';
   input.addEventListener('click', (event) => {
     event.stopPropagation();
-    openCountryMenu();
+    toggleCountryMenu();
   });
-  input.addEventListener('focus', openCountryMenu);
   input.addEventListener('input', () => filterCountryMenu(input.value));
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeCountryMenu();
+      input.blur();
+    }
+    if (event.key === 'Enter' && document.getElementById('countryCuisineMenu')?.classList.contains('open')) {
+      event.preventDefault();
+      const first = document.querySelector('#countryCuisineMenu .country-option');
+      first?.click();
+    }
+  });
 }
 function openCountryMenu() {
   renderCountryMenu(document.getElementById('countryCuisineSearch')?.value || '');
   document.getElementById('countryCuisineMenu')?.classList.add('open');
+}
+function closeCountryMenu() {
+  document.getElementById('countryCuisineMenu')?.classList.remove('open');
+}
+function toggleCountryMenu() {
+  const menu = document.getElementById('countryCuisineMenu');
+  if (!menu) return;
+  if (menu.classList.contains('open')) closeCountryMenu();
+  else openCountryMenu();
 }
 function filterCountryMenu(value) {
   clearTimeout(countryMenuTimer);
