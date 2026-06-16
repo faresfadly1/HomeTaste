@@ -4877,6 +4877,27 @@ function resetPaymentMethods() {
   showToast('Country default payment methods restored.', 'success');
 }
 
+function readableLocationLabel(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+function userAddressKey() {
+  return `hometaste_address_${currentUserId || 'guest'}`;
+}
+function userLocationQueryKey() {
+  return `hometaste_location_query_${currentUserId || 'guest'}`;
+}
+function currentSavedAddress() {
+  return readableLocationLabel(localStorage.getItem(userAddressKey())) ||
+    readableLocationLabel(localStorage.getItem('hometaste_location_label')) ||
+    readableLocationLabel(document.getElementById('cityLabel')?.dataset.city) ||
+    'Istanbul';
+}
+function currentSavedLocationQuery() {
+  return localStorage.getItem(userLocationQueryKey()) ||
+    localStorage.getItem('hometaste_location_query') ||
+    currentSavedAddress();
+}
+
 // ===== CHECKOUT =====
 function updateCheckoutItems() {
   const checkoutItems = document.getElementById('checkoutItems');
@@ -4926,7 +4947,7 @@ function renderPaymentDetails(method) {
     `;
     return;
   }
-  if (name === 'Iban') {
+  if (name.toLowerCase() === 'iban') {
     panel.innerHTML = `
       <p class="payment-details-title">IBAN transfer details</p>
       <p class="payment-details-hint">Add the real IBAN number and receiver full name here before launch.</p>

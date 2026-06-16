@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-button-actions-01";
+const APP_BUILD = "20260616-mobile-flow-audit-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -52,7 +52,7 @@ const routePageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "home";
   return marketplaceRoutes.has(segment) ? segment : "home";
 };
-const appRoutes = new Set(["browse", "orders", "subscriptions", "become", "settings"]);
+const appRoutes = new Set(["admin", "browse", "orders", "subscriptions", "become", "settings"]);
 const routeAppPageFromLocation = () => {
   const segment = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   if (segment === "messages") return "chat";
