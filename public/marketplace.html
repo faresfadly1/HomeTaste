@@ -829,6 +829,12 @@ ul{list-style:none}
   font-size:16px;transition:background var(--transition);
 }
 .chat-action-btn:hover{background:var(--bg4)}
+.driver-action:disabled,.chat-action-btn:disabled,.profile-mobile-topbar button:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+  filter:grayscale(.35);
+}
+.chat-action-btn:disabled:hover{background:var(--bg3)}
 .chat-messages{
   flex:1;padding:16px 20px;overflow-y:auto;
   display:flex;flex-direction:column;gap:12px;
@@ -2115,7 +2121,7 @@ ul{list-style:none}
           <span>⭐ 4.9 Your Driver</span>
         </div>
         <div class="driver-actions">
-          <button class="driver-action" type="button" onclick="showToast('Calling driver...','info')">☎</button>
+          <button class="driver-action" type="button" disabled aria-disabled="true">☎</button>
           <button class="driver-action" type="button" onclick="showPage('messages',null)">💬</button>
         </div>
       </div>
@@ -2151,8 +2157,8 @@ ul{list-style:none}
             <p id="chatHeaderDesc"></p>
           </div>
           <div class="chat-actions">
-            <button class="chat-action-btn" onclick="showToast('Phone contact is available after an active order is placed.','info')">📞</button>
-            <button class="chat-action-btn" onclick="showToast('Conversation tools: order chat, delivery notes, and cook updates.','info')">⋯</button>
+            <button class="chat-action-btn" type="button" disabled aria-disabled="true">📞</button>
+            <button class="chat-action-btn" type="button" disabled aria-disabled="true">⋯</button>
           </div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
@@ -2191,7 +2197,7 @@ ul{list-style:none}
     <div class="become-hero">
       <h1>Become a <span>Cook</span> in minutes</h1>
       <p>Create your cook profile from your account username, publish your first real dish, and wait for admin approval before it appears publicly.</p>
-      <button class="btn-apply" onclick="document.getElementById('cookDishInput').focus();showToast('Start with your first dish. Your cook name is your account username.','info')">Create my cook profile</button>
+      <button class="btn-apply" onclick="document.getElementById('cookCreateForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('cookDishInput')?.focus()">Create my cook profile</button>
     </div>
     <div class="cook-form" id="cookCreateForm">
       <div><div class="welcome-label">Phone / WhatsApp</div><input id="cookPhoneInput" class="cook-input" placeholder="+90 ..."></div>
@@ -2237,12 +2243,12 @@ ul{list-style:none}
           <div style="font-weight:700;font-size:14px">Live Chat</div>
           <div style="font-size:12px;color:var(--text3)">Get instant help</div>
         </button>
-        <button class="feature-card" onclick="showToast('Email support: support@hometaste.com','info')" style="cursor:pointer">
+        <button class="feature-card" onclick="location.href='mailto:support@hometaste.com'" style="cursor:pointer">
           <div style="font-size:30px;margin-bottom:8px">📧</div>
           <div style="font-weight:700;font-size:14px">Email Us</div>
           <div style="font-size:12px;color:var(--text3)">support@hometaste.com</div>
         </button>
-        <button class="feature-card" onclick="showToast('Phone support: +90 212 000 00 00','info')" style="cursor:pointer">
+        <button class="feature-card" onclick="location.href='tel:+902120000000'" style="cursor:pointer">
           <div style="font-size:30px;margin-bottom:8px">📞</div>
           <div style="font-weight:700;font-size:14px">Call Us</div>
           <div style="font-size:12px;color:var(--text3)">+90 212 000 00 00</div>
@@ -2306,7 +2312,7 @@ ul{list-style:none}
           <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPaymentPanel()">Manage Payment Methods</button>
         </div>
         <div class="setting-item">
-          <div class="setting-label" style="cursor:pointer;color:#ef4444" onclick="parent.logout ? parent.logout() : showToast('Use the top Sign out button to leave your account.','info')">Sign Out</div>
+          <button class="setting-label" style="cursor:pointer;color:#ef4444" onclick="marketSignOut()">Sign Out</button>
         </div>
       </div>
     </div>
@@ -2317,7 +2323,7 @@ ul{list-style:none}
     <div class="cook-profile-hero">
       <div class="profile-mobile-topbar">
         <button type="button" onclick="showPage('browse',null)">‹</button>
-        <button type="button" onclick="showToast('Profile menu opened.','info')">⋯</button>
+        <button type="button" disabled aria-disabled="true">⋯</button>
       </div>
       <div class="cook-profile-hero-bg"></div>
       <div class="cook-profile-info">
@@ -2902,6 +2908,16 @@ function postHostAction(action, payload = {}, requestId = '') {
 }
 function marketAuthToken() {
   return localStorage.getItem('hometaste_token') || '';
+}
+function marketSignOut() {
+  try {
+    if (hasHostWindow() && typeof parent.logout === 'function') {
+      parent.logout();
+      return;
+    }
+  } catch {}
+  localStorage.removeItem('hometaste_token');
+  location.href = 'index.html';
 }
 async function marketApi(path, options = {}) {
   const token = marketAuthToken();
@@ -5250,7 +5266,9 @@ function sortCooks() {
 
 // ===== TOAST =====
 function showToast(msg, type = 'info') {
+  if (type !== 'error') return;
   const container = document.getElementById('toastContainer');
+  if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = msg;
