@@ -1447,7 +1447,12 @@ ul{list-style:none}
     box-shadow:0 0 14px rgba(255,106,26,.72);
   }
   .nav-badge{position:absolute;right:4px;top:4px;margin:0;font-size:8px;min-width:15px;height:15px;padding:1px 4px}
-  .main{margin-left:0;padding-bottom:0;width:100%;max-width:100%}
+  .main{
+    margin-left:0;
+    padding-bottom:0;
+    width:100%;
+    max-width:100%;
+  }
   .welcome-overlay{align-items:flex-start;overflow:auto;padding:16px}
   .welcome-card{padding:18px;border-radius:18px;margin:12px 0 88px}
   .welcome-card h1{font-size:24px}
@@ -1574,11 +1579,11 @@ ul{list-style:none}
   .page-header{padding:18px 10px 12px}
   .filter-bar{display:grid;grid-template-columns:1fr;padding:0 10px 16px;gap:8px}
   .filter-select,.filter-bar .chip{width:100%;min-height:38px;font-size:13px}
-  .messages-layout{display:grid;grid-template-rows:auto minmax(420px,1fr);height:auto;margin:0 14px 90px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
+  .messages-layout{display:grid;grid-template-rows:auto 1fr;height:calc(100dvh - 188px);margin:0 14px 24px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
   .chat-list{width:100%;display:grid;grid-template-columns:1fr;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:8px}
   .chat-item{min-width:0;border-radius:12px}
   .chat-item.active::before{height:3px;width:50%;left:25%;top:0;bottom:auto}
-  .chat-window{min-height:430px}
+  .chat-window{min-height:0;height:100%}
   .chat-messages{padding:14px}
   .msg{max-width:86%}
   .chat-input-bar{padding:10px}
@@ -1814,6 +1819,16 @@ ul{list-style:none}
   .help-layout > div[style*="grid-template-columns:repeat(3,1fr)"]{grid-template-columns:1fr!important;gap:10px!important;margin-bottom:20px!important}
   .feature-card{padding:14px}
   .settings-layout{padding:16px 10px calc(92px + env(safe-area-inset-bottom))}
+  .settings-layout .checkout-section{
+    padding:12px!important;
+    margin-bottom:14px!important;
+    border-radius:14px;
+  }
+  .settings-section{margin-bottom:14px}
+  .settings-section h3{margin-bottom:8px}
+  .setting-item{padding:9px 0;gap:10px}
+  .setting-desc{font-size:11px;line-height:1.25}
+  .settings-avatar{width:58px;height:58px;font-size:22px}
   .settings-row{gap:10px}
   .mobile-account-become{display:flex}
   .welcome-overlay{padding:10px}
@@ -1845,6 +1860,18 @@ ul{list-style:none}
   .hero-content h1{font-size:23px;max-width:288px;line-height:1.08}
   .hero-content p{font-size:12px;line-height:1.28}
   .hero-cta{min-height:34px;font-size:12px;padding:0 12px}
+  .become-hero{padding:18px 10px}
+  .become-hero h1{font-size:25px;margin-bottom:8px}
+  .become-hero p{
+    font-size:12px;
+    line-height:1.3;
+    margin-bottom:12px;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .cook-form{padding-top:14px;gap:10px}
   .search-section{padding:12px 8px 0}
   .filter-chips,.section,.help-layout,.cook-profile-body{padding-left:8px;padding-right:8px}
   .cooks-grid,.cooks-grid-large,.dishes-grid,.favorites-grid,.become-features,.checkout-layout{padding-left:8px;padding-right:8px}
@@ -1856,6 +1883,7 @@ ul{list-style:none}
   .orders-tab{font-size:8px;padding:8px 2px}
   .order-card{grid-template-columns:58px minmax(0,1fr) auto;padding:10px;gap:8px}
   .order-img{width:58px;height:58px}
+  #cookBioInput{height:72px}
 }
 </style>
 </head>
@@ -2064,9 +2092,9 @@ ul{list-style:none}
     </div>
     <div class="filter-bar">
       <div class="chip active" onclick="filterChip(this,'all')" style="padding:8px 16px">All</div>
-      <div class="chip" onclick="filterChip(this,'vegetarian')" style="padding:8px 16px">🌱 Vegetarian</div>
-      <div class="chip" onclick="filterChip(this,'spicy')" style="padding:8px 16px">🌶️ Spicy</div>
-      <div class="chip" onclick="filterChip(this,'dessert')" style="padding:8px 16px">🍰 Desserts</div>
+      <div class="chip" onclick="filterChip(this,'turkey')" style="padding:8px 16px">Turkey</div>
+      <div class="chip" onclick="filterChip(this,'egypt')" style="padding:8px 16px">Egypt</div>
+      <div class="chip" onclick="filterChip(this,'syria')" style="padding:8px 16px">Syria</div>
     </div>
     <div class="dishes-grid" id="dishesGrid">
       <!-- Populated by JS -->
@@ -2164,7 +2192,7 @@ ul{list-style:none}
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-bar">
           <input class="chat-input" id="chatInputField" type="text" placeholder="Type a message..." onkeydown="handleChatKey(event)" aria-label="Message text">
-          <button class="btn-send" onclick="sendChatMessage()">➤</button>
+          <button class="btn-send" type="button" aria-label="Send message" onclick="sendChatMessage()">➤</button>
         </div>
       </div>
     </div>
@@ -2187,7 +2215,7 @@ ul{list-style:none}
       <div class="chat-messages" id="supportChatMessages"></div>
       <div class="chat-input-bar">
         <input class="chat-input" id="supportChatInput" type="text" placeholder="Type a message..." onkeydown="handleSupportChatKey(event)" aria-label="Support message text">
-        <button class="btn-send" onclick="sendSupportMessage()">➤</button>
+        <button class="btn-send" type="button" aria-label="Send support message" onclick="sendSupportMessage()">➤</button>
       </div>
     </div>
   </div>
@@ -2421,7 +2449,7 @@ ul{list-style:none}
 <aside class="cart-panel" id="cartPanel">
   <div class="cart-header">
     <h3>Your Cart</h3>
-    <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" onclick="toggleCart(false)">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" type="button" aria-label="Close cart" onclick="toggleCart(false)">✕</button></div>
   </div>
   <div class="cart-tabs">
     <button class="cart-tab active" onclick="cartTab(this,'delivery')">Delivery</button>
@@ -2448,7 +2476,7 @@ ul{list-style:none}
 <!-- ===== DISH MODAL ===== -->
 <div class="modal-overlay" id="dishModal" onclick="closeModal(event)">
   <div class="modal-wrap">
-    <button class="modal-close" onclick="closeDishModal()">✕</button>
+    <button class="modal-close" type="button" aria-label="Close dish details" onclick="closeDishModal()">✕</button>
     <div class="modal" id="modalContent">
       <img src="" alt="" id="modalImg" class="modal-img">
       <div class="modal-body">
@@ -2788,7 +2816,7 @@ function tr(key) {
   if (Object.prototype.hasOwnProperty.call(translations.EN, key)) return translations.EN[key];
   return key;
 }
-const checkoutPaymentMethods = ['🏦 IBAN', '💵 Cash on delivery', '💳 Credit card'];
+const checkoutPaymentMethods = ['🏦 IBAN', '💵 Cash on delivery'];
 const paymentMethodsByCountry = {
   TR: checkoutPaymentMethods,
   DE: checkoutPaymentMethods,
@@ -2877,6 +2905,13 @@ function sameId(a, b) {
 }
 function jsArg(value) {
   return JSON.stringify(String(value ?? ''));
+}
+function attrText(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 function cookInitials(cook) {
   const words = String(cook?.name || 'HomeTaste Cook').trim().split(/\s+/).filter(Boolean);
@@ -3903,16 +3938,29 @@ function handleSearchKey(event) {
 }
 function doSearch() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  if (!q) return;
-  const filtered = countryDishes().filter(d =>
-    d.name.toLowerCase().includes(q) || 
-    d.tag.toLowerCase().includes(q) ||
-    (cooks.find(c => sameId(c.id, d.cookId))?.name.toLowerCase().includes(q)) ||
-    (cooks.find(c => sameId(c.id, d.cookId))?.cuisine.toLowerCase().includes(q))
-  );
+  if (!q) {
+    renderDishes();
+    showPage('dishes', document.querySelector('[onclick*="dishes"]'));
+    return;
+  }
+  const filtered = countryDishes().filter(d => {
+    const cook = cooks.find(c => sameId(c.id, d.cookId));
+    return [
+      d.name,
+      d.desc,
+      d.tag,
+      d.country,
+      cook?.name,
+      cook?.cuisine,
+      cook?.city,
+      countryNames[cook?.country || selectedCountry]
+    ].some(value => String(value || '').toLowerCase().includes(q));
+  });
   const grid = document.getElementById('dishesGrid');
   if (grid) {
-    grid.innerHTML = filtered.map(d => dishCard(d, '')).join('');
+    grid.innerHTML = filtered.length
+      ? filtered.map(d => dishCard(d, '')).join('')
+      : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>No dishes found</h3><p>Try another dish, country, cook, or city.</p></div>`;
   }
   showToast(`🔍 Found ${filtered.length} results for "${q}"`, 'info');
   showPage('dishes', document.querySelector('[onclick*="dishes"]'));
@@ -3951,7 +3999,7 @@ function cookCard(c, staggerClass) {
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
       <img src="${cardDishPhoto}" alt="${c.dish || c.name}" loading="lazy" decoding="async" onerror="this.src='${defaultDishPhoto}'">
-      <button class="fav-btn ${isFav ? 'active' : ''}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
+      <button class="fav-btn ${isFav ? 'active' : ''}" type="button" aria-label="${isFav ? 'Remove cook from favorites' : 'Add cook to favorites'}" aria-pressed="${isFav ? 'true' : 'false'}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
@@ -3974,7 +4022,7 @@ function cookCard(c, staggerClass) {
         <div><div class="cook-dish">${c.dish}</div><div style="font-size:11px;color:var(--text3)">${c.orders} orders · speed ${c.speedRating}★</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="cook-price">${c.price} ₺</div>
-          ${c.dishId ? `<button class="btn-add" type="button" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
+          ${c.dishId ? `<button class="btn-add" type="button" aria-label="Add ${attrText(c.dish)} to cart" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
         </div>
       </div>
     </div>
@@ -3984,8 +4032,11 @@ function cookCard(c, staggerClass) {
 // ===== RENDER DISHES =====
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
-  const activeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase() || 'all';
-  const list = countryDishes().filter(d => activeChip.includes('all') || d.tag.toLowerCase() === activeChip);
+  if (!grid) return;
+  const pageChip = document.querySelector('#page-dishes .filter-bar .chip.active')?.textContent?.trim().toLowerCase();
+  const homeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase();
+  const activeChip = pageChip || homeChip || 'all';
+  const list = countryDishes().filter(d => activeChip.includes('all') || [d.tag, d.country].some(value => String(value || '').toLowerCase().includes(activeChip)));
   grid.innerHTML = list.length
     ? list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('')
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>When cooks publish real dishes, they will appear here.</p></div>`;
@@ -4010,7 +4061,7 @@ function dishCard(d, staggerClass, options = {}) {
         <div class="dish-cook">${cook ? cook.emoji + ' ' + cook.name : ''}</div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dish-price">${d.price} ₺</div>
-          <button class="btn-add" onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>+ Add</button>
+          <button class="btn-add" type="button" aria-label="Add ${attrText(d.name)} to cart" onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>+ Add</button>
         </div>
       </div>
     </div>
@@ -4200,13 +4251,13 @@ function renderCart() {
         <div class="cart-item-name">${item.name}</div>
         <div class="cart-item-by">by ${item.by}</div>
         <div class="cart-qty">
-          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
+          <button class="qty-btn" type="button" aria-label="Decrease ${attrText(item.name)} quantity" onclick='changeQty(${jsArg(item.id)},-1)'>−</button>
           <span class="qty-val">${item.qty}</span>
-          <button class="qty-btn" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
+          <button class="qty-btn" type="button" aria-label="Increase ${attrText(item.name)} quantity" onclick='changeQty(${jsArg(item.id)},1)'>+</button>
         </div>
       </div>
       <div class="cart-item-price">${item.price * item.qty} ₺</div>
-      <button class="cart-remove" onclick='removeFromCart(${jsArg(item.id)})'>✕</button>
+      <button class="cart-remove" type="button" aria-label="Remove ${attrText(item.name)} from cart" onclick='removeFromCart(${jsArg(item.id)})'>✕</button>
     </div>`).join('');
   }
   updateCartTotals();
@@ -4586,7 +4637,7 @@ function readImageAsDataUrl(input, onReady) {
   }
   if (file.size > marketMaxSourceImageBytes) {
     input.value = '';
-    showToast('Image is too large. Please choose an image under 8 MB.', 'error');
+    showToast('Image is too large. Please choose a smaller photo.', 'error');
     return onReady('');
   }
   compressImageFile(file, onReady);
@@ -5003,20 +5054,27 @@ function openPasswordPanel() {
     </form>
   `);
 }
-function submitPasswordChange(event) {
+async function submitPasswordChange(event) {
   event.preventDefault();
   const currentPassword = document.getElementById('currentPasswordInput').value;
   const newPassword = document.getElementById('newPasswordInput').value;
   const confirmPassword = document.getElementById('confirmPasswordInput').value;
   if (newPassword !== confirmPassword) return showToast('New passwords do not match.', 'error');
   if (newPassword.length < 8) return showToast('New password must be at least 8 characters.', 'error');
-  parent.postMessage({ source:'HomeTaste', action:'change-password', currentPassword, newPassword }, location.origin);
-  showToast('Saving password...', 'info');
+  if (hasHostWindow()) {
+    parent.postMessage({ source:'HomeTaste', action:'change-password', currentPassword, newPassword }, location.origin);
+    return;
+  }
+  try {
+    await marketApi('/api/auth/password', { method:'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
+    document.getElementById('accountModal')?.classList.remove('open');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 function handlePasswordResult(data) {
   if (!data.ok) return showToast(data.error || 'Password could not be changed.', 'error');
   document.getElementById('accountModal')?.classList.remove('open');
-  showToast('Password changed successfully.', 'success');
 }
 function openPaymentPanel() {
   const saved = new Set(getSavedPaymentMethods());
@@ -5046,13 +5104,11 @@ function savePaymentPanel() {
   setSavedPaymentMethods(selected);
   updatePaymentMethods();
   document.getElementById('accountModal')?.classList.remove('open');
-  showToast('Payment methods saved.', 'success');
 }
 function resetPaymentMethods() {
   localStorage.removeItem(userPaymentKey());
   updatePaymentMethods();
   document.getElementById('accountModal')?.classList.remove('open');
-  showToast('Country default payment methods restored.', 'success');
 }
 
 function readableLocationLabel(value) {
@@ -5106,25 +5162,13 @@ function paymentValue(method) {
   const name = paymentName(method).toLowerCase();
   if (name === 'iban') return 'iban';
   if (name === 'cash on delivery') return 'cash';
-  return 'stripe';
+  return 'cash';
 }
 function renderPaymentDetails(method) {
   const panel = document.getElementById('paymentDetails');
   if (!panel) return;
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
-  if (name === 'Credit card') {
-    panel.innerHTML = `
-      <p class="payment-details-title">Card details</p>
-      <div class="form-group"><label>Card Number</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></div>
-      <div class="form-row">
-        <div class="form-group"><label>Expiry</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY"></div>
-        <div class="form-group"><label>CVV</label><input class="form-input" type="text" inputmode="numeric" autocomplete="cc-csc" placeholder="123"></div>
-      </div>
-      <button class="payment-save" type="button" onclick="saveCardDetails()">Save card</button>
-    `;
-    return;
-  }
   if (name.toLowerCase() === 'iban') {
     panel.innerHTML = `
       <p class="payment-details-title">IBAN transfer details</p>
@@ -5137,9 +5181,6 @@ function renderPaymentDetails(method) {
     return;
   }
   panel.innerHTML = '';
-}
-function saveCardDetails() {
-  showToast('Card details saved for this checkout.', 'success');
 }
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
@@ -5172,6 +5213,8 @@ function saveDeliverySchedule() {
   const date = document.getElementById('scheduleDateInput')?.value || '';
   const time = document.getElementById('scheduleTimeInput')?.value || '';
   if (!date || !time) return showToast('Choose delivery date and time.', 'error');
+  const scheduledAt = new Date(`${date}T${time}`);
+  if (!Number.isFinite(scheduledAt.getTime()) || scheduledAt <= new Date()) return showToast('Choose a future delivery date and time.', 'error');
   localStorage.setItem('hometaste_delivery_schedule', JSON.stringify({ date, time }));
   showToast(`Delivery scheduled for ${date} at ${time}.`, 'success');
 }
@@ -5194,6 +5237,13 @@ async function placeOrder(button = null) {
     savedSchedule = JSON.parse(localStorage.getItem('hometaste_delivery_schedule') || '{}') || {};
   } catch {
     savedSchedule = {};
+  }
+  if (scheduleActive) {
+    const scheduledAt = savedSchedule.date && savedSchedule.time ? new Date(`${savedSchedule.date}T${savedSchedule.time}`) : null;
+    if (!scheduledAt || !Number.isFinite(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      showToast('Choose a future delivery date and time.', 'error');
+      return;
+    }
   }
   const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
   await withMarketButton(button, 'Placing...', async () => {

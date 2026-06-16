@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260616-quiet-buttons-01";
+const APP_BUILD = "20260616-deep-audit-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -783,6 +783,21 @@ function saveStaticDb(db) {
   localStorage.setItem(staticDbKey, JSON.stringify(db));
 }
 
+function staticPasswordHash(password) {
+  let hash = 2166136261;
+  const text = String(password || "");
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `static:${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function staticPasswordMatches(user, password) {
+  const passwordText = String(password || "");
+  return user?.passwordHash === staticPasswordHash(passwordText) || user?.passwordHash === passwordText;
+}
+
 function staticSafeUser(user) {
   if (!user) return null;
   const { passwordHash, ...rest } = user;
@@ -925,9 +940,9 @@ async function staticApi(path, options = {}) {
   if (method === "PATCH" && path === "/api/auth/password") {
     const user = staticUserByToken(db);
     if (!user) throw new Error("Please sign in first.");
-    if (user.passwordHash !== String(input.currentPassword || "")) throw new Error("Current password is incorrect.");
+    if (!staticPasswordMatches(user, input.currentPassword)) throw new Error("Current password is incorrect.");
     if (String(input.newPassword || "").length < 8) throw new Error("New password must be at least 8 characters.");
-    user.passwordHash = String(input.newPassword);
+    user.passwordHash = staticPasswordHash(input.newPassword);
     saveStaticDb(db);
     return { ok: true };
   }
@@ -1206,7 +1221,8 @@ function staticAuth(input) {
   const password = String(input.password || "");
   if (mode === "login") {
     const user = db.users.find((item) => item.email === email);
-    if (!user || user.passwordHash !== password) throw new Error("Invalid email or password.");
+    if (!user || !staticPasswordMatches(user, password)) throw new Error("Invalid email or password.");
+    if (user.passwordHash === password) user.passwordHash = staticPasswordHash(password);
     const nextToken = `static_${Date.now()}`;
     db.sessions[nextToken] = { userId: user.id, createdAt: new Date().toISOString() };
     saveStaticDb(db);
@@ -1219,7 +1235,7 @@ function staticAuth(input) {
     id: `usr_${Date.now()}`,
     name,
     email,
-    passwordHash: password,
+    passwordHash: staticPasswordHash(password),
     role: "customer",
     city: String(input.city || (input.country === "DE" ? "Berlin" : "Istanbul")).trim(),
     country: ["TR", "DE"].includes(input.country) ? input.country : "TR",
@@ -1286,10 +1302,16 @@ function savedLoginCredentials() {
   try {
     const saved = JSON.parse(localStorage.getItem(savedLoginKey) || "null");
     if (!saved || typeof saved !== "object") return null;
-    return {
+    const clean = {
       email: String(saved.email || ""),
-      password: String(saved.password || ""),
       country: ["TR", "DE"].includes(saved.country) ? saved.country : authCountry
+    };
+    if (Object.prototype.hasOwnProperty.call(saved, "password")) {
+      localStorage.setItem(savedLoginKey, JSON.stringify(clean));
+    }
+    return {
+      ...clean,
+      password: ""
     };
   } catch {
     return null;
@@ -1298,11 +1320,9 @@ function savedLoginCredentials() {
 
 function saveLoginCredentials(input) {
   const email = String(input.email || "").trim();
-  const password = String(input.password || "");
-  if (!email || !password) return;
+  if (!email) return;
   localStorage.setItem(savedLoginKey, JSON.stringify({
     email,
-    password,
     country: ["TR", "DE"].includes(input.country) ? input.country : authCountry
   }));
 }
@@ -1347,7 +1367,7 @@ function loadImageFromFile(file) {
 async function readImageFile(file) {
   if (!file) return "";
   if (!ACCEPTED_UPLOAD_IMAGE_TYPES.has(file.type)) throw new Error("Please choose a JPEG, PNG, or WebP image.");
-  if (file.size > MAX_UPLOAD_IMAGE_BYTES) throw new Error("Image is too large. Please choose an image under 8 MB.");
+  if (file.size > MAX_UPLOAD_IMAGE_BYTES) throw new Error("Image is too large. Please choose a smaller photo.");
   const image = await loadImageFromFile(file);
   const naturalWidth = image.naturalWidth || image.width;
   const naturalHeight = image.naturalHeight || image.height;
@@ -1533,15 +1553,15 @@ function renderAuth(error = "") {
           <div class="field auth-input-field"><label>${t("emailAddress")}</label><span class="auth-field-icon">✉</span><input class="input" type="email" name="email" placeholder="${t("emailPlaceholder")}" value="${escapeAttr(rememberedLogin?.email)}" required></div>
           <div class="field auth-input-field password-field">
             <label>${t("password")}</label>
-            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" value="${escapeAttr(rememberedLogin?.password)}" required>
+            <input class="input" id="authPassword" type="password" name="password" placeholder="${t("passwordPlaceholder")}" required>
             <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">${eyeIcon}</button>
           </div>
           ${isLogin ? `
             <div class="auth-row">
-              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email and password on this device</span></label>
+              <label class="remember"><input type="checkbox" name="rememberLogin" id="rememberLogin" ${rememberedLogin ? "checked" : ""}> <span>Save email on this device</span></label>
               <button class="link-button" type="button" id="forgotInline">${t("forgotPassword")}</button>
             </div>
-            ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved login</button>` : ""}
+            ${rememberedLogin ? `<button class="link-button saved-login-clear" type="button" id="clearSavedLogin">Clear saved email</button>` : ""}
           ` : ""}
           <button class="button auth-submit" type="submit"><span>${isLogin ? t("signIn") : t("signUp")}</span><b>→</b></button>
         </form>
@@ -2137,7 +2157,6 @@ function renderCart() {
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
           <option value="iban">IBAN</option>
           <option value="cash">${paymentLabel("cash")}</option>
-          <option value="stripe">Credit card</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
         <button class="button" ${cart.length ? "" : "disabled"}>${t("placeOrder")}</button>
@@ -2792,6 +2811,13 @@ function changeQty(dishId, delta) {
 async function placeOrder(event) {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(event.currentTarget).entries());
+  if (input.scheduledFor) {
+    const scheduledAt = new Date(input.scheduledFor);
+    if (!Number.isFinite(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      toast("Choose a future delivery date and time.", true);
+      return;
+    }
+  }
   try {
     const result = await api("/api/orders", {
       method: "POST",
