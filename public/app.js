@@ -905,11 +905,27 @@ function staticPublicState(db, user) {
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const visible = user ? staticVisibleOrders(db, user) : [];
+  const visibleOrdersWithContacts = visible.map((order) => {
+    const driver = order.driverId ? db.users.find((item) => item.id === order.driverId) : null;
+    const cook = db.cooks.find((item) => item.id === order.cookId);
+    const canSeeDriverContact = Boolean(
+      user?.role === "owner" ||
+      user?.id === order.customerId ||
+      user?.id === order.driverId ||
+      user?.id === cook?.userId
+    );
+    return {
+      ...order,
+      driverName: driver?.name || "",
+      driverCity: driver?.city || "",
+      driverPhone: canSeeDriverContact ? (driver?.phone || "") : ""
+    };
+  });
   return {
     user: staticSafeUser(user),
     cooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
-    orders: visible,
+    orders: visibleOrdersWithContacts,
     messages: user ? db.messages.filter((message) => visible.some((order) => order.id === message.orderId)) : [],
     socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
     users: user?.role === "owner" ? db.users.map(staticSafeUser) : [],

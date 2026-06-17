@@ -2976,6 +2976,9 @@ function formatTrackCoordinate(point) {
   if (!point || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng))) return '';
   return `${Number(point.lat).toFixed(4)}, ${Number(point.lng).toFixed(4)}`;
 }
+function phoneHref(value) {
+  return String(value || '').replace(/[^\d+]/g, '');
+}
 function cookInitials(cook) {
   const words = String(cook?.name || 'HomeTaste Cook').trim().split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
@@ -3496,6 +3499,9 @@ function mapOrderForMobile(order) {
     track: label,
     statusHistory: Array.isArray(order.statusHistory) ? order.statusHistory : [],
     driverId: order.driverId || '',
+    driverName: order.driverName || '',
+    driverCity: order.driverCity || '',
+    driverPhone: order.driverPhone || '',
     driverLocation: order.driverLocation || null,
     customerLocation: order.customerLocation || null,
     cookLocation: order.cookLocation || null,
@@ -4383,26 +4389,48 @@ function renderTrackMap(order) {
     </div>`;
 }
 function openTrackChatFromOrder(orderId) {
-  const hasConversation = chatMessages.some(conv => sameId(conv.id, orderId));
+  const order = findTrackOrder(orderId) || demoOrders.find(item => sameId(item.id, orderId));
+  if (!order) {
+    showToast('Order chat is not available yet.', 'error');
+    return;
+  }
+  if (!chatMessages.some(conv => sameId(conv.id, order.id))) {
+    chatMessages.unshift({
+      id: order.id,
+      cookId: order.cookId,
+      unread: 0,
+      title: order.by || 'Order chat',
+      messages: []
+    });
+  }
   showPage('messages', null);
-  if (hasConversation) requestAnimationFrame(() => openChat(orderId));
+  renderChatList();
+  requestAnimationFrame(() => openChat(order.id));
 }
 function renderTrackDriverCard(order) {
   const raw = orderRaw(order);
   const status = raw.status || order.statusRaw || 'placed';
   const assigned = Boolean(raw.driverId);
+  const driverName = displayText(raw.driverName || order.driverName, 'Driver assigned');
+  const driverPhone = phoneHref(raw.driverPhone || order.driverPhone || '');
   const title = status === 'cancelled'
     ? 'Order cancelled'
     : assigned
-      ? 'Driver assigned'
+      ? driverName
       : 'Waiting for driver';
   const subtitle = status === 'cancelled'
     ? 'No driver action is needed.'
     : assigned
-      ? `ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}`
+      ? `ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}${driverPhone ? ' · Call available' : ''}`
       : 'A driver will appear here after the cook marks the food ready.';
   const card = document.getElementById('trackDriverCard');
   if (!card) return;
+  const callAction = driverPhone && status !== 'cancelled'
+    ? `<a class="driver-action" href="tel:${attrText(driverPhone)}" aria-label="Call driver" title="Call driver">☎</a>`
+    : `<button class="driver-action" type="button" disabled aria-disabled="true" title="${assigned ? 'Driver phone not available yet' : 'Waiting for driver'}">☎</button>`;
+  const messageAction = status !== 'cancelled'
+    ? `<button class="driver-action" type="button" aria-label="Message order chat" title="Message order chat" onclick='openTrackChatFromOrder(${jsArg(order.id)})'>💬</button>`
+    : `<button class="driver-action" type="button" disabled aria-disabled="true" title="Order cancelled">💬</button>`;
   card.innerHTML = `
     <div class="driver-avatar">${assigned ? '🛵' : status === 'cancelled' ? '!' : '⏳'}</div>
     <div class="driver-meta">
@@ -4410,8 +4438,8 @@ function renderTrackDriverCard(order) {
       <span>${safeDisplayHtml(subtitle)}</span>
     </div>
     <div class="driver-actions">
-      <button class="driver-action" type="button" disabled aria-disabled="true" title="Call is available in the native app">☎</button>
-      <button class="driver-action" type="button" onclick='openTrackChatFromOrder(${jsArg(order.id)})'>💬</button>
+      ${callAction}
+      ${messageAction}
     </div>`;
 }
 function renderTrackOrder(order) {

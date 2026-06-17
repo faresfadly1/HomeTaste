@@ -1923,6 +1923,23 @@ function visibleOrders(db, user) {
   return db.orders.filter((order) => order.customerId === user.id);
 }
 
+function orderWithVisibleContacts(db, order, user) {
+  const driver = order.driverId ? db.users.find((item) => item.id === order.driverId) : null;
+  const cook = db.cooks.find((item) => item.id === order.cookId);
+  const canSeeDriverContact = Boolean(
+    user?.role === "owner" ||
+    user?.id === order.customerId ||
+    user?.id === order.driverId ||
+    user?.id === cook?.userId
+  );
+  return {
+    ...order,
+    driverName: driver?.name || "",
+    driverCity: driver?.city || "",
+    driverPhone: canSeeDriverContact ? (driver?.phone || "") : ""
+  };
+}
+
 function visibleSubscriptions(db, user) {
   if (user.role === "owner") return db.subscriptions;
   if (user.role === "cook") {
@@ -1962,15 +1979,15 @@ function publicState(db, user = null) {
     ? db.cooks
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
+  const orders = user ? visibleOrders(db, user) : [];
   return publicPayload({
     user: safeUser(user),
     cooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
-    orders: user ? visibleOrders(db, user) : [],
+    orders: orders.map((order) => orderWithVisibleContacts(db, order, user)),
     messages: user
       ? db.messages.filter((message) => {
-          const order = db.orders.find((item) => item.id === message.orderId);
-          return order && visibleOrders(db, user).some((item) => item.id === order.id);
+          return orders.some((order) => order.id === message.orderId);
         })
       : [],
     mealPlans: db.mealPlans.filter((plan) => user?.role === "owner" || (plan.active && cookIds.has(plan.cookId))),

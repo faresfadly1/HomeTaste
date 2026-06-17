@@ -117,6 +117,7 @@ const child = spawn(process.execPath, ["server.js"], {
     SEED_DRIVER_PASSWORD: driverPassword,
     SEED_DRIVER_NAME: "Flow Driver",
     SEED_DRIVER_CITY: "Kadikoy",
+    SEED_DRIVER_PHONE: "+90 555 900 1000",
     GOOGLE_CLIENT_ID: googleClientId,
     GOOGLE_CLIENT_SECRET: googleClientSecret,
     GOOGLE_REDIRECT_URI: googleRedirectUri,
@@ -424,6 +425,7 @@ try {
   const customerDriverState = await request(base, customer.token, "GET", "/api/state");
   const customerTrackedOrder = customerDriverState.orders.find((item) => item.id === order.id);
   assert(customerTrackedOrder?.driverId === driver.state.user.id && customerTrackedOrder.etaMinutes > 0, "customer track order shows assigned driver and ETA");
+  assert(customerTrackedOrder?.driverName === "Flow Driver" && customerTrackedOrder.driverPhone === "+90 555 900 1000", "customer track order can show driver call/contact details after assignment");
   const blockedLocation = await requestRaw(base, otherCustomer.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: "41.0000,29.0000" });
   assert(blockedLocation.status === 403, "unrelated customer cannot update order tracking location");
   driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300 } });
