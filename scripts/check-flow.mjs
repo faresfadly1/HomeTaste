@@ -457,7 +457,14 @@ try {
   const cancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
   assert(cancelledCustomerState.orders.find((item) => item.id === cancelOrder.id)?.status === "cancelled", "customer track order sees cancelled state");
 
-  await request(base, customer.token, "POST", "/api/messages", { orderId: order.id, text: "Please call at arrival." });
+  customerState = await request(base, customer.token, "POST", "/api/messages", { orderId: order.id, text: "Please call at arrival." });
+  assert(customerState.messages.some((message) => message.orderId === order.id && message.text === "Please call at arrival." && message.fromUserId === customer.state.user.id), "customer can send an order chat message");
+  let cookMessageState = await request(base, cookAccount.token, "GET", "/api/state");
+  assert(cookMessageState.messages.some((message) => message.orderId === order.id && message.text === "Please call at arrival." && message.fromUserId === customer.state.user.id), "cook receives the customer order chat message");
+  cookMessageState = await request(base, cookAccount.token, "POST", "/api/messages", { orderId: order.id, text: "Thanks, I will message you on arrival." });
+  assert(cookMessageState.messages.some((message) => message.orderId === order.id && message.text === "Thanks, I will message you on arrival." && message.fromUserId === cookMessageState.user.id), "cook can reply in the order chat");
+  customerState = await request(base, customer.token, "GET", "/api/state");
+  assert(customerState.messages.some((message) => message.orderId === order.id && message.text === "Thanks, I will message you on arrival." && message.fromUserId === cookMessageState.user.id), "customer receives the cook order chat reply");
   customerState = await request(base, customer.token, "POST", "/api/refunds", { orderId: order.id, reason: "missing_item", details: "Missing side item." });
   const refund = customerState.refunds.find((item) => item.orderId === order.id);
   assert(refund?.status === "pending", "refund request goes to admin review");

@@ -861,6 +861,13 @@ ul{list-style:none}
   display:flex;align-items:center;gap:12px;
   padding:16px 20px;border-bottom:1px solid var(--border);
 }
+.chat-back-btn{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--bg3);border:1px solid var(--border);
+  display:none;place-items:center;font-size:18px;font-weight:900;
+  color:var(--text);flex:0 0 auto;
+}
+.chat-back-btn:hover{background:var(--bg4)}
 .chat-header-info h3{font-size:15px;font-weight:700}
 .chat-header-info p{font-size:12px;color:var(--text3)}
 .chat-actions{margin-left:auto;display:flex;gap:8px}
@@ -1625,6 +1632,12 @@ ul{list-style:none}
   .chat-item{min-width:0;border-radius:12px}
   .chat-item.active::before{height:3px;width:50%;left:25%;top:0;bottom:auto}
   .chat-window{min-height:0;height:100%}
+  .chat-back-btn{display:grid}
+  .messages-layout:not(.chat-detail-open){grid-template-rows:1fr}
+  .messages-layout:not(.chat-detail-open) .chat-window{display:none}
+  .messages-layout.chat-detail-open{grid-template-rows:1fr}
+  .messages-layout.chat-detail-open .chat-list{display:none}
+  .messages-layout.chat-detail-open .chat-window{display:flex}
   .chat-messages{padding:14px}
   .msg{max-width:86%}
   .chat-input-bar{padding:10px}
@@ -2218,6 +2231,7 @@ ul{list-style:none}
       </div>
       <div class="chat-window" id="chatWindow">
         <div class="chat-header" id="chatHeader">
+          <button class="chat-back-btn" type="button" onclick="backFromCookChat()" aria-label="Back to chats">←</button>
           <div class="chat-avatar" id="chatHeaderAvatar" style="width:44px;height:44px;border-radius:50%;background:var(--bg3);font-size:20px;display:grid;place-items:center;flex-shrink:0"></div>
           <div class="chat-header-info">
             <h3 id="chatHeaderName"></h3>
@@ -2591,6 +2605,7 @@ let dishFavorites = new Set();
 let currentCook = null;
 let currentDish = null;
 let activeChatId = null;
+let pageBeforeMessages = 'orders';
 let chatMessages = JSON.parse(JSON.stringify(messages)); // deep copy
 let supportMessages = [];
 let activeOrdersFilter = 'all';
@@ -3572,11 +3587,15 @@ function applyMarketplaceState(rawState) {
 	  }
 	  demoOrders.splice(0, demoOrders.length, ...(rawState.orders || []).map(mapOrderForMobile));
 	  chatMessages = mapMessagesForMobile(rawState);
+	  const messagesPageOpen = document.getElementById('page-messages')?.classList.contains('active');
 	  renderCityFilterOptions();
 	  renderCuisineFilterOptions();
 	  refreshCookAndDishViews();
 	  renderCart();
 	  renderChatList();
+	  if (messagesPageOpen && activeChatId && chatMessages.some(conv => sameId(conv.id, activeChatId))) {
+	    openChat(activeChatId, { focus: false });
+	  }
 	  updateNavBadges();
 	  updateSettingsAccount();
 	  const trackPageOpen = document.getElementById('page-track-order')?.classList.contains('active');
@@ -3697,6 +3716,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== PAGE NAVIGATION (FIXED: null check) =====
 function showPage(pageId, navEl) {
   if (pageId !== 'track-order') stopTrackOrderRefresh();
+  const currentPageId = document.querySelector('.page.active')?.id?.replace('page-', '') || '';
+  if (pageId === 'messages' && currentPageId && currentPageId !== 'messages') {
+    pageBeforeMessages = currentPageId;
+  }
   parent.postMessage({ source: 'HomeTaste', action: 'market-page', page: pageId }, location.origin);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -4801,16 +4824,40 @@ async function followCookFromProfile() {
 }
 
 // ===== CHAT =====
+function setChatDetailOpen(open) {
+  document.querySelector('.messages-layout')?.classList.toggle('chat-detail-open', Boolean(open));
+}
+function backFromCookChat() {
+  const layout = document.querySelector('.messages-layout');
+  if (layout?.classList.contains('chat-detail-open')) {
+    setChatDetailOpen(false);
+    activeChatId = null;
+    renderChatList();
+    return;
+  }
+  const fallbackPage = pageBeforeMessages && pageBeforeMessages !== 'messages' ? pageBeforeMessages : 'orders';
+  const nav = document.querySelector(`.nav-item[onclick*="'${fallbackPage}'"]`);
+  showPage(fallbackPage, nav);
+}
 function renderChatList() {
   const list = document.getElementById('chatList');
   if (!list) return;
 	  if (!chatMessages.length) {
+      activeChatId = null;
+      setChatDetailOpen(false);
 	    list.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h3>No conversations yet</h3><p>Order chats will appear after real orders.</p></div>`;
     const msgs = document.getElementById('chatMessages');
 	    if (msgs) msgs.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h3>No chat selected</h3><p>Start with a real order.</p></div>`;
+      document.getElementById('chatHeaderAvatar').textContent = '💬';
+      document.getElementById('chatHeaderName').textContent = 'Messages';
+      document.getElementById('chatHeaderDesc').textContent = 'Chat with your cooks';
 	    updateNavBadges();
 	    return;
 	  }
+  if (activeChatId && !chatMessages.some(conv => sameId(conv.id, activeChatId))) {
+    activeChatId = null;
+    setChatDetailOpen(false);
+  }
   list.innerHTML = chatMessages.map(conv => {
     const cook = cooks.find(c => sameId(c.id, conv.cookId));
     const last = conv.messages[conv.messages.length - 1] || { text: 'No messages yet', time: '' };
@@ -4818,36 +4865,39 @@ function renderChatList() {
     <div class="chat-item ${sameId(conv.id, activeChatId) ? 'active' : ''}" onclick='openChat(${jsArg(conv.id)})'>
       <div class="chat-avatar">${cook ? cook.emoji : '👤'}<div class="chat-online"></div></div>
       <div class="chat-meta">
-        <div class="chat-name">${cook ? cook.name : 'Cook'}</div>
-        <div class="chat-preview">${last.text}</div>
+        <div class="chat-name">${safeDisplayHtml(cook ? cook.name : conv.title || 'Cook')}</div>
+        <div class="chat-preview">${safeDisplayHtml(last.text)}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <div class="chat-time">${last.time}</div>
+        <div class="chat-time">${safeDisplayHtml(last.time)}</div>
         ${conv.unread ? `<div class="chat-unread">${conv.unread}</div>` : ''}
       </div>
     </div>`;
 	  }).join('');
 	  updateNavBadges();
 	}
-function openChat(convId) {
+function openChat(convId, options = {}) {
   activeChatId = convId;
   const conv = chatMessages.find(c => sameId(c.id, convId));
   if (!conv) { renderChatList(); return; }
 	  conv.unread = 0;
   const cook = cooks.find(c => sameId(c.id, conv.cookId));
+  setChatDetailOpen(true);
   document.getElementById('chatHeaderAvatar').textContent = cook ? cook.emoji : '👤';
-  document.getElementById('chatHeaderName').textContent = cook ? cook.name : 'Cook';
+  document.getElementById('chatHeaderName').textContent = cook ? cook.name : conv.title || 'Cook';
   document.getElementById('chatHeaderDesc').textContent = cook ? cook.cuisine + ' · Online' : '';
   const msgs = document.getElementById('chatMessages');
-  msgs.innerHTML = conv.messages.map(m => `
+  msgs.innerHTML = conv.messages.length
+    ? conv.messages.map(m => `
     <div class="msg ${m.from === 'user' ? 'sent' : 'received'}">
-      <div class="msg-bubble">${m.text}</div>
-      <div class="msg-time">${m.time}</div>
-    </div>`).join('');
+      <div class="msg-bubble">${safeDisplayHtml(m.text)}</div>
+      <div class="msg-time">${safeDisplayHtml(m.time)}</div>
+    </div>`).join('')
+    : `<div class="empty-state"><div class="empty-icon">💬</div><h3>No messages yet</h3><p>Send the first message about this order.</p></div>`;
   msgs.scrollTop = msgs.scrollHeight;
 	  renderChatList();
 	  updateNavBadges();
-	  requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
+	  if (options.focus !== false) requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
 	}
 function openSupportChat() {
   const greeting = `Hello ${currentUserName} Welocome to HomeTaste`;
@@ -4905,10 +4955,11 @@ async function sendChatMessage() {
 	  const conv = chatMessages.find(c => sameId(c.id, activeChatId));
 	  if (!conv) { showToast('No conversation selected yet.', 'info'); return; }
 	  try {
+      const sentChatId = activeChatId;
 	    const result = await sendMarketAction('market-message', { payload: { orderId: conv.id, text } });
 	    input.value = '';
 	    showToast(result.mode === 'host' ? 'Sending message...' : 'Message sent.', 'info');
-	    if (result.mode === 'api') openChat(activeChatId);
+	    if (chatMessages.some(chat => sameId(chat.id, sentChatId))) openChat(sentChatId);
 	    return;
 	  } catch (error) {
 	    showToast(error.message, 'error');
