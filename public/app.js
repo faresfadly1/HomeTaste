@@ -887,7 +887,11 @@ function staticRemoveUser(db, userId) {
 
 function staticVisibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
-  if (user.role === "driver") return db.orders.filter((order) => order.driverId === user.id);
+  if (user.role === "driver") {
+    return db.orders
+      .filter((order) => order.driverId === user.id || (!order.driverId && ["accepted", "preparing", "ready"].includes(order.status)))
+      .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
+  }
   if (user.role === "cook") {
     const cook = staticCookForUser(db, user.id);
     return cook ? db.orders.filter((order) => order.cookId === cook.id) : [];
@@ -918,6 +922,59 @@ function staticPublicState(db, user) {
       orders: db.orders.length,
       revenue: db.orders.reduce((sum, order) => sum + order.total, 0)
     } : null
+  };
+}
+
+function staticCoordinateFromText(value, fallback = { lat: 41.0082, lng: 28.9784 }) {
+  const text = String(value || "").toLowerCase();
+  const known = [
+    ["istanbul", 41.0082, 28.9784],
+    ["kadikoy", 40.9909, 29.0303],
+    ["besiktas", 41.0438, 29.0094],
+    ["bursa", 40.1885, 29.061],
+    ["ankara", 39.9334, 32.8597],
+    ["berlin", 52.52, 13.405],
+    ["munich", 48.1351, 11.582]
+  ].find(([name]) => text.includes(name));
+  return known ? { lat: known[1], lng: known[2] } : fallback;
+}
+
+function staticNormalizeLocation(value, fallbackText = "") {
+  if (value && typeof value === "object") {
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  const text = typeof value === "string" ? value : fallbackText;
+  const match = String(text || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  if (match) return { lat: Number(match[1]), lng: Number(match[2]) };
+  return staticCoordinateFromText(text);
+}
+
+function staticDistanceKm(a, b) {
+  const toRad = (deg) => deg * Math.PI / 180;
+  const radius = 6371;
+  const dLat = toRad(Number(b.lat) - Number(a.lat));
+  const dLng = toRad(Number(b.lng) - Number(a.lng));
+  const lat1 = toRad(Number(a.lat));
+  const lat2 = toRad(Number(b.lat));
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * radius * Math.asin(Math.sqrt(h));
+}
+
+function staticRouteForOrder(order) {
+  const driver = order.driverLocation || order.cookLocation || staticCoordinateFromText("Kadikoy");
+  const customer = order.customerLocation || staticNormalizeLocation(order.deliveryAddress || "");
+  const km = Math.max(0.5, staticDistanceKm(driver, customer));
+  const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
+  return {
+    provider: "openstreetmap",
+    driver,
+    customer,
+    distanceKm: Math.round(km * 10) / 10,
+    etaMinutes,
+    polyline: [driver, customer],
+    optimizedAt: new Date().toISOString()
   };
 }
 
@@ -1077,13 +1134,13 @@ async function staticApi(path, options = {}) {
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) throw new Error("Please order from one cook at a time.");
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
-    const driver = db.users.find((item) => item.role === "driver");
+    const cook = db.cooks.find((item) => item.id === firstDish.cookId);
     const createdAt = new Date().toISOString();
     const order = {
       id: `ord_${Date.now()}`,
       customerId: user.id,
       cookId: firstDish.cookId,
-      driverId: driver?.id || null,
+      driverId: null,
       items: normalized,
       subtotal,
       deliveryFee: 30,
@@ -1093,14 +1150,67 @@ async function staticApi(path, options = {}) {
       statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
       paymentMethod: String(input.paymentMethod || "cash"),
       deliveryAddress: String(input.deliveryAddress || "").trim(),
+      scheduledFor: String(input.scheduledFor || "").trim() || null,
+      customerLocation: staticNormalizeLocation(input.customerLocation || input.deliveryAddress || user.city || "Istanbul"),
+      cookLocation: staticCoordinateFromText(cook?.city || "Istanbul"),
+      driverLocation: null,
+      locationHistory: [],
       notes: String(input.notes || "").trim(),
       createdAt,
       updatedAt: createdAt
     };
+    order.route = staticRouteForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
     db.orders.unshift(order);
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
     if (orderCook?.userId) db.notifications.push({ id: `not_${Date.now()}_cook`, userId: orderCook.userId, text: `New order ${order.id} received.`, createdAt, read: false });
-    if (order.driverId) db.notifications.push({ id: `not_${Date.now()}_driver`, userId: order.driverId, text: `Delivery request created for ${order.id}.`, createdAt, read: false });
+    for (const driverUser of db.users.filter((item) => item.role === "driver")) {
+      db.notifications.push({ id: `not_${Date.now()}_${driverUser.id}`, userId: driverUser.id, text: `Available delivery: ${order.id}.`, createdAt, read: false });
+    }
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path.startsWith("/api/driver/orders/") && path.endsWith("/accept")) {
+    if (user.role !== "driver" && user.role !== "owner") throw new Error("Only drivers can accept deliveries.");
+    const orderId = path.split("/").at(-2);
+    const order = db.orders.find((item) => item.id === orderId);
+    if (!order) throw new Error("Order not found.");
+    if (order.driverId && order.driverId !== user.id) throw new Error("This order is already assigned.");
+    if (!["ready", "accepted", "preparing"].includes(order.status)) throw new Error("Order is not ready for driver assignment.");
+    order.driverId = user.id;
+    order.driverLocation = staticCoordinateFromText(user.city || "Istanbul");
+    order.route = staticRouteForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
+    order.updatedAt = new Date().toISOString();
+    order.statusHistory ||= [];
+    order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
+    db.notifications.push({ id: `not_${Date.now()}_${order.customerId}`, userId: order.customerId, text: `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, createdAt: order.updatedAt, read: false });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path.startsWith("/api/orders/") && path.endsWith("/location")) {
+    const orderId = path.split("/").at(-2);
+    const order = db.orders.find((item) => item.id === orderId);
+    if (!order) throw new Error("Order not found.");
+    const isOrderDriver = order.driverId === user.id || user.role === "owner";
+    const isOrderCustomer = order.customerId === user.id || user.role === "owner";
+    if (!isOrderDriver && !isOrderCustomer) throw new Error("No access to update this order location.");
+    if (input.driverLocation && isOrderDriver) order.driverLocation = staticNormalizeLocation(input.driverLocation);
+    if (input.customerLocation && isOrderCustomer) order.customerLocation = staticNormalizeLocation(input.customerLocation, order.deliveryAddress);
+    order.route = staticRouteForOrder(order);
+    order.etaMinutes = order.route.etaMinutes;
+    order.locationHistory ||= [];
+    order.locationHistory.push({
+      driverLocation: order.driverLocation || null,
+      customerLocation: order.customerLocation || null,
+      etaMinutes: order.etaMinutes,
+      provider: order.route.provider,
+      at: new Date().toISOString(),
+      byUserId: user.id
+    });
+    order.updatedAt = new Date().toISOString();
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -3139,6 +3249,25 @@ async function subscriptionAction(subscriptionId, action) {
   }
 }
 
+function browserDriverLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Browser location is not available."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      },
+      () => reject(new Error("Location permission was not granted.")),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+    );
+  });
+}
+
 async function acceptDelivery(orderId) {
   try {
     state = await api(`/api/driver/orders/${orderId}/accept`, { method: "PATCH", body: JSON.stringify({}) });
@@ -3150,7 +3279,12 @@ async function acceptDelivery(orderId) {
 }
 
 async function updateDriverLocation(orderId) {
-  const current = window.prompt("Driver location as city or lat,lng", state.user.city || "Istanbul");
+  let current = null;
+  try {
+    current = await browserDriverLocation();
+  } catch {
+    current = window.prompt("Driver location as city or lat,lng", state.user.city || "Istanbul");
+  }
   if (!current) return;
   try {
     state = await api(`/api/orders/${orderId}/location`, { method: "PATCH", body: JSON.stringify({ driverLocation: current }) });

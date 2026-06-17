@@ -234,6 +234,15 @@ try {
     country: "TR",
     nationalId: "10987654321"
   });
+  const otherCustomer = await auth(base, "signup", {
+    name: `${baseName} Other`,
+    email: `other.${runId}@hometaste.test`,
+    password: "OtherPass123!",
+    phone: "+90 555 700 8000",
+    city: "Bursa",
+    country: "TR",
+    nationalId: "10000000001"
+  });
   const driver = await auth(base, "login", { email: driverEmail, password: driverPassword });
 
   let cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", {
@@ -395,24 +404,56 @@ try {
   assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.gross === 317.5, "15% commission, gross payment, and cook payout calculate correctly");
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
+  assert(order.status === "placed" && order.statusHistory?.some((item) => item.status === "placed"), "track order starts from real placed status history");
+  assert(order.deliveryAddress === "Uskudar, Istanbul" && order.scheduledFor === "2026-06-12T18:00:00.000Z", "track order carries delivery address and scheduled time");
 
-  await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "accepted" });
-  await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "preparing" });
-  await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "ready" });
+  let trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "accepted" });
+  assert(trackingState.orders.find((item) => item.id === order.id)?.statusHistory?.some((item) => item.status === "accepted"), "track order records cook accepted status");
+  trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "preparing" });
+  assert(trackingState.orders.find((item) => item.id === order.id)?.status === "preparing", "track order records cooking status");
+  trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "ready" });
+  assert(trackingState.orders.find((item) => item.id === order.id)?.status === "ready", "track order records food ready status");
+  const customerReadyState = await request(base, customer.token, "GET", "/api/state");
+  assert(customerReadyState.orders.find((item) => item.id === order.id)?.status === "ready", "customer sees real ready status on track order");
   let driverState = await request(base, driver.token, "GET", "/api/state");
   assert(driverState.orders.some((item) => item.id === order.id && item.status === "ready"), "driver sees ready available order");
 
   driverState = await request(base, driver.token, "PATCH", `/api/driver/orders/${order.id}/accept`, {});
   let driverOrder = driverState.orders.find((item) => item.id === order.id);
   assert(driverOrder.driverId === driver.state.user.id && driverOrder.route?.etaMinutes > 0, "driver accepts order and route ETA updates");
-  driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: "41.0350,29.0300" });
+  const customerDriverState = await request(base, customer.token, "GET", "/api/state");
+  const customerTrackedOrder = customerDriverState.orders.find((item) => item.id === order.id);
+  assert(customerTrackedOrder?.driverId === driver.state.user.id && customerTrackedOrder.etaMinutes > 0, "customer track order shows assigned driver and ETA");
+  const blockedLocation = await requestRaw(base, otherCustomer.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: "41.0000,29.0000" });
+  assert(blockedLocation.status === 403, "unrelated customer cannot update order tracking location");
+  driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300 } });
   driverOrder = driverState.orders.find((item) => item.id === order.id);
   assert(driverOrder.locationHistory?.length === 1 && driverOrder.driverLocation?.lat, "driver live location saves");
+  const customerLocationState = await request(base, customer.token, "GET", "/api/state");
+  const customerLocationOrder = customerLocationState.orders.find((item) => item.id === order.id);
+  assert(customerLocationOrder?.driverLocation?.lat && customerLocationOrder.locationHistory?.length === 1 && customerLocationOrder.route?.polyline?.length === 2, "customer track order sees live driver location, route, and location history");
   await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "picked_up" });
   await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "out_for_delivery" });
-  await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "near_you" });
+  trackingState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "near_you" });
+  assert(trackingState.orders.find((item) => item.id === order.id)?.statusHistory?.some((item) => item.status === "near_you"), "track order records driver near-you status");
   customerState = await request(base, customer.token, "PATCH", `/api/orders/${order.id}`, { status: "delivered" });
   assert(customerState.orders.find((item) => item.id === order.id)?.payment?.status === "released", "delivered order releases escrow payment");
+  const deliveredTrackOrder = customerState.orders.find((item) => item.id === order.id);
+  assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "track order records delivered status for customer");
+
+  const cancelOrderResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Kadikoy, Istanbul",
+    customerLocation: "40.9909,29.0303",
+    paymentMethod: "iban",
+    notes: "Cancelled tracking flow"
+  });
+  const cancelOrder = cancelOrderResult.state.orders.find((item) => item.notes === "Cancelled tracking flow");
+  assert(cancelOrder?.status === "placed" && cancelOrder.statusHistory?.some((item) => item.status === "placed"), "cancelled flow starts with real placed tracking data");
+  const cancelledState = await request(base, cookAccount.token, "PATCH", `/api/orders/${cancelOrder.id}`, { status: "cancelled" });
+  assert(cancelledState.orders.find((item) => item.id === cancelOrder.id)?.statusHistory?.some((item) => item.status === "cancelled"), "cancelled order records cancelled tracking status");
+  const cancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
+  assert(cancelledCustomerState.orders.find((item) => item.id === cancelOrder.id)?.status === "cancelled", "customer track order sees cancelled state");
 
   await request(base, customer.token, "POST", "/api/messages", { orderId: order.id, text: "Please call at arrival." });
   customerState = await request(base, customer.token, "POST", "/api/refunds", { orderId: order.id, reason: "missing_item", details: "Missing side item." });

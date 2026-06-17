@@ -726,40 +726,81 @@ ul{list-style:none}
 .track-step-text h3{font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:3px}
 .track-step-text p{font-size:12px;color:var(--text3)}
 .track-step-time{font-size:12px;color:var(--text3);white-space:nowrap}
+.track-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.track-refresh-btn{
+  padding:9px 14px;border-radius:10px;background:var(--orange);
+  color:#fff;border:1px solid rgba(255,106,26,.35);font-size:13px;font-weight:900;
+  box-shadow:0 8px 18px rgba(255,106,26,.18);
+}
+.track-summary{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  margin:0 0 16px;
+}
+.track-summary-item{
+  min-width:0;border:1px solid var(--border);background:var(--bg2);
+  border-radius:14px;padding:12px;
+}
+.track-summary-item span{display:block;font-size:11px;color:var(--text3);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.track-summary-item strong{display:block;margin-top:4px;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track-summary-item.full{grid-column:1/-1}
 .track-map{
   height:190px;border-radius:16px;overflow:hidden;border:1px solid var(--border);
   background:
-    linear-gradient(90deg,transparent 24px,rgba(255,255,255,.08) 25px,transparent 26px),
-    linear-gradient(transparent 24px,rgba(255,255,255,.08) 25px,transparent 26px),
-    linear-gradient(135deg,var(--bg3),var(--card));
+    linear-gradient(90deg,transparent 24px,rgba(255,106,26,.09) 25px,transparent 26px),
+    linear-gradient(transparent 24px,rgba(255,106,26,.07) 25px,transparent 26px),
+    linear-gradient(135deg,#fff8ef,#ffffff 58%,#fff3e6);
   background-size:50px 50px,50px 50px,100% 100%;
   position:relative;margin-bottom:16px;
 }
-.track-route{
-  position:absolute;left:58px;right:58px;top:86px;height:4px;
-  background:#3b82f6;transform:rotate(-8deg);border-radius:99px;
+.track-map-line{
+  position:absolute;left:12%;right:12%;top:52%;height:5px;
+  background:linear-gradient(90deg,#22c55e,#3b82f6 45%,#ff7a1a);
+  border-radius:99px;box-shadow:0 8px 20px rgba(59,130,246,.16);
 }
-.track-route::before,.track-route::after{
+.track-map-line::before,.track-map-line::after{
   content:'';position:absolute;top:50%;transform:translateY(-50%);
-  width:18px;height:18px;border-radius:50%;background:#22c55e;border:4px solid #dff8e7;
+  width:18px;height:18px;border-radius:50%;border:4px solid #fff;box-shadow:0 5px 14px rgba(89,55,28,.16);
 }
-.track-route::before{left:-8px}.track-route::after{right:-8px;background:#0f172a;border-color:#dbeafe}
-.track-driver{
-  position:absolute;right:54px;top:44px;width:54px;height:54px;border-radius:50%;
-  background:#1f2937;color:#fff;display:grid;place-items:center;font-size:24px;
-  box-shadow:0 12px 28px rgba(0,0,0,.25);
+.track-map-line::before{left:-6px;background:#22c55e}
+.track-map-line::after{right:-6px;background:#ff6a1a}
+.track-map-marker{
+  position:absolute;top:calc(52% - 34px);left:12%;transform:translateX(-50%);
+  display:grid;place-items:center;gap:4px;text-align:center;color:var(--text2);font-size:10px;font-weight:800;
+}
+.track-map-marker.customer{left:88%;color:var(--orange)}
+.track-map-marker-dot{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#fff;border:1px solid var(--border);
+  box-shadow:0 8px 20px rgba(89,55,28,.12);font-size:16px;
+}
+.track-driver-marker{
+  position:absolute;top:calc(52% - 52px);left:50%;transform:translateX(-50%);
+  width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,#ff6a1a,#ff943d);color:#fff;font-size:22px;
+  border:4px solid rgba(255,255,255,.82);box-shadow:0 14px 30px rgba(255,106,26,.28);
+}
+.track-map-info{
+  position:absolute;left:12px;right:12px;bottom:12px;
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+  padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.84);
+  backdrop-filter:blur(12px);border:1px solid rgba(234,220,203,.8);
+  color:var(--text2);font-size:12px;font-weight:800;
+}
+.track-map-empty{
+  height:100%;display:grid;place-items:center;text-align:center;color:var(--text2);
+  padding:20px;font-weight:800;background:linear-gradient(135deg,#fff8ef,#fff3e6);
 }
 .driver-card{
   display:flex;align-items:center;gap:12px;background:var(--card);
   border:1px solid var(--border);border-radius:18px;padding:14px;
 }
 .driver-avatar{width:46px;height:46px;border-radius:50%;background:var(--bg3);display:grid;place-items:center;font-size:22px;flex:0 0 auto}
-.driver-meta{flex:1}.driver-meta strong{display:block;font-size:14px}.driver-meta span{font-size:12px;color:var(--text3)}
+.driver-meta{flex:1;min-width:0}.driver-meta strong{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.driver-meta span{font-size:12px;color:var(--text3)}
 .driver-actions{display:flex;gap:8px}.driver-action{width:38px;height:38px;border-radius:50%;background:var(--bg3);display:grid;place-items:center}
 .track-back-btn{
   padding:9px 14px;border-radius:10px;background:var(--bg3);
   border:1px solid var(--border);font-size:13px;font-weight:800;color:var(--text2);
 }
+.track-step.cancelled .track-step-dot{background:#b42318;border-color:#b42318;color:#fff}
 .checkout-back-btn{margin-bottom:14px}
 
 /* ======== FAVORITES ======== */
@@ -1729,6 +1770,11 @@ ul{list-style:none}
   .track-header{padding:4px 0 12px;margin:0;align-items:flex-start}
   .track-title h2{font-size:18px}
   .track-title p{font-size:12px}
+  .track-actions{gap:6px}
+  .track-back-btn,.track-refresh-btn{padding:8px 10px;font-size:12px;min-height:36px}
+  .track-summary{grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+  .track-summary-item{padding:10px;border-radius:12px}
+  .track-summary-item strong{font-size:13px}
   .track-timeline{padding:0}
   .track-step{grid-template-columns:28px minmax(0,1fr) auto;gap:10px;min-height:58px}
   .track-step::before{left:13px;top:26px;background:#23824a}
@@ -1738,6 +1784,8 @@ ul{list-style:none}
   .track-step-text p,.track-step-time{font-size:10px}
   .track-step.active{background:#fff5e6;border:1px solid #f5e0bf}
   .track-map{height:164px;border-radius:12px;background-color:#f5efe7}
+  .track-driver-marker{width:42px;height:42px;font-size:19px}
+  .track-map-info{font-size:10.5px;bottom:10px;left:10px;right:10px;padding:8px 10px}
   .driver-card{border-radius:18px;box-shadow:0 8px 24px rgba(69,42,21,.08)}
   .profile-mobile-topbar{
     display:flex;position:absolute;top:10px;left:10px;right:10px;z-index:4;
@@ -2134,25 +2182,16 @@ ul{list-style:none}
             <h2 id="trackOrderId">Order #</h2>
             <p id="trackOrderDate"></p>
           </div>
-          <button class="track-back-btn" type="button" onclick="showPage('orders',null)">Back</button>
+          <div class="track-actions">
+            <button class="track-back-btn" type="button" onclick="showPage('orders',null)">Back</button>
+            <button class="track-refresh-btn" type="button" onclick="refreshTrackOrder(this)">Refresh</button>
+          </div>
         </div>
+        <div class="track-summary" id="trackSummary"></div>
         <div class="track-timeline" id="trackTimeline"></div>
       </div>
-      <div class="track-map">
-        <div class="track-route"></div>
-        <div class="track-driver">🛵</div>
-      </div>
-      <div class="driver-card">
-        <div class="driver-avatar">👨‍✈️</div>
-        <div class="driver-meta">
-          <strong>Ali K.</strong>
-          <span>⭐ 4.9 Your Driver</span>
-        </div>
-        <div class="driver-actions">
-          <button class="driver-action" type="button" disabled aria-disabled="true">☎</button>
-          <button class="driver-action" type="button" onclick="showPage('messages',null)">💬</button>
-        </div>
-      </div>
+      <div class="track-map" id="trackMap"></div>
+      <div class="driver-card" id="trackDriverCard"></div>
     </div>
   </div>
 
@@ -2511,7 +2550,7 @@ ul{list-style:none}
     <div style="font-weight:700;font-size:16px">Estimated Delivery</div>
     <div style="color:var(--orange);font-size:24px;font-weight:900;margin-top:4px">25–35 min</div>
   </div>
-  <button class="btn-apply" style="margin-top:8px" onclick="document.getElementById('successOverlay').classList.remove('open');showPage('orders',document.querySelector('[onclick*=\"orders\"]'))">Track My Order →</button>
+  <button class="btn-apply" style="margin-top:8px" onclick="trackLastPlacedOrder()">Track My Order →</button>
 </div>
 
 <!-- ===== TOAST CONTAINER ===== -->
@@ -2523,12 +2562,15 @@ const cooks = [];
 const dishes = [];
 const demoOrders = [];
 
-const trackingSteps = [
-  {key:'confirmed',title:'Order Confirmed',body:'Your order has been confirmed',time:'1:30 PM'},
-  {key:'cooking',title:'Cooking Started',body:'Your cook has started preparing your meal',time:'1:45 PM'},
-  {key:'ready',title:'Food is Ready',body:'Your food is freshly ready',time:'2:15 PM'},
-  {key:'way',title:'On the Way',body:'Your driver is on the way',time:'2:25 PM'},
-  {key:'delivered',title:'Delivered',body:'Enjoy your meal!',time:''}
+const trackStatusSteps = [
+  {status:'placed',title:'Order placed',body:'HomeTaste received your order.'},
+  {status:'accepted',title:'Order received',body:'The cook accepted your order.'},
+  {status:'preparing',title:'Cooking',body:'Your meal is being prepared.'},
+  {status:'ready',title:'Food ready',body:'Your meal is ready for pickup.'},
+  {status:'picked_up',title:'Driver picked up',body:'The driver has your order.'},
+  {status:'out_for_delivery',title:'On the way',body:'Your driver is on the route.'},
+  {status:'near_you',title:'Near you',body:'The driver is close to your address.'},
+  {status:'delivered',title:'Delivered',body:'Enjoy your meal!'}
 ];
 
 const messages = [];
@@ -2913,6 +2955,27 @@ function attrText(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+function safeDisplayHtml(value) {
+  return attrText(value);
+}
+function displayText(value, fallback = '') {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+}
+function formatTrackTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || !Number.isFinite(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function formatTrackDateTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || !Number.isFinite(date.getTime())) return '';
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function formatTrackCoordinate(point) {
+  if (!point || !Number.isFinite(Number(point.lat)) || !Number.isFinite(Number(point.lng))) return '';
+  return `${Number(point.lat).toFixed(4)}, ${Number(point.lng).toFixed(4)}`;
+}
 function cookInitials(cook) {
   const words = String(cook?.name || 'HomeTaste Cook').trim().split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
@@ -2931,7 +2994,11 @@ const pendingMarketActions = new Set();
 let countryMenuTimer = null;
 let marketplaceRefreshTimer = null;
 let lastMarketplaceFingerprint = '';
+let activeTrackOrderId = null;
+let trackRefreshTimer = null;
+let lastPlacedOrderId = null;
 const MARKETPLACE_REFRESH_MS = 8000;
+const TRACK_REFRESH_MS = 6000;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
 }
@@ -3289,7 +3356,23 @@ function marketplaceFingerprint(rawState) {
       dish.available,
       dish.featured
     ]),
-    orders: (rawState?.orders || []).map(order => [order.id, order.cookId, order.status, order.updatedAt, order.total]),
+    orders: (rawState?.orders || []).map(order => [
+      order.id,
+      order.cookId,
+      order.driverId,
+      order.status,
+      order.updatedAt,
+      order.total,
+      order.deliveryAddress,
+      order.scheduledFor,
+      order.etaMinutes,
+      JSON.stringify(order.driverLocation || null),
+      JSON.stringify(order.customerLocation || null),
+      JSON.stringify(order.cookLocation || null),
+      JSON.stringify(order.route || null),
+      Array.isArray(order.statusHistory) ? order.statusHistory.length : 0,
+      Array.isArray(order.locationHistory) ? order.locationHistory.length : 0
+    ]),
     social: rawState?.social || null,
     socialActions: (Array.isArray(rawState?.socialActions) ? rawState.socialActions : []).map(action => [
       action.id,
@@ -3387,21 +3470,39 @@ function mapOrderForMobile(order) {
   const cook = cooks.find(item => sameId(item.id, order.cookId));
   const created = order.createdAt ? new Date(order.createdAt) : new Date();
   const label = orderLabelByStatus[order.status] || order.status || 'Order placed';
+  const rawItems = Array.isArray(order.items) ? order.items : [];
   return {
+    raw: order,
     id: order.id,
     dish: first?.name || dish?.name || 'Order',
+    dishId: first?.dishId || dish?.id || '',
     by: cook?.name || 'Cook',
     cookId: order.cookId,
     date: created.toLocaleString(),
     shortDate: created.toLocaleString(),
+    createdAt: order.createdAt || '',
+    updatedAt: order.updatedAt || '',
+    scheduledFor: order.scheduledFor || '',
+    statusRaw: order.status || 'placed',
     status: label,
     statusClass: order.status === 'delivered' ? 'status-delivered' : order.status === 'cancelled' ? 'status-cancelled' : 'status-pending',
     price: `₺${Number(order.total || 0).toLocaleString('tr-TR')}`,
-    itemCount: `${Array.isArray(order.items) ? order.items.length : 1} item`,
+    total: Number(order.total || 0),
+    items: rawItems,
+    itemCount: `${rawItems.length || 1} item`,
     img: dish?.img || defaultDishPhoto,
     step: orderStepByStatus[order.status] || 1,
     action: order.status === 'delivered' ? 'Reorder' : 'Track Order',
-    track: label
+    track: label,
+    statusHistory: Array.isArray(order.statusHistory) ? order.statusHistory : [],
+    driverId: order.driverId || '',
+    driverLocation: order.driverLocation || null,
+    customerLocation: order.customerLocation || null,
+    cookLocation: order.cookLocation || null,
+    locationHistory: Array.isArray(order.locationHistory) ? order.locationHistory : [],
+    route: order.route || null,
+    etaMinutes: order.etaMinutes || order.route?.etaMinutes || null,
+    deliveryAddress: order.deliveryAddress || ''
   };
 }
 function mapMessagesForMobile(rawState) {
@@ -3472,6 +3573,12 @@ function applyMarketplaceState(rawState) {
 	  renderChatList();
 	  updateNavBadges();
 	  updateSettingsAccount();
+	  const trackPageOpen = document.getElementById('page-track-order')?.classList.contains('active');
+	  if (activeTrackOrderId && trackPageOpen) {
+	    const activeOrder = demoOrders.find(order => sameId(order.id, activeTrackOrderId));
+	    if (activeOrder) renderTrackOrder(activeOrder);
+	    else stopTrackOrderRefresh();
+	  }
 	}
 function requestMarketplaceState() {
   const posted = postHostAction('market-state-request');
@@ -3583,6 +3690,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ===== PAGE NAVIGATION (FIXED: null check) =====
 function showPage(pageId, navEl) {
+  if (pageId !== 'track-order') stopTrackOrderRefresh();
   parent.postMessage({ source: 'HomeTaste', action: 'market-page', page: pageId }, location.origin);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -3793,6 +3901,7 @@ window.addEventListener('message', (event) => {
     hostBridgeReady = true;
     applyMarketplaceState(event.data.state);
     if (event.data.placedOrder || pendingOrderPlacement) {
+      rememberLastPlacedOrderFromOrders();
       pendingOrderPlacement = false;
       cart = [];
       renderCart();
@@ -4123,26 +4232,238 @@ function setOrdersFilter(button, filter) {
   button?.classList.add('active');
   renderOrders();
 }
-function openTrackOrder(orderId) {
-  const order = demoOrders.find(item => sameId(item.id, orderId)) || demoOrders[0];
-  if (!order) { showToast('No order to track yet.', 'info'); return; }
-  document.getElementById('trackOrderId').textContent = `Order #${order.id}`;
-  document.getElementById('trackOrderDate').textContent = order.date;
-  document.getElementById('trackTimeline').innerHTML = trackingSteps.map((step, index) => {
-    const number = index + 1;
-    const isDone = number < order.step;
-    const isActive = number === order.step;
+function orderRaw(order) {
+  return order?.raw || order || {};
+}
+function findTrackOrder(orderId = activeTrackOrderId) {
+  return demoOrders.find(item => sameId(item.id, orderId)) || null;
+}
+function orderStatusIndex(status) {
+  const index = trackStatusSteps.findIndex(step => step.status === status);
+  return index >= 0 ? index : 0;
+}
+function latestTrackedStatus(order) {
+  const raw = orderRaw(order);
+  const status = raw.status || order.statusRaw || 'placed';
+  if (status !== 'cancelled') return status;
+  const history = Array.isArray(raw.statusHistory) ? raw.statusHistory : [];
+  const last = history.slice().reverse().find(item => item.status && item.status !== 'cancelled');
+  return last?.status || 'placed';
+}
+function statusHistoryTime(order, status) {
+  const history = Array.isArray(orderRaw(order).statusHistory) ? orderRaw(order).statusHistory : [];
+  const hit = history.slice().reverse().find(item => item.status === status);
+  return formatTrackTime(hit?.at);
+}
+function statusHistoryDateTime(order, status) {
+  const history = Array.isArray(orderRaw(order).statusHistory) ? orderRaw(order).statusHistory : [];
+  const hit = history.slice().reverse().find(item => item.status === status);
+  return formatTrackDateTime(hit?.at);
+}
+function trackProgressByStatus(status) {
+  const index = orderStatusIndex(status);
+  return Math.max(0, Math.min(1, index / Math.max(1, trackStatusSteps.length - 1)));
+}
+function orderItemsLabel(order) {
+  const raw = orderRaw(order);
+  const items = Array.isArray(raw.items) && raw.items.length ? raw.items : (Array.isArray(order.items) ? order.items : []);
+  if (!items.length) return order.dish || 'Order items';
+  return items.map(item => {
+    const dish = dishes.find(d => sameId(d.id, item.dishId));
+    const name = displayText(item.name || dish?.name, 'Dish');
+    return `${Number(item.qty || 1)} x ${name}`;
+  }).join(', ');
+}
+function orderTotalLabel(order) {
+  const raw = orderRaw(order);
+  const total = Number(raw.total || order.total || 0);
+  return total > 0 ? `₺${total.toLocaleString('tr-TR')}` : (order.price || 'Total pending');
+}
+function orderEtaLabel(order) {
+  const raw = orderRaw(order);
+  const eta = Number(raw.etaMinutes || raw.route?.etaMinutes || order.etaMinutes || 0);
+  return eta > 0 ? `${eta} min` : 'Updating';
+}
+function rememberLastPlacedOrderFromOrders() {
+  const latest = demoOrders.slice().sort((a, b) => {
+    const aTime = new Date(orderRaw(a).createdAt || a.createdAt || orderRaw(a).updatedAt || a.updatedAt || 0).getTime();
+    const bTime = new Date(orderRaw(b).createdAt || b.createdAt || orderRaw(b).updatedAt || b.updatedAt || 0).getTime();
+    return bTime - aTime;
+  })[0];
+  if (latest?.id) lastPlacedOrderId = latest.id;
+  return latest || null;
+}
+function renderTrackSummary(order) {
+  const raw = orderRaw(order);
+  const address = displayText(raw.deliveryAddress || order.deliveryAddress, 'Delivery address not set');
+  const scheduled = raw.scheduledFor ? formatTrackDateTime(raw.scheduledFor) : 'ASAP';
+  const route = raw.route || {};
+  const distance = route.distanceKm ? `${route.distanceKm} km` : 'Route updating';
+  const summary = document.getElementById('trackSummary');
+  if (!summary) return;
+  summary.innerHTML = `
+    <div class="track-summary-item"><span>Status</span><strong>${safeDisplayHtml(orderLabelByStatus[raw.status] || order.status || 'Order placed')}</strong></div>
+    <div class="track-summary-item"><span>ETA</span><strong>${safeDisplayHtml(orderEtaLabel(order))}</strong></div>
+    <div class="track-summary-item"><span>Total</span><strong>${safeDisplayHtml(orderTotalLabel(order))}</strong></div>
+    <div class="track-summary-item"><span>Route</span><strong>${safeDisplayHtml(distance)}</strong></div>
+    <div class="track-summary-item full"><span>Items</span><strong>${safeDisplayHtml(orderItemsLabel(order))}</strong></div>
+    <div class="track-summary-item full"><span>Delivery</span><strong>${safeDisplayHtml(address)} · ${safeDisplayHtml(scheduled)}</strong></div>`;
+}
+function renderTrackTimeline(order) {
+  const raw = orderRaw(order);
+  const status = raw.status || order.statusRaw || 'placed';
+  const currentStatus = latestTrackedStatus(order);
+  const currentIndex = orderStatusIndex(currentStatus);
+  const history = Array.isArray(raw.statusHistory) ? raw.statusHistory : [];
+  const historyStatuses = new Set(history.map(item => item.status).filter(Boolean));
+  const visibleSteps = status === 'cancelled'
+    ? trackStatusSteps.filter((step, index) => index <= currentIndex || historyStatuses.has(step.status))
+    : trackStatusSteps;
+  const timelineHtml = visibleSteps.map((step, index) => {
+    const originalIndex = orderStatusIndex(step.status);
+    const done = status === 'cancelled'
+      ? originalIndex <= currentIndex && (historyStatuses.size === 0 || historyStatuses.has(step.status) || originalIndex === 0)
+      : originalIndex < currentIndex;
+    const active = status !== 'cancelled' && originalIndex === currentIndex;
+    const time = statusHistoryTime(order, step.status);
     return `
-      <div class="track-step ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}">
-        <div class="track-step-dot">${isDone ? '✓' : number}</div>
+      <div class="track-step ${done ? 'done' : ''} ${active ? 'active' : ''}">
+        <div class="track-step-dot">${done ? '✓' : index + 1}</div>
         <div class="track-step-text">
-          <h3>${step.title}</h3>
-          <p>${step.body}</p>
+          <h3>${safeDisplayHtml(step.title)}</h3>
+          <p>${safeDisplayHtml(step.body)}</p>
         </div>
-        <div class="track-step-time">${step.time}</div>
+        <div class="track-step-time">${safeDisplayHtml(time)}</div>
       </div>`;
   }).join('');
+  const cancelledHtml = status === 'cancelled' ? `
+      <div class="track-step active cancelled">
+        <div class="track-step-dot">!</div>
+        <div class="track-step-text">
+          <h3>Order cancelled</h3>
+          <p>This order is no longer active.</p>
+        </div>
+        <div class="track-step-time">${safeDisplayHtml(statusHistoryTime(order, 'cancelled') || formatTrackTime(raw.updatedAt))}</div>
+      </div>` : '';
+  const timeline = document.getElementById('trackTimeline');
+  if (timeline) timeline.innerHTML = timelineHtml + cancelledHtml;
+}
+function renderTrackMap(order) {
+  const raw = orderRaw(order);
+  const route = raw.route || {};
+  const status = raw.status || order.statusRaw || 'placed';
+  const driverPoint = raw.driverLocation || route.driver || raw.cookLocation || null;
+  const customerPoint = raw.customerLocation || route.customer || null;
+  const map = document.getElementById('trackMap');
+  if (!map) return;
+  if (!driverPoint && !customerPoint) {
+    map.innerHTML = `<div class="track-map-empty">Route will appear when the order location is available.</div>`;
+    return;
+  }
+  const progressStatus = status === 'cancelled' ? latestTrackedStatus(order) : status;
+  const progress = status === 'delivered' ? 1 : trackProgressByStatus(progressStatus);
+  const driverLeft = Math.round(12 + progress * 76);
+  const driverLabel = raw.driverLocation ? 'Driver live' : (raw.driverId ? 'Driver assigned' : 'Cook location');
+  const eta = orderEtaLabel(order);
+  const distance = route.distanceKm ? `${route.distanceKm} km` : 'Distance updating';
+  map.innerHTML = `
+    <div class="track-map-line"></div>
+    <div class="track-map-marker">
+      <div class="track-map-marker-dot">🍳</div>
+      <span>Cook</span>
+    </div>
+    <div class="track-map-marker customer">
+      <div class="track-map-marker-dot">📍</div>
+      <span>You</span>
+    </div>
+    <div class="track-driver-marker" style="left:${driverLeft}%">🛵</div>
+    <div class="track-map-info">
+      <span>${safeDisplayHtml(driverLabel)} · ${safeDisplayHtml(formatTrackCoordinate(driverPoint) || 'location pending')}</span>
+      <span>${safeDisplayHtml(distance)} · ETA ${safeDisplayHtml(eta)}</span>
+    </div>`;
+}
+function openTrackChatFromOrder(orderId) {
+  const hasConversation = chatMessages.some(conv => sameId(conv.id, orderId));
+  showPage('messages', null);
+  if (hasConversation) requestAnimationFrame(() => openChat(orderId));
+}
+function renderTrackDriverCard(order) {
+  const raw = orderRaw(order);
+  const status = raw.status || order.statusRaw || 'placed';
+  const assigned = Boolean(raw.driverId);
+  const title = status === 'cancelled'
+    ? 'Order cancelled'
+    : assigned
+      ? 'Driver assigned'
+      : 'Waiting for driver';
+  const subtitle = status === 'cancelled'
+    ? 'No driver action is needed.'
+    : assigned
+      ? `ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}`
+      : 'A driver will appear here after the cook marks the food ready.';
+  const card = document.getElementById('trackDriverCard');
+  if (!card) return;
+  card.innerHTML = `
+    <div class="driver-avatar">${assigned ? '🛵' : status === 'cancelled' ? '!' : '⏳'}</div>
+    <div class="driver-meta">
+      <strong>${safeDisplayHtml(title)}</strong>
+      <span>${safeDisplayHtml(subtitle)}</span>
+    </div>
+    <div class="driver-actions">
+      <button class="driver-action" type="button" disabled aria-disabled="true" title="Call is available in the native app">☎</button>
+      <button class="driver-action" type="button" onclick='openTrackChatFromOrder(${jsArg(order.id)})'>💬</button>
+    </div>`;
+}
+function renderTrackOrder(order) {
+  const raw = orderRaw(order);
+  document.getElementById('trackOrderId').textContent = `Order #${order.id}`;
+  const createdLabel = formatTrackDateTime(raw.createdAt || order.createdAt) || order.date || '';
+  const updatedLabel = formatTrackDateTime(raw.updatedAt || order.updatedAt);
+  document.getElementById('trackOrderDate').textContent = updatedLabel && updatedLabel !== createdLabel
+    ? `${createdLabel} · Updated ${updatedLabel}`
+    : createdLabel;
+  renderTrackSummary(order);
+  renderTrackTimeline(order);
+  renderTrackMap(order);
+  renderTrackDriverCard(order);
+}
+function startTrackOrderRefresh() {
+  stopTrackOrderRefresh();
+  trackRefreshTimer = setInterval(() => {
+    refreshTrackOrder().catch(error => console.warn(error));
+  }, TRACK_REFRESH_MS);
+}
+function stopTrackOrderRefresh() {
+  if (trackRefreshTimer) clearInterval(trackRefreshTimer);
+  trackRefreshTimer = null;
+}
+async function refreshTrackOrder(button = null) {
+  const runner = async () => {
+    if (hasHostWindow()) requestMarketplaceState();
+    if (marketAuthToken()) await syncMarketplaceFromApi();
+    const order = findTrackOrder();
+    if (order) renderTrackOrder(order);
+    else if (activeTrackOrderId) {
+      stopTrackOrderRefresh();
+      showPage('orders', null);
+      showToast('This order is no longer available.', 'error');
+    }
+  };
+  return button ? withMarketButton(button, 'Refreshing...', runner) : runner();
+}
+function trackLastPlacedOrder() {
+  document.getElementById('successOverlay')?.classList.remove('open');
+  const order = findTrackOrder(lastPlacedOrderId) || rememberLastPlacedOrderFromOrders();
+  if (order) openTrackOrder(order.id);
+  else showPage('orders', document.querySelector('[onclick*="orders"]'));
+}
+function openTrackOrder(orderId) {
+  const order = findTrackOrder(orderId) || demoOrders[0];
+  if (!order) { showToast('No order to track yet.', 'info'); return; }
+  activeTrackOrderId = order.id;
+  renderTrackOrder(order);
   showPage('track-order', null);
+  startTrackOrderRefresh();
 }
 function reorder(dish) {
   showToast(`🛒 ${dish} added to cart!`, 'success');
@@ -5260,6 +5581,7 @@ async function placeOrder(button = null) {
       });
       pendingOrderPlacement = false;
       if (result.mode === 'host') {
+        rememberLastPlacedOrderFromOrders();
         cart = [];
         renderCart();
         updateCartBadge();
@@ -5268,6 +5590,7 @@ async function placeOrder(button = null) {
         showToast('Order placed and saved.', 'success');
         return;
       }
+      rememberLastPlacedOrderFromOrders();
       cart = [];
       renderCart();
       updateCartBadge();
