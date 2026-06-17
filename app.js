@@ -889,7 +889,7 @@ function staticVisibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") {
     return db.orders
-      .filter((order) => order.driverId === user.id || (!order.driverId && ["accepted", "preparing", "ready"].includes(order.status)))
+      .filter((order) => order.driverId === user.id || (!order.driverId && order.status === "ready"))
       .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
   }
   if (user.role === "cook") {
@@ -992,6 +992,51 @@ function staticRouteForOrder(order) {
     polyline: [driver, customer],
     optimizedAt: new Date().toISOString()
   };
+}
+
+function staticPaymentForOrder(order) {
+  const foodAmount = Number(order.subtotal || 0);
+  const deliveryFee = Number(order.deliveryFee || 0);
+  const commission = Number(order.serviceFee || 0);
+  return {
+    method: order.paymentMethod || "cash",
+    status: order.status === "delivered" ? "released" : "held",
+    gross: Number(order.total || foodAmount + deliveryFee + commission),
+    foodAmount,
+    deliveryFee,
+    commissionRate: 0.15,
+    commission,
+    cookPayout: foodAmount,
+    provider: order.paymentMethod || "manual",
+    refundStatus: "none"
+  };
+}
+
+function staticCancelOrder(order, actor, reason = "") {
+  if (["delivered", "cancelled"].includes(order.status)) throw new Error("Order cannot be cancelled.");
+  const cancelledAt = new Date().toISOString();
+  const cancelReason = String(reason || "Cancelled").trim().slice(0, 300) || "Cancelled";
+  order.status = "cancelled";
+  order.cancelledAt = cancelledAt;
+  order.cancelledBy = actor?.role || "system";
+  order.cancelReason = cancelReason;
+  order.updatedAt = cancelledAt;
+  order.statusHistory = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+  order.statusHistory.push({
+    status: "cancelled",
+    byUserId: actor?.id || null,
+    role: actor?.role || "system",
+    at: cancelledAt,
+    note: cancelReason
+  });
+  order.payment = { ...(order.payment || staticPaymentForOrder(order)) };
+  if (["held", "pending"].includes(order.payment.status)) {
+    order.payment.status = "refunded";
+    order.payment.refundStatus = "cancelled";
+    order.payment.refundedAt = cancelledAt;
+    order.payment.refundReason = "Order cancelled";
+  }
+  return order;
 }
 
 function staticUserByToken(db) {
@@ -1150,6 +1195,7 @@ async function staticApi(path, options = {}) {
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) throw new Error("Please order from one cook at a time.");
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
+    const serviceFee = Math.round(subtotal * 0.15 * 100) / 100;
     const cook = db.cooks.find((item) => item.id === firstDish.cookId);
     const createdAt = new Date().toISOString();
     const order = {
@@ -1160,8 +1206,8 @@ async function staticApi(path, options = {}) {
       items: normalized,
       subtotal,
       deliveryFee: 30,
-      serviceFee: 15,
-      total: subtotal + 45,
+      serviceFee,
+      total: subtotal + 30 + serviceFee,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
       paymentMethod: String(input.paymentMethod || "cash"),
@@ -1177,6 +1223,7 @@ async function staticApi(path, options = {}) {
     };
     order.route = staticRouteForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
+    order.payment = staticPaymentForOrder(order);
     db.orders.unshift(order);
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
     if (orderCook?.userId) db.notifications.push({ id: `not_${Date.now()}_cook`, userId: orderCook.userId, text: `New order ${order.id} received.`, createdAt, read: false });
@@ -1193,7 +1240,7 @@ async function staticApi(path, options = {}) {
     const order = db.orders.find((item) => item.id === orderId);
     if (!order) throw new Error("Order not found.");
     if (order.driverId && order.driverId !== user.id) throw new Error("This order is already assigned.");
-    if (!["ready", "accepted", "preparing"].includes(order.status)) throw new Error("Order is not ready for driver assignment.");
+    if (order.status !== "ready") throw new Error("Order is not ready for driver assignment.");
     order.driverId = user.id;
     order.driverLocation = staticCoordinateFromText(user.city || "Istanbul");
     order.route = staticRouteForOrder(order);
@@ -1247,6 +1294,15 @@ async function staticApi(path, options = {}) {
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(nextStatus)) throw new Error("Cook can accept, prepare, mark finished, or cancel.");
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, mark near you, or mark delivered.");
+    if (nextStatus === "cancelled") {
+      staticCancelOrder(order, user, input.note || input.reason || "");
+      const orderCook = db.cooks.find((item) => item.id === order.cookId);
+      for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
+        db.notifications.push({ id: `not_${Date.now()}_${userId}`, userId, text: `Order ${order.id} was cancelled.`, createdAt: order.updatedAt, read: false });
+      }
+      saveStaticDb(db);
+      return staticPublicState(db, user);
+    }
     order.status = nextStatus;
     order.updatedAt = new Date().toISOString();
     order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });

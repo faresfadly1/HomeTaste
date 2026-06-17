@@ -189,13 +189,13 @@ ul{list-style:none}
   border-left:1px solid var(--border);
   position:fixed;right:0;top:0;height:100vh;
   display:flex;flex-direction:column;
-  z-index:100;
+  z-index:11000;
   overflow-y:auto;
   transform:translateX(105%);
   transition:transform var(--transition);
   box-shadow:-20px 0 45px rgba(0,0,0,.45);
 }
-.cart-panel.open{transform:translateX(0)}
+.cart-panel.open{transform:translateX(0);z-index:12000}
 .cart-header{
   padding:24px 20px 16px;
   border-bottom:1px solid var(--border);
@@ -1019,7 +1019,7 @@ ul{list-style:none}
 /* ======== DISH MODAL ======== */
 .modal-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.8);
-  backdrop-filter:blur(4px);z-index:500;
+  backdrop-filter:blur(4px);z-index:12000;
   display:none;align-items:center;justify-content:center;
   animation:fadeIn 0.2s ease;
 }
@@ -1260,7 +1260,7 @@ ul{list-style:none}
 /* ======== TOAST ======== */
 .toast-container{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  z-index:1000;display:flex;flex-direction:column;gap:8px;
+  z-index:14000;display:flex;flex-direction:column;gap:8px;
   pointer-events:none;
 }
 .toast{
@@ -1312,7 +1312,7 @@ ul{list-style:none}
 /* ======== SUCCESS OVERLAY ======== */
 .success-overlay{
   position:fixed;inset:0;background:var(--bg);
-  z-index:999;display:none;
+  z-index:13000;display:none;
   align-items:center;justify-content:center;
   flex-direction:column;gap:16px;text-align:center;
 }
@@ -1678,9 +1678,9 @@ ul{list-style:none}
     max-width:100dvw;
     height:100dvh;
     overflow:hidden;
-    z-index:800;
+    z-index:11000;
   }
-  .cart-panel.open{z-index:1200}
+  .cart-panel.open{z-index:12000}
   body.cart-open .sidebar{display:none}
   .cart-header{flex-shrink:0}
   .cart-tabs{flex-shrink:0}
@@ -2276,8 +2276,8 @@ ul{list-style:none}
             <p id="chatHeaderDesc"></p>
           </div>
           <div class="chat-actions">
-            <button class="chat-action-btn" type="button" disabled aria-disabled="true">📞</button>
-            <button class="chat-action-btn" type="button" disabled aria-disabled="true">⋯</button>
+            <button class="chat-action-btn" type="button" disabled aria-disabled="true" aria-label="Call cook unavailable" title="Call cook unavailable">📞</button>
+            <button class="chat-action-btn" type="button" disabled aria-disabled="true" aria-label="Conversation options unavailable" title="Conversation options unavailable">⋯</button>
           </div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
@@ -2654,6 +2654,9 @@ let selectedLanguage = 'EN';
 let currentUserName = 'User';
 let currentUserId = '';
 let hostStateReady = false;
+let marketStateLoaded = false;
+let marketSyncInFlight = false;
+let publicMarketSyncInFlight = false;
 let pendingOrderPlacement = false;
 let cookDishPhotoPreviewUrl = '';
 let extraDishPhotoPreviewUrl = '';
@@ -3092,7 +3095,7 @@ let lastMarketplaceFingerprint = '';
 let activeTrackOrderId = null;
 let trackRefreshTimer = null;
 let lastPlacedOrderId = null;
-const MARKETPLACE_REFRESH_MS = 8000;
+const MARKETPLACE_REFRESH_MS = 30000;
 const TRACK_REFRESH_MS = 6000;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
@@ -3165,9 +3168,20 @@ async function marketApi(path, options = {}) {
   }
 }
 async function syncMarketplaceFromApi(stateOrResult = null) {
-  const nextState = stateOrResult?.state || stateOrResult || await marketApi('/api/state');
-  applyMarketplaceState(nextState);
-  return nextState;
+  const providedState = stateOrResult?.state || stateOrResult;
+  if (providedState) {
+    applyMarketplaceState(providedState);
+    return providedState;
+  }
+  if (marketSyncInFlight) return null;
+  marketSyncInFlight = true;
+  try {
+    const nextState = await marketApi('/api/state');
+    applyMarketplaceState(nextState);
+    return nextState;
+  } finally {
+    marketSyncInFlight = false;
+  }
 }
 async function runStandaloneMarketAction(action, payload = {}) {
   switch (action) {
@@ -3250,6 +3264,15 @@ async function sendMarketAction(action, payload = {}) {
   } finally {
     pendingMarketActions.delete(key);
   }
+}
+function applyMutationResult(result) {
+  const nextState = result?.state || result;
+  if (nextState && (nextState.cooks || nextState.dishes || nextState.orders || nextState.socialActions || nextState.user)) {
+    applyMarketplaceState(nextState);
+    return true;
+  }
+  requestMarketplaceState();
+  return false;
 }
 function isLocalSyncFallback(error) {
   const message = String(error?.message || '');
@@ -3651,6 +3674,7 @@ function applyMarketplaceState(rawState) {
   if (hostStateReady && nextFingerprint === lastMarketplaceFingerprint) return;
   lastMarketplaceFingerprint = nextFingerprint;
   hostStateReady = true;
+  marketStateLoaded = true;
   const user = rawState.user || {};
   currentUserId = user.id || currentUserId;
   currentUserName = (user.name || currentUserName || 'User').trim() || 'User';
@@ -3698,29 +3722,75 @@ function applyMarketplaceState(rawState) {
 	    else stopTrackOrderRefresh();
 	  }
 	}
+function marketplaceLoadingHtml(label = 'HomeTaste') {
+  return `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⏳</div><h3>Loading ${safeDisplayHtml(label)}</h3><p>Getting the latest live dishes and cooks.</p></div>`;
+}
+function marketplaceLoadErrorHtml() {
+  return `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><h3>Could not load live dishes</h3><p>Please check your connection and try again.</p></div>`;
+}
+function showMarketplaceLoading() {
+  if (marketStateLoaded) return;
+  const homeGrid = document.getElementById('homeCooksGrid');
+  const browseGrid = document.getElementById('browseGrid');
+  const dishesGrid = document.getElementById('dishesGrid');
+  if (homeGrid) homeGrid.innerHTML = marketplaceLoadingHtml('cooks');
+  if (browseGrid) browseGrid.innerHTML = marketplaceLoadingHtml('cooks');
+  if (dishesGrid) dishesGrid.innerHTML = marketplaceLoadingHtml('dishes');
+}
+function showMarketplaceLoadError() {
+  if (marketStateLoaded) return;
+  const homeGrid = document.getElementById('homeCooksGrid');
+  const browseGrid = document.getElementById('browseGrid');
+  const dishesGrid = document.getElementById('dishesGrid');
+  if (homeGrid) homeGrid.innerHTML = marketplaceLoadErrorHtml();
+  if (browseGrid) browseGrid.innerHTML = marketplaceLoadErrorHtml();
+  if (dishesGrid) dishesGrid.innerHTML = marketplaceLoadErrorHtml();
+}
 function requestMarketplaceState() {
   const posted = postHostAction('market-state-request');
   if (marketAuthToken()) {
     setTimeout(() => {
-      if (hostBridgeReady) return;
+      if (hostBridgeReady || marketStateLoaded) return;
       runStandaloneMarketAction('market-state-request').catch(error => {
         console.warn(error);
         loadPublicMarketplaceState();
       });
     }, posted ? 250 : 0);
+  } else if (!posted) {
+    loadPublicMarketplaceState();
+  } else {
+    setTimeout(() => {
+      if (!marketStateLoaded) loadPublicMarketplaceState();
+    }, 1000);
   }
+  return posted;
 }
 async function loadPublicMarketplaceState() {
   if (hostStateReady) return;
   await refreshPublicMarketplaceState();
 }
 async function refreshPublicMarketplaceState() {
+  if (publicMarketSyncInFlight) return;
+  publicMarketSyncInFlight = true;
   try {
     const res = await fetch(`${MARKET_API_BASE}/api/marketplace`, { headers: { accept: 'application/json' } });
-    if (!res.ok) return;
+    if (!res.ok) {
+      showMarketplaceLoadError();
+      return;
+    }
     applyMarketplaceState(await res.json());
   } catch {
-    if (!hostStateReady) loadCustomCookData();
+    if (!hostStateReady) {
+      loadCustomCookData();
+      if (cooks.length || dishes.length) {
+        marketStateLoaded = true;
+        refreshCookAndDishViews();
+      } else {
+        showMarketplaceLoadError();
+      }
+    }
+  } finally {
+    publicMarketSyncInFlight = false;
   }
 }
 function shouldRefreshMarketplaceNow() {
@@ -3736,6 +3806,7 @@ function shouldRefreshMarketplaceNow() {
 }
 function refreshMarketplaceFast() {
   if (!shouldRefreshMarketplaceNow()) return;
+  if (marketSyncInFlight || publicMarketSyncInFlight) return;
   if (hasHostWindow()) {
     const posted = postHostAction('market-state-request');
     if (posted || hostBridgeReady) return;
@@ -3796,11 +3867,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chatMessages.length) openChat(chatMessages[0].id);
   updatePaymentMethods();
   setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
+  showMarketplaceLoading();
   requestMarketplaceState();
-  loadPublicMarketplaceState();
   scheduleMarketplaceRefresh();
   if (initialPage) {
-    const targetNav = document.querySelector(`.nav-item[onclick*="'${initialPage}'"]`);
+    if (initialPage === 'messages') previousMobilePage = 'home';
+    const visiblePage = initialPage === 'messages' ? 'home' : initialPage;
+    const targetNav = document.querySelector(`.nav-item[onclick*="'${visiblePage}'"]`);
     showPage(initialPage, targetNav);
   }
 });
@@ -3896,12 +3969,9 @@ function updateCartButtonVisibility(pageId) {
 }
 function setLanguage(lang,e,silent=false){
   if(e) e.stopPropagation(); selectedLanguage = lang;
-  const label = document.getElementById('currentLangLabel');
-  if (label) label.textContent = lang;
   localStorage.setItem('hometaste_language', lang);
   document.documentElement.lang = lang === 'AR' ? 'ar' : (lang === 'TR' ? 'tr' : (lang === 'DE' ? 'de' : 'en'));
   document.body.dir = lang === 'AR' ? 'rtl' : 'ltr';
-  document.getElementById('langMenu')?.classList.remove('open');
   applyTranslations();
   if (!silent) showToast(tr('languageChanged'), 'success');
 }
@@ -3926,7 +3996,7 @@ function setNav(pageId, text, mobileText = text) {
   if (!node) return;
   const svg = node.querySelector('svg')?.outerHTML || '';
   const badge = node.querySelector('.nav-badge')?.outerHTML || '';
-  node.innerHTML = `${svg}<span class="nav-label-desktop">${text}</span><span class="nav-label-mobile">${mobileText}</span>${badge}`;
+  node.innerHTML = `${svg}<span class="nav-label-desktop">${safeDisplayHtml(text)}</span><span class="nav-label-mobile">${safeDisplayHtml(mobileText)}</span>${badge}`;
 }
 function applyTranslations() {
   document.title = `HomeTaste - ${tr('heroBody').replace(/<br>/g, ' ') || tr('heroTitle').replace(/<[^>]+>/g, '')}`;
@@ -4008,7 +4078,6 @@ function applyTranslations() {
   });
 
 }
-document.addEventListener('click',()=>document.getElementById('langMenu')?.classList.remove('open'));
 document.addEventListener('click',(event)=>{
   if (!event.target.closest('.country-filter')) {
     document.getElementById('countryCuisineMenu')?.classList.remove('open');
@@ -4222,6 +4291,11 @@ function filterChip(el, type) {
 // ===== RENDER HOME COOKS =====
 function renderHomeCooks() {
   const grid = document.getElementById('homeCooksGrid');
+  if (!grid) return;
+  if (!marketStateLoaded) {
+    grid.innerHTML = marketplaceLoadingHtml('cooks');
+    return;
+  }
   const list = countryCooks().slice(0, 4);
   grid.innerHTML = list.length
     ? list.map((c, i) => cookCard(c, `stagger-${i+1}`)).join('')
@@ -4229,6 +4303,11 @@ function renderHomeCooks() {
 }
 function renderBrowseCooks() {
   const grid = document.getElementById('browseGrid');
+  if (!grid) return;
+  if (!marketStateLoaded) {
+    grid.innerHTML = marketplaceLoadingHtml('cooks');
+    return;
+  }
   const filtered = getFilteredCooks();
   grid.innerHTML = filtered.length
     ? filtered.map((c, i) => cookCard(c, `stagger-${(i%4)+1}`)).join('')
@@ -4278,6 +4357,10 @@ function cookCard(c, staggerClass) {
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
   if (!grid) return;
+  if (!marketStateLoaded) {
+    grid.innerHTML = marketplaceLoadingHtml('dishes');
+    return;
+  }
   const pageChip = document.querySelector('#page-dishes .filter-bar .chip.active')?.textContent?.trim().toLowerCase();
   const homeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase();
   const activeChip = pageChip || homeChip || 'all';
@@ -4686,7 +4769,7 @@ async function toggleFav(e, cookId, btn) {
   renderFavorites();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
-    if (result.mode === 'api') applyMarketplaceState(result.state);
+    applyMutationResult(result);
   } catch (error) {
     if (isLocalSyncFallback(error)) {
       return;
@@ -4725,7 +4808,7 @@ async function toggleDishFavorite(e, dishId, cookId, btn) {
   renderFavorites();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'like', dishId: id, cookId: String(cookId || '') } });
-    if (result.mode === 'api') applyMarketplaceState(result.state);
+    applyMutationResult(result);
   } catch (error) {
     if (isLocalSyncFallback(error)) return;
     if (wasFavorite) {
@@ -4938,7 +5021,7 @@ async function followCookFromProfile() {
   renderBrowseCooks();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
-    if (result.mode === 'api') applyMarketplaceState(result.state);
+    applyMutationResult(result);
   } catch (error) {
     if (isLocalSyncFallback(error)) {
       return;
@@ -5047,7 +5130,7 @@ function openChat(convId, options = {}) {
 	  if (options.focus !== false) requestAnimationFrame(() => document.getElementById('chatInputField')?.focus());
 	}
 function openSupportChat() {
-  const greeting = `Hello ${currentUserName} Welocome to HomeTaste`;
+  const greeting = `Hello ${displayText(currentUserName, 'there')}, welcome to HomeTaste.`;
   if (!supportMessages.some(message => message.text === greeting)) {
     supportMessages.unshift({ text: greeting, from: 'cook', time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
   }
@@ -5612,7 +5695,7 @@ async function removeProfileCover() {
 function openPasswordPanel() {
   openAccountModal(`
     <h2>Change Password</h2>
-    <p class="account-hint">Update the password for ${currentUserName}. Use at least 8 characters.</p>
+    <p class="account-hint">Update the password for ${safeDisplayHtml(currentUserName, 'your account')}. Use at least 8 characters.</p>
     <form class="account-form" onsubmit="submitPasswordChange(event)">
       <div class="form-group"><label>Current Password</label><input class="form-input" id="currentPasswordInput" type="password" autocomplete="current-password" required></div>
       <div class="form-group"><label>New Password</label><input class="form-input" id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" required></div>
@@ -5652,7 +5735,7 @@ function openPaymentPanel() {
   const chosen = saved.size ? saved : new Set(defaults.slice(0, 3));
   openAccountModal(`
     <h2>Manage Payment Methods</h2>
-    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${currentUserName}.</p>
+    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${safeDisplayHtml(currentUserName, 'your account')}.</p>
     <div class="payment-choice-list">
       ${allPaymentMethods.map(method => `
         <label class="payment-choice">
@@ -5892,12 +5975,12 @@ function sortCooks() {
 
 // ===== TOAST =====
 function showToast(msg, type = 'info') {
-  if (type !== 'error') return;
   const container = document.getElementById('toastContainer');
   if (!container) return;
+  const safeType = ['success', 'info', 'error'].includes(type) ? type : 'info';
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = msg;
+  toast.className = `toast ${safeType}`;
+  toast.textContent = displayText(msg, '');
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.animation = 'toastOut 0.3s ease forwards';

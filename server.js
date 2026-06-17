@@ -1086,6 +1086,36 @@ function paymentLedgerForOrder(order) {
   };
 }
 
+function cancelOrder(order, actor, reason = "") {
+  if (!order) throw new Error("Order not found");
+  if (["delivered", "cancelled"].includes(order.status)) {
+    throw new Error("Order cannot be cancelled.");
+  }
+  const cancelledAt = now();
+  const cancelReason = textValue(reason || "Cancelled", "Cancellation reason", { max: 300 });
+  order.status = "cancelled";
+  order.cancelledAt = cancelledAt;
+  order.cancelledBy = actor?.role || "system";
+  order.cancelReason = cancelReason;
+  order.updatedAt = cancelledAt;
+  order.statusHistory = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+  order.statusHistory.push({
+    status: "cancelled",
+    byUserId: actor?.id || null,
+    role: actor?.role || "system",
+    at: cancelledAt,
+    note: cancelReason
+  });
+  order.payment = { ...(order.payment || paymentLedgerForOrder(order)) };
+  if (["held", "pending"].includes(order.payment.status)) {
+    order.payment.status = "refunded";
+    order.payment.refundStatus = "cancelled";
+    order.payment.refundedAt = cancelledAt;
+    order.payment.refundReason = "Order cancelled";
+  }
+  return order;
+}
+
 function normalizeDb(db) {
   db.users ||= [];
   db.cooks ||= [];
@@ -1134,6 +1164,12 @@ function normalizeDb(db) {
   for (const order of db.orders) {
     order.statusHistory ||= [];
     order.payment ||= paymentLedgerForOrder(order);
+    if (order.status === "cancelled" && ["held", "pending"].includes(order.payment.status)) {
+      order.payment.status = "refunded";
+      order.payment.refundStatus = "cancelled";
+      order.payment.refundedAt ||= order.cancelledAt || order.updatedAt || now();
+      order.payment.refundReason ||= "Order cancelled";
+    }
     order.scheduledFor ||= null;
     order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
     order.cookLocation ||= coordinateFromText(db.cooks.find((cook) => cook.id === order.cookId)?.city || "Istanbul");
@@ -2776,6 +2812,29 @@ async function api(req, res, pathname) {
     }
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
+    }
+    if (input.status === "cancelled") {
+      try {
+        cancelOrder(order, user, input.note || input.reason || "");
+      } catch (error) {
+        return json(res, 400, { error: error.message || "Order cannot be cancelled." });
+      }
+      const payment = db.payments.find((item) => item.orderId === order.id);
+      if (payment && ["held", "pending"].includes(payment.status)) {
+        payment.status = "refunded";
+        payment.refundedAt = order.updatedAt;
+        payment.refundReason = "Order cancelled";
+      }
+      const notifyIds = [order.customerId, order.driverId];
+      const relatedCook = db.cooks.find((item) => item.id === order.cookId);
+      if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
+      const pushNotes = [];
+      for (const userId of new Set(notifyIds.filter(Boolean))) {
+        pushNotes.push(notification(db, userId, `Order ${order.id} was cancelled.`, { orderId: order.id, status: order.status }));
+      }
+      await saveDb(db);
+      await sendPushBatch(db, pushNotes);
+      return json(res, 200, publicState(db, user));
     }
     order.status = input.status;
     order.updatedAt = now();

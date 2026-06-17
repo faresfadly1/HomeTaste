@@ -199,6 +199,11 @@ try {
   assert(/button\.hidden\s*=\s*false/.test(appSrcEarly) && /button\.disabled\s*=\s*false/.test(appSrcEarly), "Google button stays visible and enabled (never silently hidden)");
   assert(appSrcEarly.includes("sign-in is not configured"), "frontend shows a clear 'sign-in is not configured' message");
   assert(appSrcEarly.includes('api("/api/auth/oauth/start"') && appSrcEarly.includes("handleAuthLinkParams"), "frontend Google button uses OAuth start and stores callback auth token");
+  const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
+  assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
+  assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
+  assert(!marketplaceSrcEarly.includes("requestMarketplaceState();\n  loadPublicMarketplaceState();"), "mobile marketplace does not race authenticated state with public fallback on first load");
+  assert(marketplaceSrcEarly.includes("applyMutationResult(result)"), "mobile social actions apply persisted host/API state after mutations");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const expiringAccount = await auth(base, "signup", {
@@ -348,14 +353,24 @@ try {
 
   let customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
   assert(customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action saves for the current customer");
+  let persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action survives fresh API sync");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
   assert(!customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "second follow click unfollows the cook");
+  persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(!persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "unfollow action survives fresh API sync");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
   assert(customerState.cooks.find((cook) => cook.id === ownerCook.id)?.followers === 1, "follow count returns after following again");
+  persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(persistedSocialState.cooks.find((cook) => cook.id === ownerCook.id)?.followers === 1 && persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id), "refollowed cook favorite remains after reload");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
   assert(customerState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "like action saves for the current customer");
+  persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(persistedSocialState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "dish favorite survives fresh API sync");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
   assert(!customerState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "second like click unlikes the dish");
+  persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(!persistedSocialState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "dish unfavorite survives fresh API sync");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "comment", dishId: dish.id, cookId: ownerCook.id, text: "Great dish." });
   assert(customerState.socialActions.some((action) => action.type === "comment"), "follow, like, unlike, unfollow, and comment social actions save");
@@ -459,7 +474,30 @@ try {
   const cancelledState = await request(base, cookAccount.token, "PATCH", `/api/orders/${cancelOrder.id}`, { status: "cancelled" });
   assert(cancelledState.orders.find((item) => item.id === cancelOrder.id)?.statusHistory?.some((item) => item.status === "cancelled"), "cancelled order records cancelled tracking status");
   const cancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
-  assert(cancelledCustomerState.orders.find((item) => item.id === cancelOrder.id)?.status === "cancelled", "customer track order sees cancelled state");
+  const cancelledCustomerOrder = cancelledCustomerState.orders.find((item) => item.id === cancelOrder.id);
+  assert(cancelledCustomerOrder?.status === "cancelled" && cancelledCustomerOrder.payment?.status === "refunded", "customer track order sees cancelled state and refunded escrow");
+  const blockedCancelledAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${cancelOrder.id}/accept`, {});
+  assert(blockedCancelledAccept.status === 400, "driver cannot accept a cook-cancelled order");
+
+  const adminCancelOrderResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Besiktas, Istanbul",
+    customerLocation: "41.0430,29.0040",
+    paymentMethod: "iban",
+    notes: "Admin cancelled flow"
+  });
+  const adminCancelOrder = adminCancelOrderResult.state.orders.find((item) => item.notes === "Admin cancelled flow");
+  const adminCancelledState = await request(base, owner.token, "PATCH", `/api/orders/${adminCancelOrder.id}`, { status: "cancelled", note: "Admin cancelled after review." });
+  const adminCancelledOrder = adminCancelledState.orders.find((item) => item.id === adminCancelOrder.id);
+  assert(adminCancelledOrder?.status === "cancelled" && adminCancelledOrder.cancelledBy === "owner", "admin cancellation saves cancelled status and actor");
+  const adminCancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
+  assert(adminCancelledCustomerState.orders.find((item) => item.id === adminCancelOrder.id)?.status === "cancelled", "customer sees admin-cancelled order after refresh");
+  const adminCancelledCookState = await request(base, cookAccount.token, "GET", "/api/state");
+  assert(adminCancelledCookState.orders.find((item) => item.id === adminCancelOrder.id)?.status === "cancelled", "cook sees admin-cancelled order after refresh");
+  const adminCancelledDriverState = await request(base, driver.token, "GET", "/api/state");
+  assert(!adminCancelledDriverState.orders.some((item) => item.id === adminCancelOrder.id), "driver available orders exclude admin-cancelled orders");
+  const blockedAdminCancelledAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${adminCancelOrder.id}/accept`, {});
+  assert(blockedAdminCancelledAccept.status === 400, "driver cannot accept an admin-cancelled order");
 
   customerState = await request(base, customer.token, "POST", "/api/messages", { orderId: order.id, text: "Please call at arrival." });
   assert(customerState.messages.some((message) => message.orderId === order.id && message.text === "Please call at arrival." && message.fromUserId === customer.state.user.id), "customer can send an order chat message");
