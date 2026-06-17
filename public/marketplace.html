@@ -4442,7 +4442,7 @@ function renderOrders() {
     <div class="order-right">
       <div class="order-price">${safeDisplayHtml(o.price)}</div>
     </div>
-    <button class="btn-reorder" onclick="${action}">${safeDisplayHtml(o.action)}</button>
+    <button class="btn-reorder" type="button" onclick='${action}'>${safeDisplayHtml(o.action)}</button>
   </div>`;
   }).join('');
 }
