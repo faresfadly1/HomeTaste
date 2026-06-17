@@ -152,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260617-perf-01", "performance build marker is exposed");
+  assert(health.build === "20260617-stability-01", "performance build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -221,6 +221,10 @@ try {
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
   assert(!marketplaceSrcEarly.includes("requestMarketplaceState();\n  loadPublicMarketplaceState();"), "mobile marketplace does not race authenticated state with public fallback on first load");
+  assert(marketplaceSrcEarly.includes("async function initializeMarketplace") && marketplaceSrcEarly.includes("initializeMarketplace(initialPage);"), "mobile marketplace uses one clean async initialization sequence");
+  assert(!marketplaceSrcEarly.includes("renderHomeCooks();\n  renderBrowseCooks();\n  renderDishes();\n  renderOrders();\n  renderFavorites();\n  renderCart();\n  renderCountryMenu();\n  bindCountrySelector();\n  renderChatList();\n  renderFAQ();\n  updateSettingsAccount();\n  renderMyCookDishManager();\n  if (chatMessages.length) openChat(chatMessages[0].id);\n  updatePaymentMethods();\n  setLanguage"), "mobile marketplace does not render stale cooks/dishes before initial live sync");
+  assert(marketplaceSrcEarly.includes("async function refreshOrdersView()") && marketplaceSrcEarly.includes("if (isOrdersFocusedPage(pageId)) setTimeout(() => refreshOrdersView(), 0);"), "orders and track pages trigger immediate state sync when opened");
+  assert(marketplaceSrcEarly.includes("if (isOrdersFocusedPage()) refreshOrdersView();"), "orders and track pages refresh immediately when the browser becomes visible");
   assert(marketplaceSrcEarly.includes("applyMutationResult(result)"), "mobile social actions apply persisted host/API state after mutations");
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
   assert(!marketplaceSrcEarly.includes('class="btn-reorder" onclick="${action}"'), "mobile order action buttons do not use broken double-quoted handlers");

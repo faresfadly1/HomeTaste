@@ -3096,6 +3096,7 @@ let lastMarketplaceFingerprint = '';
 let activeTrackOrderId = null;
 let trackRefreshTimer = null;
 let lastPlacedOrderId = null;
+let ordersRefreshInFlight = false;
 const MARKETPLACE_REFRESH_MS = 30000;
 const TRACK_REFRESH_MS = 6000;
 function hasHostWindow() {
@@ -3454,6 +3455,22 @@ function refreshCookAndDishViews() {
   renderOrders();
   renderChatList();
   renderMyCookDishManager();
+}
+function renderMarketplaceChrome() {
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+  renderOrders();
+  renderFavorites();
+  renderCart();
+  renderCountryMenu();
+  bindCountrySelector();
+  renderChatList();
+  renderFAQ();
+  updateSettingsAccount();
+  renderMyCookDishManager();
+  updatePaymentMethods();
+  updateNavBadges();
 }
 function activeMarketplacePageId() {
   return document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
@@ -3869,11 +3886,40 @@ function refreshMarketplaceFast() {
     refreshPublicMarketplaceState();
   }
 }
+function isOrdersFocusedPage(pageId = activeMarketplacePageId()) {
+  return pageId === 'orders' || pageId === 'track-order';
+}
+async function refreshOrdersView() {
+  if (ordersRefreshInFlight) return null;
+  ordersRefreshInFlight = true;
+  try {
+    if (hasHostWindow()) requestMarketplaceState();
+    if (marketAuthToken()) {
+      await syncMarketplaceFromApi();
+    } else if (!hasHostWindow() || !hostBridgeReady) {
+      await refreshPublicMarketplaceState();
+    }
+    renderOrders();
+    if (activeTrackOrderId) {
+      const order = findTrackOrder(activeTrackOrderId);
+      if (order) renderTrackOrder(order);
+      else stopTrackOrderRefresh();
+    }
+  } catch (error) {
+    console.warn('Orders refresh failed', error);
+  } finally {
+    ordersRefreshInFlight = false;
+  }
+  return null;
+}
 function scheduleMarketplaceRefresh() {
   if (marketplaceRefreshTimer) return;
   marketplaceRefreshTimer = setInterval(refreshMarketplaceFast, MARKETPLACE_REFRESH_MS);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshMarketplaceFast();
+    if (!document.hidden) {
+      if (isOrdersFocusedPage()) refreshOrdersView();
+      else refreshMarketplaceFast();
+    }
   });
 }
 function clearLegacyLocalDemoData() {
@@ -3887,6 +3933,41 @@ function clearLegacyLocalDemoData() {
 }
 
 // ===== INIT =====
+async function initializeMarketplace(initialPage) {
+  showMarketplaceLoading();
+  try {
+    if (marketAuthToken()) {
+      await syncMarketplaceFromApi();
+    } else {
+      await loadPublicMarketplaceState();
+    }
+  } catch (error) {
+    console.warn('Marketplace initial sync failed', error);
+    if (!marketStateLoaded) await loadPublicMarketplaceState();
+  }
+
+  if (marketStateLoaded) {
+    renderMarketplaceChrome();
+    if (chatMessages.length) openChat(chatMessages[0].id);
+  } else {
+    renderCart();
+    renderCountryMenu();
+    bindCountrySelector();
+    renderFAQ();
+    updateSettingsAccount();
+    updatePaymentMethods();
+    updateNavBadges();
+  }
+
+  setLanguage(selectedLanguage, null, true);
+  scheduleMarketplaceRefresh();
+  if (initialPage) {
+    if (initialPage === 'messages') previousMobilePage = 'home';
+    const visiblePage = initialPage === 'messages' ? 'home' : initialPage;
+    const targetNav = document.querySelector(`.nav-item[onclick*="'${visiblePage}'"]`);
+    showPage(initialPage, targetNav);
+  }
+}
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
   const initialPage = params.get('page');
@@ -3904,30 +3985,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('hometaste_welcome_done') === 'yes' || initialPage) {
     document.getElementById('welcomeOverlay').style.display = 'none';
   }
-  renderHomeCooks();
-  renderBrowseCooks();
-  renderDishes();
-  renderOrders();
-  renderFavorites();
-  renderCart();
-  renderCountryMenu();
-  bindCountrySelector();
-  renderChatList();
-  renderFAQ();
-  updateSettingsAccount();
-  renderMyCookDishManager();
-  if (chatMessages.length) openChat(chatMessages[0].id);
-  updatePaymentMethods();
-  setLanguage(localStorage.getItem('hometaste_language') || selectedLanguage, null, true);
-  showMarketplaceLoading();
-  requestMarketplaceState();
-  scheduleMarketplaceRefresh();
-  if (initialPage) {
-    if (initialPage === 'messages') previousMobilePage = 'home';
-    const visiblePage = initialPage === 'messages' ? 'home' : initialPage;
-    const targetNav = document.querySelector(`.nav-item[onclick*="'${visiblePage}'"]`);
-    showPage(initialPage, targetNav);
-  }
+  selectedLanguage = localStorage.getItem('hometaste_language') || selectedLanguage;
+  initializeMarketplace(initialPage);
 });
 
 // ===== PAGE NAVIGATION (FIXED: null check) =====
@@ -3952,6 +4011,7 @@ function showPage(pageId, navEl) {
   if (pageId === 'settings') updateSettingsAccount();
   if (pageId === 'become') renderMyCookDishManager();
   if (!['checkout', 'cook-profile'].includes(pageId)) renderMarketplacePage(pageId);
+  if (isOrdersFocusedPage(pageId)) setTimeout(() => refreshOrdersView(), 0);
   updateCartButtonVisibility(pageId);
   updateNavBadges();
   document.getElementById('cityDropdown')?.classList.remove('open');
