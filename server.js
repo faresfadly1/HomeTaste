@@ -1913,7 +1913,7 @@ function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") {
     return db.orders
-      .filter((order) => order.driverId === user.id || (!order.driverId && ["accepted", "preparing", "ready"].includes(order.status)))
+      .filter((order) => order.driverId === user.id || (!order.driverId && order.status === "ready"))
       .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
   }
   if (user.role === "cook") {
@@ -2812,7 +2812,7 @@ async function api(req, res, pathname) {
     const order = db.orders.find((item) => item.id === orderId);
     if (!order) return json(res, 404, { error: "Order not found." });
     if (order.driverId && order.driverId !== user.id) return json(res, 409, { error: "This order is already assigned." });
-    if (!["ready", "accepted", "preparing"].includes(order.status)) return json(res, 400, { error: "Order is not ready for driver assignment." });
+    if (order.status !== "ready") return json(res, 400, { error: "Order is not ready for driver assignment." });
     order.driverId = user.id;
     order.driverLocation = normalizeLocation(user.city || "Istanbul");
     order.route = routeForOrder(order);

@@ -412,6 +412,10 @@ try {
   assert(trackingState.orders.find((item) => item.id === order.id)?.statusHistory?.some((item) => item.status === "accepted"), "track order records cook accepted status");
   trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "preparing" });
   assert(trackingState.orders.find((item) => item.id === order.id)?.status === "preparing", "track order records cooking status");
+  let earlyDriverState = await request(base, driver.token, "GET", "/api/state");
+  assert(!earlyDriverState.orders.some((item) => item.id === order.id), "driver does not see order before food is ready");
+  const earlyDriverAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${order.id}/accept`, {});
+  assert(earlyDriverAccept.status === 400, "driver cannot accept order before food is ready");
   trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "ready" });
   assert(trackingState.orders.find((item) => item.id === order.id)?.status === "ready", "track order records food ready status");
   const customerReadyState = await request(base, customer.token, "GET", "/api/state");
