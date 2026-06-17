@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -11,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260617-sync-cancel-01";
+const backendBuild = "20260617-perf-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -67,11 +68,15 @@ const json = (res, status, body) => {
         error: body?.error || "Request failed."
       }
     : body;
+  const text = JSON.stringify(payload);
+  const shouldGzip = Boolean(res._acceptsGzip) && Buffer.byteLength(text) > 1024;
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
+    "cache-control": "no-store",
+    "vary": shouldGzip ? "Origin, Accept-Encoding" : "Origin",
+    ...(shouldGzip ? { "content-encoding": "gzip" } : {})
   });
-  res.end(JSON.stringify(payload));
+  res.end(shouldGzip ? zlib.gzipSync(text) : text);
 };
 
 const ownerSeedConfigured = () => Boolean(process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD);
@@ -252,10 +257,45 @@ function numberValue(value, field, { min = 0, max = 100000, fallback = 0 } = {})
 function validCookCanPublish(cook) {
   return cook && !["rejected", "suspended"].includes(cook.status);
 }
+const publicImageDataUriPattern = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/i;
+function imageExtensionForMime(mime) {
+  const clean = String(mime || "").toLowerCase();
+  if (clean === "image/png") return "png";
+  if (clean === "image/webp") return "webp";
+  return "jpg";
+}
+function imageApiUrlForDataUri(clean) {
+  const match = String(clean || "").match(publicImageDataUriPattern);
+  if (!match) return "";
+  const hash = crypto.createHash("sha256").update(clean).digest("hex").slice(0, 40);
+  const ext = imageExtensionForMime(match[1]);
+  return `${apiBaseUrl || ""}/api/images/${hash}.${ext}`;
+}
+function imageDataFromValue(value, requestedHash) {
+  const clean = String(value || "").trim();
+  const match = clean.match(publicImageDataUriPattern);
+  if (!match) return null;
+  const hash = crypto.createHash("sha256").update(clean).digest("hex").slice(0, 40);
+  if (hash !== requestedHash) return null;
+  return { mime: match[1].toLowerCase(), base64: match[2] };
+}
+function findPublicImageData(db, requestedHash) {
+  const candidates = [
+    ...(db.users || []).flatMap((item) => [item.profilePhoto, item.profileCover]),
+    ...(db.cooks || []).flatMap((item) => [item.profilePhoto, item.coverPhoto]),
+    ...(db.dishes || []).map((item) => item.image),
+    ...(db.socialActions || []).map((item) => item.photo)
+  ];
+  for (const candidate of candidates) {
+    const image = imageDataFromValue(candidate, requestedHash);
+    if (image) return image;
+  }
+  return null;
+}
 function publicImageUrl(value) {
   const clean = String(value || "").trim();
   if (!clean) return "";
-  if (/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(clean)) return clean;
+  if (publicImageDataUriPattern.test(clean)) return imageApiUrlForDataUri(clean);
   if (/^https?:\/\/[^\s"'<>]{1,2000}$/i.test(clean)) return clean;
   if (/^\/[^\s"'<>]{0,1200}$/i.test(clean)) return clean;
   return "";
@@ -2016,21 +2056,20 @@ function publicState(db, user = null) {
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const orders = user ? visibleOrders(db, user) : [];
+  const orderIds = new Set(orders.map((order) => order.id));
   return publicPayload({
     user: safeUser(user),
     cooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: orders.map((order) => orderWithVisibleContacts(db, order, user)),
     messages: user
-      ? db.messages.filter((message) => {
-          return orders.some((order) => order.id === message.orderId);
-        })
+      ? db.messages.filter((message) => orderIds.has(message.orderId))
       : [],
     mealPlans: db.mealPlans.filter((plan) => user?.role === "owner" || (plan.active && cookIds.has(plan.cookId))),
     subscriptions: user ? visibleSubscriptions(db, user) : [],
     payments: user ? visiblePayments(db, user) : [],
     refunds: user ? visibleRefunds(db, user) : [],
-    socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
+    socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cookIds.has(action.cookId)),
     social: socialSummary(db),
     users: user?.role === "owner" ? db.users.map(listUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
@@ -2169,6 +2208,21 @@ async function api(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/health") {
     return json(res, 200, healthPayload());
+  }
+
+  if (req.method === "GET" && pathname.startsWith("/api/images/")) {
+    const imageKey = decodeURIComponent(pathname.split("/").pop() || "");
+    const requestedHash = imageKey.split(".")[0] || "";
+    if (!/^[a-f0-9]{40}$/i.test(requestedHash)) return json(res, 404, { error: "Image not found." });
+    const image = findPublicImageData(db, requestedHash.toLowerCase());
+    if (!image) return json(res, 404, { error: "Image not found." });
+    const data = Buffer.from(image.base64, "base64");
+    res.writeHead(200, {
+      "content-type": image.mime,
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-length": String(data.length)
+    });
+    return res.end(data);
   }
 
   if (req.method === "GET" && pathname === "/api/marketplace") {
@@ -3219,6 +3273,7 @@ async function staticFile(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    res._acceptsGzip = /\bgzip\b/i.test(String(req.headers["accept-encoding"] || ""));
     applyCors(req, res);
     if (req.method === "OPTIONS") {
       res.writeHead(204);

@@ -3045,6 +3045,7 @@ function attrText(value, fallback = '') {
 function safeImageSrc(value, fallback = defaultDishPhoto) {
   const src = String(value || '').trim();
   if (!src) return fallback;
+  if (src.startsWith('/api/images/')) return `${MARKET_API_BASE}${src}`;
   if (
     src.startsWith('data:image/jpeg') ||
     src.startsWith('data:image/png') ||
@@ -3454,6 +3455,59 @@ function refreshCookAndDishViews() {
   renderChatList();
   renderMyCookDishManager();
 }
+function activeMarketplacePageId() {
+  return document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
+}
+function renderMarketplacePage(pageId = activeMarketplacePageId()) {
+  switch (pageId) {
+    case 'home':
+      renderHomeCooks();
+      break;
+    case 'browse':
+      renderBrowseCooks();
+      break;
+    case 'dishes':
+      renderDishes();
+      break;
+    case 'favorites':
+      renderFavorites();
+      break;
+    case 'orders':
+      renderOrders();
+      break;
+    case 'messages':
+      renderChatList();
+      break;
+    case 'become':
+      renderMyCookDishManager();
+      break;
+    case 'settings':
+      updateSettingsAccount();
+      break;
+    case 'track-order':
+      if (activeTrackOrderId) {
+        const activeOrder = demoOrders.find(order => sameId(order.id, activeTrackOrderId));
+        if (activeOrder) renderTrackOrder(activeOrder);
+        else stopTrackOrderRefresh();
+      }
+      break;
+    case 'cook-profile':
+      if (currentCook?.id && cooks.some(cook => sameId(cook.id, currentCook.id))) openCookProfile(currentCook.id);
+      break;
+  }
+}
+function refreshActiveMarketplaceViews() {
+  updateCustomDishCounts();
+  renderMarketplacePage();
+  updateNavBadges();
+}
+function refreshSocialViews() {
+  const pageId = activeMarketplacePageId();
+  if (pageId === 'home' || pageId === 'browse' || pageId === 'favorites' || pageId === 'dishes' || pageId === 'cook-profile') {
+    renderMarketplacePage(pageId);
+  }
+  updateNavBadges();
+}
 
 function marketplaceFingerprint(rawState) {
   return JSON.stringify({
@@ -3707,13 +3761,11 @@ function applyMarketplaceState(rawState) {
 	  const messagesPageOpen = document.getElementById('page-messages')?.classList.contains('active');
 	  renderCityFilterOptions();
 	  renderCuisineFilterOptions();
-	  refreshCookAndDishViews();
+	  refreshActiveMarketplaceViews();
 	  renderCart();
-	  renderChatList();
 	  if (messagesPageOpen && activeChatId && chatMessages.some(conv => sameId(conv.id, activeChatId))) {
 	    openChat(activeChatId, { focus: false });
 	  }
-	  updateNavBadges();
 	  updateSettingsAccount();
 	  const trackPageOpen = document.getElementById('page-track-order')?.classList.contains('active');
 	  if (activeTrackOrderId && trackPageOpen) {
@@ -3899,10 +3951,10 @@ function showPage(pageId, navEl) {
   if (pageId === 'checkout') updateCheckoutItems();
   if (pageId === 'settings') updateSettingsAccount();
   if (pageId === 'become') renderMyCookDishManager();
+  if (!['checkout', 'cook-profile'].includes(pageId)) renderMarketplacePage(pageId);
   updateCartButtonVisibility(pageId);
   updateNavBadges();
   document.getElementById('cityDropdown')?.classList.remove('open');
-  applyTranslations();
 }
 
 // ===== COUNTRY / WELCOME (FIXED: try-catch + safe hide) =====
@@ -4764,9 +4816,7 @@ async function toggleFav(e, cookId, btn) {
     favorites.add(id);
     btn.classList.add('active');
   }
-  renderHomeCooks();
-  renderBrowseCooks();
-  renderFavorites();
+  refreshSocialViews();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
     applyMutationResult(result);
@@ -4781,9 +4831,7 @@ async function toggleFav(e, cookId, btn) {
       favorites.delete(id);
       btn.classList.remove('active');
     }
-    renderHomeCooks();
-    renderBrowseCooks();
-    renderFavorites();
+    refreshSocialViews();
     showToast(error.message, 'error');
   }
 }
@@ -4803,9 +4851,7 @@ async function toggleDishFavorite(e, dishId, cookId, btn) {
     btn?.setAttribute('aria-pressed', 'true');
     btn?.setAttribute('aria-label', 'Remove dish from favorites');
   }
-  renderDishes();
-  if (currentCook && document.getElementById('page-cook-profile')?.classList.contains('active')) openCookProfile(currentCook.id);
-  renderFavorites();
+  refreshSocialViews();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'like', dishId: id, cookId: String(cookId || '') } });
     applyMutationResult(result);
@@ -4816,9 +4862,7 @@ async function toggleDishFavorite(e, dishId, cookId, btn) {
     } else {
       dishFavorites.delete(id);
     }
-    renderDishes();
-    if (currentCook && document.getElementById('page-cook-profile')?.classList.contains('active')) openCookProfile(currentCook.id);
-    renderFavorites();
+    refreshSocialViews();
     showToast(error.message, 'error');
   }
 }
@@ -4851,7 +4895,6 @@ function renderCart() {
   }
   updateCartTotals();
   updateCartBadge();
-  applyTranslations();
 }
 function changeQty(id, delta) {
   const item = cart.find(i => sameId(i.id, id));
@@ -5016,9 +5059,7 @@ async function followCookFromProfile() {
   document.getElementById('profileFollowers').textContent = currentCook.followers;
   const button = document.getElementById('profileFollowButton');
   if (button) button.textContent = wasFollowing ? '+ Follow' : 'Following';
-  renderFavorites();
-  renderHomeCooks();
-  renderBrowseCooks();
+  refreshSocialViews();
   try {
     const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
     applyMutationResult(result);
@@ -5035,9 +5076,7 @@ async function followCookFromProfile() {
     }
     document.getElementById('profileFollowers').textContent = currentCook.followers;
     if (button) button.textContent = wasFollowing ? 'Following' : '+ Follow';
-    renderFavorites();
-    renderHomeCooks();
-    renderBrowseCooks();
+    refreshSocialViews();
     showToast(error.message, 'error');
   }
 }

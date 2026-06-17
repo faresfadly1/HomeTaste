@@ -19,10 +19,28 @@ const profilePhotoImage = testImage("profile-photo");
 const coverPhotoImage = testImage("cover-photo");
 const dishPhotoImage = testImage("dish-photo");
 const xssText = `<img src=x onerror=alert("${runId}")>`;
+const publicImageUrlPattern = /^(?:https?:\/\/[^/]+)?\/api\/images\/[a-f0-9]{40}\.(?:jpg|png|webp)$/i;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
   console.log(`OK   ${message}`);
+}
+
+function isPublicImageUrl(value) {
+  return publicImageUrlPattern.test(String(value || ""));
+}
+
+function absoluteImageUrl(base, value) {
+  const clean = String(value || "");
+  return clean.startsWith("http") ? clean : `${base}${clean}`;
+}
+
+async function assertImageServesUpload(base, imageUrl, originalDataUri, message) {
+  assert(isPublicImageUrl(imageUrl), `${message} exposes a lightweight image URL`);
+  const response = await fetch(absoluteImageUrl(base, imageUrl));
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const originalBase64 = String(originalDataUri).split(",")[1] || "";
+  assert(response.ok && bytes.toString("base64") === originalBase64, `${message} serves the original uploaded bytes`);
 }
 
 function freePort() {
@@ -134,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260617-sync-cancel-01", "marketplace sync/cancellation build marker is exposed");
+  assert(health.build === "20260617-perf-01", "performance build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -206,6 +224,9 @@ try {
   assert(marketplaceSrcEarly.includes("applyMutationResult(result)"), "mobile social actions apply persisted host/API state after mutations");
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
   assert(!marketplaceSrcEarly.includes('class="btn-reorder" onclick="${action}"'), "mobile order action buttons do not use broken double-quoted handlers");
+  assert(marketplaceSrcEarly.includes("refreshActiveMarketplaceViews()"), "mobile marketplace refreshes only the active page after state sync");
+  const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
+  assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const expiringAccount = await auth(base, "signup", {
@@ -261,8 +282,8 @@ try {
     locationQuery: "40.987000,29.025000",
     phone: "+90 555 100 2000"
   });
-  assert(cookState.user.profilePhoto === profilePhotoImage, "profile photo saves to user account");
-  assert(cookState.user.profileCover === coverPhotoImage, "background photo saves to user account");
+  await assertImageServesUpload(base, cookState.user.profilePhoto, profilePhotoImage, "profile photo");
+  await assertImageServesUpload(base, cookState.user.profileCover, coverPhotoImage, "background photo");
   assert(cookState.user.city === "Moda, Istanbul" && cookState.user.authMeta?.locationLabel === "Moda, Kadikoy, Istanbul", "account city and chosen location save to user account");
   const invalidProfileImage = await requestRaw(base, cookAccount.token, "PATCH", "/api/users/profile", {
     profilePhoto: `data:text/html;base64,${Buffer.from("<script>alert(1)</script>").toString("base64")}`
@@ -279,7 +300,7 @@ try {
   });
   const pendingCook = cookState.cooks.find((cook) => cook.userId === cookState.user.id);
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
-  assert(pendingCook.city === "Moda, Istanbul" && pendingCook.profilePhoto === profilePhotoImage && pendingCook.coverPhoto === coverPhotoImage, "cook request uses the same user city, profile photo, and background photo");
+  assert(pendingCook.city === "Moda, Istanbul" && isPublicImageUrl(pendingCook.profilePhoto) && isPublicImageUrl(pendingCook.coverPhoto), "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/dishes", {
@@ -291,7 +312,8 @@ try {
     country: "Turkey"
   });
   const dish = cookState.dishes.find((item) => item.name === `${baseName} Dish`);
-  assert(dish?.image === dishPhotoImage && dish.country === "Turkey", "published dish photo and country persist exactly");
+  assert(dish?.country === "Turkey", "published dish country persists exactly");
+  await assertImageServesUpload(base, dish?.image, dishPhotoImage, "published dish photo");
   assert(cookState.cooks.find((cook) => cook.id === pendingCook.id)?.online === true, "adding a dish does not turn an online cook offline");
   const xssDishState = await request(base, cookAccount.token, "POST", "/api/dishes", {
     name: xssText,
@@ -309,8 +331,8 @@ try {
   assert(ownerState.stats.pendingCooks === 1 && ownerCook?.status === "pending", "admin sees pending cook request fast");
   assert(ownerState.notifications.some((note) => note.data?.type === "cook_application" && note.data?.cookId === ownerCook.id), "admin receives cook application notification");
   assert(ownerState.users.some((user) => user.id === cookState.user.id && String(user.email).includes(`cook.${runId}@`) && user.nationalId === "12345678901"), "admin sees cook contact and T.C. Kimlik data for review");
-  assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && user.profilePhoto === profilePhotoImage && user.profileCover === coverPhotoImage), "admin sees cook phone, profile photo, and background photo for review");
-  assert(ownerCook.profilePhoto === profilePhotoImage && ownerCook.coverPhoto === coverPhotoImage, "pending cook request keeps submitted profile and background photos");
+  assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && isPublicImageUrl(user.profilePhoto) && isPublicImageUrl(user.profileCover)), "admin sees cook phone, profile photo, and background photo for review");
+  assert(isPublicImageUrl(ownerCook.profilePhoto) && isPublicImageUrl(ownerCook.coverPhoto), "pending cook request keeps submitted profile and background photos");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
@@ -340,8 +362,9 @@ try {
   const market = await request(base, "", "GET", "/api/marketplace");
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
   const liveCook = market.cooks.find((cook) => cook.id === ownerCook.id);
-  assert(liveCook?.city === "Moda, Istanbul" && liveCook.profilePhoto === profilePhotoImage && liveCook.coverPhoto === coverPhotoImage, "public marketplace uses the same user city, profile photo, and background photo");
-  assert(market.dishes.some((item) => item.id === dish.id && item.image === dishPhotoImage), "approved dish is visible publicly with uploaded photo");
+  assert(liveCook?.city === "Moda, Istanbul" && isPublicImageUrl(liveCook.profilePhoto) && isPublicImageUrl(liveCook.coverPhoto), "public marketplace uses the same user city, profile photo, and background photo");
+  assert(market.dishes.some((item) => item.id === dish.id && isPublicImageUrl(item.image)), "approved dish is visible publicly with uploaded photo");
+  assert(!JSON.stringify(market).includes("data:image"), "public marketplace JSON does not inline uploaded base64 images");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });
   assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");
   const offlineMarket = await request(base, "", "GET", "/api/marketplace");
