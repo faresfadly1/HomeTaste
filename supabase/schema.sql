@@ -228,6 +228,35 @@ create index if not exists idx_refunds_order_id on refunds(order_id);
 create index if not exists idx_social_actions_cook_id on social_actions(cook_id);
 create index if not exists idx_social_actions_dish_id on social_actions(dish_id);
 
+with duplicate_follows as (
+  select id, row_number() over (
+    partition by user_id, cook_id
+    order by created_at desc, id desc
+  ) as duplicate_number
+  from social_actions
+  where type = 'follow'
+)
+delete from social_actions
+where id in (select id from duplicate_follows where duplicate_number > 1);
+
+with duplicate_likes as (
+  select id, row_number() over (
+    partition by user_id, dish_id
+    order by created_at desc, id desc
+  ) as duplicate_number
+  from social_actions
+  where type = 'like'
+)
+delete from social_actions
+where id in (select id from duplicate_likes where duplicate_number > 1);
+
+create unique index if not exists uq_social_follow_user_cook
+  on social_actions(user_id, cook_id)
+  where type = 'follow';
+create unique index if not exists uq_social_like_user_dish
+  on social_actions(user_id, dish_id)
+  where type = 'like';
+
 alter table app_users drop constraint if exists app_users_role_check;
 alter table app_users add constraint app_users_role_check check (role in ('owner', 'cook', 'customer', 'driver'));
 alter table app_users add column if not exists email_verified boolean not null default false;

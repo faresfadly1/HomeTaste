@@ -152,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260617-stability-01", "performance build marker is exposed");
+  assert(health.build === "20260618-social-favorites-01", "favorite persistence build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -225,12 +225,17 @@ try {
   assert(!marketplaceSrcEarly.includes("renderHomeCooks();\n  renderBrowseCooks();\n  renderDishes();\n  renderOrders();\n  renderFavorites();\n  renderCart();\n  renderCountryMenu();\n  bindCountrySelector();\n  renderChatList();\n  renderFAQ();\n  updateSettingsAccount();\n  renderMyCookDishManager();\n  if (chatMessages.length) openChat(chatMessages[0].id);\n  updatePaymentMethods();\n  setLanguage"), "mobile marketplace does not render stale cooks/dishes before initial live sync");
   assert(marketplaceSrcEarly.includes("async function refreshOrdersView()") && marketplaceSrcEarly.includes("if (isOrdersFocusedPage(pageId)) setTimeout(() => refreshOrdersView(), 0);"), "orders and track pages trigger immediate state sync when opened");
   assert(marketplaceSrcEarly.includes("if (isOrdersFocusedPage()) refreshOrdersView();"), "orders and track pages refresh immediately when the browser becomes visible");
-  assert(marketplaceSrcEarly.includes("applyMutationResult(result)"), "mobile social actions apply persisted host/API state after mutations");
+  assert(marketplaceSrcEarly.includes("runSocialMutation") && marketplaceSrcEarly.includes("applyMutationResult(result, { version: responseVersion, socialMutation: true })"), "mobile social actions wait for and apply persisted backend state");
+  assert(marketplaceSrcEarly.includes("socialMutationInFlight") && marketplaceSrcEarly.includes("version < latestSocialMutationVersion"), "older marketplace syncs cannot overwrite a newer social mutation");
+  assert(marketplaceSrcEarly.includes("confirmedSocialStates") && marketplaceSrcEarly.includes("confirmation.active"), "backend-confirmed favorites survive stale cross-view state payloads");
+  assert(marketplaceSrcEarly.includes("Please sign in to save favorites."), "unauthenticated favorite actions never pretend to be saved");
+  assert(marketplaceSrcEarly.includes("refreshAllFavoriteViews()"), "favorite mutations refresh home, browse, dishes, favorites, and cook profile views");
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
   assert(!marketplaceSrcEarly.includes('class="btn-reorder" onclick="${action}"'), "mobile order action buttons do not use broken double-quoted handlers");
   assert(marketplaceSrcEarly.includes("refreshActiveMarketplaceViews()"), "mobile marketplace refreshes only the active page after state sync");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
+  assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const expiringAccount = await auth(base, "signup", {
@@ -380,27 +385,39 @@ try {
   const reloadedCookState = await request(base, reloadedCookLogin.token, "GET", "/api/state");
   assert(reloadedCookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === true, "online state survives fresh cook login and page reload");
 
-  let customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
+  let customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: true });
   assert(customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action saves for the current customer");
   let persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action survives fresh API sync");
-  customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
-  assert(!customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "second follow click unfollows the cook");
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: true });
+  assert(customerState.socialActions.filter((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id).length === 1, "repeated favorite request is idempotent and creates no duplicate follow");
+  const followDuplicateDb = JSON.parse(await readFile(dbFile, "utf8"));
+  const savedFollow = followDuplicateDb.socialActions.find((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id);
+  followDuplicateDb.socialActions.unshift({ ...savedFollow, id: `soc_duplicate_follow_${runId}` });
+  await writeFile(dbFile, JSON.stringify(followDuplicateDb, null, 2));
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: false });
+  assert(!customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "unfavorite removes every duplicate follow record");
   persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(!persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "unfollow action survives fresh API sync");
-  customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id });
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: true });
   assert(customerState.cooks.find((cook) => cook.id === ownerCook.id)?.followers === 1, "follow count returns after following again");
   persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(persistedSocialState.cooks.find((cook) => cook.id === ownerCook.id)?.followers === 1 && persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id), "refollowed cook favorite remains after reload");
-  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id, active: true });
   assert(customerState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "like action saves for the current customer");
   persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(persistedSocialState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "dish favorite survives fresh API sync");
-  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
-  assert(!customerState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "second like click unlikes the dish");
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id, active: true });
+  assert(customerState.socialActions.filter((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id).length === 1, "repeated dish favorite request is idempotent and creates no duplicate like");
+  const likeDuplicateDb = JSON.parse(await readFile(dbFile, "utf8"));
+  const savedLike = likeDuplicateDb.socialActions.find((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id);
+  likeDuplicateDb.socialActions.unshift({ ...savedLike, id: `soc_duplicate_like_${runId}` });
+  await writeFile(dbFile, JSON.stringify(likeDuplicateDb, null, 2));
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id, active: false });
+  assert(!customerState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "dish unfavorite removes every duplicate like record");
   persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(!persistedSocialState.socialActions.some((action) => action.type === "like" && action.dishId === dish.id && action.userId === customer.state.user.id), "dish unfavorite survives fresh API sync");
-  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id });
+  customerState = await request(base, customer.token, "POST", "/api/social", { type: "like", dishId: dish.id, cookId: ownerCook.id, active: true });
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "comment", dishId: dish.id, cookId: ownerCook.id, text: "Great dish." });
   assert(customerState.socialActions.some((action) => action.type === "comment"), "follow, like, unlike, unfollow, and comment social actions save");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "comment", dishId: dish.id, cookId: ownerCook.id, text: xssText });

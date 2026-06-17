@@ -3090,6 +3090,12 @@ let hostBridgeReady = false;
 let marketRequestSeq = 0;
 const pendingHostActions = new Map();
 const pendingMarketActions = new Set();
+let marketStateVersion = 0;
+let lastAppliedMarketStateVersion = 0;
+let latestSocialMutationVersion = 0;
+let socialMutationInFlight = false;
+let socialMutationQueue = Promise.resolve();
+const confirmedSocialStates = new Map();
 let countryMenuTimer = null;
 let marketplaceRefreshTimer = null;
 let lastMarketplaceFingerprint = '';
@@ -3102,10 +3108,14 @@ const TRACK_REFRESH_MS = 6000;
 function hasHostWindow() {
   return window.parent && window.parent !== window;
 }
-function postHostAction(action, payload = {}, requestId = '') {
+function nextMarketStateVersion() {
+  marketStateVersion += 1;
+  return marketStateVersion;
+}
+function postHostAction(action, payload = {}, requestId = '', version = 0) {
   if (!hasHostWindow()) return false;
   if (action !== 'market-state-request' && !hostBridgeReady) return false;
-  parent.postMessage({ source: 'HomeTaste', action, requestId, ...payload }, location.origin);
+  parent.postMessage({ source: 'HomeTaste', action, requestId, marketVersion: version, ...payload }, location.origin);
   return true;
 }
 function marketAuthToken() {
@@ -3169,17 +3179,19 @@ async function marketApi(path, options = {}) {
     clearTimeout(timeout);
   }
 }
-async function syncMarketplaceFromApi(stateOrResult = null) {
+async function syncMarketplaceFromApi(stateOrResult = null, options = {}) {
+  if (socialMutationInFlight && !options.socialMutation) return null;
+  const version = Number(options.version || nextMarketStateVersion());
   const providedState = stateOrResult?.state || stateOrResult;
   if (providedState) {
-    applyMarketplaceState(providedState);
+    applyMarketplaceState(providedState, { ...options, version });
     return providedState;
   }
   if (marketSyncInFlight) return null;
   marketSyncInFlight = true;
   try {
     const nextState = await marketApi('/api/state');
-    applyMarketplaceState(nextState);
+    applyMarketplaceState(nextState, { ...options, version });
     return nextState;
   } finally {
     marketSyncInFlight = false;
@@ -3233,7 +3245,7 @@ async function runStandaloneMarketAction(action, payload = {}) {
     case 'market-place-order':
       return syncMarketplaceFromApi(await marketApi('/api/orders', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
     case 'market-social':
-      return syncMarketplaceFromApi(await marketApi('/api/social', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+      return marketApi('/api/social', { method: 'POST', body: JSON.stringify(payload.payload || {}) });
     case 'market-message':
       return syncMarketplaceFromApi(await marketApi('/api/messages', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
     default:
@@ -3242,13 +3254,14 @@ async function runStandaloneMarketAction(action, payload = {}) {
 }
 function waitForHostAction(action, payload = {}) {
   const requestId = `market_${Date.now()}_${++marketRequestSeq}`;
+  const version = nextMarketStateVersion();
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pendingHostActions.delete(requestId);
       reject(new Error('Request timed out. Please try again.'));
     }, 15000);
-    pendingHostActions.set(requestId, { resolve, reject, timeout });
-    if (!postHostAction(action, payload, requestId)) {
+    pendingHostActions.set(requestId, { action, resolve, reject, timeout, version });
+    if (!postHostAction(action, payload, requestId, version)) {
       clearTimeout(timeout);
       pendingHostActions.delete(requestId);
       reject(new Error('HomeTaste is still syncing. Please try again.'));
@@ -3267,11 +3280,10 @@ async function sendMarketAction(action, payload = {}) {
     pendingMarketActions.delete(key);
   }
 }
-function applyMutationResult(result) {
+function applyMutationResult(result, options = {}) {
   const nextState = result?.state || result;
   if (nextState && (nextState.cooks || nextState.dishes || nextState.orders || nextState.socialActions || nextState.user)) {
-    applyMarketplaceState(nextState);
-    return true;
+    return applyMarketplaceState(nextState, options);
   }
   requestMarketplaceState();
   return false;
@@ -3525,6 +3537,91 @@ function refreshSocialViews() {
   }
   updateNavBadges();
 }
+function refreshAllFavoriteViews() {
+  renderHomeCooks();
+  renderBrowseCooks();
+  renderDishes();
+  renderFavorites();
+  if (currentCook?.id) {
+    const refreshedCook = cooks.find(cook => sameId(cook.id, currentCook.id));
+    if (refreshedCook) currentCook = refreshedCook;
+    if (refreshedCook && activeMarketplacePageId() === 'cook-profile') openCookProfile(refreshedCook.id);
+  }
+  updateNavBadges();
+}
+function requireMarketAuthForSocialAction() {
+  if (marketAuthToken()) return true;
+  showToast('Please sign in to save favorites.', 'error');
+  return false;
+}
+function socialActionKey(payload) {
+  return payload.type === 'follow'
+    ? `follow:${String(payload.cookId)}`
+    : `like:${String(payload.dishId)}`;
+}
+function socialActionIsActive(payload, state = null) {
+  if (state) {
+    const userId = state.user?.id || currentUserId;
+    return (state.socialActions || []).some(action => {
+      if (!sameId(action.userId, userId) || action.type !== payload.type) return false;
+      return payload.type === 'follow'
+        ? sameId(action.cookId, payload.cookId)
+        : sameId(action.dishId, payload.dishId);
+    });
+  }
+  return payload.type === 'follow'
+    ? favorites.has(String(payload.cookId))
+    : dishFavorites.has(String(payload.dishId));
+}
+function setSocialButtonBusy(button, busy) {
+  if (!button) return;
+  button.disabled = busy;
+  button.classList.toggle('is-busy', busy);
+  button.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+async function executeSocialMutation(payload, button) {
+  const desiredActive = !socialActionIsActive(payload);
+  const mutationPayload = { ...payload, active: desiredActive };
+  const mutationVersion = nextMarketStateVersion();
+  latestSocialMutationVersion = Math.max(latestSocialMutationVersion, mutationVersion);
+  socialMutationInFlight = true;
+  try {
+    const result = await sendMarketAction('market-social', { payload: mutationPayload });
+    const nextState = result?.state || result;
+    const responseVersion = Number(result?.marketVersion || mutationVersion);
+    latestSocialMutationVersion = Math.max(latestSocialMutationVersion, responseVersion);
+    if (!nextState || socialActionIsActive(mutationPayload, nextState) !== desiredActive) {
+      throw new Error('Could not save favorite. Please try again.');
+    }
+    confirmedSocialStates.set(socialActionKey(mutationPayload), {
+      type: mutationPayload.type,
+      cookId: String(mutationPayload.cookId || ''),
+      dishId: String(mutationPayload.dishId || ''),
+      userId: String(nextState.user?.id || currentUserId),
+      active: desiredActive
+    });
+    applyMutationResult(result, { version: responseVersion, socialMutation: true });
+    refreshAllFavoriteViews();
+    return true;
+  } catch (error) {
+    socialMutationInFlight = false;
+    await syncMarketplaceFromApi().catch(() => null);
+    refreshAllFavoriteViews();
+    showToast(error.message || 'Could not save favorite.', 'error');
+    return false;
+  } finally {
+    socialMutationInFlight = false;
+    setSocialButtonBusy(button, false);
+  }
+}
+function runSocialMutation(payload, button = null) {
+  if (!requireMarketAuthForSocialAction()) return Promise.resolve(false);
+  if (button?.disabled) return Promise.resolve(false);
+  setSocialButtonBusy(button, true);
+  const mutation = socialMutationQueue.catch(() => null).then(() => executeSocialMutation(payload, button));
+  socialMutationQueue = mutation.catch(() => null);
+  return mutation;
+}
 
 function marketplaceFingerprint(rawState) {
   return JSON.stringify({
@@ -3739,15 +3836,25 @@ function mapMessagesForMobile(rawState) {
     };
   }).filter(Boolean);
 }
-function applyMarketplaceState(rawState) {
+function applyMarketplaceState(rawState, options = {}) {
   if (!rawState) return;
+  const version = Number(options.version || 0);
+  if (!options.socialMutation && socialMutationInFlight) return false;
+  if (!options.socialMutation && version && version < latestSocialMutationVersion) return false;
+  if (version && version < lastAppliedMarketStateVersion) return false;
   const nextFingerprint = marketplaceFingerprint(rawState);
-  if (hostStateReady && nextFingerprint === lastMarketplaceFingerprint) return;
+  if (hostStateReady && nextFingerprint === lastMarketplaceFingerprint) {
+    if (version) lastAppliedMarketStateVersion = Math.max(lastAppliedMarketStateVersion, version);
+    return true;
+  }
   lastMarketplaceFingerprint = nextFingerprint;
+  if (version) lastAppliedMarketStateVersion = Math.max(lastAppliedMarketStateVersion, version);
   hostStateReady = true;
   marketStateLoaded = true;
   const user = rawState.user || {};
+  const previousUserId = currentUserId;
   currentUserId = user.id || currentUserId;
+  if (previousUserId && currentUserId && !sameId(previousUserId, currentUserId)) confirmedSocialStates.clear();
   currentUserName = (user.name || currentUserName || 'User').trim() || 'User';
   localStorage.setItem('hometaste_user_name', currentUserName);
   if (user.country && supportedCountries.includes(user.country)) {
@@ -3766,6 +3873,13 @@ function applyMarketplaceState(rawState) {
   (rawState.socialActions || [])
     .filter(action => action.type === 'like' && sameId(action.userId, currentUserId))
     .forEach(action => dishFavorites.add(String(action.dishId)));
+  confirmedSocialStates.forEach(confirmation => {
+    if (!sameId(confirmation.userId, currentUserId)) return;
+    const target = confirmation.type === 'follow' ? favorites : dishFavorites;
+    const id = confirmation.type === 'follow' ? confirmation.cookId : confirmation.dishId;
+    if (confirmation.active) target.add(String(id));
+    else target.delete(String(id));
+  });
   cooks.splice(0, cooks.length, ...normalizedCooks);
   dishes.splice(0, dishes.length, ...normalizedDishes);
 	  const ownCook = cooks.find(cook => sameId(cook.userId, currentUserId));
@@ -3790,6 +3904,7 @@ function applyMarketplaceState(rawState) {
 	    if (activeOrder) renderTrackOrder(activeOrder);
 	    else stopTrackOrderRefresh();
 	  }
+	  return true;
 	}
 function marketplaceLoadingHtml(label = 'HomeTaste') {
   return `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⏳</div><h3>Loading ${safeDisplayHtml(label)}</h3><p>Getting the latest live dishes and cooks.</p></div>`;
@@ -3816,7 +3931,9 @@ function showMarketplaceLoadError() {
   if (dishesGrid) dishesGrid.innerHTML = marketplaceLoadErrorHtml();
 }
 function requestMarketplaceState() {
-  const posted = postHostAction('market-state-request');
+  if (socialMutationInFlight) return false;
+  const version = nextMarketStateVersion();
+  const posted = postHostAction('market-state-request', {}, '', version);
   if (marketAuthToken()) {
     setTimeout(() => {
       if (hostBridgeReady || marketStateLoaded) return;
@@ -3877,7 +3994,7 @@ function refreshMarketplaceFast() {
   if (!shouldRefreshMarketplaceNow()) return;
   if (marketSyncInFlight || publicMarketSyncInFlight) return;
   if (hasHostWindow()) {
-    const posted = postHostAction('market-state-request');
+    const posted = postHostAction('market-state-request', {}, '', nextMarketStateVersion());
     if (posted || hostBridgeReady) return;
   }
   if (marketAuthToken()) {
@@ -4206,7 +4323,10 @@ window.addEventListener('message', (event) => {
   if (event.data.action === 'password-result') handlePasswordResult(event.data);
   if (event.data.action === 'market-sync') {
     hostBridgeReady = true;
-    applyMarketplaceState(event.data.state);
+    const pending = event.data.requestId ? pendingHostActions.get(event.data.requestId) : null;
+    const version = Number(event.data.marketVersion || pending?.version || 0);
+    const isSocialResponse = pending?.action === 'market-social';
+    if (!isSocialResponse) applyMarketplaceState(event.data.state, { version });
     if (event.data.placedOrder || pendingOrderPlacement) {
       rememberLastPlacedOrderFromOrders();
       pendingOrderPlacement = false;
@@ -4214,11 +4334,10 @@ window.addEventListener('message', (event) => {
       renderCart();
       document.getElementById('successOverlay')?.classList.add('open');
     }
-    if (event.data.requestId && pendingHostActions.has(event.data.requestId)) {
-      const pending = pendingHostActions.get(event.data.requestId);
+    if (pending) {
       clearTimeout(pending.timeout);
       pendingHostActions.delete(event.data.requestId);
-      pending.resolve({ mode: 'host', state: event.data.state, placedOrder: Boolean(event.data.placedOrder) });
+      pending.resolve({ mode: 'host', state: event.data.state, marketVersion: version, placedOrder: Boolean(event.data.placedOrder) });
     }
   }
   if (event.data.action === 'market-error') {
@@ -4867,64 +4986,12 @@ function renderFavorites() {
 // ===== FAVORITES TOGGLE =====
 async function toggleFav(e, cookId, btn) {
   e.stopPropagation();
-  const id = String(cookId);
-  const wasFavorite = favorites.has(id);
-  if (wasFavorite) {
-    favorites.delete(id);
-    btn.classList.remove('active');
-  } else {
-    favorites.add(id);
-    btn.classList.add('active');
-  }
-  refreshSocialViews();
-  try {
-    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: id } });
-    applyMutationResult(result);
-  } catch (error) {
-    if (isLocalSyncFallback(error)) {
-      return;
-    }
-    if (wasFavorite) {
-      favorites.add(id);
-      btn.classList.add('active');
-    } else {
-      favorites.delete(id);
-      btn.classList.remove('active');
-    }
-    refreshSocialViews();
-    showToast(error.message, 'error');
-  }
+  return runSocialMutation({ type: 'follow', cookId: String(cookId) }, btn);
 }
 
 async function toggleDishFavorite(e, dishId, cookId, btn) {
   e.stopPropagation();
-  const id = String(dishId);
-  const wasFavorite = dishFavorites.has(id);
-  if (wasFavorite) {
-    dishFavorites.delete(id);
-    btn?.classList.remove('active');
-    btn?.setAttribute('aria-pressed', 'false');
-    btn?.setAttribute('aria-label', 'Add dish to favorites');
-  } else {
-    dishFavorites.add(id);
-    btn?.classList.add('active');
-    btn?.setAttribute('aria-pressed', 'true');
-    btn?.setAttribute('aria-label', 'Remove dish from favorites');
-  }
-  refreshSocialViews();
-  try {
-    const result = await sendMarketAction('market-social', { payload: { type: 'like', dishId: id, cookId: String(cookId || '') } });
-    applyMutationResult(result);
-  } catch (error) {
-    if (isLocalSyncFallback(error)) return;
-    if (wasFavorite) {
-      dishFavorites.add(id);
-    } else {
-      dishFavorites.delete(id);
-    }
-    refreshSocialViews();
-    showToast(error.message, 'error');
-  }
+  return runSocialMutation({ type: 'like', dishId: String(dishId), cookId: String(cookId || '') }, btn);
 }
 
 // ===== CART =====
@@ -5106,39 +5173,8 @@ async function followCookFromProfile() {
     showToast('This is your cook profile.', 'info');
     return;
   }
-  const cookKey = String(currentCook.id);
-  const wasFollowing = favorites.has(cookKey);
-  const previousFollowers = Number(currentCook.followers || 0);
-  if (wasFollowing) {
-    favorites.delete(cookKey);
-    currentCook.followers = Math.max(0, previousFollowers - 1);
-  } else {
-    favorites.add(cookKey);
-    currentCook.followers = previousFollowers + 1;
-  }
-  document.getElementById('profileFollowers').textContent = currentCook.followers;
   const button = document.getElementById('profileFollowButton');
-  if (button) button.textContent = wasFollowing ? '+ Follow' : 'Following';
-  refreshSocialViews();
-  try {
-    const result = await sendMarketAction('market-social', { payload: { type: 'follow', cookId: currentCook.id } });
-    applyMutationResult(result);
-  } catch (error) {
-    if (isLocalSyncFallback(error)) {
-      return;
-    }
-    if (wasFollowing) {
-      favorites.add(cookKey);
-      currentCook.followers = previousFollowers;
-    } else {
-      favorites.delete(cookKey);
-      currentCook.followers = previousFollowers;
-    }
-    document.getElementById('profileFollowers').textContent = currentCook.followers;
-    if (button) button.textContent = wasFollowing ? 'Following' : '+ Follow';
-    refreshSocialViews();
-    showToast(error.message, 'error');
-  }
+  return runSocialMutation({ type: 'follow', cookId: String(currentCook.id) }, button);
 }
 
 // ===== CHAT =====

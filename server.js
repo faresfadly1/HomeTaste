@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260617-stability-01";
+const backendBuild = "20260618-social-favorites-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1861,6 +1861,11 @@ async function deleteSupabaseValues(table, column, values) {
   }
 }
 
+async function deletePersistedSocialActions(ids) {
+  if (!useSupabase || !ids.length) return;
+  await deleteSupabaseValues("social_actions", "id", ids);
+}
+
 async function deleteSupabaseDemoData(removed) {
   await deleteSupabaseValues("social_actions", "id", removed.socialActions);
   await deleteSupabaseValues("messages", "id", removed.messages);
@@ -3052,21 +3057,48 @@ async function api(req, res, pathname) {
       const dishCook = db.cooks.find((cook) => cook.id === socialDish.cookId);
       if (dishCook?.status !== "approved" && user.role !== "owner" && dishCook?.userId !== user.id) return json(res, 403, { error: "Dish is not public yet." });
     }
+    const requestedActive = typeof input.active === "boolean" ? input.active : null;
     if (type === "follow") {
-      const existing = db.socialActions.find((action) => action.userId === user.id && action.cookId === cookId && action.type === "follow");
-      if (existing) {
-        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
+      const matches = db.socialActions.filter((action) => action.userId === user.id && action.cookId === cookId && action.type === "follow");
+      const removeAll = requestedActive === false || (requestedActive === null && matches.length > 0);
+      if (removeAll) {
+        const removeIds = matches.map((action) => action.id);
+        db.socialActions = db.socialActions.filter((action) => !removeIds.includes(action.id));
         const cook = db.cooks.find((item) => item.id === cookId);
         if (cook) cook.followers = socialSummary(db, cook.id).followers;
+        await deletePersistedSocialActions(removeIds);
         await saveDb(db);
+        return json(res, 200, publicState(db, user));
+      }
+      if (requestedActive === true && matches.length) {
+        const duplicateIds = matches.slice(1).map((action) => action.id);
+        if (duplicateIds.length) {
+          db.socialActions = db.socialActions.filter((action) => !duplicateIds.includes(action.id));
+          const cook = db.cooks.find((item) => item.id === cookId);
+          if (cook) cook.followers = socialSummary(db, cook.id).followers;
+          await deletePersistedSocialActions(duplicateIds);
+          await saveDb(db);
+        }
         return json(res, 200, publicState(db, user));
       }
     }
     if (type === "like") {
-      const existing = db.socialActions.find((action) => action.userId === user.id && action.dishId === dishId && action.type === "like");
-      if (existing) {
-        db.socialActions = db.socialActions.filter((action) => action.id !== existing.id);
+      const matches = db.socialActions.filter((action) => action.userId === user.id && action.dishId === dishId && action.type === "like");
+      const removeAll = requestedActive === false || (requestedActive === null && matches.length > 0);
+      if (removeAll) {
+        const removeIds = matches.map((action) => action.id);
+        db.socialActions = db.socialActions.filter((action) => !removeIds.includes(action.id));
+        await deletePersistedSocialActions(removeIds);
         await saveDb(db);
+        return json(res, 200, publicState(db, user));
+      }
+      if (requestedActive === true && matches.length) {
+        const duplicateIds = matches.slice(1).map((action) => action.id);
+        if (duplicateIds.length) {
+          db.socialActions = db.socialActions.filter((action) => !duplicateIds.includes(action.id));
+          await deletePersistedSocialActions(duplicateIds);
+          await saveDb(db);
+        }
         return json(res, 200, publicState(db, user));
       }
     }
