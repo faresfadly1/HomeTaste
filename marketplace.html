@@ -523,9 +523,12 @@ ul{list-style:none}
   width:32px;height:32px;border-radius:50%;
   background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);
   display:grid;place-items:center;font-size:16px;
-  transition:all var(--transition);z-index:2;
+  transition:background-color .18s ease,transform .18s ease,opacity .18s ease;z-index:2;
 }
 .fav-btn:hover,.fav-btn.active{background:rgba(239,68,68,0.9)}
+.fav-btn:active{transform:scale(.82)}
+.fav-btn.active{transform:scale(1.06)}
+.fav-btn.is-busy{opacity:.72;cursor:wait;pointer-events:none}
 .fav-btn.active::after{content:'❤️'}
 .fav-btn:not(.active)::after{content:'🤍'}
 .cook-card-body{padding:12px}
@@ -3096,6 +3099,8 @@ let latestSocialMutationVersion = 0;
 let socialMutationInFlight = false;
 let socialMutationQueue = Promise.resolve();
 const confirmedSocialStates = new Map();
+const pendingSocialKeys = new Set();
+const pendingSocialStates = new Map();
 let countryMenuTimer = null;
 let marketplaceRefreshTimer = null;
 let lastMarketplaceFingerprint = '';
@@ -3573,14 +3578,37 @@ function socialActionIsActive(payload, state = null) {
     ? favorites.has(String(payload.cookId))
     : dishFavorites.has(String(payload.dishId));
 }
-function setSocialButtonBusy(button, busy) {
-  if (!button) return;
-  button.disabled = busy;
-  button.classList.toggle('is-busy', busy);
-  button.setAttribute('aria-busy', busy ? 'true' : 'false');
+function setLocalSocialState(payload, active) {
+  const target = payload.type === 'follow' ? favorites : dishFavorites;
+  const id = payload.type === 'follow' ? payload.cookId : payload.dishId;
+  if (active) target.add(String(id));
+  else target.delete(String(id));
 }
-async function executeSocialMutation(payload, button) {
-  const desiredActive = !socialActionIsActive(payload);
+function updateSocialButtons(payload, active, busy) {
+  const attribute = payload.type === 'follow' ? 'cookId' : 'dishId';
+  const targetId = String(payload[attribute] || '');
+  document.querySelectorAll(`[data-social-type="${payload.type}"]`).forEach(button => {
+    if (!sameId(button.dataset[attribute], targetId)) return;
+    button.classList.toggle('active', active);
+    button.classList.toggle('is-busy', busy);
+    button.disabled = busy;
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.setAttribute('aria-label', payload.type === 'follow'
+      ? (active ? 'Remove cook from favorites' : 'Add cook to favorites')
+      : (active ? 'Remove dish from favorites' : 'Add dish to favorites'));
+  });
+  if (payload.type === 'follow' && currentCook && sameId(currentCook.id, payload.cookId)) {
+    const profileButton = document.getElementById('profileFollowButton');
+    if (profileButton) {
+      profileButton.textContent = active ? 'Following' : '+ Follow';
+      profileButton.disabled = busy || isMyCook(currentCook.id);
+      profileButton.classList.toggle('is-busy', busy);
+      profileButton.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+  }
+}
+async function executeSocialMutation(payload, desiredActive) {
   const mutationPayload = { ...payload, active: desiredActive };
   const mutationVersion = nextMarketStateVersion();
   latestSocialMutationVersion = Math.max(latestSocialMutationVersion, mutationVersion);
@@ -3611,14 +3639,29 @@ async function executeSocialMutation(payload, button) {
     return false;
   } finally {
     socialMutationInFlight = false;
-    setSocialButtonBusy(button, false);
+    const key = socialActionKey(payload);
+    pendingSocialKeys.delete(key);
+    pendingSocialStates.delete(key);
+    updateSocialButtons(payload, socialActionIsActive(payload), false);
   }
 }
 function runSocialMutation(payload, button = null) {
   if (!requireMarketAuthForSocialAction()) return Promise.resolve(false);
-  if (button?.disabled) return Promise.resolve(false);
-  setSocialButtonBusy(button, true);
-  const mutation = socialMutationQueue.catch(() => null).then(() => executeSocialMutation(payload, button));
+  const key = socialActionKey(payload);
+  if (button?.disabled || pendingSocialKeys.has(key)) return Promise.resolve(false);
+  const desiredActive = !socialActionIsActive(payload);
+  pendingSocialKeys.add(key);
+  pendingSocialStates.set(key, {
+    type: payload.type,
+    cookId: String(payload.cookId || ''),
+    dishId: String(payload.dishId || ''),
+    userId: String(currentUserId),
+    active: desiredActive
+  });
+  setLocalSocialState(payload, desiredActive);
+  updateSocialButtons(payload, desiredActive, true);
+  updateNavBadges();
+  const mutation = socialMutationQueue.catch(() => null).then(() => executeSocialMutation(payload, desiredActive));
   socialMutationQueue = mutation.catch(() => null);
   return mutation;
 }
@@ -3878,6 +3921,13 @@ function applyMarketplaceState(rawState, options = {}) {
     const target = confirmation.type === 'follow' ? favorites : dishFavorites;
     const id = confirmation.type === 'follow' ? confirmation.cookId : confirmation.dishId;
     if (confirmation.active) target.add(String(id));
+    else target.delete(String(id));
+  });
+  pendingSocialStates.forEach(pending => {
+    if (!sameId(pending.userId, currentUserId)) return;
+    const target = pending.type === 'follow' ? favorites : dishFavorites;
+    const id = pending.type === 'follow' ? pending.cookId : pending.dishId;
+    if (pending.active) target.add(String(id));
     else target.delete(String(id));
   });
   cooks.splice(0, cooks.length, ...normalizedCooks);
@@ -4546,6 +4596,7 @@ function renderBrowseCooks() {
 }
 function cookCard(c, staggerClass) {
   const isFav = favorites.has(String(c.id));
+  const favoriteBusy = pendingSocialKeys.has(socialActionKey({ type: 'follow', cookId: c.id }));
   const cardDishPhoto = safeImageSrc(getCookCardDishPhoto(c), defaultDishPhoto);
   const profilePhoto = safeImageSrc(getCookProfilePhoto(c), '');
   const cookName = displayText(c.name, 'HomeTaste Cook');
@@ -4554,7 +4605,7 @@ function cookCard(c, staggerClass) {
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
       <img src="${escapeAttr(cardDishPhoto)}" alt="${escapeAttr(dishName || cookName)}" loading="lazy" decoding="async" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
-      <button class="fav-btn ${isFav ? 'active' : ''}" type="button" aria-label="${isFav ? 'Remove cook from favorites' : 'Add cook to favorites'}" aria-pressed="${isFav ? 'true' : 'false'}" onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
+      <button class="fav-btn ${isFav ? 'active' : ''} ${favoriteBusy ? 'is-busy' : ''}" type="button" data-social-type="follow" data-cook-id="${escapeAttr(c.id)}" aria-label="${isFav ? 'Remove cook from favorites' : 'Add cook to favorites'}" aria-pressed="${isFav ? 'true' : 'false'}" aria-busy="${favoriteBusy ? 'true' : 'false'}" ${favoriteBusy ? 'disabled' : ''} onclick='toggleFav(event,${jsArg(c.id)},this)'></button>
     </div>
     <div class="cook-card-body">
       <div class="cook-meta">
@@ -4604,6 +4655,7 @@ function dishCard(d, staggerClass, options = {}) {
   const cook = cooks.find(c => sameId(c.id, d.cookId));
   const canManage = options.manage && isMyCook(d.cookId);
   const isDishFav = dishFavorites.has(String(d.id));
+  const favoriteBusy = pendingSocialKeys.has(socialActionKey({ type: 'like', dishId: d.id }));
   const dishName = displayText(d.name, 'Dish');
   const dishPhoto = safeImageSrc(d.img, defaultDishPhoto);
   return `
@@ -4611,7 +4663,7 @@ function dishCard(d, staggerClass, options = {}) {
     <div class="dish-img">
       <img src="${escapeAttr(dishPhoto)}" alt="${escapeAttr(dishName)}" loading="lazy" decoding="async" onerror="this.src='${escapeAttr(defaultDishPhoto)}'">
       <span class="dish-tag">${safeDisplayHtml(d.country || d.tag || 'Country')}</span>
-      <button class="fav-btn dish-fav-btn ${isDishFav ? 'active' : ''}" type="button" aria-label="${isDishFav ? 'Remove dish from favorites' : 'Add dish to favorites'}" aria-pressed="${isDishFav ? 'true' : 'false'}" onclick='toggleDishFavorite(event,${jsArg(d.id)},${jsArg(d.cookId)},this)'></button>
+      <button class="fav-btn dish-fav-btn ${isDishFav ? 'active' : ''} ${favoriteBusy ? 'is-busy' : ''}" type="button" data-social-type="like" data-dish-id="${escapeAttr(d.id)}" aria-label="${isDishFav ? 'Remove dish from favorites' : 'Add dish to favorites'}" aria-pressed="${isDishFav ? 'true' : 'false'}" aria-busy="${favoriteBusy ? 'true' : 'false'}" ${favoriteBusy ? 'disabled' : ''} onclick='toggleDishFavorite(event,${jsArg(d.id)},${jsArg(d.cookId)},this)'></button>
       ${canManage ? `<button class="dish-remove-btn" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button>` : ''}
     </div>
     <div class="dish-body">
@@ -5156,8 +5208,11 @@ function openCookProfile(cookId) {
   document.getElementById('profileBio').textContent = displayText(cook.bio);
   const followButton = document.getElementById('profileFollowButton');
   if (followButton) {
+    const followBusy = pendingSocialKeys.has(socialActionKey({ type: 'follow', cookId: cook.id }));
     followButton.textContent = favorites.has(String(cook.id)) ? 'Following' : '+ Follow';
-    followButton.disabled = isMyCook(cook.id);
+    followButton.disabled = isMyCook(cook.id) || followBusy;
+    followButton.classList.toggle('is-busy', followBusy);
+    followButton.setAttribute('aria-busy', followBusy ? 'true' : 'false');
   }
   document.getElementById('profileAboutCity').textContent = `⊙ ${displayText(cook.city)}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
   document.getElementById('profileDishesTitle').textContent = `Dishes by ${displayText(cook.name, 'this cook')}`;

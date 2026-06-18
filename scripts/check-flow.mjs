@@ -152,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260618-social-favorites-01", "favorite persistence build marker is exposed");
+  assert(health.build === "20260618-social-smooth-01", "smooth favorite build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -228,6 +228,8 @@ try {
   assert(marketplaceSrcEarly.includes("runSocialMutation") && marketplaceSrcEarly.includes("applyMutationResult(result, { version: responseVersion, socialMutation: true })"), "mobile social actions wait for and apply persisted backend state");
   assert(marketplaceSrcEarly.includes("socialMutationInFlight") && marketplaceSrcEarly.includes("version < latestSocialMutationVersion"), "older marketplace syncs cannot overwrite a newer social mutation");
   assert(marketplaceSrcEarly.includes("confirmedSocialStates") && marketplaceSrcEarly.includes("confirmation.active"), "backend-confirmed favorites survive stale cross-view state payloads");
+  assert(marketplaceSrcEarly.includes("setLocalSocialState(payload, desiredActive)") && marketplaceSrcEarly.includes("updateSocialButtons(payload, desiredActive, true)"), "dish and cook hearts respond immediately while backend persistence runs");
+  assert(marketplaceSrcEarly.includes("pendingSocialKeys") && marketplaceSrcEarly.includes("pendingSocialStates"), "pending social actions prevent double taps and stale visual reversions");
   assert(marketplaceSrcEarly.includes("Please sign in to save favorites."), "unauthenticated favorite actions never pretend to be saved");
   assert(marketplaceSrcEarly.includes("refreshAllFavoriteViews()"), "favorite mutations refresh home, browse, dishes, favorites, and cook profile views");
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
