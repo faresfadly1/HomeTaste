@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260618-social-smooth-01";
+const APP_BUILD = "20260619-admin-cooks-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -29,6 +29,8 @@ let authProviderStatusPromise = null;
 let ownerRefreshTimer = null;
 let refreshInFlight = false;
 let searchRenderTimer = null;
+let adminCookFilter = "active";
+const adminRemovedCookIds = new Set();
 const pendingActions = new Set();
 const API_TIMEOUT_MS = 15000;
 const MAX_UPLOAD_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -39,6 +41,7 @@ const ACCEPTED_UPLOAD_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/w
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
+const sameId = (left, right) => String(left ?? "") === String(right ?? "");
 const dishMatchKey = (dish) => `${dish?.cookId || ""}::${String(dish?.name || "").trim().toLowerCase()}`;
 const myCook = () => state?.cooks.find((cook) => cook.userId === state.user?.id);
 const isOwner = () => state?.user?.role === "owner";
@@ -46,6 +49,32 @@ const isCook = () => state?.user?.role === "cook";
 const isDriver = () => state?.user?.role === "driver";
 const canUseDarkMode = () => isOwner() || isDriver();
 const shouldUseDarkMode = () => canUseDarkMode() && appDarkMode;
+function pruneRemovedCooks(nextState) {
+  if (!nextState || adminRemovedCookIds.size === 0) return nextState;
+  const removed = (value) => adminRemovedCookIds.has(String(value || ""));
+  const removedDishIds = new Set((nextState.dishes || []).filter((dish) => removed(dish.cookId)).map((dish) => String(dish.id)));
+  const removedOrderIds = new Set((nextState.orders || []).filter((order) => removed(order.cookId) || (order.items || []).some((item) => removedDishIds.has(String(item.dishId)))).map((order) => String(order.id)));
+  const removedPlanIds = new Set((nextState.mealPlans || []).filter((plan) => removed(plan.cookId)).map((plan) => String(plan.id)));
+  return {
+    ...nextState,
+    cooks: (nextState.cooks || []).filter((cook) => !removed(cook.id)),
+    dishes: (nextState.dishes || []).filter((dish) => !removed(dish.cookId)),
+    orders: (nextState.orders || []).filter((order) => !removed(order.cookId) && !removedOrderIds.has(String(order.id))),
+    messages: (nextState.messages || []).filter((message) => !removed(message.toCookId) && !removedOrderIds.has(String(message.orderId))),
+    socialActions: (nextState.socialActions || []).filter((action) => !removed(action.cookId) && !removedDishIds.has(String(action.dishId))),
+    mealPlans: (nextState.mealPlans || []).filter((plan) => !removed(plan.cookId)),
+    subscriptions: (nextState.subscriptions || []).filter((subscription) => !removed(subscription.cookId) && !removedPlanIds.has(String(subscription.planId))),
+    payments: (nextState.payments || []).filter((payment) => !removed(payment.cookId) && !removedOrderIds.has(String(payment.orderId))),
+    refunds: (nextState.refunds || []).filter((refund) => !removedOrderIds.has(String(refund.orderId))),
+    notifications: (nextState.notifications || []).filter((note) => !removed(note.data?.cookId)
+      && !removedDishIds.has(String(note.data?.dishId))
+      && !removedOrderIds.has(String(note.data?.orderId)))
+  };
+}
+function applyAdminState(nextState) {
+  state = pruneRemovedCooks(nextState);
+  return state;
+}
 const roleLabel = (role) => t(`role_${role}`, role === "owner" ? "admin" : role);
 const marketplaceRoutes = new Set(["home", "browse", "dishes", "orders", "favorites", "messages", "become", "help", "settings"]);
 const routePageFromLocation = () => {
@@ -715,7 +744,7 @@ async function refresh() {
   if (!token) return renderAuth();
   refreshInFlight = true;
   try {
-    state = await api("/api/state");
+    applyAdminState(await api("/api/state"));
     renderApp();
   } catch {
     token = null;
@@ -1640,7 +1669,7 @@ function adminCookRequestHtml(cook) {
           </div>
           <div class="toolbar" style="margin:0;justify-content:flex-end">
             <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
-            <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
+            <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected" title="Reject application but keep its audit record">Reject application</button>
             <button class="button small bad" data-cook-status="${cook.id}" data-status="suspended">${t("suspend")}</button>
             <button class="button small secondary" data-admin-edit-cook="${cook.id}">Control profile</button>
             <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove request</button>
@@ -2111,9 +2140,31 @@ function subscriptionCard(subscription) {
   `;
 }
 
+function setAdminCookFilter(filter) {
+  const allowed = new Set(["active", "all", "pending", "approved", "rejected", "suspended"]);
+  adminCookFilter = allowed.has(filter) ? filter : "active";
+  renderApp();
+}
+
+function filteredAdminCooks() {
+  const cooks = state?.cooks || [];
+  if (adminCookFilter === "active") return cooks.filter((cook) => cook.status !== "rejected");
+  if (adminCookFilter === "all") return cooks;
+  return cooks.filter((cook) => cook.status === adminCookFilter);
+}
+
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
+  const visibleCooks = filteredAdminCooks();
+  const cookFilters = [
+    ["active", "Active"],
+    ["all", "All"],
+    ["pending", "Pending"],
+    ["approved", "Approved"],
+    ["rejected", "Rejected"],
+    ["suspended", "Suspended"]
+  ];
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
     <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -2168,36 +2219,41 @@ function renderAdmin() {
         `).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
       </div>
     </section>
-	    <section class="panel" style="margin-top:18px">
-	      <h3>All cook profiles</h3>
-	      ${state.cooks.length ? `
-	        <table class="table">
-	          <thead><tr><th>Cook</th><th>User</th><th>Status</th><th>Dishes</th><th>Actions</th></tr></thead>
-	          <tbody>${state.cooks.map((cook) => {
-	            const cookUser = state.users.find((user) => user.id === cook.userId);
-	            const dishCount = state.dishes.filter((dish) => dish.cookId === cook.id).length;
-	            return `
-	              <tr>
-	                <td><strong>${cook.name}</strong><div class="meta">${cook.cuisine} - ${cook.city}</div></td>
-	                <td>${cookUser?.name || "No linked user"}<div class="meta">${cook.userId || "No user id"}</div></td>
-	                <td><span class="status">${cook.status}</span><div class="meta">${cook.online ? "online" : "offline"} - ${cook.verified ? t("verified") : t("notVerified")}</div></td>
-	                <td>${dishCount}</td>
-	                <td>
-	                  <div class="toolbar" style="margin:0">
-	                    <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
-	                    <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
-	                    <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected">${t("decline", "Decline")}</button>
-	                    <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook</button>
-	                  </div>
-	                </td>
-	              </tr>
-	            `;
-	          }).join("")}</tbody>
-	        </table>
-	      ` : `<div class="empty">No cook profiles exist.</div>`}
-	    </section>
-	    <section class="panel" style="margin-top:18px">
-	      <h3>${t("registrationData")}</h3>
+    <section class="panel" style="margin-top:18px">
+      <div class="price-row" style="align-items:flex-start;gap:12px">
+          <div><h3 style="margin:0">All cook profiles</h3><div class="meta">Rejected applications are kept for audit and shown only in All or Rejected.</div></div>
+          <div class="toolbar" style="margin:0;justify-content:flex-end">
+            ${cookFilters.map(([value, label]) => `<button class="button small ${adminCookFilter === value ? "good" : "secondary"}" type="button" data-admin-cook-filter="${value}">${label}</button>`).join("")}
+          </div>
+        </div>
+      ${visibleCooks.length ? `
+        <table class="table">
+          <thead><tr><th>Cook</th><th>User</th><th>Status</th><th>Dishes</th><th>Actions</th></tr></thead>
+          <tbody>${visibleCooks.map((cook) => {
+            const cookUser = state.users.find((user) => user.id === cook.userId);
+            const dishCount = state.dishes.filter((dish) => dish.cookId === cook.id).length;
+            return `
+              <tr>
+                <td><strong>${cook.name}</strong><div class="meta">${cook.cuisine} - ${cook.city}</div></td>
+                <td>${cookUser?.name || "No linked user"}<div class="meta">${cook.userId || "No user id"}</div></td>
+                <td><span class="status">${cook.status === "rejected" ? "Rejected" : cook.status}</span><div class="meta">${cook.online ? "online" : "offline"} - ${cook.verified ? t("verified") : t("notVerified")}</div></td>
+                <td>${dishCount}</td>
+                <td>
+                  <div class="toolbar" style="margin:0">
+                    <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
+                    <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
+                    <button class="button small bad" data-cook-status="${cook.id}" data-status="rejected" title="Reject application but keep its audit record" ${cook.status === "rejected" ? "disabled" : ""}>Reject application</button>
+                    <button class="button small bad" data-admin-delete-cook="${cook.id}">Remove cook permanently</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join("")}</tbody>
+        </table>
+      ` : `<div class="empty">No ${adminCookFilter === "active" ? "active" : adminCookFilter} cook profiles.</div>`}
+    </section>
+    <section class="panel" style="margin-top:18px">
+      <h3>${t("registrationData")}</h3>
 	      <table class="table">
 	        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th><th>Remove</th></tr></thead>
 	        <tbody>${state.users.map((user) => {
@@ -2784,7 +2840,10 @@ function bindPage() {
 	    button.onclick = () => adminEditCook(button.dataset.adminEditCook);
 	  });
 	  document.querySelectorAll("[data-admin-delete-cook]").forEach((button) => {
-	    button.onclick = () => adminDeleteCook(button.dataset.adminDeleteCook);
+	    button.onclick = () => adminDeleteCook(button.dataset.adminDeleteCook, button);
+	  });
+	  document.querySelectorAll("[data-admin-cook-filter]").forEach((button) => {
+	    button.onclick = () => setAdminCookFilter(button.dataset.adminCookFilter);
 	  });
 	  document.querySelectorAll("[data-admin-delete-user]").forEach((button) => {
 	    button.onclick = () => adminDeleteUser(button.dataset.adminDeleteUser);
@@ -3223,16 +3282,49 @@ async function adminEditCook(cookId) {
   }
 }
 
-async function adminDeleteCook(cookId) {
+async function adminDeleteCook(cookId, button = null) {
   const cook = byId(state.cooks, cookId);
   if (!cook) return;
   if (!window.confirm(`Remove cook profile ${cook.name} and its dishes/orders from the system?`)) return;
+  const id = String(cookId);
+  const previousLabel = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Removing...";
+  }
+  adminRemovedCookIds.add(id);
   try {
-    state = await api(`/api/admin/cooks/${cookId}`, { method: "DELETE" });
-    toast("Cook profile removed.");
+    const nextState = await api(`/api/admin/cooks/${cookId}`, { method: "DELETE" });
+    if ((nextState.cooks || []).some((item) => sameId(item.id, id))) {
+      throw new Error("Cook removal did not persist. Please try again.");
+    }
+    applyAdminState(nextState);
+    renderApp();
+
+    const freshState = await api(`/api/state?ts=${Date.now()}`);
+    if ((freshState.cooks || []).some((item) => sameId(item.id, id))) {
+      adminRemovedCookIds.delete(id);
+      applyAdminState(freshState);
+      renderApp();
+      toast("Cook removal did not persist. Please try again.", true);
+      return;
+    }
+
+    applyAdminState(freshState);
+    toast("Cook profile removed permanently.");
     renderApp();
   } catch (err) {
+    adminRemovedCookIds.delete(id);
+    try {
+      applyAdminState(await api(`/api/state?ts=${Date.now()}`));
+      renderApp();
+    } catch {}
     toast(err.message, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel;
+    }
   }
 }
 

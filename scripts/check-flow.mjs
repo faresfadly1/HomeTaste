@@ -152,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260618-social-smooth-01", "smooth favorite build marker is exposed");
+  assert(health.build === "20260619-admin-cooks-01", "admin cook persistence build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -217,6 +217,10 @@ try {
   assert(/button\.hidden\s*=\s*false/.test(appSrcEarly) && /button\.disabled\s*=\s*false/.test(appSrcEarly), "Google button stays visible and enabled (never silently hidden)");
   assert(appSrcEarly.includes("sign-in is not configured"), "frontend shows a clear 'sign-in is not configured' message");
   assert(appSrcEarly.includes('api("/api/auth/oauth/start"') && appSrcEarly.includes("handleAuthLinkParams"), "frontend Google button uses OAuth start and stores callback auth token");
+  assert(appSrcEarly.includes('let adminCookFilter = "active"') && appSrcEarly.includes('cook.status !== "rejected"'), "default admin cook view excludes rejected applications");
+  assert(appSrcEarly.includes('data-admin-cook-filter="${value}"') && appSrcEarly.includes('["rejected", "Rejected"]'), "admin cook table provides an explicit Rejected filter");
+  assert(appSrcEarly.includes("adminRemovedCookIds") && appSrcEarly.includes("applyAdminState"), "stale admin refreshes cannot reinsert removed cooks");
+  assert(appSrcEarly.includes('api(`/api/state?ts=${Date.now()}`)') && appSrcEarly.includes("Cook removal did not persist"), "admin UI verifies permanent cook removal against a fresh state");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
@@ -238,6 +242,7 @@ try {
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
+  assert(serverSrcEarly.includes("cascadeRemovalStillPresent") && serverSrcEarly.includes("Cook removal did not persist"), "backend verifies Supabase cook cascade removal before reporting success");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const expiringAccount = await auth(base, "signup", {
@@ -579,12 +584,17 @@ try {
   });
   assert(suspendedDish.status === 403, "suspended cook cannot publish new dishes");
 
+  const linkedDishIdsBeforeRemoval = new Set(ownerState.dishes.filter((item) => item.cookId === ownerCook.id).map((item) => item.id));
+  const linkedOrderIdsBeforeRemoval = new Set(ownerState.orders.filter((item) => item.cookId === ownerCook.id).map((item) => item.id));
   ownerState = await request(base, owner.token, "DELETE", `/api/admin/cooks/${ownerCook.id}`);
   assert(!ownerState.cooks.some((cook) => cook.id === ownerCook.id), "admin remove cook deletes cook profile");
   assert(!ownerState.dishes.some((item) => item.cookId === ownerCook.id), "admin remove cook deletes linked dishes");
   assert(!ownerState.orders.some((item) => item.cookId === ownerCook.id), "admin remove cook deletes linked orders");
+  assert(!ownerState.socialActions.some((item) => item.cookId === ownerCook.id || linkedDishIdsBeforeRemoval.has(item.dishId)), "admin remove cook deletes linked social actions");
+  assert(!ownerState.messages.some((item) => linkedOrderIdsBeforeRemoval.has(item.orderId)) && !ownerState.payments.some((item) => linkedOrderIdsBeforeRemoval.has(item.orderId)) && !ownerState.refunds.some((item) => linkedOrderIdsBeforeRemoval.has(item.orderId)), "admin remove cook deletes linked messages, payments, and refunds");
   const reloadedOwnerState = await request(base, owner.token, "GET", "/api/state");
   assert(!reloadedOwnerState.cooks.some((cook) => cook.id === ownerCook.id), "admin removal remains saved after reload");
+  assert(!reloadedOwnerState.dishes.some((item) => item.cookId === ownerCook.id) && !reloadedOwnerState.orders.some((item) => item.cookId === ownerCook.id) && !reloadedOwnerState.socialActions.some((item) => item.cookId === ownerCook.id || linkedDishIdsBeforeRemoval.has(item.dishId)), "fresh state does not restore removed cook data");
 
   console.log("HomeTaste full role/data flow check passed.");
 } finally {

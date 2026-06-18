@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260618-social-smooth-01";
+const backendBuild = "20260619-admin-cooks-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -689,6 +689,19 @@ function applyCascadeRemoval(db, removed) {
   db.authTokens = (db.authTokens || []).filter((item) => !removed.authTokens.has(item.id));
   db.notificationDevices = (db.notificationDevices || []).filter((item) => !removed.notificationDevices.has(item.id));
   for (const sessionToken of removed.sessions) delete db.sessions[sessionToken];
+}
+
+function cascadeRemovalStillPresent(db, removed) {
+  return db.cooks.some((item) => removed.cooks.has(item.id))
+    || db.dishes.some((item) => removed.dishes.has(item.id))
+    || db.orders.some((item) => removed.orders.has(item.id))
+    || db.messages.some((item) => removed.messages.has(item.id))
+    || db.socialActions.some((item) => removed.socialActions.has(item.id))
+    || db.mealPlans.some((item) => removed.mealPlans.has(item.id))
+    || db.subscriptions.some((item) => removed.subscriptions.has(item.id))
+    || db.payments.some((item) => removed.payments.has(item.id))
+    || db.refunds.some((item) => removed.refunds.has(item.id))
+    || db.notifications.some((item) => removed.notifications.has(item.id));
 }
 
 function configuredGateways() {
@@ -3173,6 +3186,9 @@ async function api(req, res, pathname) {
       await saveDb(db);
     }
     const freshDb = useSupabase ? await loadDb() : db;
+    if (cascadeRemovalStillPresent(freshDb, removed)) {
+      return json(res, 500, { error: "Cook removal did not persist. Please try again." });
+    }
     return json(res, 200, publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user));
   }
 
