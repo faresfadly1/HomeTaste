@@ -1,0 +1,31 @@
+name: Keep backend warm
+
+# Pings the Railway API every ~10 minutes so the free-tier service never sleeps.
+# This is what stops the "open the app and nothing works for ~30s" cold start
+# that makes login and buttons feel broken on first visit.
+# Free for public repositories. Note: GitHub auto-disables scheduled workflows
+# after 60 days with no repo activity — push anything to re-enable.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health endpoint
+        run: |
+          URL="https://hometaste-api-production.up.railway.app/api/health"
+          for i in 1 2 3 4; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 70 "$URL" || echo "000")
+            echo "Attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "Backend is awake."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Backend did not return 200 yet (it may still be waking). Not failing the run."
+          exit 0
