@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-admin-cooks-01";
+const APP_BUILD = "20260619-admin-ops-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -30,6 +30,20 @@ let ownerRefreshTimer = null;
 let refreshInFlight = false;
 let searchRenderTimer = null;
 let adminCookFilter = "active";
+let adminCookSearch = "";
+let adminUserSearch = "";
+let adminDishSearch = "";
+let adminOrderFilters = { q: "", status: "", cookId: "", driverId: "", customerId: "", date: "", payment: "", refund: "" };
+let adminChatFilter = "all";
+let adminChatSearch = "";
+let activeAdminChatOrderId = "";
+let selectedAdminOrderId = "";
+let systemHealth = null;
+let systemHealthLoading = false;
+const adminReadChatIds = new Set((() => {
+  try { return JSON.parse(localStorage.getItem("hometaste_admin_read_chats") || "[]"); }
+  catch { return []; }
+})());
 const adminRemovedCookIds = new Set();
 const pendingActions = new Set();
 const API_TIMEOUT_MS = 15000;
@@ -38,6 +52,7 @@ const MAX_COMPRESSED_IMAGE_BYTES = 500 * 1024;
 const MAX_IMAGE_DIMENSION = 1000;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
 const ACCEPTED_UPLOAD_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const isProductionDeployment = ["faresfadly1.github.io", "hometaste-api-production.up.railway.app"].includes(window.location.hostname);
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -964,6 +979,7 @@ function staticPublicState(db, user) {
     socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
     users: user?.role === "owner" ? db.users.map(staticSafeUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
+    sessionInfo: user ? { active: Object.values(db.sessions || {}).filter((session) => session.userId === user.id).length, currentExpiresAt: null } : null,
     stats: user?.role === "owner" ? {
       users: db.users.length,
       cooks: db.cooks.length,
@@ -1083,6 +1099,10 @@ async function staticApi(path, options = {}) {
   const input = options.body ? JSON.parse(options.body) : {};
   const db = loadStaticDb();
 
+  if (method === "GET" && path === "/api/health") {
+    return { ok: true, build: APP_BUILD, database: "local-json", auth: { google: false }, payments: { iban: true }, push: { inApp: true }, tracking: { openStreetMap: true } };
+  }
+
   if (method === "GET" && path === "/api/state") {
     const user = staticUserByToken(db);
     if (!user) throw new Error("Please sign in first.");
@@ -1101,6 +1121,14 @@ async function staticApi(path, options = {}) {
 
   const user = staticUserByToken(db);
   if (!user) throw new Error("Please sign in first.");
+
+  if (method === "POST" && path === "/api/auth/sessions/revoke-others") {
+    Object.entries(db.sessions || {}).forEach(([sessionToken, session]) => {
+      if (session.userId === user.id && sessionToken !== token) delete db.sessions[sessionToken];
+    });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
 
   if (method === "PATCH" && path === "/api/users/profile") {
     if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
@@ -1158,9 +1186,13 @@ async function staticApi(path, options = {}) {
   if (method === "POST" && path === "/api/dishes") {
     const cook = staticCookForUser(db, user.id);
     if (!cook && user.role !== "owner") throw new Error("Only cooks can add dishes.");
+    const targetCook = db.cooks.find((item) => item.id === (user.role === "owner" && input.cookId ? input.cookId : cook?.id));
+    if (!targetCook) throw new Error("Cook profile not found.");
+    if (user.role === "owner" && targetCook.status !== "approved") throw new Error("Admin can only create dishes for approved cooks.");
+    if (user.role === "owner" && !String(input.image || "").trim()) throw new Error("A real dish image is required for admin-created dishes.");
     const dish = {
       id: `dish_${Date.now()}`,
-      cookId: user.role === "owner" && input.cookId ? input.cookId : cook.id,
+      cookId: targetCook.id,
       name: String(input.name || "").trim(),
       description: String(input.description || "").trim(),
       price: Number(input.price || 0),
@@ -1329,6 +1361,7 @@ async function staticApi(path, options = {}) {
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(nextStatus)) throw new Error("Cook can accept, prepare, mark finished, or cancel.");
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, mark near you, or mark delivered.");
     if (nextStatus === "cancelled") {
+      if (user.role === "owner" && !String(input.note || input.reason || "").trim()) throw new Error("Admin cancellation requires a reason.");
       staticCancelOrder(order, user, input.note || input.reason || "");
       const orderCook = db.cooks.find((item) => item.id === order.cookId);
       for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
@@ -1423,7 +1456,10 @@ async function staticApi(path, options = {}) {
   if (user.role === "owner" && method === "PATCH" && path.startsWith("/api/admin/users/")) {
     const target = db.users.find((item) => item.id === path.split("/").pop());
     if (!target) throw new Error("User not found.");
-    if (["customer", "cook", "driver", "owner"].includes(input.role)) target.role = input.role;
+    if (target.role === "owner") throw new Error("Owner accounts cannot be changed from normal role management.");
+    if (input.role === "owner") throw new Error("Owner promotion requires a separate protected process.");
+    if (!["customer", "cook", "driver"].includes(input.role)) throw new Error("Choose customer, cook, or driver.");
+    target.role = input.role;
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1482,6 +1518,20 @@ function debounceRenderApp(delay = 180) {
   searchRenderTimer = setTimeout(() => {
     searchRenderTimer = null;
     renderApp();
+  }, delay);
+}
+
+function debounceAdminRender(selector, delay = 220) {
+  clearTimeout(searchRenderTimer);
+  searchRenderTimer = setTimeout(() => {
+    searchRenderTimer = null;
+    renderApp();
+    const input = document.querySelector(selector);
+    if (input) {
+      input.focus();
+      const end = input.value.length;
+      input.setSelectionRange?.(end, end);
+    }
   }, delay);
 }
 
@@ -2037,7 +2087,68 @@ function renderPage() {
   return renderDashboard();
 }
 
+function userName(userId, fallback = "Unknown user") {
+  return state.users?.find((user) => sameId(user.id, userId))?.name || fallback;
+}
+
+function isToday(value) {
+  if (!value) return false;
+  return new Date(value).toDateString() === new Date().toDateString();
+}
+
+function adminAuditEntries() {
+  return (state.notifications || [])
+    .filter((note) => note.data?.audit)
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+}
+
+function renderAdminDashboard() {
+  const orders = state.orders || [];
+  const activeStatuses = new Set(["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you"]);
+  const activeOrders = orders.filter((order) => activeStatuses.has(order.status));
+  const cancelledOrders = orders.filter((order) => order.status === "cancelled");
+  const onlineCooks = (state.cooks || []).filter((cook) => cook.status === "approved" && cook.online);
+  const activeDrivers = new Set(activeOrders.map((order) => order.driverId).filter(Boolean));
+  const todayPayments = (state.payments || []).filter((payment) => isToday(payment.releasedAt || payment.capturedAt));
+  const todayRevenue = todayPayments.length
+    ? todayPayments.reduce((sum, payment) => sum + Number(payment.gross || 0), 0)
+    : orders.filter((order) => order.status === "delivered" && isToday(order.updatedAt)).reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const activity = adminAuditEntries().slice(0, 8);
+  return `
+    ${header(t("dashboardTitle"), "Live operations, approvals, fulfillment, and support at a glance.")}
+    <section class="admin-metric-grid">
+      <button class="admin-metric" data-page="admin"><small>Pending cooks</small><strong>${state.stats.pendingCooks || 0}</strong><span>Review applications</span></button>
+      <button class="admin-metric" data-page="admin"><small>Pending refunds</small><strong>${state.stats.pendingRefunds || 0}</strong><span>Resolve customer issues</span></button>
+      <button class="admin-metric" data-page="orders"><small>Active orders</small><strong>${activeOrders.length}</strong><span>Monitor fulfillment</span></button>
+      <button class="admin-metric" data-page="orders"><small>Cancelled orders</small><strong>${cancelledOrders.length}</strong><span>Review cancellations</span></button>
+      <button class="admin-metric" data-page="admin"><small>Online cooks</small><strong>${onlineCooks.length}</strong><span>Approved and available</span></button>
+      <button class="admin-metric" data-page="orders"><small>Active drivers</small><strong>${activeDrivers.size}</strong><span>Assigned to live orders</span></button>
+      <div class="admin-metric"><small>Today revenue</small><strong>${money(todayRevenue)}</strong><span>Released or delivered today</span></div>
+      <button class="admin-metric" data-page="chat"><small>Inbox</small><strong>${adminUnreadConversationCount()}</strong><span>Unread conversations</span></button>
+    </section>
+    <section class="grid cols-2" style="margin-top:18px">
+      <div class="panel">
+        <div class="section-heading"><div><h3>Operations</h3><p>High-priority admin workflows.</p></div></div>
+        <div class="admin-operation-grid">
+          <button class="admin-operation-card" data-page="admin"><strong>Cook approvals</strong><span>${state.stats.pendingCooks || 0} waiting</span></button>
+          <button class="admin-operation-card" data-page="orders"><strong>Order control</strong><span>${activeOrders.length} active</span></button>
+          <button class="admin-operation-card" data-page="chat"><strong>Support inbox</strong><span>${adminUnreadConversationCount()} unread</span></button>
+          <button class="admin-operation-card" data-page="settings"><strong>System health</strong><span>Open live status</span></button>
+        </div>
+        <button class="button small secondary" data-page="browse" style="margin-top:14px">Browse food</button>
+      </div>
+      <div class="panel">
+        <div class="section-heading"><div><h3>Recent activity</h3><p>Administrative changes recorded by the backend.</p></div></div>
+        <div class="activity-list">
+          ${activity.map((note) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${note.text}</strong><small>${new Date(note.createdAt).toLocaleString()}</small></div></div>`).join("") || `<div class="empty">No admin activity recorded yet.</div>`}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard() {
+  if (isOwner()) return renderAdminDashboard();
   if (isDriver()) {
     const driverOrders = state.orders || [];
     const availableOrders = driverOrders.filter((order) => !order.driverId && ["accepted", "preparing", "ready"].includes(order.status));
@@ -2074,7 +2185,7 @@ function renderDashboard() {
       <div class="stat"><small>${t("dishes")}</small><strong>${state.dishes.length}</strong></div>
       <div class="stat"><small>${t("cooks")}</small><strong>${state.cooks.length}</strong></div>
       <div class="stat"><small>${t("yourOrders")}</small><strong>${orders.length}</strong></div>
-      <div class="stat"><small>${t("orderValue")}</small><strong>${money(isOwner() ? state.stats.revenue : revenue)}</strong></div>
+      <div class="stat"><small>${t("orderValue")}</small><strong>${money(revenue)}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
@@ -2083,8 +2194,7 @@ function renderDashboard() {
           <button class="button secondary" data-page="browse">${t("browseOrderFood")}</button>
           <button class="button secondary" data-page="orders">${t("trackOrders")}</button>
           <button class="button secondary" data-page="chat">${t("messageAroundOrders")}</button>
-          ${isOwner() ? `<button class="button" data-page="admin">${t("openAdmin")}</button>` : ""}
-          ${!isOwner() ? (isCook() ? `<button class="button" data-page="cook">${t("openCookStudio")}</button>` : `<button class="button" data-page="become">${t("applyAsCook")}</button>`) : ""}
+          ${isCook() ? `<button class="button" data-page="cook">${t("openCookStudio")}</button>` : `<button class="button" data-page="become">${t("applyAsCook")}</button>`}
         </div>
       </div>
       <div class="panel">
@@ -2148,15 +2258,38 @@ function setAdminCookFilter(filter) {
 
 function filteredAdminCooks() {
   const cooks = state?.cooks || [];
-  if (adminCookFilter === "active") return cooks.filter((cook) => cook.status !== "rejected");
-  if (adminCookFilter === "all") return cooks;
-  return cooks.filter((cook) => cook.status === adminCookFilter);
+  const statusFiltered = adminCookFilter === "active"
+    ? cooks.filter((cook) => cook.status !== "rejected")
+    : adminCookFilter === "all"
+      ? cooks
+      : cooks.filter((cook) => cook.status === adminCookFilter);
+  const query = adminCookSearch.trim().toLowerCase();
+  if (!query) return statusFiltered;
+  return statusFiltered.filter((cook) => {
+    const user = state.users?.find((item) => sameId(item.id, cook.userId));
+    return `${cook.name} ${cook.cuisine} ${cook.city} ${cook.status} ${user?.email || ""} ${user?.phone || ""}`.toLowerCase().includes(query);
+  });
+}
+
+function filteredAdminUsers() {
+  const query = adminUserSearch.trim().toLowerCase();
+  if (!query) return state.users || [];
+  return (state.users || []).filter((user) => `${user.name} ${user.email} ${user.phone || ""} ${user.city || ""} ${user.role}`.toLowerCase().includes(query));
+}
+
+function filteredAdminDishes() {
+  const query = adminDishSearch.trim().toLowerCase();
+  if (!query) return state.dishes || [];
+  return (state.dishes || []).filter((dish) => `${dish.name} ${dish.description || ""} ${dish.country || ""} ${cookName(dish.cookId)}`.toLowerCase().includes(query));
 }
 
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
   const visibleCooks = filteredAdminCooks();
+  const visibleUsers = filteredAdminUsers();
+  const visibleDishes = filteredAdminDishes();
+  const approvedCooks = state.cooks.filter((cook) => cook.status === "approved");
   const cookFilters = [
     ["active", "Active"],
     ["all", "All"],
@@ -2167,7 +2300,7 @@ function renderAdmin() {
   ];
   return `
     ${header(t("adminTitle"), t("adminSubtitle"))}
-    <section class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <section class="admin-metric-grid">
       <div class="stat"><small>${t("users")}</small><strong>${state.stats.users}</strong></div>
       <div class="stat"><small>${t("cooks")}</small><strong>${state.stats.cooks}</strong></div>
       <div class="stat"><small>${t("drivers")}</small><strong>${state.stats.drivers || 0}</strong></div>
@@ -2177,46 +2310,44 @@ function renderAdmin() {
       <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
       <div class="stat"><small>${t("refundReview")}</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
 	    </section>
-	    <section class="panel" style="margin-top:18px">
-	      <div class="price-row">
-	        <div>
-	          <h3 style="margin:0">Real data cleanup</h3>
-	          <div class="meta">Remove old test/demo accounts, duplicate test dishes, and linked test orders from admin data.</div>
-	        </div>
-	        <button class="button secondary" type="button" id="cleanupDemoData">Clean test data</button>
-	      </div>
-	    </section>
 	    <section class="grid cols-2" style="margin-top:18px">
 	      <div class="panel">
 	        <h3>Become a cook requests</h3>
 	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
       </div>
       <div class="panel">
-        <h3>Add dish for any cook</h3>
-        <form class="form" id="adminDishForm" style="margin-bottom:18px">
-          <div class="field"><label>Cook profile</label><select name="cookId" required>
-            <option value="">Choose cook</option>
-            ${state.cooks.map((cook) => `<option value="${cook.id}">${cook.name} - ${cook.status}</option>`).join("")}
-          </select></div>
-          <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Dish name"></div>
-          <div class="field"><label>${t("description")}</label><textarea name="description" placeholder="Real dish description"></textarea></div>
-          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" value="150"></div>
-          <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" min="1" value="35"></div>
-          <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
-          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
-          <button class="button">${t("createDish")}</button>
-        </form>
-        <h3>${t("dishControls")}</h3>
-        ${state.dishes.map((dish) => `
-          <div class="row">
-            <div><strong>${dish.name}</strong><div class="meta">${cookName(dish.cookId)} - ${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div></div>
-            <div class="toolbar" style="margin:0">
-              <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
-              <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
-            </div>
-          </div>
-        `).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
+        <div class="section-heading"><div><h3>${t("dishControls")}</h3><p>Search, hide, or remove marketplace dishes.</p></div></div>
+        <input class="input admin-search" data-admin-search="dish" value="${adminDishSearch}" placeholder="Search dishes, cooks, or countries">
+        <div class="admin-card-list" style="margin-top:12px">
+          ${visibleDishes.map((dish) => `
+            <article class="admin-list-card">
+              <div class="admin-list-main"><strong>${dish.name}</strong><span>${cookName(dish.cookId)} · ${money(dish.price)} · ${dish.country || "No country"}</span></div>
+              <span class="status">${dish.available ? t("availableLower") : t("hidden")}</span>
+              <div class="admin-actions">
+                <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
+                <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
+              </div>
+            </article>
+          `).join("") || `<div class="empty">No dishes match this search.</div>`}
+        </div>
+        <details class="admin-disclosure" style="margin-top:16px">
+          <summary>Advanced Tools · Add dish for an approved cook</summary>
+          <form class="form" id="adminDishForm" style="margin-top:14px">
+            <div class="notice">Admin dish creation is restricted to approved cooks and requires a real image.</div>
+            <div class="field"><label>Approved cook</label><select name="cookId" required>
+              <option value="">Choose approved cook</option>
+              ${approvedCooks.map((cook) => `<option value="${cook.id}">${cook.name}</option>`).join("")}
+            </select></div>
+            <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Dish name"></div>
+            <div class="field"><label>${t("description")}</label><textarea name="description" placeholder="Real dish description"></textarea></div>
+            <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" step="0.01" inputmode="decimal"></div>
+            <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" required min="5" max="240" value="35"></div>
+            <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
+            <div class="field"><label>Dish photo</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
+            <div class="field"><label>Or image URL</label><input class="input" type="url" name="image" placeholder="https://..."></div>
+            <button class="button">${t("createDish")}</button>
+          </form>
+        </details>
       </div>
     </section>
     <section class="panel" style="margin-top:18px">
@@ -2226,19 +2357,20 @@ function renderAdmin() {
             ${cookFilters.map(([value, label]) => `<button class="button small ${adminCookFilter === value ? "good" : "secondary"}" type="button" data-admin-cook-filter="${value}">${label}</button>`).join("")}
           </div>
         </div>
+      <input class="input admin-search" data-admin-search="cook" value="${adminCookSearch}" placeholder="Search cooks, email, phone, city, or cuisine" style="margin:14px 0">
       ${visibleCooks.length ? `
-        <table class="table">
+        <div class="admin-table-wrap"><table class="table admin-responsive-table">
           <thead><tr><th>Cook</th><th>User</th><th>Status</th><th>Dishes</th><th>Actions</th></tr></thead>
           <tbody>${visibleCooks.map((cook) => {
             const cookUser = state.users.find((user) => user.id === cook.userId);
             const dishCount = state.dishes.filter((dish) => dish.cookId === cook.id).length;
             return `
               <tr>
-                <td><strong>${cook.name}</strong><div class="meta">${cook.cuisine} - ${cook.city}</div></td>
-                <td>${cookUser?.name || "No linked user"}<div class="meta">${cook.userId || "No user id"}</div></td>
-                <td><span class="status">${cook.status === "rejected" ? "Rejected" : cook.status}</span><div class="meta">${cook.online ? "online" : "offline"} - ${cook.verified ? t("verified") : t("notVerified")}</div></td>
-                <td>${dishCount}</td>
-                <td>
+                <td data-label="Cook"><strong>${cook.name}</strong><div class="meta">${cook.cuisine} - ${cook.city}</div></td>
+                <td data-label="User">${cookUser?.name || "No linked user"}<div class="meta">${cook.userId || "No user id"}</div></td>
+                <td data-label="Status"><span class="status">${cook.status === "rejected" ? "Rejected" : cook.status}</span><div class="meta">${cook.online ? "online" : "offline"} - ${cook.verified ? t("verified") : t("notVerified")}</div></td>
+                <td data-label="Dishes">${dishCount}</td>
+                <td data-label="Actions">
                   <div class="toolbar" style="margin:0">
                     <button class="button small good" data-cook-status="${cook.id}" data-status="approved">${t("approve")}</button>
                     <button class="button small secondary" data-cook-status="${cook.id}" data-status="pending">${t("pending")}</button>
@@ -2249,39 +2381,42 @@ function renderAdmin() {
               </tr>
             `;
           }).join("")}</tbody>
-        </table>
+        </table></div>
       ` : `<div class="empty">No ${adminCookFilter === "active" ? "active" : adminCookFilter} cook profiles.</div>`}
     </section>
     <section class="panel" style="margin-top:18px">
-      <h3>${t("registrationData")}</h3>
-	      <table class="table">
+      <div class="section-heading"><div><h3>${t("registrationData")}</h3><p>Owner access is protected and cannot be assigned here.</p></div></div>
+      <input class="input admin-search" data-admin-search="user" value="${adminUserSearch}" placeholder="Search users by name, email, phone, city, or role" style="margin-bottom:14px">
+	      <div class="admin-table-wrap"><table class="table admin-responsive-table">
 	        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th><th>Remove</th></tr></thead>
-	        <tbody>${state.users.map((user) => {
+	        <tbody>${visibleUsers.map((user) => {
 	          const cook = state.cooks.find((item) => item.userId === user.id);
 	          return `
           <tr>
-            <td><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
-            <td>${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
-            <td>${new Date(user.createdAt).toLocaleString()}</td>
-            <td>${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
-            <td>
-              <select data-role-user="${user.id}">
-	                ${["customer", "cook", "driver", "owner"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
-	              </select>
+            <td data-label="Person"><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
+            <td data-label="Contact">${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
+            <td data-label="Registration">${new Date(user.createdAt).toLocaleString()}</td>
+            <td data-label="Cook profile">${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
+            <td data-label="Change role">
+              ${user.role === "owner" ? `<span class="status">Protected owner</span>` : `<select data-role-user="${user.id}">
+	                ${["customer", "cook", "driver"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
+	              </select>`}
 	            </td>
-	            <td><button class="button small bad" data-admin-delete-user="${user.id}" ${user.id === state.user.id || user.role === "owner" ? "disabled" : ""}>Remove user</button></td>
+	            <td data-label="Remove"><button class="button small bad" data-admin-delete-user="${user.id}" ${user.id === state.user.id || user.role === "owner" ? "disabled" : ""}>Remove user</button></td>
 	          </tr>
 	        `;}).join("")}</tbody>
-	      </table>
+	      </table></div>
     </section>
     <section class="panel" style="margin-top:18px">
-      <h3>${t("fulfillmentControl")}</h3>
-      ${state.orders.length ? `
-        <table class="table">
-          <thead><tr><th>${t("order")}</th><th>${t("customer")}</th><th>${t("cookFallback")}</th><th>${t("driver")}</th><th>${t("items")}</th><th>${t("status")}</th><th>${t("actions")}</th></tr></thead>
-          <tbody>${state.orders.map(orderRow).join("")}</tbody>
-        </table>
-      ` : `<div class="empty">${t("noOrders")}</div>`}
+      <div class="section-heading">
+        <div><h3>${t("fulfillmentControl")}</h3><p>Use the dedicated Orders workspace for filtering, status history, payments, refunds, and protected status changes.</p></div>
+        <button class="button" data-page="orders">Open order control</button>
+      </div>
+      <div class="admin-summary-strip">
+        <span><strong>${state.orders.filter((order) => !["delivered", "cancelled"].includes(order.status)).length}</strong> active</span>
+        <span><strong>${state.orders.filter((order) => order.status === "delivered").length}</strong> delivered</span>
+        <span><strong>${state.orders.filter((order) => order.status === "cancelled").length}</strong> cancelled</span>
+      </div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
@@ -2314,20 +2449,33 @@ function renderAdmin() {
     <section class="panel" style="margin-top:18px">
       <h3>${t("activeSubscriptions")}</h3>
       ${state.subscriptions?.length ? `
-        <table class="table">
+        <div class="admin-table-wrap"><table class="table admin-responsive-table">
           <thead><tr><th>Subscription</th><th>Customer</th><th>Cook</th><th>Plan</th><th>Status</th></tr></thead>
           <tbody>${state.subscriptions.map((subscription) => `
             <tr>
-              <td><strong>${subscription.id}</strong><div class="meta">${subscription.mealsPerWeek} ${t("mealsWeekly")}</div></td>
-              <td>${state.users.find((user) => user.id === subscription.customerId)?.name || subscription.customerId}</td>
-              <td>${cookName(subscription.cookId)}</td>
-              <td>${money(subscription.price)}</td>
-              <td><span class="status">${subscription.status}</span></td>
+              <td data-label="Subscription"><strong>${subscription.id}</strong><div class="meta">${subscription.mealsPerWeek} ${t("mealsWeekly")}</div></td>
+              <td data-label="Customer">${state.users.find((user) => user.id === subscription.customerId)?.name || subscription.customerId}</td>
+              <td data-label="Cook">${cookName(subscription.cookId)}</td>
+              <td data-label="Plan">${money(subscription.price)}</td>
+              <td data-label="Status"><span class="status">${subscription.status}</span></td>
             </tr>
           `).join("")}</tbody>
-        </table>
+        </table></div>
       ` : `<div class="empty">${t("noSubscriptions")}</div>`}
     </section>
+    <section class="panel" style="margin-top:18px">
+      <div class="section-heading"><div><h3>Admin activity log</h3><p>Approvals, rejections, suspensions, removals, order changes, and refund decisions.</p></div></div>
+      <div class="activity-list">
+        ${adminAuditEntries().slice(0, 30).map((note) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${note.text}</strong><small>${note.data?.entityType || "system"} · ${note.data?.entityId || "-"} · ${new Date(note.createdAt).toLocaleString()}</small></div></div>`).join("") || `<div class="empty">No admin activity recorded yet.</div>`}
+      </div>
+    </section>
+    ${!isProductionDeployment ? `<section class="panel danger-zone" style="margin-top:18px">
+      <details>
+        <summary>Danger Zone</summary>
+        <p class="meta">Development-only cleanup for test users and linked records. This control is hidden in production.</p>
+        <button class="button bad" type="button" id="cleanupDemoData">Clean test data</button>
+      </details>
+    </section>` : ""}
   `;
 }
 
@@ -2437,6 +2585,7 @@ function dishMini(dish) {
 }
 
 function renderOrders() {
+  if (isOwner()) return renderAdminOrders();
   return `
     ${header(isDriver() ? t("deliveriesTitle") : t("ordersTitle"), isDriver() ? t("deliveriesSubtitle") : t("ordersSubtitle"))}
     <section class="panel">
@@ -2447,6 +2596,103 @@ function renderOrders() {
         </table>
       ` : `<div class="empty">${t("noOrders")}</div>`}
     </section>
+  `;
+}
+
+function adminOrderRefund(orderId) {
+  return (state.refunds || []).find((refund) => sameId(refund.orderId, orderId));
+}
+
+function filteredAdminOrders() {
+  const filters = adminOrderFilters;
+  return (state.orders || []).filter((order) => {
+    const customer = state.users?.find((user) => sameId(user.id, order.customerId));
+    const driver = state.users?.find((user) => sameId(user.id, order.driverId));
+    const refund = adminOrderRefund(order.id);
+    const haystack = `${order.id} ${customer?.name || ""} ${customer?.email || ""} ${cookName(order.cookId)} ${driver?.name || ""} ${(order.items || []).map((item) => item.name).join(" ")}`.toLowerCase();
+    return (!filters.q || haystack.includes(filters.q.toLowerCase()))
+      && (!filters.status || order.status === filters.status)
+      && (!filters.cookId || sameId(order.cookId, filters.cookId))
+      && (!filters.driverId || sameId(order.driverId, filters.driverId))
+      && (!filters.customerId || sameId(order.customerId, filters.customerId))
+      && (!filters.date || String(order.createdAt || "").slice(0, 10) === filters.date)
+      && (!filters.payment || order.paymentMethod === filters.payment || order.payment?.status === filters.payment)
+      && (!filters.refund || (filters.refund === "none" ? !refund : refund?.status === filters.refund || refund?.outcome === filters.refund));
+  }).sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+}
+
+function adminOrderCard(order) {
+  const customer = state.users?.find((user) => sameId(user.id, order.customerId));
+  const driver = state.users?.find((user) => sameId(user.id, order.driverId));
+  const refund = adminOrderRefund(order.id);
+  return `
+    <article class="admin-order-card">
+      <div class="admin-order-head"><div><strong>${order.id}</strong><span>${new Date(order.createdAt).toLocaleString()}</span></div><span class="status">${statusLabel(order.status)}</span></div>
+      <div class="admin-order-grid">
+        <span><small>Customer</small><strong>${customer?.name || order.customerId}</strong></span>
+        <span><small>Cook</small><strong>${cookName(order.cookId)}</strong></span>
+        <span><small>Driver</small><strong>${driver?.name || "Unassigned"}</strong></span>
+        <span><small>Total</small><strong>${money(order.total)}</strong></span>
+        <span><small>Payment</small><strong>${paymentLabel(order.paymentMethod)} · ${order.payment?.status || "pending"}</strong></span>
+        <span><small>Refund</small><strong>${refund ? `${refund.status}${refund.outcome ? ` · ${refund.outcome}` : ""}` : "None"}</strong></span>
+      </div>
+      <div class="admin-order-items">${order.items.map((item) => `${item.qty}x ${item.name}`).join(" · ")}</div>
+      <div class="admin-actions">
+        <button class="button small secondary" data-admin-order-details="${order.id}">Order details</button>
+        ${orderActionButtons(order)}
+      </div>
+    </article>
+  `;
+}
+
+function adminOrderDetails(order) {
+  if (!order) return "";
+  const customer = state.users?.find((user) => sameId(user.id, order.customerId));
+  const driver = state.users?.find((user) => sameId(user.id, order.driverId));
+  const refund = adminOrderRefund(order.id);
+  const payment = (state.payments || []).find((item) => sameId(item.orderId, order.id)) || order.payment || {};
+  return `
+    <div class="admin-modal-backdrop" data-close-order-details>
+      <section class="admin-drawer" role="dialog" aria-modal="true" aria-label="Order details" onclick="event.stopPropagation()">
+        <div class="section-heading"><div><h3>${order.id}</h3><p>${new Date(order.createdAt).toLocaleString()}</p></div><button class="icon-close" type="button" data-close-order-details aria-label="Close">×</button></div>
+        <div class="admin-order-grid">
+          <span><small>Customer</small><strong>${customer?.name || order.customerId}</strong><em>${customer?.email || ""}</em></span>
+          <span><small>Cook</small><strong>${cookName(order.cookId)}</strong></span>
+          <span><small>Driver</small><strong>${driver?.name || "Unassigned"}</strong><em>${driver?.phone || ""}</em></span>
+          <span><small>Delivery</small><strong>${order.deliveryAddress || "No address"}</strong></span>
+        </div>
+        <div class="detail-section"><h4>Items</h4>${order.items.map((item) => `<div class="row"><span>${item.qty}x ${item.name}</span><strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong></div>`).join("")}</div>
+        <div class="detail-section"><h4>Status history</h4><div class="timeline">${(order.statusHistory || []).map((entry) => `<div><span></span><p><strong>${statusLabel(entry.status)}</strong><small>${new Date(entry.at).toLocaleString()} · ${entry.role || userName(entry.byUserId, "system")}</small>${entry.note ? `<em>${entry.note}</em>` : ""}</p></div>`).join("") || `<div class="empty">No history yet.</div>`}</div></div>
+        <div class="detail-section"><h4>Payment</h4><div class="admin-order-grid"><span><small>Method</small><strong>${paymentLabel(order.paymentMethod)}</strong></span><span><small>Status</small><strong>${payment.status || "pending"}</strong></span><span><small>Commission</small><strong>${money(payment.commission || 0)}</strong></span><span><small>Cook payout</small><strong>${money(payment.cookPayout || 0)}</strong></span></div></div>
+        <div class="detail-section"><h4>Refund</h4>${refund ? `<p><strong>${refund.status}</strong> · ${refundLabel(refund.reason)} · ${money(refund.amount || 0)}</p><p class="meta">${refund.details || "No customer note"}${refund.adminNote ? ` · Admin: ${refund.adminNote}` : ""}</p>` : `<div class="empty">No refund request.</div>`}</div>
+        <div class="admin-actions">${orderActionButtons(order)}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderAdminOrders() {
+  const orders = filteredAdminOrders();
+  const drivers = (state.users || []).filter((user) => user.role === "driver");
+  const customers = (state.users || []).filter((user) => user.role === "customer");
+  const selected = selectedAdminOrderId ? state.orders.find((order) => sameId(order.id, selectedAdminOrderId)) : null;
+  return `
+    ${header("Order Control", "Filter fulfillment, inspect history, and make protected status changes.")}
+    <section class="panel admin-filter-panel">
+      <div class="admin-filter-grid">
+        <input class="input" data-admin-order-filter="q" value="${adminOrderFilters.q}" placeholder="Search order, customer, cook, driver, or dish">
+        <select data-admin-order-filter="status"><option value="">All statuses</option>${["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"].map((value) => `<option value="${value}" ${adminOrderFilters.status === value ? "selected" : ""}>${statusLabel(value)}</option>`).join("")}</select>
+        <select data-admin-order-filter="cookId"><option value="">All cooks</option>${state.cooks.map((cook) => `<option value="${cook.id}" ${adminOrderFilters.cookId === cook.id ? "selected" : ""}>${cook.name}</option>`).join("")}</select>
+        <select data-admin-order-filter="driverId"><option value="">All drivers</option>${drivers.map((driver) => `<option value="${driver.id}" ${adminOrderFilters.driverId === driver.id ? "selected" : ""}>${driver.name}</option>`).join("")}</select>
+        <select data-admin-order-filter="customerId"><option value="">All customers</option>${customers.map((customer) => `<option value="${customer.id}" ${adminOrderFilters.customerId === customer.id ? "selected" : ""}>${customer.name}</option>`).join("")}</select>
+        <input class="input" type="date" data-admin-order-filter="date" value="${adminOrderFilters.date}">
+        <select data-admin-order-filter="payment"><option value="">All payments</option>${["iban", "cash", "held", "released", "refunded"].map((value) => `<option value="${value}" ${adminOrderFilters.payment === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        <select data-admin-order-filter="refund"><option value="">All refund states</option><option value="none" ${adminOrderFilters.refund === "none" ? "selected" : ""}>No refund</option>${["pending", "reviewed", "full", "half"].map((value) => `<option value="${value}" ${adminOrderFilters.refund === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+      </div>
+      <div class="price-row" style="margin-top:12px"><span class="meta">${orders.length} orders match</span><button class="button small secondary" data-clear-order-filters>Clear filters</button></div>
+    </section>
+    <section class="admin-order-list" style="margin-top:16px">${orders.map(adminOrderCard).join("") || `<div class="panel empty">No orders match these filters.</div>`}</section>
+    ${adminOrderDetails(selected)}
   `;
 }
 
@@ -2604,6 +2850,7 @@ function orderOperationCard(order) {
 }
 
 function renderChat() {
+  if (isOwner()) return renderAdminInbox();
   const orders = state.orders;
   const active = orders[0];
   return `
@@ -2614,6 +2861,65 @@ function renderChat() {
         ${orders.map((order) => `<button class="button secondary" style="width:100%;margin-bottom:8px" data-chat-order="${order.id}">${order.id} - ${cookName(order.cookId)}</button>`).join("") || `<div class="empty">${t("startChatEmpty")}</div>`}
       </div>
       <div class="panel" id="chatPanel">${active ? chatThread(active.id) : `<div class="empty">${t("noChatSelected")}</div>`}</div>
+    </section>
+  `;
+}
+
+function adminConversation(order) {
+  const messages = (state.messages || []).filter((message) => sameId(message.orderId, order.id)).sort((left, right) => new Date(left.createdAt) - new Date(right.createdAt));
+  const latest = messages[messages.length - 1] || null;
+  const customer = state.users?.find((user) => sameId(user.id, order.customerId));
+  const cook = state.cooks?.find((item) => sameId(item.id, order.cookId));
+  const refund = adminOrderRefund(order.id);
+  const readKey = latest ? `${order.id}:${latest.id}` : "";
+  const unread = Boolean(latest && !sameId(latest.fromUserId, state.user.id) && !adminReadChatIds.has(readKey));
+  return { order, messages, latest, customer, cook, refund, unread };
+}
+
+function adminConversations() {
+  const activeStatuses = new Set(["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you"]);
+  return (state.orders || []).map(adminConversation).filter((conversation) => {
+    const query = adminChatSearch.trim().toLowerCase();
+    const haystack = `${conversation.order.id} ${conversation.customer?.name || ""} ${conversation.cook?.name || ""} ${conversation.latest?.text || ""}`.toLowerCase();
+    if (query && !haystack.includes(query)) return false;
+    if (adminChatFilter === "unread") return conversation.unread;
+    if (adminChatFilter === "active") return activeStatuses.has(conversation.order.status);
+    if (adminChatFilter === "support") return Boolean(conversation.refund);
+    if (adminChatFilter === "delivered") return conversation.order.status === "delivered";
+    return true;
+  }).sort((left, right) => new Date(right.latest?.createdAt || right.order.updatedAt || right.order.createdAt) - new Date(left.latest?.createdAt || left.order.updatedAt || left.order.createdAt));
+}
+
+function adminUnreadConversationCount() {
+  if (!state?.orders) return 0;
+  return state.orders.map(adminConversation).filter((conversation) => conversation.unread).length;
+}
+
+function renderAdminInbox() {
+  const conversations = adminConversations();
+  const activeId = activeAdminChatOrderId || conversations[0]?.order.id || "";
+  const activeOrder = activeId ? state.orders.find((order) => sameId(order.id, activeId)) : null;
+  const active = conversations.find((conversation) => sameId(conversation.order.id, activeId)) || (activeOrder ? adminConversation(activeOrder) : null);
+  return `
+    ${header("Admin Inbox", "Order conversations and customer support in one place.", `<span class="pill">${adminUnreadConversationCount()} unread</span>`)}
+    <section class="admin-inbox-layout ${activeAdminChatOrderId ? "has-active-chat" : ""}">
+      <aside class="panel admin-inbox-list">
+        <input class="input" data-admin-chat-search value="${adminChatSearch}" placeholder="Search order, customer, cook, or message">
+        <div class="toolbar admin-filter-tabs" style="margin:12px 0">
+          ${[["all", "All"], ["unread", "Unread"], ["active", "Active orders"], ["support", "Refund/support"], ["delivered", "Delivered"]].map(([value, label]) => `<button class="button small ${adminChatFilter === value ? "good" : "secondary"}" data-admin-chat-filter="${value}">${label}</button>`).join("")}
+        </div>
+        <div class="conversation-list">
+          ${conversations.map((conversation) => `<button class="conversation-card ${sameId(conversation.order.id, activeId) ? "active" : ""}" data-admin-chat-order="${conversation.order.id}">
+            <span class="conversation-top"><strong>${conversation.customer?.name || "Customer"} · ${conversation.cook?.name || "Cook"}</strong>${conversation.unread ? `<b class="unread-dot" aria-label="Unread"></b>` : ""}</span>
+            <span>${conversation.order.id} · ${statusLabel(conversation.order.status)}</span>
+            <small>${conversation.latest?.text || "No messages yet"}</small>
+            <em>${new Date(conversation.latest?.createdAt || conversation.order.updatedAt || conversation.order.createdAt).toLocaleString()}</em>
+          </button>`).join("") || `<div class="empty">No conversations match this filter.</div>`}
+        </div>
+      </aside>
+      <div class="panel admin-chat-panel" id="chatPanel">
+        ${active ? `<button class="button small secondary admin-chat-back" data-admin-chat-back>Back to inbox</button><div class="chat-context"><strong>${active.customer?.name || "Customer"} ↔ ${active.cook?.name || "Cook"}</strong><span>${active.order.id} · ${statusLabel(active.order.status)}${active.refund ? ` · Refund ${active.refund.status}` : ""}</span></div>${chatThread(active.order.id)}` : `<div class="empty">Select a conversation.</div>`}
+      </div>
     </section>
   `;
 }
@@ -2727,68 +3033,68 @@ function renderBecomeCook() {
   `;
 }
 
+function systemHealthHtml() {
+  if (!systemHealth) return `<div class="notice">Loading live backend health…</div>`;
+  const checks = [
+    ["API", systemHealth.ok === true],
+    ["Database", systemHealth.database === "supabase" || systemHealth.database === "local-json"],
+    ["OpenStreetMap", systemHealth.tracking?.openStreetMap === true],
+    ["IBAN payments", systemHealth.payments?.iban === true],
+    ["In-app notifications", systemHealth.push?.inApp === true],
+    ["Google authentication", systemHealth.auth?.google === true]
+  ];
+  return `<div class="health-grid">${checks.map(([label, ok]) => `<div><span class="health-dot ${ok ? "ok" : "warn"}"></span><strong>${label}</strong><small>${ok ? "Active" : "Not configured"}</small></div>`).join("")}</div><div class="meta" style="margin-top:12px">Build ${systemHealth.build || "unknown"} · ${systemHealth.database || "unknown database"}</div>`;
+}
+
 function renderSettings() {
+  const adminSystem = isOwner() || isDriver();
   return `
-    ${header(t("profileTitle"), t("profileSubtitle"))}
-    <section class="grid cols-2">
+    ${header(t("profileTitle"), "Account, security, and system settings are separated for clarity.")}
+    <section class="settings-stack">
       <div class="panel">
-        <h3>${state.user.name}</h3>
-        <div class="profile-media-block">
-          <div class="profile-cover-preview" style="${state.user.profileCover ? `background-image:url('${state.user.profileCover.replace(/'/g, "%27")}')` : ""}"></div>
-          ${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}
+        <div class="section-heading"><div><h3>Account</h3><p>Public profile media and account information.</p></div></div>
+        <div class="settings-account-grid">
+          <div>
+            <div class="profile-media-block"><div class="profile-cover-preview" style="${state.user.profileCover ? `background-image:url('${state.user.profileCover.replace(/'/g, "%27")}')` : ""}"></div>${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}</div>
+            <form class="form" id="profileMediaForm" style="margin-top:14px">
+              <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
+              <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
+              <button class="button secondary" type="submit">Save profile photos</button>
+            </form>
+          </div>
+          <div>
+            <h3>${state.user.name}</h3>
+            <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
+            <div class="row"><span>${t("role")}</span><strong>${roleLabel(state.user.role)}</strong></div>
+            <div class="row"><span>${t("city")}</span><strong>${state.user.city || "Not set"}</strong></div>
+            <div class="row"><span>${t("phone")}</span><strong>${state.user.phone || "Not set"}</strong></div>
+            <div class="row"><span>${t("loginProvider")}</span><strong>${state.user.authProvider || "password"}</strong></div>
+          </div>
         </div>
-        <form class="form" id="profileMediaForm" style="margin:14px 0">
-          <div class="field"><label>Profile photo</label><input class="input" type="file" name="profilePhotoFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
-          <div class="field"><label>Background photo</label><input class="input" type="file" name="profileCoverFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
-          <button class="button secondary" type="submit">Save profile photos</button>
-        </form>
-        <div class="row"><span>${t("email")}</span><strong>${state.user.email}</strong></div>
-        <div class="row"><span>${t("emailVerified")}</span><strong>${state.user.emailVerified ? t("verified") : t("needsVerification")}</strong></div>
-        <div class="row"><span>${t("role")}</span><strong>${roleLabel(state.user.role)}</strong></div>
-        <div class="row"><span>${t("city")}</span><strong>${state.user.city || ""}</strong></div>
-        <div class="row"><span>${t("phone")}</span><strong>${state.user.phone || ""}</strong></div>
-        <div class="row"><span>${t("phoneVerified")}</span><strong>${state.user.phoneVerified ? t("verified") : t("needsVerification")}</strong></div>
-        <div class="row"><span>${t("loginProvider")}</span><strong>${state.user.authProvider || "password"}</strong></div>
       </div>
       <div class="panel">
-        <h3>${t("realAuth")}</h3>
-        <div class="toolbar">
-          <button class="button small secondary" data-email-verify>${t("sendEmailVerification")}</button>
-          <button class="button small secondary" data-oauth="google">${t("connectGoogle")}</button>
+        <div class="section-heading"><div><h3>Security</h3><p>Verification, password, and active session controls.</p></div></div>
+        <div class="grid cols-2">
+          <div>
+            <div class="row"><span>${t("emailVerified")}</span><strong>${state.user.emailVerified ? t("verified") : t("needsVerification")}</strong></div>
+            <div class="row"><span>${t("phoneVerified")}</span><strong>${state.user.phoneVerified ? t("verified") : t("needsVerification")}</strong></div>
+            <div class="toolbar" style="margin-top:12px"><button class="button small secondary" data-email-verify>${t("sendEmailVerification")}</button><button class="button small secondary" data-oauth="google">${t("connectGoogle")}</button></div>
+            <form class="form" id="phoneRequestForm" style="margin-top:12px"><div class="field"><label>${t("phoneVerification")}</label><input class="input" name="phone" value="${state.user.phone || ""}" placeholder="+90 555 000 0000"></div><button class="button secondary" type="submit">${t("sendSmsCode")}</button></form>
+            ${state.user.pendingPhoneCode ? `<div class="notice">${t("demoSmsCode")}: <strong>${state.user.pendingPhoneCode}</strong></div>` : ""}
+            <form class="form" id="phoneConfirmForm" style="margin-top:12px"><div class="field"><label>${t("confirmPhoneCode")}</label><input class="input" name="code" placeholder="6 digit code"></div><button class="button" type="submit">${t("verifyPhoneAction")}</button></form>
+          </div>
+          <div>
+            <h4>Change password</h4>
+            <form class="form" id="directPasswordForm"><div class="field"><label>Current password</label><input class="input" type="password" name="currentPassword" autocomplete="current-password" required></div><div class="field"><label>New password</label><input class="input" type="password" name="newPassword" minlength="8" autocomplete="new-password" required></div><button class="button" type="submit">Change password</button></form>
+            <div class="session-card"><div><strong>${state.sessionInfo?.active || 1} active session${state.sessionInfo?.active === 1 ? "" : "s"}</strong><span>Current session expires ${state.sessionInfo?.currentExpiresAt ? new Date(state.sessionInfo.currentExpiresAt).toLocaleString() : "automatically"}</span></div><button class="button small secondary" data-revoke-sessions>Sign out other sessions</button></div>
+          </div>
         </div>
-        ${state.user.pendingEmailVerificationUrl ? `<div class="notice">${t("emailVerificationUrl")}: <a href="${state.user.pendingEmailVerificationUrl}" target="_blank" rel="noreferrer">${state.user.pendingEmailVerificationUrl}</a></div>` : ""}
-        <form class="form" id="phoneRequestForm" style="margin-top:12px">
-          <div class="field"><label>${t("phoneVerification")}</label><input class="input" name="phone" value="${state.user.phone || ""}" placeholder="+90 555 000 0000"></div>
-          <button class="button secondary" type="submit">${t("sendSmsCode")}</button>
-        </form>
-        ${state.user.pendingPhoneCode ? `<div class="notice">${t("demoSmsCode")}: <strong>${state.user.pendingPhoneCode}</strong></div>` : ""}
-        <form class="form" id="phoneConfirmForm" style="margin-top:12px">
-          <div class="field"><label>${t("confirmPhoneCode")}</label><input class="input" name="code" placeholder="6 digit code"></div>
-          <button class="button" type="submit">${t("verifyPhoneAction")}</button>
-        </form>
       </div>
-      <div class="panel">
-        <h3>${t("passwordResetTitle")}</h3>
-        <form class="form" id="profileResetRequestForm">
-          <div class="field"><label>${t("email")}</label><input class="input" type="email" name="email" value="${state.user.email}"></div>
-          <button class="button secondary" type="submit">${t("createResetLink")}</button>
-        </form>
-        ${state.user.pendingPasswordResetUrl ? `<div class="notice">${t("passwordResetUrl")}: <a href="${state.user.pendingPasswordResetUrl}" target="_blank" rel="noreferrer">${state.user.pendingPasswordResetUrl}</a></div>` : ""}
-      </div>
-      <div class="panel">
-        <h3>${t("pushNotifications")}</h3>
-        <form class="form" id="pushDeviceForm">
-          <div class="field"><label>${t("provider")}</label><select name="provider"><option value="firebase">Firebase FCM</option><option value="onesignal">OneSignal</option></select></div>
-          <div class="field"><label>${t("deviceToken")}</label><input class="input" name="token" placeholder="Paste device token from the mobile app or web SDK"></div>
-          <div class="field"><label>${t("platform")}</label><select name="platform"><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option></select></div>
-          <button class="button secondary" type="submit">${t("registerDevice")}</button>
-        </form>
-        <div class="notice" style="margin-top:12px">${t("pushEvents")}</div>
-      </div>
-      <div class="panel">
-        <h3>${t("systemStatus")}</h3>
-        <div class="notice success">${t("systemStatusBody")}</div>
-      </div>
+      ${adminSystem ? `<div class="panel">
+        <div class="section-heading"><div><h3>Developer / System</h3><p>Live backend status and optional push-provider registration.</p></div><button class="button small secondary" data-refresh-health>Refresh health</button></div>
+        ${systemHealthHtml()}
+        <details class="admin-disclosure" style="margin-top:16px"><summary>Push provider device setup</summary><form class="form" id="pushDeviceForm" style="margin-top:14px"><div class="field"><label>${t("provider")}</label><select name="provider"><option value="firebase">Firebase FCM</option><option value="onesignal">OneSignal</option></select></div><div class="field"><label>${t("deviceToken")}</label><input class="input" name="token" placeholder="Paste device token from the mobile app or web SDK"></div><div class="field"><label>${t("platform")}</label><select name="platform"><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option></select></div><button class="button secondary" type="submit">${t("registerDevice")}</button></form></details>
+      </div>` : ""}
     </section>
   `;
 }
@@ -2811,6 +3117,33 @@ function bindPage() {
   if (search) search.oninput = (event) => { filters.q = event.target.value; debounceRenderApp(); };
   const city = document.querySelector("#cityFilter");
   if (city) city.onchange = (event) => { filters.city = event.target.value; renderApp(); };
+  document.querySelectorAll("[data-admin-search]").forEach((input) => {
+    input.oninput = () => {
+      if (input.dataset.adminSearch === "cook") adminCookSearch = input.value;
+      if (input.dataset.adminSearch === "user") adminUserSearch = input.value;
+      if (input.dataset.adminSearch === "dish") adminDishSearch = input.value;
+      debounceAdminRender(`[data-admin-search="${input.dataset.adminSearch}"]`);
+    };
+  });
+  document.querySelectorAll("[data-admin-order-filter]").forEach((input) => {
+    const update = () => {
+      adminOrderFilters[input.dataset.adminOrderFilter] = input.value;
+      if (input.dataset.adminOrderFilter === "q") debounceAdminRender('[data-admin-order-filter="q"]');
+      else renderApp();
+    };
+    input.oninput = input.dataset.adminOrderFilter === "q" ? update : null;
+    input.onchange = input.dataset.adminOrderFilter === "q" ? null : update;
+  });
+  document.querySelector("[data-clear-order-filters]")?.addEventListener("click", () => {
+    adminOrderFilters = { q: "", status: "", cookId: "", driverId: "", customerId: "", date: "", payment: "", refund: "" };
+    renderApp();
+  });
+  document.querySelectorAll("[data-admin-order-details]").forEach((button) => {
+    button.onclick = () => { selectedAdminOrderId = button.dataset.adminOrderDetails; renderApp(); };
+  });
+  document.querySelectorAll("[data-close-order-details]").forEach((button) => {
+    button.onclick = () => { selectedAdminOrderId = ""; renderApp(); };
+  });
   const checkout = document.querySelector("#checkoutForm");
   if (checkout) checkout.onsubmit = placeOrder;
   const dishForm = document.querySelector("#dishForm");
@@ -2879,7 +3212,7 @@ function bindPage() {
     select.onchange = () => setUserRole(select.dataset.roleUser, select.value);
   });
   document.querySelectorAll("[data-order-status]").forEach((select) => {
-    select.onchange = () => setOrderStatus(select.dataset.orderStatus, select.value);
+    select.onchange = () => setOrderStatus(select.dataset.orderStatus, select.value, select);
   });
   document.querySelectorAll("[data-order-action]").forEach((button) => {
     button.onclick = () => setOrderStatus(button.dataset.orderAction, button.dataset.status);
@@ -2893,6 +3226,21 @@ function bindPage() {
       bindPage();
     };
   });
+  document.querySelectorAll("[data-admin-chat-filter]").forEach((button) => {
+    button.onclick = () => { adminChatFilter = button.dataset.adminChatFilter; activeAdminChatOrderId = ""; renderApp(); };
+  });
+  const adminChatSearchInput = document.querySelector("[data-admin-chat-search]");
+  if (adminChatSearchInput) adminChatSearchInput.oninput = () => { adminChatSearch = adminChatSearchInput.value; debounceAdminRender("[data-admin-chat-search]"); };
+  document.querySelectorAll("[data-admin-chat-order]").forEach((button) => {
+    button.onclick = () => {
+      activeAdminChatOrderId = button.dataset.adminChatOrder;
+      const latest = adminConversation(state.orders.find((order) => sameId(order.id, activeAdminChatOrderId)))?.latest;
+      if (latest) adminReadChatIds.add(`${activeAdminChatOrderId}:${latest.id}`);
+      localStorage.setItem("hometaste_admin_read_chats", JSON.stringify([...adminReadChatIds]));
+      renderApp();
+    };
+  });
+  document.querySelector("[data-admin-chat-back]")?.addEventListener("click", () => { activeAdminChatOrderId = ""; document.querySelector(".admin-inbox-layout")?.classList.remove("has-active-chat"); });
   const msgForm = document.querySelector("#messageForm");
   if (msgForm) msgForm.onsubmit = sendMessage;
   document.querySelectorAll("[data-oauth]").forEach((button) => {
@@ -2910,6 +3258,11 @@ function bindPage() {
   if (phoneConfirm) phoneConfirm.onsubmit = confirmPhoneVerification;
   const pushDeviceForm = document.querySelector("#pushDeviceForm");
   if (pushDeviceForm) pushDeviceForm.onsubmit = registerPushDevice;
+  const directPasswordForm = document.querySelector("#directPasswordForm");
+  if (directPasswordForm) directPasswordForm.onsubmit = changePasswordDirect;
+  document.querySelector("[data-revoke-sessions]")?.addEventListener("click", revokeOtherSessions);
+  document.querySelector("[data-refresh-health]")?.addEventListener("click", () => loadSystemHealth(true));
+  if (page === "settings" && (isOwner() || isDriver())) loadSystemHealth();
   document.querySelectorAll("[data-subscription]").forEach((button) => {
     button.onclick = () => subscriptionAction(button.dataset.subscription, button.dataset.action);
   });
@@ -3117,6 +3470,8 @@ async function adminAddDish(event) {
     try {
       const image = await imageFromForm(form, "imageFile", "image");
       if (image) input.image = image;
+      if (!input.image) throw new Error("A real dish image upload or image URL is required.");
+      if (!Number.isFinite(Number(input.price)) || Number(input.price) <= 0) throw new Error("Enter a valid dish price.");
       state = await api("/api/dishes", { method: "POST", body: JSON.stringify(input) });
       toast("Dish added for cook.");
       if (page === startedPage) renderApp();
@@ -3487,6 +3842,11 @@ async function photoDish(dishId, cookId) {
 }
 
 async function setUserRole(userId, role) {
+  if (role === "owner") {
+    toast("Owner promotion is protected and unavailable from normal role management.", true);
+    renderApp();
+    return;
+  }
   try {
     state = await api(`/api/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) });
     toast("User role updated.");
@@ -3496,13 +3856,70 @@ async function setUserRole(userId, role) {
   }
 }
 
-async function setOrderStatus(orderId, status) {
+async function setOrderStatus(orderId, status, control = null) {
+  const order = state.orders.find((item) => sameId(item.id, orderId));
+  if (!order || order.status === status) return;
+  let note = "";
+  if (isOwner() && status === "cancelled") {
+    note = String(window.prompt("Cancellation reason (required)", "") || "").trim();
+    if (!note) {
+      toast("A cancellation reason is required.", true);
+      if (control) control.value = order.status;
+      return;
+    }
+  }
+  if (isOwner() && ["delivered", "cancelled"].includes(status)) {
+    const confirmed = window.confirm(`Change ${order.id} directly from ${statusLabel(order.status)} to ${statusLabel(status)}?`);
+    if (!confirmed) {
+      if (control) control.value = order.status;
+      return;
+    }
+  }
   try {
-    state = await api(`/api/orders/${orderId}`, { method: "PATCH", body: JSON.stringify({ status }) });
+    state = await api(`/api/orders/${orderId}`, { method: "PATCH", body: JSON.stringify({ status, note }) });
     toast("Order status updated.");
     renderApp();
   } catch (err) {
+    if (control) control.value = order.status;
     toast(err.message, true);
+  }
+}
+
+async function changePasswordDirect(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = Object.fromEntries(new FormData(form).entries());
+  try {
+    await api("/api/auth/password", { method: "PATCH", body: JSON.stringify(input) });
+    form.reset();
+    toast("Password changed. Other sessions were signed out.");
+    state = await api("/api/state");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function revokeOtherSessions() {
+  try {
+    state = await api("/api/auth/sessions/revoke-others", { method: "POST", body: JSON.stringify({}) });
+    toast("Other sessions signed out.");
+    renderApp();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function loadSystemHealth(force = false) {
+  if (systemHealthLoading || (systemHealth && !force)) return;
+  systemHealthLoading = true;
+  try {
+    systemHealth = await api("/api/health");
+  } catch (err) {
+    systemHealth = { ok: false, error: err.message };
+  } finally {
+    systemHealthLoading = false;
+    if (page === "settings") renderApp();
   }
 }
 
@@ -3512,8 +3929,13 @@ async function sendMessage(event) {
   const orderId = event.currentTarget.dataset.order;
   try {
     state = await api("/api/messages", { method: "POST", body: JSON.stringify({ ...input, orderId }) });
-    document.querySelector("#chatPanel").innerHTML = chatThread(orderId);
-    bindPage();
+    if (isOwner()) {
+      activeAdminChatOrderId = orderId;
+      renderApp();
+    } else {
+      document.querySelector("#chatPanel").innerHTML = chatThread(orderId);
+      bindPage();
+    }
     toast("Message sent.");
   } catch (err) {
     toast(err.message, true);

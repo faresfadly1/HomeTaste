@@ -152,7 +152,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-admin-cooks-01", "admin cook persistence build marker is exposed");
+  assert(health.build === "20260619-admin-ops-01", "admin operations build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -221,6 +221,12 @@ try {
   assert(appSrcEarly.includes('data-admin-cook-filter="${value}"') && appSrcEarly.includes('["rejected", "Rejected"]'), "admin cook table provides an explicit Rejected filter");
   assert(appSrcEarly.includes("adminRemovedCookIds") && appSrcEarly.includes("applyAdminState"), "stale admin refreshes cannot reinsert removed cooks");
   assert(appSrcEarly.includes('api(`/api/state?ts=${Date.now()}`)') && appSrcEarly.includes("Cook removal did not persist"), "admin UI verifies permanent cook removal against a fresh state");
+  assert(appSrcEarly.includes("function renderAdminDashboard") && appSrcEarly.includes("Today revenue") && appSrcEarly.includes("Recent activity"), "admin dashboard is operations-focused");
+  assert(appSrcEarly.includes("function filteredAdminOrders") && appSrcEarly.includes("data-admin-order-filter") && appSrcEarly.includes("function adminOrderDetails"), "admin orders provide full filters and an order details drawer");
+  assert(appSrcEarly.includes("Cancellation reason (required)") && appSrcEarly.includes('["delivered", "cancelled"].includes(status)'), "admin terminal order changes require protected confirmation flow");
+  assert(appSrcEarly.includes("function renderAdminInbox") && appSrcEarly.includes("Refund/support") && appSrcEarly.includes("adminUnreadConversationCount"), "admin chat provides a searchable filtered inbox");
+  assert(appSrcEarly.includes("Developer / System") && appSrcEarly.includes('api("/api/health")') && appSrcEarly.includes("directPasswordForm"), "admin profile separates security and live system health");
+  assert(!appSrcEarly.includes('["customer", "cook", "driver", "owner"].map((role)'), "normal role dropdown does not offer owner promotion");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
@@ -243,8 +249,17 @@ try {
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
   assert(serverSrcEarly.includes("cascadeRemovalStillPresent") && serverSrcEarly.includes("Cook removal did not persist"), "backend verifies Supabase cook cascade removal before reporting success");
+  assert(serverSrcEarly.includes("function auditAdminAction") && serverSrcEarly.includes("Admin cancellation requires a reason"), "backend records admin audit events and requires cancellation reasons");
+  assert(serverSrcEarly.includes("Owner promotion requires a separate protected process"), "backend blocks owner promotion through normal role management");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
+  const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
+  let ownerSessionState = await request(base, owner.token, "GET", "/api/state");
+  assert(ownerSessionState.sessionInfo?.active >= 2, "admin profile reports active sessions");
+  ownerSessionState = await request(base, owner.token, "POST", "/api/auth/sessions/revoke-others", {});
+  assert(ownerSessionState.sessionInfo?.active === 1, "admin can revoke other active sessions");
+  const revokedOwnerSession = await requestRaw(base, secondOwnerSession.token, "GET", "/api/state");
+  assert(revokedOwnerSession.status === 401, "revoked admin session cannot be reused");
   const expiringAccount = await auth(base, "signup", {
     name: `${baseName} Expiring`,
     email: `expiring.${runId}@hometaste.test`,
@@ -289,6 +304,10 @@ try {
     nationalId: "10000000001"
   });
   const driver = await auth(base, "login", { email: driverEmail, password: driverPassword });
+  const blockedOwnerPromotion = await requestRaw(base, owner.token, "PATCH", `/api/admin/users/${customer.state.user.id}`, { role: "owner" });
+  assert(blockedOwnerPromotion.status === 403, "normal role management cannot promote a user to owner");
+  const blockedOwnerChange = await requestRaw(base, owner.token, "PATCH", `/api/admin/users/${owner.state.user.id}`, { role: "customer" });
+  assert(blockedOwnerChange.status === 403, "normal role management cannot modify an owner account");
 
   let cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", {
     profilePhoto: profilePhotoImage,
@@ -350,6 +369,8 @@ try {
   assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && isPublicImageUrl(user.profilePhoto) && isPublicImageUrl(user.profileCover)), "admin sees cook phone, profile photo, and background photo for review");
   assert(isPublicImageUrl(ownerCook.profilePhoto) && isPublicImageUrl(ownerCook.coverPhoto), "pending cook request keeps submitted profile and background photos");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
+  const pendingAdminDish = await requestRaw(base, owner.token, "POST", "/api/dishes", { cookId: ownerCook.id, name: "Blocked pending dish", price: 100, image: dishPhotoImage, country: "Turkey" });
+  assert(pendingAdminDish.status === 403, "admin cannot create dishes for unapproved cooks");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
     status: "approved",
@@ -360,6 +381,8 @@ try {
   const approvedCook = ownerState.cooks.find((cook) => cook.id === ownerCook.id);
   assert(approvedCook.status === "approved" && approvedCook.online === true && approvedCook.verified === true, "admin approval, verification, and online state persist");
   assert(ownerState.stats.pendingCooks === 0, "approved cook request disappears from pending admin requests");
+  const missingImageAdminDish = await requestRaw(base, owner.token, "POST", "/api/dishes", { cookId: ownerCook.id, name: "Missing image dish", price: 100, country: "Turkey" });
+  assert(missingImageAdminDish.status === 400, "admin-created dish requires a real image");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "pending" });
   assert(ownerState.cooks.find((cook) => cook.id === ownerCook.id)?.status === "pending" && ownerState.stats.pendingCooks === 1, "admin pending action moves cook back to request list");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "rejected" });
@@ -540,9 +563,12 @@ try {
     notes: "Admin cancelled flow"
   });
   const adminCancelOrder = adminCancelOrderResult.state.orders.find((item) => item.notes === "Admin cancelled flow");
+  const adminCancelWithoutReason = await requestRaw(base, owner.token, "PATCH", `/api/orders/${adminCancelOrder.id}`, { status: "cancelled" });
+  assert(adminCancelWithoutReason.status === 400, "admin cancellation requires a reason");
   const adminCancelledState = await request(base, owner.token, "PATCH", `/api/orders/${adminCancelOrder.id}`, { status: "cancelled", note: "Admin cancelled after review." });
   const adminCancelledOrder = adminCancelledState.orders.find((item) => item.id === adminCancelOrder.id);
   assert(adminCancelledOrder?.status === "cancelled" && adminCancelledOrder.cancelledBy === "owner", "admin cancellation saves cancelled status and actor");
+  assert(adminCancelledState.notifications.some((note) => note.data?.audit && note.data?.action === "cancelled order" && note.data?.entityId === adminCancelOrder.id), "admin order cancellation is written to the activity log");
   const adminCancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
   assert(adminCancelledCustomerState.orders.find((item) => item.id === adminCancelOrder.id)?.status === "cancelled", "customer sees admin-cancelled order after refresh");
   const adminCancelledCookState = await request(base, cookAccount.token, "GET", "/api/state");

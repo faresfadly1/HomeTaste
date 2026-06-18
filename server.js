@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-admin-cooks-01";
+const backendBuild = "20260619-admin-ops-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -517,6 +517,17 @@ function notifyOwners(db, text, data = {}) {
   for (const owner of targets) {
     db.notifications.push({ id: id("not"), userId: owner.id, text, data, createdAt: now(), read: false });
   }
+}
+
+function auditAdminAction(db, actor, action, entityType, entityId, details = "") {
+  if (!actor || actor.role !== "owner") return null;
+  return notification(db, actor.id, `${actor.name}: ${action}${details ? ` · ${details}` : ""}`, {
+    audit: true,
+    action,
+    entityType,
+    entityId,
+    details
+  });
 }
 
 function isDemoUser(user) {
@@ -2075,6 +2086,7 @@ function publicState(db, user = null) {
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const orders = user ? visibleOrders(db, user) : [];
   const orderIds = new Set(orders.map((order) => order.id));
+  const userSessions = user ? Object.values(db.sessions || {}).filter((session) => session.userId === user.id && !isExpiredSession(session)) : [];
   return publicPayload({
     user: safeUser(user),
     cooks,
@@ -2091,6 +2103,10 @@ function publicState(db, user = null) {
     social: socialSummary(db),
     users: user?.role === "owner" ? db.users.map(listUser) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
+    sessionInfo: user ? {
+      active: userSessions.length,
+      currentExpiresAt: userSessions.sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))[0]?.expiresAt || null
+    } : null,
     stats: user?.role === "owner"
       ? {
           users: db.users.length,
@@ -2134,6 +2150,7 @@ function partialPublicState(user) {
     social: { followers: 0, likes: 0, comments: 0, photos: 0 },
     users: user?.role === "owner" ? [listUser(user)] : [],
     notifications: [],
+    sessionInfo: user ? { active: 1, currentExpiresAt: null } : null,
     stats: user?.role === "owner"
       ? { users: 1, cooks: 0, drivers: user.role === "driver" ? 1 : 0, pendingCooks: 0, orders: 0, revenue: 0, commission: 0, pendingRefunds: 0, activeSubscriptions: 0 }
       : null
@@ -2620,6 +2637,12 @@ async function api(req, res, pathname) {
     return json(res, 200, { ok: true });
   }
 
+  if (req.method === "POST" && pathname === "/api/auth/sessions/revoke-others") {
+    deleteSessionsForUser(db, user.id, getToken(req));
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
   if (req.method === "POST" && pathname === "/api/cooks/apply") {
     const input = await body(req);
     let cook = cookForUser(db, user.id);
@@ -2664,7 +2687,9 @@ async function api(req, res, pathname) {
     const targetCookId = input.cookId && user.role === "owner" ? String(input.cookId).trim() : cook?.id;
     const targetCook = db.cooks.find((item) => item.id === targetCookId);
     if (!targetCook) return json(res, 404, { error: "Cook profile not found." });
+    if (user.role === "owner" && targetCook.status !== "approved") return json(res, 403, { error: "Admin can only create dishes for approved cooks." });
     if (user.role !== "owner" && !validCookCanPublish(targetCook)) return json(res, 403, { error: "This cook profile cannot publish dishes." });
+    if (user.role === "owner" && !String(input.image || "").trim()) return json(res, 400, { error: "A real dish image is required for admin-created dishes." });
     const country = textValue(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
     const dish = {
       id: id("dish"),
@@ -2680,6 +2705,7 @@ async function api(req, res, pathname) {
       featured: false
     };
     db.dishes.push(dish);
+    auditAdminAction(db, user, "created dish", "dish", dish.id, `${dish.name} for ${targetCook.name}`);
     await saveDb(db);
     return json(res, 201, publicState(db, user));
   }
@@ -2707,6 +2733,7 @@ async function api(req, res, pathname) {
         target.tags = target.country ? [target.country] : [];
       }
     });
+    auditAdminAction(db, user, "updated dish", "dish", dish.id, dish.name);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -2723,6 +2750,7 @@ async function api(req, res, pathname) {
       : [dish]).map((item) => item.id));
     db.dishes = db.dishes.filter((item) => !deleteIds.has(item.id));
     db.socialActions = db.socialActions.filter((item) => !deleteIds.has(item.dishId));
+    auditAdminAction(db, user, "removed dish", "dish", dish.id, dish.name);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -2886,6 +2914,9 @@ async function api(req, res, pathname) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
     }
     if (input.status === "cancelled") {
+      if (user.role === "owner" && !String(input.note || input.reason || "").trim()) {
+        return json(res, 400, { error: "Admin cancellation requires a reason." });
+      }
       try {
         cancelOrder(order, user, input.note || input.reason || "");
       } catch (error) {
@@ -2904,6 +2935,7 @@ async function api(req, res, pathname) {
       for (const userId of new Set(notifyIds.filter(Boolean))) {
         pushNotes.push(notification(db, userId, `Order ${order.id} was cancelled.`, { orderId: order.id, status: order.status }));
       }
+      auditAdminAction(db, user, "cancelled order", "order", order.id, order.cancelReason);
       await saveDb(db);
       await sendPushBatch(db, pushNotes);
       return json(res, 200, publicState(db, user));
@@ -2925,6 +2957,7 @@ async function api(req, res, pathname) {
       at: order.updatedAt,
       note: textValue(input.note || "", "Status note", { max: 300 })
     });
+    auditAdminAction(db, user, `changed order to ${input.status}`, "order", order.id);
     const notifyIds = [order.customerId, order.driverId];
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
     if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
@@ -3163,8 +3196,11 @@ async function api(req, res, pathname) {
     const input = await body(req);
     if (input.confirm !== "clean-demo-data") return json(res, 400, { error: "Cleanup confirmation is required." });
     const removed = cleanupDemoDataInMemory(db);
-    if (useSupabase) await deleteSupabaseDemoData(removed);
-    else await saveDb(db);
+    auditAdminAction(db, user, "cleaned test data", "system", "demo-data", `${removed.users.size} users, ${removed.cooks.size} cooks`);
+    if (useSupabase) {
+      await deleteSupabaseDemoData(removed);
+      await saveDb(db);
+    } else await saveDb(db);
     const freshDb = useSupabase ? await loadDb() : db;
     return json(res, 200, { ...publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user), cleanup: Object.fromEntries(Object.entries(removed).map(([key, value]) => [key, value.size])) });
   }
@@ -3179,6 +3215,7 @@ async function api(req, res, pathname) {
       const cookUser = db.users.find((item) => item.id === cook.userId);
       if (cookUser && cookUser.role === "cook") cookUser.role = "customer";
     }
+    auditAdminAction(db, user, "removed cook permanently", "cook", cookId, cook.name);
     if (useSupabase) {
       await deleteSupabaseDemoData(removed);
       await saveDb(db);
@@ -3196,6 +3233,7 @@ async function api(req, res, pathname) {
     const cook = db.cooks.find((item) => item.id === pathname.split("/").pop());
     if (!cook) return json(res, 404, { error: "Cook not found." });
     const input = await body(req);
+    const previousStatus = cook.status;
     if (["approved", "pending", "rejected", "suspended"].includes(input.status)) {
       cook.status = input.status;
       if (cook.status === "suspended" || cook.status === "rejected") {
@@ -3227,6 +3265,10 @@ async function api(req, res, pathname) {
       cook.verification = { ...(cook.verification || defaultVerification()), ...allowedVerification, updatedAt: now() };
       cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
     }
+    const action = input.status && input.status !== previousStatus
+      ? `${input.status === "approved" ? "approved" : input.status === "rejected" ? "rejected" : input.status === "suspended" ? "suspended" : "updated"} cook`
+      : input.verification ? "updated cook verification" : "updated cook profile";
+    auditAdminAction(db, user, action, "cook", cook.id, cook.name);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -3249,6 +3291,7 @@ async function api(req, res, pathname) {
       if (payment && refund.amount > 0) payment.status = "refunded";
     }
     db.notifications.push({ id: id("not"), userId: refund.customerId, text: `Refund ${refund.id} reviewed: ${input.outcome}.`, createdAt: now(), read: false });
+    auditAdminAction(db, user, `reviewed refund as ${input.outcome}`, "refund", refund.id, `${refund.orderId} · ${refund.amount} TL`);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -3261,8 +3304,11 @@ async function api(req, res, pathname) {
     if (target.role === "owner") return json(res, 400, { error: "Owner accounts cannot be removed from this screen." });
     const removed = collectCascadeForUsers(db, new Set([userId]));
     applyCascadeRemoval(db, removed);
-    if (useSupabase) await deleteSupabaseDemoData(removed);
-    else await saveDb(db);
+    auditAdminAction(db, user, "removed user", "user", userId, target.name);
+    if (useSupabase) {
+      await deleteSupabaseDemoData(removed);
+      await saveDb(db);
+    } else await saveDb(db);
     const freshDb = useSupabase ? await loadDb() : db;
     return json(res, 200, publicState(freshDb, freshDb.users.find((item) => item.id === user.id) || user));
   }
@@ -3271,7 +3317,12 @@ async function api(req, res, pathname) {
     const target = db.users.find((item) => item.id === pathname.split("/").pop());
     if (!target) return json(res, 404, { error: "User not found." });
     const input = await body(req);
-    if (["customer", "cook", "driver", "owner"].includes(input.role)) target.role = input.role;
+    if (target.role === "owner") return json(res, 403, { error: "Owner accounts cannot be changed from normal role management." });
+    if (input.role === "owner") return json(res, 403, { error: "Owner promotion requires a separate protected process." });
+    if (!["customer", "cook", "driver"].includes(input.role)) return json(res, 400, { error: "Choose customer, cook, or driver." });
+    const previousRole = target.role;
+    target.role = input.role;
+    auditAdminAction(db, user, "changed user role", "user", target.id, `${target.name}: ${previousRole} → ${target.role}`);
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }

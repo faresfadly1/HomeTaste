@@ -1020,6 +1020,93 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   transform: rotate(-6deg);
 }
 
+.admin-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.admin-metric {
+  min-width: 0;
+  padding: 16px;
+  text-align: left;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(--panel-2); }
+.admin-metric small { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.admin-metric strong { display: block; margin: 8px 0 5px; font-size: 25px; }
+.admin-metric span { display: block; color: var(--muted); font-size: 12px; }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.section-heading h3, .section-heading h4 { margin: 0; }
+.section-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.admin-operation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.admin-operation-card { padding: 14px; text-align: left; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.admin-operation-card strong, .admin-operation-card span { display: block; }
+.admin-operation-card span { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.activity-list { display: grid; }
+.activity-item { display: grid; grid-template-columns: 12px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.activity-item:last-child { border-bottom: 0; }
+.activity-item small { display: block; margin-top: 4px; color: var(--muted); }
+.activity-dot { width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px rgba(249,115,22,.13); }
+.admin-search { min-height: 42px; }
+.admin-card-list { display: grid; gap: 10px; }
+.admin-list-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.admin-list-main { min-width: 0; }
+.admin-list-main strong, .admin-list-main span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-list-main span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.admin-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-disclosure { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 12px; }
+.admin-disclosure summary, .danger-zone summary { cursor: pointer; font-weight: 900; }
+.danger-zone { border-color: rgba(239,68,68,.48); }
+.admin-table-wrap { width: 100%; overflow-x: auto; }
+.admin-summary-strip { display: flex; gap: 18px; flex-wrap: wrap; }
+.admin-summary-strip span { color: var(--muted); }
+.admin-summary-strip strong { color: var(--text); }
+.admin-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.admin-order-list { display: grid; gap: 12px; }
+.admin-order-card { padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.admin-order-head { display: flex; justify-content: space-between; gap: 12px; }
+.admin-order-head strong, .admin-order-head span { display: block; }
+.admin-order-head > div > span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.admin-order-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.admin-order-grid > span { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.admin-order-grid small, .admin-order-grid strong, .admin-order-grid em { display: block; }
+.admin-order-grid small { color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.admin-order-grid strong { margin-top: 5px; overflow-wrap: anywhere; }
+.admin-order-grid em { margin-top: 3px; color: var(--muted); font-size: 11px; font-style: normal; }
+.admin-order-items { margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.admin-modal-backdrop { position: fixed; inset: 0; z-index: 2000; display: flex; justify-content: flex-end; background: rgba(0,0,0,.62); }
+.admin-drawer { width: min(620px, 100%); height: 100%; overflow-y: auto; padding: 22px; color: var(--text); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -20px 0 50px rgba(0,0,0,.35); }
+.icon-close { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--panel-2); font-size: 25px; line-height: 1; }
+.detail-section { padding: 14px 0; border-top: 1px solid var(--line); }
+.detail-section h4 { margin: 0 0 10px; }
+.timeline { display: grid; gap: 0; }
+.timeline > div { display: grid; grid-template-columns: 14px 1fr; gap: 10px; min-height: 54px; }
+.timeline > div > span { width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px rgba(249,115,22,.12); }
+.timeline p { margin: 0; }
+.timeline strong, .timeline small, .timeline em { display: block; }
+.timeline small, .timeline em { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.admin-inbox-layout { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; }
+.admin-inbox-list, .admin-chat-panel { min-height: 620px; }
+.conversation-list { display: grid; gap: 8px; }
+.conversation-card { width: 100%; padding: 12px; text-align: left; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.conversation-card.active { border-color: var(--brand); background: rgba(249,115,22,.10); }
+.conversation-card span, .conversation-card small, .conversation-card em { display: block; }
+.conversation-card > span:not(.conversation-top), .conversation-card small, .conversation-card em { margin-top: 4px; color: var(--muted); font-size: 11px; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-top { display: flex !important; align-items: center; justify-content: space-between; gap: 8px; }
+.unread-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--brand); }
+.chat-context { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.chat-context span { color: var(--muted); font-size: 12px; }
+.admin-chat-back { display: none; margin-bottom: 12px; }
+.settings-stack { display: grid; gap: 16px; }
+.settings-account-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); gap: 20px; }
+.session-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.session-card strong, .session-card span { display: block; }
+.session-card span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.health-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.health-grid > div { display: grid; grid-template-columns: 12px 1fr; column-gap: 8px; padding: 11px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.health-grid small { grid-column: 2; color: var(--muted); margin-top: 3px; }
+.health-dot { width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--warn); }
+.health-dot.ok { background: var(--good); }
+
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; }
@@ -1039,6 +1126,10 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .admin-review-dish { grid-template-columns: 72px minmax(0, 1fr); }
   .admin-review-dish img,
   .admin-review-dish-empty { width: 72px; height: 72px; }
+  .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-order-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
   html, body, #app { width: 100%; max-width: 100%; min-height: 100dvh; overflow-x: hidden; }
@@ -1358,6 +1449,29 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   .market-location-pin { width: 18px; height: 18px; }
   .icon-action { width: 38px; height: 38px; font-size: 16px; }
   .button.small { min-height: 38px; padding: 9px 10px; font-size: 12px; }
+  .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .admin-metric { padding: 12px; }
+  .admin-metric strong { font-size: 21px; }
+  .section-heading { display: grid; }
+  .admin-operation-grid, .admin-filter-grid, .admin-order-grid, .settings-account-grid, .health-grid { grid-template-columns: 1fr; }
+  .admin-list-card { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-list-card .admin-actions { grid-column: 1 / -1; }
+  .admin-actions .button, .admin-actions select { min-height: 42px; }
+  .admin-responsive-table thead { display: none; }
+  .admin-responsive-table, .admin-responsive-table tbody, .admin-responsive-table tr, .admin-responsive-table td { display: block; width: 100%; }
+  .admin-responsive-table tr { margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+  .admin-responsive-table td { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .admin-responsive-table td:last-child { border-bottom: 0; }
+  .admin-responsive-table td::before { content: attr(data-label); color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+  .admin-inbox-layout { display: block; }
+  .admin-inbox-list, .admin-chat-panel { min-height: auto; }
+  .admin-inbox-layout .admin-chat-panel { display: none; }
+  .admin-inbox-layout.has-active-chat .admin-inbox-list { display: none; }
+  .admin-inbox-layout.has-active-chat .admin-chat-panel { display: block; }
+  .admin-chat-back { display: inline-flex; }
+  .chat-context { display: grid; }
+  .admin-drawer { padding: 16px; }
+  .session-card { display: grid; }
   .market-content,
   .market-frame,
   .role-panel { min-width: 0; max-width: 100%; }
