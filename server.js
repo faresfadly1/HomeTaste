@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-admin-ops-01";
+const backendBuild = "20260619-cook-cover-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1381,7 +1381,7 @@ const toCook = (row) => ({
   responseTime: row.response_time,
   followers: Number(row.followers || 0),
   profilePhoto: row.profile_photo || "",
-  coverPhoto: row.cover_photo || "",
+  coverPhoto: row.cover_photo || row.profile_cover || row.background_photo || "",
   online: row.online === undefined || row.online === null ? Boolean(row.verification?.online) : Boolean(row.online),
   createdAt: row.created_at
 });
@@ -2003,10 +2003,14 @@ function cookForUser(db, userId) {
 function syncCookProfileFromUser(db, cook) {
   const owner = db.users.find((item) => item.id === cook?.userId);
   if (!owner) return cook;
+  const canonicalCover = owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || "";
   cook.name = owner.name || cook.name || "HomeTaste cook";
   cook.city = owner.city || cook.city || "";
-  cook.profilePhoto = owner.profilePhoto || "";
-  cook.coverPhoto = owner.profileCover || "";
+  cook.profilePhoto = owner.profilePhoto || cook.profilePhoto || "";
+  cook.coverPhoto = canonicalCover;
+  owner.profileCover = canonicalCover;
+  delete cook.profileCover;
+  delete cook.backgroundPhoto;
   return cook;
 }
 
@@ -2522,7 +2526,11 @@ async function api(req, res, pathname) {
     const input = await body(req);
     user.authMeta ||= {};
     if ("profilePhoto" in input) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
-    if ("profileCover" in input) user.profileCover = validateImageValue(input.profileCover, "Background photo");
+    const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
+    if (hasIncomingCover) {
+      const incomingCover = input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "";
+      user.profileCover = validateImageValue(incomingCover, "Background photo");
+    }
     if (input.name) user.name = textValue(input.name, "Name", { min: 1, max: 80 });
     if (input.city !== undefined) user.city = textValue(input.city || "", "City", { max: 100 });
     if (input.country !== undefined && ["TR", "DE"].includes(input.country)) user.country = input.country;
@@ -2539,6 +2547,7 @@ async function api(req, res, pathname) {
     }
     const cook = cookForUser(db, user.id);
     if (cook) {
+      if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       syncCookProfileFromUser(db, cook);
     }
     await saveDb(db);
@@ -2647,13 +2656,14 @@ async function api(req, res, pathname) {
     const input = await body(req);
     let cook = cookForUser(db, user.id);
     if (cook) return json(res, 409, { error: "You already have a cook profile." });
+    const incomingCover = input.profileCover || input.coverPhoto || input.backgroundPhoto || "";
     if (input.phone) {
       const phone = textValue(input.phone, "Phone number", { max: 24 });
       if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
       user.phone = phone;
     }
     if (input.profilePhoto) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
-    if (input.profileCover) user.profileCover = validateImageValue(input.profileCover, "Background photo");
+    if (incomingCover) user.profileCover = validateImageValue(incomingCover, "Background photo");
     cook = {
       id: id("cook"),
       userId: user.id,
@@ -2669,7 +2679,7 @@ async function api(req, res, pathname) {
       availability: "",
       responseTime: "New cook",
       profilePhoto: user.profilePhoto || validateImageValue(input.profilePhoto, "Profile photo"),
-      coverPhoto: user.profileCover || validateImageValue(input.profileCover, "Background photo"),
+      coverPhoto: user.profileCover || validateImageValue(incomingCover, "Background photo"),
       online: Boolean(input.online),
       createdAt: now()
     };
@@ -3248,11 +3258,15 @@ async function api(req, res, pathname) {
     if (input.city) cook.city = textValue(input.city, "City", { min: 1, max: 100 });
     if (input.bio !== undefined) cook.bio = textValue(input.bio || "", "Bio", { max: 700 });
     if (input.profilePhoto !== undefined) cook.profilePhoto = validateImageValue(input.profilePhoto || "", "Profile photo");
-    if (input.profileCover !== undefined) cook.coverPhoto = validateImageValue(input.profileCover || "", "Background photo");
+    const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
+    if (hasIncomingCover) {
+      const incomingCover = input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "";
+      cook.coverPhoto = validateImageValue(incomingCover, "Background photo");
+    }
     const cookUser = db.users.find((item) => item.id === cook.userId);
     if (cookUser) {
       if (input.profilePhoto !== undefined) cookUser.profilePhoto = cook.profilePhoto;
-      if (input.profileCover !== undefined) cookUser.profileCover = cook.coverPhoto;
+      if (hasIncomingCover) cookUser.profileCover = cook.coverPhoto;
       if (input.name) cookUser.name = cook.name;
       if (input.city) cookUser.city = cook.city;
     }

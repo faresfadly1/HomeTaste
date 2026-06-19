@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-admin-ops-01";
+const APP_BUILD = "20260619-cook-cover-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -311,7 +311,7 @@ async function handleMarketplaceMessage(event) {
             cuisine: payload.country || "Home Kitchen",
             bio: payload.bio || "Fresh home cooking.",
             profilePhoto: payload.profilePhoto || "",
-            profileCover: payload.coverPhoto || "",
+            profileCover: payload.profileCover || payload.coverPhoto || payload.backgroundPhoto || "",
             online: Boolean(payload.online)
           })
         });
@@ -816,6 +816,17 @@ function loadStaticDb() {
     return !(String(cook.id || "").startsWith("cook_seed_") || legacyName || (legacyCookIds.has(cook.id) && !cook.userId));
   });
   if (seeded.cooks.length !== beforeCookCount) changed = true;
+  seeded.cooks.forEach((cook) => {
+    const owner = seeded.users.find((user) => user.id === cook.userId);
+    if (!owner) return;
+    const canonicalCover = owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || "";
+    if (owner.profileCover !== canonicalCover || cook.coverPhoto !== canonicalCover || cook.profileCover !== undefined || cook.backgroundPhoto !== undefined) changed = true;
+    owner.profileCover = canonicalCover;
+    cook.coverPhoto = canonicalCover;
+    cook.profilePhoto = owner.profilePhoto || cook.profilePhoto || "";
+    delete cook.profileCover;
+    delete cook.backgroundPhoto;
+  });
   const beforeDishCount = seeded.dishes.length;
   seeded.dishes = seeded.dishes.filter((dish) => !legacyCookIds.has(dish.cookId) && !["dish_2", "dish_3"].includes(dish.id));
   if (seeded.dishes.length !== beforeDishCount) changed = true;
@@ -1132,14 +1143,15 @@ async function staticApi(path, options = {}) {
 
   if (method === "PATCH" && path === "/api/users/profile") {
     if ("profilePhoto" in input) user.profilePhoto = String(input.profilePhoto || "").trim();
-    if ("profileCover" in input) user.profileCover = String(input.profileCover || "").trim();
+    const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
+    if (hasIncomingCover) user.profileCover = String(input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "").trim();
     if (input.name) user.name = String(input.name).trim();
     if (input.city) user.city = String(input.city).trim();
     if (input.phone) user.phone = String(input.phone).trim();
     const cook = staticCookForUser(db, user.id);
     if (cook) {
       if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
-      if ("profileCover" in input) cook.coverPhoto = user.profileCover;
+      if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       if (input.name) cook.name = user.name;
       if (input.city) cook.city = user.city;
     }
@@ -1157,6 +1169,8 @@ async function staticApi(path, options = {}) {
 
   if (method === "POST" && path === "/api/cooks/apply") {
     if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
+    const incomingCover = String(input.profileCover || input.coverPhoto || input.backgroundPhoto || "").trim();
+    if (incomingCover) user.profileCover = incomingCover;
     const cook = {
       id: `cook_${Date.now()}`,
       userId: user.id,
@@ -1172,7 +1186,7 @@ async function staticApi(path, options = {}) {
       availability: "",
       responseTime: "New cook",
       profilePhoto: user.profilePhoto || String(input.profilePhoto || "").trim(),
-      coverPhoto: user.profileCover || String(input.profileCover || "").trim(),
+      coverPhoto: user.profileCover || incomingCover,
       online: Boolean(input.online),
       createdAt: new Date().toISOString()
     };
@@ -1411,7 +1425,8 @@ async function staticApi(path, options = {}) {
     if (input.city) cook.city = String(input.city).trim();
     if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
     if (input.profilePhoto !== undefined) cook.profilePhoto = String(input.profilePhoto || "").trim();
-    if (input.profileCover !== undefined) cook.coverPhoto = String(input.profileCover || "").trim();
+    const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
+    if (hasIncomingCover) cook.coverPhoto = String(input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "").trim();
     if (input.verification) {
       cook.verification = { ...(cook.verification || {}), ...input.verification, updatedAt: new Date().toISOString() };
       cook.verified = ["id", "address", "phone"].every((key) => cook.verification[key] === "verified");
@@ -1421,7 +1436,7 @@ async function staticApi(path, options = {}) {
       if (input.name) cookUser.name = cook.name;
       if (input.city) cookUser.city = cook.city;
       if (input.profilePhoto !== undefined) cookUser.profilePhoto = cook.profilePhoto;
-      if (input.profileCover !== undefined) cookUser.profileCover = cook.coverPhoto;
+      if (hasIncomingCover) cookUser.profileCover = cook.coverPhoto;
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1605,6 +1620,12 @@ function escapeAttr(value) {
     .replace(/>/g, "&gt;");
 }
 
+function safeImageSrc(value, fallback = "") {
+  const src = String(value || "").trim();
+  if (/^https?:\/\//i.test(src) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(src) || /^(?:\/|\.\/|assets\/)/.test(src)) return src;
+  return fallback;
+}
+
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1675,8 +1696,9 @@ function profileInitials(name) {
 }
 
 function profilePhotoHtml(src, name, className = "profile-avatar") {
-  return src
-    ? `<img class="${className}" src="${src}" alt="${name}" loading="lazy" decoding="async">`
+  const imageSrc = safeImageSrc(src, "");
+  return imageSrc
+    ? `<img class="${escapeAttr(className)}" src="${escapeAttr(imageSrc)}" alt="${escapeAttr(name)}" loading="lazy" decoding="async">`
     : `<div class="${className} avatar-fallback">${profileInitials(name)}</div>`;
 }
 
@@ -1696,14 +1718,16 @@ function adminCookRequestHtml(cook) {
   const user = userForCook(cook);
   const cookDishes = dishesForCook(cook.id);
   const profilePhoto = cook.profilePhoto || user?.profilePhoto || "";
-  const coverPhoto = cook.coverPhoto || user?.profileCover || "";
+  const coverPhoto = cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || user?.profileCover || "";
+  const profileImageSrc = safeImageSrc(profilePhoto, "");
+  const coverImageSrc = safeImageSrc(coverPhoto, "");
   const phone = cook.phone || user?.phone || "";
   const nationalId = user?.nationalId ? `•••••••${String(user.nationalId).slice(-4)}` : "No T.C. Kimlik";
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
         <div class="admin-review-cover">
-          ${coverPhoto ? `<img src="${coverPhoto}" alt="${cook.name} background photo" loading="lazy" decoding="async">` : `<span>No background photo</span>`}
+          ${coverImageSrc ? `<img src="${escapeAttr(coverImageSrc)}" alt="${escapeAttr(cook.name || "Cook")} background photo" loading="lazy" decoding="async">` : `<span>No background photo</span>`}
           <b>Background photo</b>
         </div>
         <div class="admin-review-profile">
@@ -1731,8 +1755,12 @@ function adminCookRequestHtml(cook) {
           <div><small>Phone number</small><strong>${phone || "No phone"}</strong></div>
           <div><small>T.C. Kimlik</small><strong>${nationalId}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
-          <div><small>Profile media</small><strong>${profilePhoto ? "Profile photo uploaded" : "No profile photo"} / ${coverPhoto ? "Background uploaded" : "No background"}</strong></div>
+          <div><small>Profile media</small><strong>${profileImageSrc ? "Profile photo uploaded" : "No profile photo"} / ${coverImageSrc ? "Background uploaded" : "No background"}</strong></div>
         </div>
+        ${(profileImageSrc || coverImageSrc) ? `<div class="toolbar admin-media-links" style="margin:0">
+          ${profileImageSrc ? `<a class="button small secondary" href="${escapeAttr(profileImageSrc)}" target="_blank" rel="noreferrer">View profile photo</a>` : ""}
+          ${coverImageSrc ? `<a class="button small secondary" href="${escapeAttr(coverImageSrc)}" target="_blank" rel="noreferrer">View background photo</a>` : ""}
+        </div>` : ""}
         <div class="admin-review-bio">
           <small>Bio</small>
           <p>${cook.bio || "No bio submitted."}</p>

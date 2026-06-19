@@ -169,7 +169,9 @@ textarea { min-height: 88px; resize: vertical; }
 }
 .admin-review-media { position: relative; min-height: 120px; }
 .admin-review-cover {
-  height: 120px;
+  height: 150px;
+  min-height: 150px;
+  overflow: hidden;
   display: grid;
   place-items: center;
   color: var(--muted);
@@ -183,6 +185,8 @@ textarea { min-height: 88px; resize: vertical; }
   height: 100%;
   object-fit: cover;
 }
+.admin-review-cover img { min-height: 150px; display: block; }
+.admin-media-links a { text-decoration: none; }
 .admin-review-cover b {
   position: absolute;
   left: 10px;

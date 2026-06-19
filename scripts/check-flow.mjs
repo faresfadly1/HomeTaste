@@ -17,6 +17,8 @@ const googleRedirectUri = "http://127.0.0.1:4173/api/auth/oauth/google/callback"
 const testImage = (label) => `data:image/jpeg;base64,${Buffer.from(label).toString("base64")}`;
 const profilePhotoImage = testImage("profile-photo");
 const coverPhotoImage = testImage("cover-photo");
+const updatedCoverPhotoImage = testImage("updated-cover-photo");
+const legacyCoverPhotoImage = testImage("legacy-background-photo");
 const dishPhotoImage = testImage("dish-photo");
 const xssText = `<img src=x onerror=alert("${runId}")>`;
 const publicImageUrlPattern = /^(?:https?:\/\/[^/]+)?\/api\/images\/[a-f0-9]{40}\.(?:jpg|png|webp)$/i;
@@ -152,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-admin-ops-01", "admin operations build marker is exposed");
+  assert(health.build === "20260619-cook-cover-01", "cook cover synchronization build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -227,6 +229,8 @@ try {
   assert(appSrcEarly.includes("function renderAdminInbox") && appSrcEarly.includes("Refund/support") && appSrcEarly.includes("adminUnreadConversationCount"), "admin chat provides a searchable filtered inbox");
   assert(appSrcEarly.includes("Developer / System") && appSrcEarly.includes('api("/api/health")') && appSrcEarly.includes("directPasswordForm"), "admin profile separates security and live system health");
   assert(!appSrcEarly.includes('["customer", "cook", "driver", "owner"].map((role)'), "normal role dropdown does not offer owner promotion");
+  assert(appSrcEarly.includes("cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || user?.profileCover") && appSrcEarly.includes("View background photo"), "admin cook request renders canonical and legacy background fields with a full-image link");
+  assert(appSrcEarly.includes("function safeImageSrc") && appSrcEarly.includes("coverImageSrc"), "admin cook request validates image sources before rendering");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
@@ -251,6 +255,7 @@ try {
   assert(serverSrcEarly.includes("cascadeRemovalStillPresent") && serverSrcEarly.includes("Cook removal did not persist"), "backend verifies Supabase cook cascade removal before reporting success");
   assert(serverSrcEarly.includes("function auditAdminAction") && serverSrcEarly.includes("Admin cancellation requires a reason"), "backend records admin audit events and requires cancellation reasons");
   assert(serverSrcEarly.includes("Owner promotion requires a separate protected process"), "backend blocks owner promotion through normal role management");
+  assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto"), "backend normalizes legacy cook background aliases into canonical fields");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
@@ -329,7 +334,7 @@ try {
     cuisine: "Turkey",
     bio: "Real homemade flow-test dishes.",
     profilePhoto: profilePhotoImage,
-    profileCover: coverPhotoImage,
+    coverPhoto: coverPhotoImage,
     phone: "+90 555 100 2000",
     online: true
   });
@@ -337,6 +342,16 @@ try {
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
   assert(pendingCook.city === "Moda, Istanbul" && isPublicImageUrl(pendingCook.profilePhoto) && isPublicImageUrl(pendingCook.coverPhoto), "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { coverPhoto: updatedCoverPhotoImage });
+  let updatedPendingCook = cookState.cooks.find((cook) => cook.id === pendingCook.id);
+  await assertImageServesUpload(base, cookState.user.profileCover, updatedCoverPhotoImage, "pending cook updated background photo");
+  assert(updatedPendingCook?.coverPhoto === cookState.user.profileCover, "coverPhoto alias updates the linked pending cook background");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { backgroundPhoto: legacyCoverPhotoImage });
+  updatedPendingCook = cookState.cooks.find((cook) => cook.id === pendingCook.id);
+  await assertImageServesUpload(base, cookState.user.profileCover, legacyCoverPhotoImage, "legacy background photo alias");
+  assert(updatedPendingCook?.coverPhoto === cookState.user.profileCover, "backgroundPhoto alias updates canonical user and cook cover fields");
+  const freshPendingState = await request(base, cookAccount.token, "GET", "/api/state");
+  assert(freshPendingState.user.profileCover === cookState.user.profileCover && freshPendingState.cooks.find((cook) => cook.id === pendingCook.id)?.coverPhoto === cookState.user.profileCover, "pending cook background survives a fresh state reload");
 
   cookState = await request(base, cookAccount.token, "POST", "/api/dishes", {
     name: `${baseName} Dish`,
@@ -368,6 +383,7 @@ try {
   assert(ownerState.users.some((user) => user.id === cookState.user.id && String(user.email).includes(`cook.${runId}@`) && user.nationalId === "12345678901"), "admin sees cook contact and T.C. Kimlik data for review");
   assert(ownerState.users.some((user) => user.id === cookState.user.id && user.phone === "+90 555 100 2000" && isPublicImageUrl(user.profilePhoto) && isPublicImageUrl(user.profileCover)), "admin sees cook phone, profile photo, and background photo for review");
   assert(isPublicImageUrl(ownerCook.profilePhoto) && isPublicImageUrl(ownerCook.coverPhoto), "pending cook request keeps submitted profile and background photos");
+  assert(ownerState.users.find((user) => user.id === cookState.user.id)?.profileCover === ownerCook.coverPhoto, "admin state exposes the same canonical background on user and pending cook");
   assert(!JSON.stringify(ownerState).includes("passwordHash"), "admin state never exposes password hashes");
   const pendingAdminDish = await requestRaw(base, owner.token, "POST", "/api/dishes", { cookId: ownerCook.id, name: "Blocked pending dish", price: 100, image: dishPhotoImage, country: "Turkey" });
   assert(pendingAdminDish.status === 403, "admin cannot create dishes for unapproved cooks");
