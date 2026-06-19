@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-cook-cover-02";
+const APP_BUILD = "20260619-media-storage-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -1627,10 +1627,52 @@ function escapeAttr(value) {
     .replace(/>/g, "&gt;");
 }
 
+function normalizeMediaValue(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    return normalizeMediaValue(value.url || value.src || value.href || value.publicUrl || value.path || value.dataUrl || "");
+  }
+  return String(value || "").trim();
+}
+
 function safeImageSrc(value, fallback = "") {
-  const src = String(value || "").trim();
-  if (/^https?:\/\//i.test(src) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(src) || /^(?:\/|\.\/|assets\/)/.test(src)) return src;
+  const src = normalizeMediaValue(value);
+  if (/^https?:\/\//i.test(src) || /^data:image\/(?:jpeg|jpg|png|webp);base64,/i.test(src) || /^(?:\/|\.\/|assets\/)/.test(src)) return src;
+  if (/^[A-Za-z0-9+/=]+$/.test(src) && src.length > 200) return `data:image/jpeg;base64,${src}`;
   return fallback;
+}
+
+function resolveCookMedia(cook, user) {
+  const profileCandidates = [
+    [cook?.profilePhoto, cook?.mediaStatus?.profilePhoto], [cook?.photo], [cook?.avatar], [cook?.image],
+    [cook?.media?.profilePhoto], [cook?.photos?.profile],
+    [user?.profilePhoto, user?.mediaStatus?.profilePhoto], [user?.photo], [user?.avatar], [user?.image]
+  ];
+  const coverCandidates = [
+    [cook?.coverPhoto, cook?.mediaStatus?.coverPhoto], [cook?.profileCover], [cook?.backgroundPhoto], [cook?.cover],
+    [cook?.media?.coverPhoto], [cook?.media?.backgroundPhoto], [cook?.photos?.cover],
+    [user?.profileCover, user?.mediaStatus?.profileCover], [user?.coverPhoto], [user?.backgroundPhoto], [user?.cover]
+  ];
+  const resolveCandidates = (candidates) => {
+    const entries = candidates
+      .map(([value, status]) => ({ value: normalizeMediaValue(value), status }))
+      .filter((entry) => entry.value);
+    const available = entries.find((entry) => entry.status !== "broken_internal_reference");
+    return {
+      value: available?.value || "",
+      broken: !available && entries.some((entry) => entry.status === "broken_internal_reference")
+    };
+  };
+  const profile = resolveCandidates(profileCandidates);
+  const cover = resolveCandidates(coverCandidates);
+  return {
+    profilePhoto: profile.value,
+    coverPhoto: cover.value,
+    profileSrc: safeImageSrc(profile.value, ""),
+    coverSrc: safeImageSrc(cover.value, ""),
+    profileBroken: profile.broken,
+    coverBroken: cover.broken
+  };
 }
 
 function blobToDataUrl(blob) {
@@ -1724,21 +1766,20 @@ function verificationTags(cook) {
 function adminCookRequestHtml(cook) {
   const user = userForCook(cook);
   const cookDishes = dishesForCook(cook.id);
-  const profilePhoto = cook.profilePhoto || user?.profilePhoto || "";
-  const coverPhoto = cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || user?.profileCover || "";
-  const profileImageSrc = safeImageSrc(profilePhoto, "");
-  const coverImageSrc = safeImageSrc(coverPhoto, "");
+  const media = resolveCookMedia(cook, user);
+  const profileImageSrc = media.profileSrc;
+  const coverImageSrc = media.coverSrc;
   const phone = cook.phone || user?.phone || "";
   const nationalId = user?.nationalId ? `•••••••${String(user.nationalId).slice(-4)}` : "No T.C. Kimlik";
   return `
     <div class="admin-review-card">
       <div class="admin-review-media">
         <div class="admin-review-cover">
-          ${coverImageSrc ? `<img src="${escapeAttr(coverImageSrc)}" alt="${escapeAttr(cook.name || "Cook")} background photo" loading="lazy" decoding="async">` : `<span>No background photo</span>`}
+          ${coverImageSrc ? `<a href="${escapeAttr(coverImageSrc)}" target="_blank" rel="noopener" class="admin-review-cover-link"><img src="${escapeAttr(coverImageSrc)}" alt="${escapeAttr(cook.name || "Cook")} background photo" loading="lazy" decoding="async" data-admin-media-image="cover"></a>` : `<span class="admin-review-media-empty">${media.coverBroken ? "Stored background image is unavailable. Re-upload required." : "No background photo uploaded"}</span>`}
           <b>Background photo</b>
         </div>
         <div class="admin-review-profile">
-          ${profilePhotoHtml(profilePhoto, cook.name)}
+          ${profileImageSrc ? `<a href="${escapeAttr(profileImageSrc)}" target="_blank" rel="noopener" class="admin-review-profile-link"><img class="profile-avatar" src="${escapeAttr(profileImageSrc)}" alt="${escapeAttr(cook.name || "Cook")} profile photo" loading="lazy" decoding="async" data-admin-media-image="profile"></a>` : `<div class="profile-avatar avatar-fallback admin-review-media-empty">${media.profileBroken ? "!" : profileInitials(cook.name)}</div>`}
           <span>Profile photo</span>
         </div>
       </div>
@@ -1762,7 +1803,7 @@ function adminCookRequestHtml(cook) {
           <div><small>Phone number</small><strong>${phone || "No phone"}</strong></div>
           <div><small>T.C. Kimlik</small><strong>${nationalId}</strong></div>
           <div><small>Country / city</small><strong>${user?.country || cook.country || "TR"} / ${cook.city || user?.city || "No city"}</strong></div>
-          <div><small>Profile media</small><strong>${profileImageSrc ? "Profile photo uploaded" : "No profile photo"} / ${coverImageSrc ? "Background uploaded" : "No background"}</strong></div>
+          <div><small>Profile media</small><strong>${media.profileBroken ? "Stored profile image unavailable" : profileImageSrc ? "Profile photo uploaded" : "No stored profile photo"} / ${media.coverBroken ? "Stored background unavailable" : coverImageSrc ? "Background uploaded" : "No stored background photo"}</strong></div>
         </div>
         ${(profileImageSrc || coverImageSrc) ? `<div class="toolbar admin-media-links" style="margin:0">
           ${profileImageSrc ? `<a class="button small secondary" href="${escapeAttr(profileImageSrc)}" target="_blank" rel="noreferrer">View profile photo</a>` : ""}
@@ -3139,6 +3180,17 @@ function cookName(cookId) {
 }
 
 function bindPage() {
+  document.querySelectorAll("[data-admin-media-image]").forEach((image) => {
+    image.onerror = () => {
+      const kind = image.dataset.adminMediaImage;
+      const link = image.closest("a");
+      const fallback = document.createElement("span");
+      fallback.className = "admin-review-media-empty";
+      fallback.textContent = `Stored ${kind === "cover" ? "background" : "profile"} image is unavailable. Re-upload required.`;
+      if (link) link.replaceWith(fallback);
+      else image.replaceWith(fallback);
+    };
+  });
   document.querySelectorAll("[data-page]").forEach((button) => {
     button.onclick = () => setPage(button.dataset.page);
   });

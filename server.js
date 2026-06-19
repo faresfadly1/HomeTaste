@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-cook-cover-02";
+const backendBuild = "20260619-media-storage-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -225,6 +225,7 @@ function validateImageValue(value, field = "Image") {
   const clean = String(value || "").trim();
   if (!clean) return "";
   if (/^https?:\/\/[^\s"'<>]{1,1200}$/i.test(clean)) return clean;
+  if (/^\/api\/images\/[a-f0-9]{40}\.(?:jpg|png|webp)(?:[?#][^\s"'<>]*)?$/i.test(clean)) return clean;
   const match = clean.match(/^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/);
   if (!match || !allowedImageTypes.has(match[1])) {
     const error = new Error(`${field} must be a JPEG, PNG, WebP, or safe image URL.`);
@@ -271,6 +272,19 @@ function imageApiUrlForDataUri(clean) {
   const ext = imageExtensionForMime(match[1]);
   return `${apiBaseUrl || ""}/api/images/${hash}.${ext}`;
 }
+function imageHashFromApiUrl(value) {
+  return String(value || "").match(/\/api\/images\/([a-f0-9]{40})\.(?:jpg|png|webp)(?:[?#].*)?$/i)?.[1] || "";
+}
+function preserveImageSource(currentValue, incomingValue, field = "Image") {
+  const incoming = validateImageValue(incomingValue, field);
+  const incomingHash = imageHashFromApiUrl(incoming);
+  if (!incomingHash) return incoming;
+  const current = String(currentValue || "").trim();
+  const currentData = imageDataFromValue(current, incomingHash);
+  if (currentData) return current;
+  if (current === incoming) return current;
+  return current;
+}
 function imageDataFromValue(value, requestedHash) {
   const clean = String(value || "").trim();
   const match = clean.match(publicImageDataUriPattern);
@@ -292,6 +306,14 @@ function findPublicImageData(db, requestedHash) {
   }
   return null;
 }
+function imageStorageStatus(db, value) {
+  const clean = String(value || "").trim();
+  if (!clean) return "missing";
+  if (publicImageDataUriPattern.test(clean)) return "stored";
+  const internalHash = imageHashFromApiUrl(clean);
+  if (internalHash) return findPublicImageData(db, internalHash) ? "stored" : "broken_internal_reference";
+  return "external";
+}
 function publicImageUrl(value) {
   const clean = String(value || "").trim();
   if (!clean) return "";
@@ -310,12 +332,16 @@ const publicUrlFields = new Set([
   "pendingEmailVerificationUrl",
   "pendingPasswordResetUrl"
 ]);
+const mediaStatusValues = new Set(["missing", "stored", "external", "broken_internal_reference"]);
 function sanitizePublicValue(value, key = "") {
   if (Array.isArray(value)) return value.map((item) => sanitizePublicValue(item, key));
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([entryKey, entryValue]) => [entryKey, sanitizePublicValue(entryValue, entryKey)]));
   }
-  if (typeof value === "string") return publicUrlFields.has(key) ? publicImageUrl(value) : escapeHtml(value);
+  if (typeof value === "string") {
+    if (publicUrlFields.has(key) && !mediaStatusValues.has(value)) return publicImageUrl(value);
+    return escapeHtml(value);
+  }
   return value;
 }
 function publicPayload(payload) {
@@ -2090,12 +2116,26 @@ function publicState(db, user = null) {
     ? db.cooks
     : db.cooks.filter((cook) => cook.status === "approved" || cook.userId === user?.id);
   const cookIds = new Set(cooks.map((cook) => cook.id));
+  const publicCooks = cooks.map((cook) => ({
+    ...cook,
+    mediaStatus: {
+      profilePhoto: imageStorageStatus(db, cook.profilePhoto),
+      coverPhoto: imageStorageStatus(db, cook.coverPhoto)
+    }
+  }));
   const orders = user ? visibleOrders(db, user) : [];
   const orderIds = new Set(orders.map((order) => order.id));
   const userSessions = user ? Object.values(db.sessions || {}).filter((session) => session.userId === user.id && !isExpiredSession(session)) : [];
+  const publicUser = user ? {
+    ...safeUser(user),
+    mediaStatus: {
+      profilePhoto: imageStorageStatus(db, user.profilePhoto),
+      profileCover: imageStorageStatus(db, user.profileCover)
+    }
+  } : null;
   return publicPayload({
-    user: safeUser(user),
-    cooks,
+    user: publicUser,
+    cooks: publicCooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: orders.map((order) => orderWithVisibleContacts(db, order, user)),
     messages: user
@@ -2107,7 +2147,13 @@ function publicState(db, user = null) {
     refunds: user ? visibleRefunds(db, user) : [],
     socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cookIds.has(action.cookId)),
     social: socialSummary(db),
-    users: user?.role === "owner" ? db.users.map(listUser) : [],
+    users: user?.role === "owner" ? db.users.map((item) => ({
+      ...listUser(item),
+      mediaStatus: {
+        profilePhoto: imageStorageStatus(db, item.profilePhoto),
+        profileCover: imageStorageStatus(db, item.profileCover)
+      }
+    })) : [],
     notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
     sessionInfo: user ? {
       active: userSessions.length,
@@ -2134,7 +2180,13 @@ function publicMarketplaceState(db) {
   const cooks = db.cooks.filter((cook) => cook.status === "approved");
   const cookIds = new Set(cooks.map((cook) => cook.id));
   return publicPayload({
-    cooks,
+    cooks: cooks.map((cook) => ({
+      ...cook,
+      mediaStatus: {
+        profilePhoto: imageStorageStatus(db, cook.profilePhoto),
+        coverPhoto: imageStorageStatus(db, cook.coverPhoto)
+      }
+    })),
     dishes: db.dishes.filter((dish) => dish.available !== false && cookIds.has(dish.cookId)),
     social: socialSummary(db),
     time: now()
@@ -2527,11 +2579,11 @@ async function api(req, res, pathname) {
   if (req.method === "PATCH" && pathname === "/api/users/profile") {
     const input = await body(req);
     user.authMeta ||= {};
-    if ("profilePhoto" in input) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
+    if ("profilePhoto" in input) user.profilePhoto = preserveImageSource(user.profilePhoto, input.profilePhoto, "Profile photo");
     const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
     if (hasIncomingCover) {
       const incomingCover = input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "";
-      user.profileCover = validateImageValue(incomingCover, "Background photo");
+      user.profileCover = preserveImageSource(user.profileCover, incomingCover, "Background photo");
     }
     if (input.name) user.name = textValue(input.name, "Name", { min: 1, max: 80 });
     if (input.city !== undefined) user.city = textValue(input.city || "", "City", { max: 100 });
@@ -2664,8 +2716,8 @@ async function api(req, res, pathname) {
       if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
       user.phone = phone;
     }
-    if (input.profilePhoto) user.profilePhoto = validateImageValue(input.profilePhoto, "Profile photo");
-    if (incomingCover) user.profileCover = validateImageValue(incomingCover, "Background photo");
+    if (input.profilePhoto) user.profilePhoto = preserveImageSource(user.profilePhoto, input.profilePhoto, "Profile photo");
+    if (incomingCover) user.profileCover = preserveImageSource(user.profileCover, incomingCover, "Background photo");
     cook = {
       id: id("cook"),
       userId: user.id,
@@ -3259,11 +3311,11 @@ async function api(req, res, pathname) {
     if (input.cuisine) cook.cuisine = textValue(input.cuisine, "Cuisine", { min: 1, max: 80 });
     if (input.city) cook.city = textValue(input.city, "City", { min: 1, max: 100 });
     if (input.bio !== undefined) cook.bio = textValue(input.bio || "", "Bio", { max: 700 });
-    if (input.profilePhoto !== undefined) cook.profilePhoto = validateImageValue(input.profilePhoto || "", "Profile photo");
+    if (input.profilePhoto !== undefined) cook.profilePhoto = preserveImageSource(cook.profilePhoto, input.profilePhoto || "", "Profile photo");
     const hasIncomingCover = ["profileCover", "coverPhoto", "backgroundPhoto"].some((key) => Object.prototype.hasOwnProperty.call(input, key));
     if (hasIncomingCover) {
       const incomingCover = input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "";
-      cook.coverPhoto = validateImageValue(incomingCover, "Background photo");
+      cook.coverPhoto = preserveImageSource(cook.coverPhoto, incomingCover, "Background photo");
     }
     const cookUser = db.users.find((item) => item.id === cook.userId);
     if (cookUser) {

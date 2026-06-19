@@ -3045,12 +3045,20 @@ function escapeAttr(value, fallback = '') {
 function attrText(value, fallback = '') {
   return escapeAttr(value, fallback);
 }
+function normalizeMediaValue(value) {
+  if (!value) return '';
+  if (typeof value === 'object') {
+    return normalizeMediaValue(value.url || value.src || value.href || value.publicUrl || value.path || value.dataUrl || '');
+  }
+  return String(value || '').trim();
+}
 function safeImageSrc(value, fallback = defaultDishPhoto) {
-  const src = String(value || '').trim();
+  const src = normalizeMediaValue(value);
   if (!src) return fallback;
   if (src.startsWith('/api/images/')) return `${MARKET_API_BASE}${src}`;
   if (
     src.startsWith('data:image/jpeg') ||
+    src.startsWith('data:image/jpg') ||
     src.startsWith('data:image/png') ||
     src.startsWith('data:image/webp') ||
     src.startsWith('https://') ||
@@ -3058,6 +3066,7 @@ function safeImageSrc(value, fallback = defaultDishPhoto) {
   ) {
     return src;
   }
+  if (/^[A-Za-z0-9+/=]+$/.test(src) && src.length > 200) return `data:image/jpeg;base64,${src}`;
   return fallback;
 }
 function formatTrackTime(value) {
@@ -3772,8 +3781,10 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
   const userCountry = rawState?.user?.country;
   const isMine = sameId(cook.userId, currentUserId);
   const currentUser = isMine ? (rawState?.user || {}) : {};
-  const profilePhoto = currentUser.profilePhoto || cook.profilePhoto || '';
-  const coverPhoto = currentUser.profileCover || cook.coverPhoto || '';
+  const profileStatus = currentUser.mediaStatus?.profilePhoto || cook.mediaStatus?.profilePhoto;
+  const coverStatus = currentUser.mediaStatus?.profileCover || cook.mediaStatus?.coverPhoto;
+  const profilePhoto = profileStatus === 'broken_internal_reference' ? '' : normalizeMediaValue(currentUser.profilePhoto || cook.profilePhoto || '');
+  const coverPhoto = coverStatus === 'broken_internal_reference' ? '' : normalizeMediaValue(currentUser.profileCover || cook.coverPhoto || '');
   const cookCountry = cook.country || (isMine ? userCountry : '') || selectedCountry;
   const cardDishPhoto = getCookCardDishPhoto(cook, cookDishes);
   return {

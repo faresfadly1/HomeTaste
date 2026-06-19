@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-cook-cover-02", "cook cover synchronization build marker is exposed");
+  assert(health.build === "20260619-media-storage-01", "durable media storage build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -229,8 +229,9 @@ try {
   assert(appSrcEarly.includes("function renderAdminInbox") && appSrcEarly.includes("Refund/support") && appSrcEarly.includes("adminUnreadConversationCount"), "admin chat provides a searchable filtered inbox");
   assert(appSrcEarly.includes("Developer / System") && appSrcEarly.includes('api("/api/health")') && appSrcEarly.includes("directPasswordForm"), "admin profile separates security and live system health");
   assert(!appSrcEarly.includes('["customer", "cook", "driver", "owner"].map((role)'), "normal role dropdown does not offer owner promotion");
-  assert(appSrcEarly.includes("cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || user?.profileCover") && appSrcEarly.includes("View background photo"), "admin cook request renders canonical and legacy background fields with a full-image link");
+  assert(appSrcEarly.includes("[cook?.coverPhoto, cook?.mediaStatus?.coverPhoto]") && appSrcEarly.includes("[cook?.profileCover]") && appSrcEarly.includes("[cook?.backgroundPhoto]") && appSrcEarly.includes("[user?.profileCover, user?.mediaStatus?.profileCover]") && appSrcEarly.includes("View background photo"), "admin cook request resolves canonical and legacy background fields with a full-image link");
   assert(appSrcEarly.includes("function safeImageSrc") && appSrcEarly.includes("coverImageSrc"), "admin cook request validates image sources before rendering");
+  assert(appSrcEarly.includes("function normalizeMediaValue") && appSrcEarly.includes("function resolveCookMedia") && appSrcEarly.includes("Stored background image is unavailable"), "admin media resolver supports legacy formats and clear broken-image states");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
@@ -256,6 +257,7 @@ try {
   assert(serverSrcEarly.includes("function auditAdminAction") && serverSrcEarly.includes("Admin cancellation requires a reason"), "backend records admin audit events and requires cancellation reasons");
   assert(serverSrcEarly.includes("Owner promotion requires a separate protected process"), "backend blocks owner promotion through normal role management");
   assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto") && serverSrcEarly.includes("row.auth_meta?.backgroundPhoto"), "backend normalizes legacy user and cook background aliases into canonical fields");
+  assert(serverSrcEarly.includes("function preserveImageSource") && serverSrcEarly.includes("broken_internal_reference"), "backend preserves original image bytes and identifies broken internal references");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
@@ -324,6 +326,14 @@ try {
   });
   await assertImageServesUpload(base, cookState.user.profilePhoto, profilePhotoImage, "profile photo");
   await assertImageServesUpload(base, cookState.user.profileCover, coverPhotoImage, "background photo");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", {
+    profilePhoto: cookState.user.profilePhoto,
+    profileCover: cookState.user.profileCover,
+    city: "Moda, Istanbul"
+  });
+  await assertImageServesUpload(base, cookState.user.profilePhoto, profilePhotoImage, "profile photo after public URL round trip");
+  await assertImageServesUpload(base, cookState.user.profileCover, coverPhotoImage, "background photo after public URL round trip");
+  assert(cookState.user.mediaStatus?.profilePhoto === "stored" && cookState.user.mediaStatus?.profileCover === "stored", "media status confirms original profile bytes remain stored");
   assert(cookState.user.city === "Moda, Istanbul" && cookState.user.authMeta?.locationLabel === "Moda, Kadikoy, Istanbul", "account city and chosen location save to user account");
   const invalidProfileImage = await requestRaw(base, cookAccount.token, "PATCH", "/api/users/profile", {
     profilePhoto: `data:text/html;base64,${Buffer.from("<script>alert(1)</script>").toString("base64")}`
@@ -342,6 +352,23 @@ try {
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
   assert(pendingCook.city === "Moda, Istanbul" && isPublicImageUrl(pendingCook.profilePhoto) && isPublicImageUrl(pendingCook.coverPhoto), "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
+  const validMediaDb = JSON.parse(await readFile(dbFile, "utf8"));
+  const brokenMediaDb = structuredClone(validMediaDb);
+  const brokenProfileUrl = `${base}/api/images/${"a".repeat(40)}.jpg`;
+  const brokenCoverUrl = `${base}/api/images/${"b".repeat(40)}.jpg`;
+  const brokenUser = brokenMediaDb.users.find((item) => item.id === cookState.user.id);
+  const brokenCook = brokenMediaDb.cooks.find((item) => item.id === pendingCook.id);
+  brokenUser.profilePhoto = brokenProfileUrl;
+  brokenUser.profileCover = brokenCoverUrl;
+  brokenCook.profilePhoto = brokenProfileUrl;
+  brokenCook.coverPhoto = brokenCoverUrl;
+  await writeFile(dbFile, JSON.stringify(brokenMediaDb, null, 2));
+  const brokenMediaState = await request(base, owner.token, "GET", "/api/state");
+  const brokenAdminUser = brokenMediaState.users.find((item) => item.id === cookState.user.id);
+  const brokenAdminCook = brokenMediaState.cooks.find((item) => item.id === pendingCook.id);
+  assert(brokenAdminUser?.mediaStatus?.profilePhoto === "broken_internal_reference" && brokenAdminUser?.mediaStatus?.profileCover === "broken_internal_reference", "admin user state identifies broken stored profile media references");
+  assert(brokenAdminCook?.mediaStatus?.profilePhoto === "broken_internal_reference" && brokenAdminCook?.mediaStatus?.coverPhoto === "broken_internal_reference", "admin cook request identifies broken stored profile and background references");
+  await writeFile(dbFile, JSON.stringify(validMediaDb, null, 2));
   cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { coverPhoto: updatedCoverPhotoImage });
   let updatedPendingCook = cookState.cooks.find((cook) => cook.id === pendingCook.id);
   await assertImageServesUpload(base, cookState.user.profileCover, updatedCoverPhotoImage, "pending cook updated background photo");
@@ -418,6 +445,7 @@ try {
   assert(market.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "approved online cook is visible to other users");
   const liveCook = market.cooks.find((cook) => cook.id === ownerCook.id);
   assert(liveCook?.city === "Moda, Istanbul" && isPublicImageUrl(liveCook.profilePhoto) && isPublicImageUrl(liveCook.coverPhoto), "public marketplace uses the same user city, profile photo, and background photo");
+  assert(liveCook?.mediaStatus?.profilePhoto === "stored" && liveCook?.mediaStatus?.coverPhoto === "stored", "public marketplace reports durable cook media health");
   assert(market.dishes.some((item) => item.id === dish.id && isPublicImageUrl(item.image)), "approved dish is visible publicly with uploaded photo");
   assert(!JSON.stringify(market).includes("data:image"), "public marketplace JSON does not inline uploaded base64 images");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });

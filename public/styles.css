@@ -186,6 +186,10 @@ textarea { min-height: 88px; resize: vertical; }
   object-fit: cover;
 }
 .admin-review-cover img { min-height: 150px; display: block; }
+.admin-review-cover-link { display: block; width: 100%; height: 100%; }
+.admin-review-profile-link { display: block; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; }
+.admin-review-profile-link .profile-avatar { width: 100%; height: 100%; }
+.admin-review-media-empty { display: grid; place-items: center; min-height: 64px; padding: 12px; color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; }
 .admin-media-links a { text-decoration: none; }
 .admin-review-cover b {
   position: absolute;
