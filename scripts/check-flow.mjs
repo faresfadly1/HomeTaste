@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-notification-preferences-01", "notification preferences build marker is exposed");
+  assert(health.build === "20260619-settings-mobile-01", "mobile settings polish build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -257,6 +257,13 @@ try {
   assert(!marketplaceSrcEarly.includes("<span class=\"info-pill verified-photo\">📸 Camera verified</span>"), "popular cook cards do not show Camera verified text");
   assert(marketplaceSrcEarly.includes('id="cookAvailabilitySection"') && marketplaceSrcEarly.includes("approvedCook") && !marketplaceSrcEarly.includes("function toggleSetting(el)"), "Online is separate from persisted notification preferences and limited to approved cooks");
   assert(marketplaceSrcEarly.includes("market-notification-preferences") && marketplaceSrcEarly.includes("notificationInbox") && marketplaceSrcEarly.includes("notificationsNavBadge"), "mobile settings use persisted preferences, a real inbox, and unread badge");
+  assert(!marketplaceSrcEarly.includes("Notification.requestPermission") && !marketplaceSrcEarly.includes("Browser notifications"), "browser notifications control stays hidden until real browser delivery exists");
+  assert(!marketplaceSrcEarly.includes("['promotions','Promotions'") && marketplaceSrcEarly.includes("['refunds','Refund updates'"), "normal Settings hides unused Promotions while keeping supported preferences");
+  assert(["Become a Cook", "Cook application pending", "Manage cook profile", "View rejected application", "Cook account suspended"].every((label) => marketplaceSrcEarly.includes(label)), "cook Settings action covers no-profile, pending, approved, rejected, and suspended states");
+  assert(marketplaceSrcEarly.includes("markAll.disabled = unread === 0") && marketplaceSrcEarly.includes("clearRead.disabled = read === 0") && marketplaceSrcEarly.includes("No unread notifications"), "notification inbox disables unavailable actions and has contextual empty states");
+  assert((marketplaceSrcEarly.match(/finally \{ renderNotificationSettings\(\); \}/g) || []).length >= 2, "notification inbox actions preserve disabled state after async completion");
+  assert(marketplaceSrcEarly.includes("View chat") && marketplaceSrcEarly.includes("View order") && marketplaceSrcEarly.includes("View all notifications"), "notification inbox uses clear destinations and supports expanding beyond eight items");
+  assert(marketplaceSrcEarly.includes("overflow-wrap:anywhere") && marketplaceSrcEarly.includes("Saved on this device only"), "mobile Settings wraps long content and labels checkout preferences as device-only");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");

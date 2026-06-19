@@ -1019,10 +1019,21 @@ ul{list-style:none}
 }
 .toggle.on::after{left:23px}
 .toggle:disabled{cursor:wait;opacity:.65}
-.browser-notification-row,.notification-inbox-head,.notification-inbox-actions{
+.notification-inbox-head,.notification-inbox-actions{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-.browser-notification-row{padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-account-card{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.settings-account-copy{min-width:0;flex:1}
+.settings-account-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.settings-account-actions button{
+  min-height:44px;padding:10px 13px;border:1px solid var(--border);border-radius:8px;
+  color:var(--orange);background:var(--bg3);font-size:12px;font-weight:800;
+}
+.account-setting-command{text-align:left;color:var(--orange);font-weight:700;min-height:44px}
+.account-setting-command strong,.account-setting-command small{display:block}
+.account-setting-command small{margin-top:3px;color:var(--text3);font-size:11px;font-weight:600}
+#mobileBecomeCookSetting{min-height:44px;text-align:left;color:var(--orange);font-weight:700}
+#mobileBecomeCookSetting:disabled{color:var(--text3);cursor:not-allowed}
 .notification-action{
   min-height:36px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;
   background:var(--bg3);color:var(--text2);font-size:12px;font-weight:800;
@@ -1031,6 +1042,7 @@ ul{list-style:none}
 .notification-inbox-head h3{margin:0}
 .notification-inbox-head span{font-size:12px;color:var(--text3)}
 .notification-inbox-actions{justify-content:flex-start;margin:12px 0}
+.notification-inbox-actions .notification-action[aria-pressed="true"]{color:var(--orange);border-color:var(--orange);background:var(--orange-light)}
 .notification-inbox{display:grid;gap:8px}
 .notification-entry{
   display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:start;gap:10px;
@@ -1042,6 +1054,8 @@ ul{list-style:none}
 .notification-entry p{font-size:12px;line-height:1.45;color:var(--text);margin:0 0 4px}
 .notification-entry time{font-size:10px;color:var(--text3)}
 .notification-entry button{font-size:11px;color:var(--orange);font-weight:800}
+.notification-view-all{width:100%;margin-top:10px}
+.notification-entry p,.notification-entry time,.setting-label,.setting-desc{overflow-wrap:anywhere}
 
 /* ======== DISH MODAL ======== */
 .modal-overlay{
@@ -1944,6 +1958,15 @@ ul{list-style:none}
     margin-bottom:14px!important;
     border-radius:14px;
   }
+  .settings-account-card{display:grid!important;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:12px!important}
+  .settings-avatar{width:64px;height:64px}
+  .settings-account-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px}
+  .settings-account-actions button{width:100%;min-width:0}
+  .notification-inbox-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .notification-inbox-actions .notification-action{padding-inline:6px;min-width:0}
+  #notificationUnreadFilterButton{grid-column:1/-1}
+  .notification-entry{grid-template-columns:8px minmax(0,1fr);gap:8px}
+  .notification-entry > button{grid-column:2;justify-self:start;min-height:36px}
   .settings-section{margin-bottom:14px}
   .settings-section h3{margin-bottom:8px}
   .setting-item{padding:9px 0;gap:10px}
@@ -2417,14 +2440,14 @@ ul{list-style:none}
     </div>
     <div class="settings-layout">
 
-      <div class="checkout-section" style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+      <div class="checkout-section settings-account-card">
         <div class="settings-avatar" id="settingsProfileAvatar">👤</div>
-        <div>
+        <div class="settings-account-copy">
           <div id="settingsProfileName" style="font-size:18px;font-weight:700">Your account</div>
           <div id="settingsProfileRegion" style="font-size:13px;color:var(--text3)">HomeTaste customer</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
-            <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfilePicturePanel()">Change profile photo →</button>
-            <button style="font-size:12px;color:var(--orange);font-weight:600" onclick="openProfileCoverPanel()">Change background →</button>
+          <div class="settings-account-actions">
+            <button type="button" onclick="openProfilePicturePanel()">Profile photo</button>
+            <button type="button" onclick="openProfileCoverPanel()">Background photo</button>
           </div>
         </div>
       </div>
@@ -2432,10 +2455,6 @@ ul{list-style:none}
       <div class="settings-section">
         <h3>Notifications</h3>
         <div id="notificationPreferencesList"></div>
-        <div class="browser-notification-row">
-          <div><div class="setting-label">Browser notifications</div><div class="setting-desc" id="browserNotificationStatus">Checking permission...</div></div>
-          <button class="notification-action" id="enableBrowserNotifications" type="button" onclick="enableBrowserNotifications()">Enable</button>
-        </div>
       </div>
 
       <div class="settings-section" id="cookAvailabilitySection" hidden>
@@ -2449,22 +2468,24 @@ ul{list-style:none}
       <div class="settings-section">
         <div class="notification-inbox-head"><h3>Notification Inbox</h3><span id="notificationUnreadSummary">0 unread</span></div>
         <div class="notification-inbox-actions">
-          <button class="notification-action" type="button" onclick="markAllNotificationsRead(this)">Mark all read</button>
-          <button class="notification-action" type="button" onclick="clearReadNotifications(this)">Clear read</button>
+          <button class="notification-action" id="markAllNotificationsReadButton" type="button" onclick="markAllNotificationsRead(this)">Mark all read</button>
+          <button class="notification-action" id="clearReadNotificationsButton" type="button" onclick="clearReadNotifications(this)">Clear read</button>
+          <button class="notification-action" id="notificationUnreadFilterButton" type="button" aria-pressed="false" onclick="toggleUnreadNotifications()">Unread only</button>
         </div>
         <div id="notificationInbox" class="notification-inbox"></div>
+        <button class="notification-action notification-view-all" id="notificationViewAllButton" type="button" onclick="showAllNotifications()" hidden>View all notifications</button>
       </div>
 
       <div class="settings-section">
         <h3>Account</h3>
         <div class="setting-item mobile-account-become">
-          <button id="mobileBecomeCookSetting" class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="showPage('become',null)">Become a Cook</button>
+          <button id="mobileBecomeCookSetting" class="setting-label" type="button" onclick="openCookSettingsAction()">Become a Cook</button>
         </div>
         <div class="setting-item">
           <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPasswordPanel()">Change Password</button>
         </div>
         <div class="setting-item">
-          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPaymentPanel()">Manage Payment Methods</button>
+          <button class="setting-label account-setting-command" type="button" onclick="openPaymentPanel()"><strong>Checkout display preferences</strong><small>Saved on this device only.</small></button>
         </div>
         <div class="setting-item">
           <button class="setting-label" style="cursor:pointer;color:#ef4444" onclick="marketSignOut()">Sign Out</button>
@@ -2694,6 +2715,8 @@ let marketStateLoaded = false;
 let marketSyncInFlight = false;
 let marketplaceUserState = {};
 let marketplaceNotifications = [];
+let notificationInboxUnreadOnly = false;
+let notificationInboxShowAll = false;
 let publicMarketSyncInFlight = false;
 let pendingOrderPlacement = false;
 let cookDishPhotoPreviewUrl = '';
@@ -4437,7 +4460,6 @@ function applyTranslations() {
   setPlaceholder('#chatInputField', tr('messagePlaceholder'));
   setText('#page-help .page-header h1', tr('helpTitle'));
   setText('#page-settings .page-header h1', tr('settingsTitle'));
-  setText('#mobileBecomeCookSetting', tr('becomeCook'));
 
   setText('.cart-header h3', tr('yourCart'));
   const cartTabs = document.querySelectorAll('.cart-tab');
@@ -5782,18 +5804,16 @@ const notificationPreferenceRows = [
   ['orderUpdates','Order updates','Cooking and other order progress alerts'],
   ['deliveryUpdates','Delivery updates','Driver assignment, nearby, and delivery alerts'],
   ['messages','Messages','New order chat messages'],
-  ['refunds','Refund updates','Refund request and decision updates'],
-  ['promotions','Promotions','Optional HomeTaste offers']
+  ['refunds','Refund updates','Refund request and decision updates']
 ];
 const defaultMarketNotificationPreferences = {orderUpdates:true,deliveryUpdates:true,messages:true,refunds:true,promotions:false};
 function currentNotificationPreferences() {
   return {...defaultMarketNotificationPreferences,...(marketplaceUserState.notificationPreferences || {})};
 }
-function browserNotificationPermission() {
-  if (!('Notification' in window)) return {label:'Not supported',canEnable:false};
-  if (Notification.permission === 'granted') return {label:'Allowed',canEnable:false};
-  if (Notification.permission === 'denied') return {label:'Blocked in browser settings',canEnable:false};
-  return {label:'Not enabled',canEnable:true};
+function notificationActionLabel(note) {
+  if (note?.data?.type === 'message') return 'View chat';
+  if (note?.data?.orderId || note?.data?.refundId) return 'View order';
+  return 'Open';
 }
 function renderNotificationSettings() {
   const preferences = currentNotificationPreferences();
@@ -5803,24 +5823,27 @@ function renderNotificationSettings() {
       <div><div class="setting-label">${label}</div><div class="setting-desc">${description}</div></div>
       <button class="toggle ${preferences[key] ? 'on' : ''}" type="button" role="switch" aria-label="${label}" aria-checked="${preferences[key] ? 'true' : 'false'}" data-notification-preference="${key}" onclick="saveNotificationPreference(this)"></button>
     </div>`).join('');
-  const permission = browserNotificationPermission();
-  const status = document.getElementById('browserNotificationStatus');
-  const enable = document.getElementById('enableBrowserNotifications');
-  if (status) status.textContent = `${permission.label}. Alerts are always available in the HomeTaste inbox.`;
-  if (enable) {
-    enable.hidden = !permission.canEnable;
-    enable.disabled = !permission.canEnable;
-  }
   const unread = marketplaceNotifications.filter(note => !note.read).length;
+  const read = marketplaceNotifications.length - unread;
   const summary = document.getElementById('notificationUnreadSummary');
   if (summary) summary.textContent = `${unread} unread`;
+  const markAll = document.getElementById('markAllNotificationsReadButton');
+  const clearRead = document.getElementById('clearReadNotificationsButton');
+  const unreadFilter = document.getElementById('notificationUnreadFilterButton');
+  if (markAll) markAll.disabled = unread === 0;
+  if (clearRead) clearRead.disabled = read === 0;
+  if (unreadFilter) unreadFilter.setAttribute('aria-pressed',notificationInboxUnreadOnly ? 'true' : 'false');
+  const filteredNotifications = notificationInboxUnreadOnly ? marketplaceNotifications.filter(note => !note.read) : marketplaceNotifications;
+  const displayedNotifications = notificationInboxShowAll ? filteredNotifications : filteredNotifications.slice(0,8);
   const inbox = document.getElementById('notificationInbox');
-  if (inbox) inbox.innerHTML = marketplaceNotifications.length ? marketplaceNotifications.slice(0,8).map(note => `
+  if (inbox) inbox.innerHTML = displayedNotifications.length ? displayedNotifications.map(note => `
     <div class="notification-entry ${note.read ? 'is-read' : ''}">
       <span class="notification-dot" aria-hidden="true"></span>
       <div><p>${safeDisplayHtml(note.text,'HomeTaste notification')}</p><time>${safeDisplayHtml(new Date(note.createdAt || Date.now()).toLocaleString())}</time></div>
-      <button type="button" onclick='openNotification(${jsArg(note.id)})'>${note.read ? 'View' : 'Read'}</button>
-    </div>`).join('') : `<div class="account-hint">No notifications yet.</div>`;
+      <button type="button" onclick='openNotification(${jsArg(note.id)})'>${notificationActionLabel(note)}</button>
+    </div>`).join('') : `<div class="account-hint">${notificationInboxUnreadOnly ? 'No unread notifications' : 'No notifications yet'}</div>`;
+  const viewAll = document.getElementById('notificationViewAllButton');
+  if (viewAll) viewAll.hidden = notificationInboxShowAll || filteredNotifications.length <= 8;
   updateNavBadges();
 }
 async function saveNotificationPreference(button) {
@@ -5842,14 +5865,23 @@ async function markAllNotificationsRead(button) {
   button.disabled = true;
   try { await sendMarketAction('market-notification-read-all'); }
   catch (error) { showToast(error.message,'error'); }
-  finally { button.disabled = false; }
+  finally { renderNotificationSettings(); }
 }
 async function clearReadNotifications(button) {
   if (button?.disabled || !marketplaceNotifications.some(note => note.read)) return;
   button.disabled = true;
   try { await sendMarketAction('market-notification-clear-read'); }
   catch (error) { showToast(error.message,'error'); }
-  finally { button.disabled = false; }
+  finally { renderNotificationSettings(); }
+}
+function toggleUnreadNotifications() {
+  notificationInboxUnreadOnly = !notificationInboxUnreadOnly;
+  notificationInboxShowAll = false;
+  renderNotificationSettings();
+}
+function showAllNotifications() {
+  notificationInboxShowAll = true;
+  renderNotificationSettings();
 }
 async function openNotification(notificationId) {
   const note = marketplaceNotifications.find(item => sameId(item.id,notificationId));
@@ -5863,12 +5895,6 @@ async function openNotification(notificationId) {
     if (chatMessages.some(chat => sameId(chat.id,note.data.orderId))) openChat(note.data.orderId);
   } else if (note.data?.orderId || note.data?.refundId) showPage('orders',null);
   else if (note.data?.cookId) showPage('become',null);
-}
-async function enableBrowserNotifications() {
-  if (!('Notification' in window) || Notification.permission !== 'default') return renderNotificationSettings();
-  try { await Notification.requestPermission(); }
-  catch (error) { showToast('Browser notification permission could not be requested.','error'); }
-  renderNotificationSettings();
 }
 async function toggleOnlineSetting(el) {
   if (el.disabled) return;
@@ -5940,14 +5966,32 @@ function getSavedProfileCover() {
 function setSavedProfileCover(value) {
   localStorage.setItem(userProfileCoverKey(), value);
 }
+function cookSettingsPresentation(cook) {
+  if (!cook) return {label:'Become a Cook',region:'HomeTaste customer',disabled:false,action:'apply'};
+  const presentations = {
+    pending:{label:'Cook application pending',region:'Cook application pending',disabled:false,action:'application'},
+    approved:{label:'Manage cook profile',region:'Approved cook profile',disabled:false,action:'profile'},
+    rejected:{label:'View rejected application',region:'Cook application rejected',disabled:false,action:'application'},
+    suspended:{label:'Cook account suspended',region:'Cook account suspended',disabled:true,action:'none'}
+  };
+  return presentations[cook.status] || {label:'View cook application',region:'Cook profile',disabled:false,action:'application'};
+}
+function openCookSettingsAction() {
+  const cook = getMyCook();
+  const presentation = cookSettingsPresentation(cook);
+  if (presentation.disabled) return;
+  if (presentation.action === 'profile' && cook) return openCookProfile(cook.id);
+  showPage('become',null);
+}
 function updateSettingsAccount() {
   const name = document.getElementById('settingsProfileName');
   const region = document.getElementById('settingsProfileRegion');
   const avatar = document.getElementById('settingsProfileAvatar');
   const photo = safeImageSrc(getSavedProfilePicture(), '');
   const cook = getMyCook();
+  const cookPresentation = cookSettingsPresentation(cook);
   if (name) name.textContent = currentUserName || 'Your account';
-  if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
+  if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · ${cookPresentation.region}` : `${countryNames[selectedCountry] || 'Selected country'} account`;
   if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(photo)}" alt="${escapeAttr(displayText(currentUserName, 'User'))} profile picture" loading="lazy" decoding="async">` : '👤';
   const approvedCook = cook?.status === 'approved' ? cook : null;
   const availabilitySection = document.getElementById('cookAvailabilitySection');
@@ -5956,6 +6000,12 @@ function updateSettingsAccount() {
   if (onlineToggle) {
     onlineToggle.classList.toggle('on', Boolean(approvedCook?.online));
     onlineToggle.setAttribute('aria-checked',approvedCook?.online ? 'true' : 'false');
+  }
+  const cookAction = document.getElementById('mobileBecomeCookSetting');
+  if (cookAction) {
+    cookAction.textContent = cookPresentation.label;
+    cookAction.disabled = cookPresentation.disabled;
+    cookAction.setAttribute('aria-disabled',cookPresentation.disabled ? 'true' : 'false');
   }
   renderNotificationSettings();
   syncMyCookPhotos();
@@ -6140,8 +6190,8 @@ function openPaymentPanel() {
   const defaults = paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR;
   const chosen = saved.size ? saved : new Set(defaults.slice(0, 3));
   openAccountModal(`
-    <h2>Manage Payment Methods</h2>
-    <p class="account-hint">Choose the methods this user wants to see first at checkout. Your choices are saved on this device for ${safeDisplayHtml(currentUserName, 'your account')}.</p>
+    <h2>Checkout display preferences</h2>
+    <p class="account-hint">Choose which payment options appear first at checkout. Saved on this device only for ${safeDisplayHtml(currentUserName, 'your account')}.</p>
     <div class="payment-choice-list">
       ${allPaymentMethods.map(method => `
         <label class="payment-choice">
@@ -6153,7 +6203,7 @@ function openPaymentPanel() {
     <div class="account-actions">
       <button class="account-cancel" type="button" onclick="resetPaymentMethods()">Use country default</button>
       <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Cancel</button>
-      <button class="btn-place-order" type="button" onclick="savePaymentPanel()">Save Methods</button>
+      <button class="btn-place-order" type="button" onclick="savePaymentPanel()">Save preferences</button>
     </div>
   `);
 }
