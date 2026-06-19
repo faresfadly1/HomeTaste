@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-cook-truth-01", "real cook statistics build marker is exposed");
+  assert(health.build === "20260619-notification-preferences-01", "notification preferences build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -228,6 +228,7 @@ try {
   assert(appSrcEarly.includes("Cancellation reason (required)") && appSrcEarly.includes('["delivered", "cancelled"].includes(status)'), "admin terminal order changes require protected confirmation flow");
   assert(appSrcEarly.includes("function renderAdminInbox") && appSrcEarly.includes("Refund/support") && appSrcEarly.includes("adminUnreadConversationCount"), "admin chat provides a searchable filtered inbox");
   assert(appSrcEarly.includes("Developer / System") && appSrcEarly.includes('api("/api/health")') && appSrcEarly.includes("directPasswordForm"), "admin profile separates security and live system health");
+  assert(appSrcEarly.includes("const adminSystem = isOwner();"), "push provider device setup is limited to the owner interface");
   assert(!appSrcEarly.includes('["customer", "cook", "driver", "owner"].map((role)'), "normal role dropdown does not offer owner promotion");
   assert(appSrcEarly.includes("[cook?.coverPhoto, cook?.mediaStatus?.coverPhoto]") && appSrcEarly.includes("[cook?.profileCover]") && appSrcEarly.includes("[cook?.backgroundPhoto]") && appSrcEarly.includes("[user?.profileCover, user?.mediaStatus?.profileCover]") && appSrcEarly.includes("View background photo"), "admin cook request resolves canonical and legacy background fields with a full-image link");
   assert(appSrcEarly.includes("function safeImageSrc") && appSrcEarly.includes("coverImageSrc"), "admin cook request validates image sources before rendering");
@@ -253,6 +254,9 @@ try {
   assert(marketplaceSrcEarly.includes("function cookViewModel(cook)") && marketplaceSrcEarly.includes("function formatCookRating(cook)") && marketplaceSrcEarly.includes("function formatMemberSince(dateValue)"), "cook cards and profiles share one canonical real-data view model");
   assert(marketplaceSrcEarly.includes("orders: stats.ordersTotal") && !marketplaceSrcEarly.includes("(rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length"), "public cook order totals never come from the viewer's visible orders");
   assert(marketplaceSrcEarly.includes("No reviews yet") && !marketplaceSrcEarly.includes("speed ${safeDisplayHtml(c.speedRating)}★") && !marketplaceSrcEarly.includes("Member since Jan 2024"), "new cooks show honest review, response, and membership labels without fake ratings");
+  assert(!marketplaceSrcEarly.includes("<span class=\"info-pill verified-photo\">📸 Camera verified</span>"), "popular cook cards do not show Camera verified text");
+  assert(marketplaceSrcEarly.includes('id="cookAvailabilitySection"') && marketplaceSrcEarly.includes("approvedCook") && !marketplaceSrcEarly.includes("function toggleSetting(el)"), "Online is separate from persisted notification preferences and limited to approved cooks");
+  assert(marketplaceSrcEarly.includes("market-notification-preferences") && marketplaceSrcEarly.includes("notificationInbox") && marketplaceSrcEarly.includes("notificationsNavBadge"), "mobile settings use persisted preferences, a real inbox, and unread badge");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
@@ -262,6 +266,7 @@ try {
   assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto") && serverSrcEarly.includes("row.auth_meta?.backgroundPhoto"), "backend normalizes legacy user and cook background aliases into canonical fields");
   assert(serverSrcEarly.includes("function preserveImageSource") && serverSrcEarly.includes("broken_internal_reference"), "backend preserves original image bytes and identifies broken internal references");
   assert(serverSrcEarly.includes("function cookStats(db, cookId)") && serverSrcEarly.includes("followersTotal") && serverSrcEarly.includes("ordersTotal"), "backend computes public cook statistics independently of viewer permissions");
+  assert(serverSrcEarly.includes("defaultNotificationPreferences") && serverSrcEarly.includes("/api/users/me/notification-preferences") && serverSrcEarly.includes("/api/notifications/read-all"), "backend persists notification preferences and read state");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
@@ -314,6 +319,16 @@ try {
     country: "TR",
     nationalId: "10000000001"
   });
+  assert(customer.state.user.notificationPreferences?.orderUpdates === true && customer.state.user.notificationPreferences?.messages === true && customer.state.user.notificationPreferences?.promotions === false, "new users receive safe transactional notification defaults with promotions off");
+  let customerPreferenceState = await request(base, customer.token, "PATCH", "/api/users/me/notification-preferences", { orderUpdates: false, messages: false, refunds: false });
+  assert(customerPreferenceState.user.notificationPreferences.orderUpdates === false && customerPreferenceState.user.notificationPreferences.messages === false, "notification preference changes save immediately");
+  const invalidNotificationPreference = await requestRaw(base, customer.token, "PATCH", "/api/users/me/notification-preferences", { imaginaryAlert: true });
+  assert(invalidNotificationPreference.status === 400, "unknown notification preference keys are rejected");
+  await request(base, customer.token, "POST", "/api/auth/logout", {});
+  const customerRelogin = await auth(base, "login", { email: `customer.${runId}@hometaste.test`, password: "CustomerPass123!" });
+  customer.token = customerRelogin.token;
+  customerPreferenceState = await request(base, customer.token, "GET", "/api/state");
+  assert(customerPreferenceState.user.notificationPreferences.orderUpdates === false && customerPreferenceState.user.notificationPreferences.messages === false && customerPreferenceState.user.notificationPreferences.refunds === false, "notification preferences persist after logout and login");
   const driver = await auth(base, "login", { email: driverEmail, password: driverPassword });
   const blockedOwnerPromotion = await requestRaw(base, owner.token, "PATCH", `/api/admin/users/${customer.state.user.id}`, { role: "owner" });
   assert(blockedOwnerPromotion.status === 403, "normal role management cannot promote a user to owner");
@@ -626,6 +641,10 @@ try {
   const cancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
   const cancelledCustomerOrder = cancelledCustomerState.orders.find((item) => item.id === cancelOrder.id);
   assert(cancelledCustomerOrder?.status === "cancelled" && cancelledCustomerOrder.payment?.status === "refunded", "customer track order sees cancelled state and refunded escrow");
+  const criticalCancellationNote = cancelledCustomerState.notifications.find((note) => note.data?.type === "order_cancelled" && note.data?.orderId === cancelOrder.id);
+  assert(criticalCancellationNote && criticalCancellationNote.read === false, "critical cancellation notification is created even when order updates are disabled");
+  let customerNotificationState = await request(base, customer.token, "PATCH", `/api/notifications/${criticalCancellationNote.id}/read`, {});
+  assert(customerNotificationState.notifications.find((note) => note.id === criticalCancellationNote.id)?.read === true, "customer can mark one notification as read");
   const blockedCancelledAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${cancelOrder.id}/accept`, {});
   assert(blockedCancelledAccept.status === 400, "driver cannot accept a cook-cancelled order");
 
@@ -645,6 +664,11 @@ try {
   assert(adminCancelledState.notifications.some((note) => note.data?.audit && note.data?.action === "cancelled order" && note.data?.entityId === adminCancelOrder.id), "admin order cancellation is written to the activity log");
   const adminCancelledCustomerState = await request(base, customer.token, "GET", "/api/state");
   assert(adminCancelledCustomerState.orders.find((item) => item.id === adminCancelOrder.id)?.status === "cancelled", "customer sees admin-cancelled order after refresh");
+  assert(adminCancelledCustomerState.notifications.some((note) => !note.read && note.data?.type === "order_cancelled" && note.data?.orderId === adminCancelOrder.id), "new critical notification appears unread in the inbox");
+  customerNotificationState = await request(base, customer.token, "POST", "/api/notifications/read-all", {});
+  assert(customerNotificationState.notifications.every((note) => note.read), "customer can mark all notifications as read");
+  customerNotificationState = await request(base, customer.token, "DELETE", "/api/notifications/read", {});
+  assert(customerNotificationState.notifications.length === 0, "customer can clear read notifications");
   const adminCancelledCookState = await request(base, cookAccount.token, "GET", "/api/state");
   assert(adminCancelledCookState.orders.find((item) => item.id === adminCancelOrder.id)?.status === "cancelled", "cook sees admin-cancelled order after refresh");
   const adminCancelledDriverState = await request(base, driver.token, "GET", "/api/state");
@@ -652,19 +676,25 @@ try {
   const blockedAdminCancelledAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${adminCancelOrder.id}/accept`, {});
   assert(blockedAdminCancelledAccept.status === 400, "driver cannot accept an admin-cancelled order");
 
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/me/notification-preferences", { messages: false });
   customerState = await request(base, customer.token, "POST", "/api/messages", { orderId: order.id, text: "Please call at arrival." });
   assert(customerState.messages.some((message) => message.orderId === order.id && message.text === "Please call at arrival." && message.fromUserId === customer.state.user.id), "customer can send an order chat message");
   let cookMessageState = await request(base, cookAccount.token, "GET", "/api/state");
   assert(cookMessageState.messages.some((message) => message.orderId === order.id && message.text === "Please call at arrival." && message.fromUserId === customer.state.user.id), "cook receives the customer order chat message");
+  assert(!cookMessageState.notifications.some((note) => note.data?.type === "message" && note.data?.orderId === order.id), "disabled message preference suppresses optional cook message notifications");
   cookMessageState = await request(base, cookAccount.token, "POST", "/api/messages", { orderId: order.id, text: "Thanks, I will message you on arrival." });
   assert(cookMessageState.messages.some((message) => message.orderId === order.id && message.text === "Thanks, I will message you on arrival." && message.fromUserId === cookMessageState.user.id), "cook can reply in the order chat");
   customerState = await request(base, customer.token, "GET", "/api/state");
   assert(customerState.messages.some((message) => message.orderId === order.id && message.text === "Thanks, I will message you on arrival." && message.fromUserId === cookMessageState.user.id), "customer receives the cook order chat reply");
+  assert(!customerState.notifications.some((note) => note.data?.type === "message" && note.data?.orderId === order.id), "disabled message preference suppresses optional customer message notifications");
   customerState = await request(base, customer.token, "POST", "/api/refunds", { orderId: order.id, reason: "missing_item", details: "Missing side item." });
   const refund = customerState.refunds.find((item) => item.orderId === order.id);
   assert(refund?.status === "pending", "refund request goes to admin review");
+  assert(!customerState.notifications.some((note) => note.data?.type === "refund_update" && note.data?.refundId === refund.id), "disabled refund preference suppresses optional refund receipt notifications");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/refunds/${refund.id}`, { outcome: "half", adminNote: "Approved half refund." });
   assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === 158.75, "admin half refund outcome saves");
+  const refundCustomerState = await request(base, customer.token, "GET", "/api/state");
+  assert(refundCustomerState.notifications.some((note) => note.data?.type === "refund_decision" && note.data?.refundId === refund.id), "critical refund decision notification appears even when refund updates are disabled");
 
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, { status: "suspended", online: false });
   hiddenMarket = await request(base, "", "GET", "/api/marketplace");

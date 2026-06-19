@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-cook-truth-01";
+const backendBuild = "20260619-notification-preferences-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -364,6 +364,18 @@ const defaultVerification = (status = "pending") => ({
   updatedAt: now(),
   notes: ""
 });
+const defaultNotificationPreferences = Object.freeze({
+  orderUpdates: true,
+  deliveryUpdates: true,
+  messages: true,
+  refunds: true,
+  promotions: false
+});
+const notificationPreferenceKeys = new Set(Object.keys(defaultNotificationPreferences));
+function notificationPreferencesFor(user) {
+  const stored = user?.notificationPreferences || user?.authMeta?.notificationPreferences || {};
+  return Object.fromEntries(Object.entries(defaultNotificationPreferences).map(([key, fallback]) => [key, typeof stored[key] === "boolean" ? stored[key] : fallback]));
+}
 
 const seedAccounts = [
   process.env.SEED_OWNER_EMAIL && process.env.SEED_OWNER_PASSWORD ? {
@@ -890,6 +902,11 @@ function notification(db, userId, text, data = {}) {
   db.notifications.push(note);
   return note;
 }
+function optionalNotification(db, userId, preference, text, data = {}) {
+  const target = db.users.find((user) => user.id === userId);
+  if (!target || notificationPreferencesFor(target)[preference] === false) return null;
+  return notification(db, userId, text, { ...data, preference });
+}
 
 async function firebaseAccessToken() {
   if (!firebaseProjectId || !firebaseClientEmail || !firebasePrivateKey) return "";
@@ -1238,6 +1255,9 @@ function normalizeDb(db) {
     user.nationalId ||= "";
     user.profilePhoto ||= "";
     user.profileCover ||= user.coverPhoto || user.backgroundPhoto || user.authMeta?.profileCover || user.authMeta?.coverPhoto || user.authMeta?.backgroundPhoto || "";
+    user.notificationPreferences = notificationPreferencesFor(user);
+    user.authMeta ||= {};
+    user.authMeta.notificationPreferences = user.notificationPreferences;
     delete user.coverPhoto;
     delete user.backgroundPhoto;
   }
@@ -1345,6 +1365,7 @@ const toUser = (row) => ({
   phoneVerified: Boolean(row.phone_verified),
   authProvider: row.auth_provider || "password",
   authMeta: row.auth_meta || {},
+  notificationPreferences: notificationPreferencesFor({ notificationPreferences: row.auth_meta?.notificationPreferences }),
   profilePhoto: row.profile_photo || row.auth_meta?.profilePhoto || "",
   profileCover: row.profile_cover || row.auth_meta?.profileCover || row.auth_meta?.coverPhoto || row.auth_meta?.backgroundPhoto || "",
   createdAt: row.created_at
@@ -1366,6 +1387,7 @@ const fromUser = (user) => ({
   auth_meta: {
     ...(user.authMeta || {}),
     ...(user.nationalId ? { nationalId: user.nationalId } : {}),
+    notificationPreferences: notificationPreferencesFor(user),
     profilePhoto: user.profilePhoto || "",
     profileCover: user.profileCover || ""
   },
@@ -1387,6 +1409,7 @@ const fromUserLegacy = (user) => ({
   auth_meta: {
     ...(user.authMeta || {}),
     ...(user.nationalId ? { nationalId: user.nationalId } : {}),
+    notificationPreferences: notificationPreferencesFor(user),
     profilePhoto: user.profilePhoto || "",
     profileCover: user.profileCover || ""
   },
@@ -2005,7 +2028,7 @@ async function body(req, maxSize = maxJsonBodySize) {
 function safeUser(user) {
   if (!user) return null;
   const { passwordHash, ...rest } = user;
-  return rest;
+  return { ...rest, notificationPreferences: notificationPreferencesFor(user) };
 }
 
 function getToken(req) {
@@ -2171,7 +2194,7 @@ function publicState(db, user = null) {
         profileCover: imageStorageStatus(db, item.profileCover)
       }
     })) : [],
-    notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
+    notifications: user ? db.notifications.filter((note) => note.userId === user.id) : [],
     sessionInfo: user ? {
       active: userSessions.length,
       currentExpiresAt: userSessions.sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))[0]?.expiresAt || null
@@ -2637,6 +2660,56 @@ async function api(req, res, pathname) {
     return json(res, 200, publicState(db, user));
   }
 
+  if (req.method === "PATCH" && pathname === "/api/users/me/notification-preferences") {
+    const input = await body(req);
+    const keys = Object.keys(input || {});
+    if (!keys.length) return json(res, 400, { error: "Choose at least one notification preference." });
+    const invalidKey = keys.find((key) => !notificationPreferenceKeys.has(key));
+    if (invalidKey) return json(res, 400, { error: `Unknown notification preference: ${invalidKey}.` });
+    const invalidValue = keys.find((key) => typeof input[key] !== "boolean");
+    if (invalidValue) return json(res, 400, { error: `${invalidValue} must be true or false.` });
+    user.notificationPreferences = { ...notificationPreferencesFor(user), ...input };
+    user.authMeta ||= {};
+    user.authMeta.notificationPreferences = user.notificationPreferences;
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/notifications/") && pathname.endsWith("/read")) {
+    const notificationId = pathname.split("/").at(-2);
+    const note = db.notifications.find((item) => item.id === notificationId && item.userId === user.id);
+    if (!note) return json(res, 404, { error: "Notification not found." });
+    note.read = true;
+    note.readAt = now();
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/notifications/read-all") {
+    const readAt = now();
+    db.notifications.filter((note) => note.userId === user.id && !note.read).forEach((note) => {
+      note.read = true;
+      note.readAt = readAt;
+    });
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "DELETE" && pathname === "/api/notifications/read") {
+    db.notifications = db.notifications.filter((note) => note.userId !== user.id || !note.read);
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "DELETE" && pathname.startsWith("/api/notifications/")) {
+    const notificationId = pathname.split("/").pop();
+    const index = db.notifications.findIndex((item) => item.id === notificationId && item.userId === user.id);
+    if (index < 0) return json(res, 404, { error: "Notification not found." });
+    db.notifications.splice(index, 1);
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
   if (req.method === "POST" && pathname === "/api/notifications/devices") {
     const input = await body(req);
     const provider = String(input.provider || "").trim().toLowerCase();
@@ -2940,9 +3013,9 @@ async function api(req, res, pathname) {
     db.payments.unshift(payment);
     const pushNotes = [];
     const cook = db.cooks.find((item) => item.id === order.cookId);
-    if (cook?.userId) pushNotes.push(notification(db, cook.userId, `New order ${order.id} received.`, { orderId: order.id, status: order.status }));
+    if (cook?.userId) pushNotes.push(optionalNotification(db, cook.userId, "orderUpdates", `New order ${order.id} received.`, { type: "order_update", orderId: order.id, status: order.status }));
     for (const driver of db.users.filter((item) => item.role === "driver")) {
-      pushNotes.push(notification(db, driver.id, `Available delivery: ${order.id}.`, { orderId: order.id, status: order.status }));
+      pushNotes.push(optionalNotification(db, driver.id, "deliveryUpdates", `Available delivery: ${order.id}.`, { type: "delivery_update", orderId: order.id, status: order.status }));
     }
     await saveDb(db);
     await sendPushBatch(db, pushNotes);
@@ -3017,7 +3090,7 @@ async function api(req, res, pathname) {
       if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
       const pushNotes = [];
       for (const userId of new Set(notifyIds.filter(Boolean))) {
-        pushNotes.push(notification(db, userId, `Order ${order.id} was cancelled.`, { orderId: order.id, status: order.status }));
+        pushNotes.push(notification(db, userId, `Order ${order.id} was cancelled.`, { type: "order_cancelled", critical: true, orderId: order.id, status: order.status }));
       }
       auditAdminAction(db, user, "cancelled order", "order", order.id, order.cancelReason);
       await saveDb(db);
@@ -3046,8 +3119,9 @@ async function api(req, res, pathname) {
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
     if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
     const pushNotes = [];
+    const notificationPreference = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
     for (const userId of new Set(notifyIds.filter(Boolean))) {
-      pushNotes.push(notification(db, userId, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { orderId: order.id, status: order.status }));
+      pushNotes.push(optionalNotification(db, userId, notificationPreference, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { type: notificationPreference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: order.status }));
     }
     await saveDb(db);
     await sendPushBatch(db, pushNotes);
@@ -3068,7 +3142,7 @@ async function api(req, res, pathname) {
     order.updatedAt = now();
     order.statusHistory ||= [];
     order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
-    const pushNote = notification(db, order.customerId, `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { orderId: order.id, status: order.status, etaMinutes: order.etaMinutes });
+    const pushNote = optionalNotification(db, order.customerId, "deliveryUpdates", `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { type: "delivery_update", orderId: order.id, status: order.status, etaMinutes: order.etaMinutes });
     await saveDb(db);
     await sendPushBatch(db, [pushNote]);
     return json(res, 200, publicState(db, user));
@@ -3089,7 +3163,13 @@ async function api(req, res, pathname) {
       createdAt: now()
     };
     db.messages.push(msg);
+    const relatedCook = db.cooks.find((item) => item.id === order.cookId);
+    const recipientId = user.id === order.customerId ? relatedCook?.userId : order.customerId;
+    const messageNote = recipientId && recipientId !== user.id
+      ? optionalNotification(db, recipientId, "messages", `New message from ${user.name} about order ${order.id}.`, { type: "message", orderId: order.id, messageId: msg.id })
+      : null;
     await saveDb(db);
+    await sendPushBatch(db, [messageNote]);
     return json(res, 201, publicState(db, user));
   }
 
@@ -3272,7 +3352,9 @@ async function api(req, res, pathname) {
     };
     db.refunds.unshift(refund);
     notifyOwners(db, `Refund request ${refund.id} opened for ${order.id}.`, { type: "refund_request", refundId: refund.id, orderId: order.id });
+    const refundReceiptNote = optionalNotification(db, user.id, "refunds", `Refund request ${refund.id} was received and is awaiting review.`, { type: "refund_update", refundId: refund.id, orderId: order.id, status: refund.status });
     await saveDb(db);
+    await sendPushBatch(db, [refundReceiptNote]);
     return json(res, 201, publicState(db, user));
   }
 
@@ -3378,7 +3460,7 @@ async function api(req, res, pathname) {
       const payment = db.payments.find((item) => item.orderId === order.id);
       if (payment && refund.amount > 0) payment.status = "refunded";
     }
-    db.notifications.push({ id: id("not"), userId: refund.customerId, text: `Refund ${refund.id} reviewed: ${input.outcome}.`, createdAt: now(), read: false });
+    notification(db, refund.customerId, `Refund ${refund.id} reviewed: ${input.outcome}.`, { type: "refund_decision", critical: true, refundId: refund.id, orderId: refund.orderId, outcome: input.outcome });
     auditAdminAction(db, user, `reviewed refund as ${input.outcome}`, "refund", refund.id, `${refund.orderId} · ${refund.amount} TL`);
     await saveDb(db);
     return json(res, 200, publicState(db, user));

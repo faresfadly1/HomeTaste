@@ -1,5 +1,11 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-cook-truth-01";
+const APP_BUILD = "20260619-notification-preferences-01";
+const defaultStaticNotificationPreferences = Object.freeze({ orderUpdates: true, deliveryUpdates: true, messages: true, refunds: true, promotions: false });
+const staticNotificationPreferenceKeys = new Set(Object.keys(defaultStaticNotificationPreferences));
+function staticNotificationPreferencesFor(user) {
+  const stored = user?.notificationPreferences || user?.authMeta?.notificationPreferences || {};
+  return Object.fromEntries(Object.entries(defaultStaticNotificationPreferences).map(([key, fallback]) => [key, typeof stored[key] === "boolean" ? stored[key] : fallback]));
+}
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -294,6 +300,23 @@ async function handleMarketplaceMessage(event) {
   if (event.data.action === "market-online") {
     try {
       state = await api("/api/cooks/online", { method: "PATCH", body: JSON.stringify({ online: event.data.online }) });
+      reply({ action: "market-sync", ok: true, state });
+      refreshEmbeddedRolePanel();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  const notificationActions = {
+    "market-notification-preferences": ["/api/users/me/notification-preferences", "PATCH"],
+    "market-notification-read": [`/api/notifications/${event.data.notificationId}/read`, "PATCH"],
+    "market-notification-read-all": ["/api/notifications/read-all", "POST"],
+    "market-notification-clear-read": ["/api/notifications/read", "DELETE"]
+  };
+  if (notificationActions[event.data.action]) {
+    try {
+      const [path, method] = notificationActions[event.data.action];
+      state = await api(path, { method, body: method === "PATCH" && event.data.action === "market-notification-preferences" ? JSON.stringify(event.data.payload || {}) : undefined });
       reply({ action: "market-sync", ok: true, state });
       refreshEmbeddedRolePanel();
     } catch (err) {
@@ -810,6 +833,9 @@ function loadStaticDb() {
     const canonicalCover = user.profileCover || user.coverPhoto || user.backgroundPhoto || user.authMeta?.profileCover || user.authMeta?.coverPhoto || user.authMeta?.backgroundPhoto || "";
     if (user.profileCover !== canonicalCover || user.coverPhoto !== undefined || user.backgroundPhoto !== undefined) changed = true;
     user.profileCover = canonicalCover;
+    user.notificationPreferences = staticNotificationPreferencesFor(user);
+    user.authMeta ||= {};
+    user.authMeta.notificationPreferences = user.notificationPreferences;
     delete user.coverPhoto;
     delete user.backgroundPhoto;
   });
@@ -868,7 +894,15 @@ function staticPasswordMatches(user, password) {
 function staticSafeUser(user) {
   if (!user) return null;
   const { passwordHash, ...rest } = user;
-  return rest;
+  return { ...rest, notificationPreferences: staticNotificationPreferencesFor(user) };
+}
+
+function staticOptionalNotification(db, userId, preference, text, data = {}) {
+  const target = db.users.find((user) => user.id === userId);
+  if (!target || staticNotificationPreferencesFor(target)[preference] === false) return null;
+  const note = { id: `not_${Date.now()}_${Math.random().toString(16).slice(2)}`, userId, text, data: { ...data, preference }, createdAt: new Date().toISOString(), read: false };
+  db.notifications.push(note);
+  return note;
 }
 
 function staticCookForUser(db, userId) {
@@ -1017,7 +1051,7 @@ function staticPublicState(db, user) {
     messages: user ? db.messages.filter((message) => visible.some((order) => order.id === message.orderId)) : [],
     socialActions: user?.role === "owner" ? db.socialActions : db.socialActions.filter((action) => action.userId === user?.id || cooks.some((cook) => cook.id === action.cookId)),
     users: user?.role === "owner" ? db.users.map(staticSafeUser) : [],
-    notifications: user ? db.notifications.filter((note) => note.userId === user.id || user.role === "owner") : [],
+    notifications: user ? db.notifications.filter((note) => note.userId === user.id) : [],
     sessionInfo: user ? { active: Object.values(db.sessions || {}).filter((session) => session.userId === user.id).length, currentExpiresAt: null } : null,
     stats: user?.role === "owner" ? {
       users: db.users.length,
@@ -1198,6 +1232,50 @@ async function staticApi(path, options = {}) {
     return staticPublicState(db, user);
   }
 
+  if (method === "PATCH" && path === "/api/users/me/notification-preferences") {
+    const keys = Object.keys(input || {});
+    if (!keys.length) throw new Error("Choose at least one notification preference.");
+    const invalidKey = keys.find((key) => !staticNotificationPreferenceKeys.has(key));
+    if (invalidKey) throw new Error(`Unknown notification preference: ${invalidKey}.`);
+    const invalidValue = keys.find((key) => typeof input[key] !== "boolean");
+    if (invalidValue) throw new Error(`${invalidValue} must be true or false.`);
+    user.notificationPreferences = { ...staticNotificationPreferencesFor(user), ...input };
+    user.authMeta ||= {};
+    user.authMeta.notificationPreferences = user.notificationPreferences;
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "PATCH" && path.startsWith("/api/notifications/") && path.endsWith("/read")) {
+    const note = db.notifications.find((item) => item.id === path.split("/").at(-2) && item.userId === user.id);
+    if (!note) throw new Error("Notification not found.");
+    note.read = true;
+    note.readAt = new Date().toISOString();
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "POST" && path === "/api/notifications/read-all") {
+    const readAt = new Date().toISOString();
+    db.notifications.filter((note) => note.userId === user.id && !note.read).forEach((note) => { note.read = true; note.readAt = readAt; });
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "DELETE" && path === "/api/notifications/read") {
+    db.notifications = db.notifications.filter((note) => note.userId !== user.id || !note.read);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "DELETE" && path.startsWith("/api/notifications/")) {
+    const notificationId = path.split("/").pop();
+    if (!db.notifications.some((note) => note.id === notificationId && note.userId === user.id)) throw new Error("Notification not found.");
+    db.notifications = db.notifications.filter((note) => note.id !== notificationId || note.userId !== user.id);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
   if (method === "POST" && path === "/api/cooks/apply") {
     if (staticCookForUser(db, user.id)) throw new Error("You already have a cook profile.");
     const incomingCover = String(input.profileCover || input.coverPhoto || input.backgroundPhoto || "").trim();
@@ -1338,9 +1416,9 @@ async function staticApi(path, options = {}) {
     order.payment = staticPaymentForOrder(order);
     db.orders.unshift(order);
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
-    if (orderCook?.userId) db.notifications.push({ id: `not_${Date.now()}_cook`, userId: orderCook.userId, text: `New order ${order.id} received.`, createdAt, read: false });
+    if (orderCook?.userId) staticOptionalNotification(db, orderCook.userId, "orderUpdates", `New order ${order.id} received.`, { type: "order_update", orderId: order.id, status: order.status });
     for (const driverUser of db.users.filter((item) => item.role === "driver")) {
-      db.notifications.push({ id: `not_${Date.now()}_${driverUser.id}`, userId: driverUser.id, text: `Available delivery: ${order.id}.`, createdAt, read: false });
+      staticOptionalNotification(db, driverUser.id, "deliveryUpdates", `Available delivery: ${order.id}.`, { type: "delivery_update", orderId: order.id, status: order.status });
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1360,7 +1438,7 @@ async function staticApi(path, options = {}) {
     order.updatedAt = new Date().toISOString();
     order.statusHistory ||= [];
     order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
-    db.notifications.push({ id: `not_${Date.now()}_${order.customerId}`, userId: order.customerId, text: `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, createdAt: order.updatedAt, read: false });
+    staticOptionalNotification(db, order.customerId, "deliveryUpdates", `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { type: "delivery_update", orderId: order.id, status: order.status });
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1421,7 +1499,8 @@ async function staticApi(path, options = {}) {
     order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
     for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
-      db.notifications.push({ id: `not_${Date.now()}_${userId}`, userId, text: `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, createdAt: order.updatedAt, read: false });
+      const preference = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus) ? "deliveryUpdates" : "orderUpdates";
+      staticOptionalNotification(db, userId, preference, `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, { type: preference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: nextStatus });
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1434,14 +1513,18 @@ async function staticApi(path, options = {}) {
     if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId && user.id !== order.driverId) throw new Error("No access to this chat.");
     const text = String(input.text || "").trim();
     if (!text) throw new Error("Message cannot be empty.");
-    db.messages.push({
+    const message = {
       id: `msg_${Date.now()}`,
       orderId: order.id,
       fromUserId: user.id,
       toCookId: order.cookId,
       text,
       createdAt: new Date().toISOString()
-    });
+    };
+    db.messages.push(message);
+    const relatedCook = db.cooks.find((item) => item.id === order.cookId);
+    const recipientId = user.id === order.customerId ? relatedCook?.userId : order.customerId;
+    if (recipientId && recipientId !== user.id) staticOptionalNotification(db, recipientId, "messages", `New message from ${user.name} about order ${order.id}.`, { type: "message", orderId: order.id, messageId: message.id });
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1541,6 +1624,7 @@ function staticAuth(input) {
     phone: String(input.phone || "").trim(),
     profilePhoto: "",
     profileCover: "",
+    notificationPreferences: staticNotificationPreferencesFor(null),
     createdAt: new Date().toISOString()
   };
   db.users.push(user);
@@ -3148,7 +3232,7 @@ function systemHealthHtml() {
 }
 
 function renderSettings() {
-  const adminSystem = isOwner() || isDriver();
+  const adminSystem = isOwner();
   return `
     ${header(t("profileTitle"), "Account, security, and system settings are separated for clarity.")}
     <section class="settings-stack">

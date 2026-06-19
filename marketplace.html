@@ -1006,7 +1006,7 @@ ul{list-style:none}
 }
 .settings-avatar img{width:100%;height:100%;object-fit:cover}
 .toggle{
-  width:44px;height:24px;border-radius:12px;
+  width:48px;height:28px;border-radius:14px;
   background:var(--bg4);position:relative;cursor:pointer;
   transition:background var(--transition);flex-shrink:0;
 }
@@ -1014,10 +1014,34 @@ ul{list-style:none}
 .toggle::after{
   content:'';position:absolute;
   top:3px;left:3px;
-  width:18px;height:18px;border-radius:50%;
+  width:22px;height:22px;border-radius:50%;
   background:#fff;transition:left var(--transition);
 }
 .toggle.on::after{left:23px}
+.toggle:disabled{cursor:wait;opacity:.65}
+.browser-notification-row,.notification-inbox-head,.notification-inbox-actions{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.browser-notification-row{padding:14px 0;border-bottom:1px solid var(--border)}
+.notification-action{
+  min-height:36px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg3);color:var(--text2);font-size:12px;font-weight:800;
+}
+.notification-action:disabled{opacity:.55;cursor:wait}
+.notification-inbox-head h3{margin:0}
+.notification-inbox-head span{font-size:12px;color:var(--text3)}
+.notification-inbox-actions{justify-content:flex-start;margin:12px 0}
+.notification-inbox{display:grid;gap:8px}
+.notification-entry{
+  display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:start;gap:10px;
+  padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card);
+}
+.notification-entry.is-read{opacity:.7}
+.notification-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);margin-top:5px}
+.notification-entry.is-read .notification-dot{background:var(--border2)}
+.notification-entry p{font-size:12px;line-height:1.45;color:var(--text);margin:0 0 4px}
+.notification-entry time{font-size:10px;color:var(--text3)}
+.notification-entry button{font-size:11px;color:var(--orange);font-weight:800}
 
 /* ======== DISH MODAL ======== */
 .modal-overlay{
@@ -2061,6 +2085,7 @@ ul{list-style:none}
     <div class="nav-item mobile-profile" onclick="showPage('settings',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Profile
+      <span class="nav-badge" id="notificationsNavBadge" hidden>0</span>
     </div>
   </nav>
 
@@ -2406,22 +2431,28 @@ ul{list-style:none}
 
       <div class="settings-section">
         <h3>Notifications</h3>
-        <div class="setting-item">
-          <div><div class="setting-label">Order Updates</div><div class="setting-desc">Get notified about your order status</div></div>
-          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        <div id="notificationPreferencesList"></div>
+        <div class="browser-notification-row">
+          <div><div class="setting-label">Browser notifications</div><div class="setting-desc" id="browserNotificationStatus">Checking permission...</div></div>
+          <button class="notification-action" id="enableBrowserNotifications" type="button" onclick="enableBrowserNotifications()">Enable</button>
         </div>
+      </div>
+
+      <div class="settings-section" id="cookAvailabilitySection" hidden>
+        <h3>Cook Availability</h3>
         <div class="setting-item">
-          <div><div class="setting-label">New Dishes</div><div class="setting-desc">Alerts when favorite cooks add new dishes</div></div>
-          <div class="toggle on" onclick="toggleSetting(this)"></div>
+          <div><div class="setting-label">Online / Offline</div><div class="setting-desc">Customers see whether you are available to cook.</div></div>
+          <button class="toggle" id="cookOnlineToggle" type="button" role="switch" aria-label="Cook availability" aria-checked="false" onclick="toggleOnlineSetting(this)"></button>
         </div>
-        <div class="setting-item">
-          <div><div class="setting-label">Online</div><div class="setting-desc">Switch on when you have free time to cook, switch off when unavailable</div></div>
-          <div class="toggle" id="cookOnlineToggle" onclick="toggleOnlineSetting(this)"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="notification-inbox-head"><h3>Notification Inbox</h3><span id="notificationUnreadSummary">0 unread</span></div>
+        <div class="notification-inbox-actions">
+          <button class="notification-action" type="button" onclick="markAllNotificationsRead(this)">Mark all read</button>
+          <button class="notification-action" type="button" onclick="clearReadNotifications(this)">Clear read</button>
         </div>
-        <div class="setting-item">
-          <div><div class="setting-label">Messages</div><div class="setting-desc">New message notifications</div></div>
-          <div class="toggle on" onclick="toggleSetting(this)"></div>
-        </div>
+        <div id="notificationInbox" class="notification-inbox"></div>
       </div>
 
       <div class="settings-section">
@@ -2661,6 +2692,8 @@ let currentUserId = '';
 let hostStateReady = false;
 let marketStateLoaded = false;
 let marketSyncInFlight = false;
+let marketplaceUserState = {};
+let marketplaceNotifications = [];
 let publicMarketSyncInFlight = false;
 let pendingOrderPlacement = false;
 let cookDishPhotoPreviewUrl = '';
@@ -3220,6 +3253,14 @@ async function runStandaloneMarketAction(action, payload = {}) {
       return syncMarketplaceFromApi(await marketApi('/api/users/profile', { method: 'PATCH', body: JSON.stringify(payload.profile || {}) }));
     case 'market-online':
       return syncMarketplaceFromApi(await marketApi('/api/cooks/online', { method: 'PATCH', body: JSON.stringify({ online: payload.online }) }));
+    case 'market-notification-preferences':
+      return syncMarketplaceFromApi(await marketApi('/api/users/me/notification-preferences', { method: 'PATCH', body: JSON.stringify(payload.payload || {}) }));
+    case 'market-notification-read':
+      return syncMarketplaceFromApi(await marketApi(`/api/notifications/${payload.notificationId}/read`, { method: 'PATCH' }));
+    case 'market-notification-read-all':
+      return syncMarketplaceFromApi(await marketApi('/api/notifications/read-all', { method: 'POST' }));
+    case 'market-notification-clear-read':
+      return syncMarketplaceFromApi(await marketApi('/api/notifications/read', { method: 'DELETE' }));
     case 'market-create-cook-dish': {
       const data = payload.payload || {};
       let state = null;
@@ -3721,6 +3762,7 @@ function marketplaceFingerprint(rawState) {
       name: rawState.user.name,
       country: rawState.user.country,
       city: rawState.user.city,
+      notificationPreferences: rawState.user.notificationPreferences,
       profilePhoto: rawState.user.profilePhoto,
       profileCover: rawState.user.profileCover
     } : null,
@@ -3769,6 +3811,7 @@ function marketplaceFingerprint(rawState) {
       Array.isArray(order.locationHistory) ? order.locationHistory.length : 0
     ]),
     social: rawState?.social || null,
+    notifications: (rawState?.notifications || []).map(note => [note.id,note.read,note.createdAt,note.text,JSON.stringify(note.data || null)]),
     socialActions: (Array.isArray(rawState?.socialActions) ? rawState.socialActions : []).map(action => [
       action.id,
       action.userId,
@@ -3956,6 +3999,8 @@ function applyMarketplaceState(rawState, options = {}) {
   hostStateReady = true;
   marketStateLoaded = true;
   const user = rawState.user || {};
+  marketplaceUserState = {...user};
+  marketplaceNotifications = (rawState.notifications || []).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const previousUserId = currentUserId;
   currentUserId = user.id || currentUserId;
   if (previousUserId && currentUserId && !sameId(previousUserId, currentUserId)) confirmedSocialStates.clear();
@@ -4684,7 +4729,6 @@ function cookCard(c, staggerClass) {
       <div>
         <span class="info-pill">${c.online ? '🟢' : '⚪'} ${safeDisplayHtml(c.availability)}</span>
         <span class="info-pill">⚡ ${safeDisplayHtml(c.prepTime)}</span>
-        ${c.verifiedPhoto ? '<span class="info-pill verified-photo">📸 Camera verified</span>' : ''}
       </div>
       <div class="cook-footer">
         <div><div class="cook-dish">${safeDisplayHtml(dishName)}</div><div style="font-size:11px;color:var(--text3)">${view.orders ? `${safeDisplayHtml(view.orders)} orders` : 'No orders yet'} · ${safeDisplayHtml(view.response)}</div></div>
@@ -5177,6 +5221,7 @@ function setNavBadge(id, count) {
 function updateNavBadges() {
   setNavBadge('ordersNavBadge', demoOrders.length);
   setNavBadge('messagesNavBadge', chatMessages.reduce((sum, conv) => sum + Number(conv.unread || 0), 0));
+  setNavBadge('notificationsNavBadge', marketplaceNotifications.filter(note => !note.read).length);
 }
 function cartTab(btn, type) {
   cartFulfillmentMode = type === 'pickup' ? 'pickup' : 'delivery';
@@ -5733,13 +5778,104 @@ function toggleFaq(i) {
 }
 
 // ===== SETTINGS =====
-function toggleSetting(el) {
-  el.classList.toggle('on');
-  showToast(el.classList.contains('on') ? '✅ Setting enabled' : 'Setting disabled', 'info');
+const notificationPreferenceRows = [
+  ['orderUpdates','Order updates','Cooking and other order progress alerts'],
+  ['deliveryUpdates','Delivery updates','Driver assignment, nearby, and delivery alerts'],
+  ['messages','Messages','New order chat messages'],
+  ['refunds','Refund updates','Refund request and decision updates'],
+  ['promotions','Promotions','Optional HomeTaste offers']
+];
+const defaultMarketNotificationPreferences = {orderUpdates:true,deliveryUpdates:true,messages:true,refunds:true,promotions:false};
+function currentNotificationPreferences() {
+  return {...defaultMarketNotificationPreferences,...(marketplaceUserState.notificationPreferences || {})};
+}
+function browserNotificationPermission() {
+  if (!('Notification' in window)) return {label:'Not supported',canEnable:false};
+  if (Notification.permission === 'granted') return {label:'Allowed',canEnable:false};
+  if (Notification.permission === 'denied') return {label:'Blocked in browser settings',canEnable:false};
+  return {label:'Not enabled',canEnable:true};
+}
+function renderNotificationSettings() {
+  const preferences = currentNotificationPreferences();
+  const list = document.getElementById('notificationPreferencesList');
+  if (list) list.innerHTML = notificationPreferenceRows.map(([key,label,description]) => `
+    <div class="setting-item">
+      <div><div class="setting-label">${label}</div><div class="setting-desc">${description}</div></div>
+      <button class="toggle ${preferences[key] ? 'on' : ''}" type="button" role="switch" aria-label="${label}" aria-checked="${preferences[key] ? 'true' : 'false'}" data-notification-preference="${key}" onclick="saveNotificationPreference(this)"></button>
+    </div>`).join('');
+  const permission = browserNotificationPermission();
+  const status = document.getElementById('browserNotificationStatus');
+  const enable = document.getElementById('enableBrowserNotifications');
+  if (status) status.textContent = `${permission.label}. Alerts are always available in the HomeTaste inbox.`;
+  if (enable) {
+    enable.hidden = !permission.canEnable;
+    enable.disabled = !permission.canEnable;
+  }
+  const unread = marketplaceNotifications.filter(note => !note.read).length;
+  const summary = document.getElementById('notificationUnreadSummary');
+  if (summary) summary.textContent = `${unread} unread`;
+  const inbox = document.getElementById('notificationInbox');
+  if (inbox) inbox.innerHTML = marketplaceNotifications.length ? marketplaceNotifications.slice(0,8).map(note => `
+    <div class="notification-entry ${note.read ? 'is-read' : ''}">
+      <span class="notification-dot" aria-hidden="true"></span>
+      <div><p>${safeDisplayHtml(note.text,'HomeTaste notification')}</p><time>${safeDisplayHtml(new Date(note.createdAt || Date.now()).toLocaleString())}</time></div>
+      <button type="button" onclick='openNotification(${jsArg(note.id)})'>${note.read ? 'View' : 'Read'}</button>
+    </div>`).join('') : `<div class="account-hint">No notifications yet.</div>`;
+  updateNavBadges();
+}
+async function saveNotificationPreference(button) {
+  const key = button?.dataset.notificationPreference;
+  if (!key || button.disabled) return;
+  const nextValue = !currentNotificationPreferences()[key];
+  button.disabled = true;
+  button.setAttribute('aria-busy','true');
+  try {
+    await sendMarketAction('market-notification-preferences',{payload:{[key]:nextValue}});
+    showToast(`${button.getAttribute('aria-label')} ${nextValue ? 'enabled' : 'disabled'}.`,'success');
+  } catch (error) {
+    renderNotificationSettings();
+    showToast(error.message,'error');
+  }
+}
+async function markAllNotificationsRead(button) {
+  if (button?.disabled || !marketplaceNotifications.some(note => !note.read)) return;
+  button.disabled = true;
+  try { await sendMarketAction('market-notification-read-all'); }
+  catch (error) { showToast(error.message,'error'); }
+  finally { button.disabled = false; }
+}
+async function clearReadNotifications(button) {
+  if (button?.disabled || !marketplaceNotifications.some(note => note.read)) return;
+  button.disabled = true;
+  try { await sendMarketAction('market-notification-clear-read'); }
+  catch (error) { showToast(error.message,'error'); }
+  finally { button.disabled = false; }
+}
+async function openNotification(notificationId) {
+  const note = marketplaceNotifications.find(item => sameId(item.id,notificationId));
+  if (!note) return;
+  if (!note.read) {
+    try { await sendMarketAction('market-notification-read',{notificationId}); }
+    catch (error) { showToast(error.message,'error'); return; }
+  }
+  if (note.data?.type === 'message' && note.data?.orderId) {
+    showPage('messages',null);
+    if (chatMessages.some(chat => sameId(chat.id,note.data.orderId))) openChat(note.data.orderId);
+  } else if (note.data?.orderId || note.data?.refundId) showPage('orders',null);
+  else if (note.data?.cookId) showPage('become',null);
+}
+async function enableBrowserNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'default') return renderNotificationSettings();
+  try { await Notification.requestPermission(); }
+  catch (error) { showToast('Browser notification permission could not be requested.','error'); }
+  renderNotificationSettings();
 }
 async function toggleOnlineSetting(el) {
+  if (el.disabled) return;
   el.classList.toggle('on');
   const online = el.classList.contains('on');
+  el.disabled = true;
+  el.setAttribute('aria-busy','true');
   setDesiredCookOnline(online);
   const cook = getMyCook();
   if (cook) {
@@ -5753,14 +5889,22 @@ async function toggleOnlineSetting(el) {
       cook.availability = cook.online ? 'Online now' : 'Offline';
       setDesiredCookOnline(cook.online);
       el.classList.toggle('on', cook.online);
+      el.setAttribute('aria-checked',cook.online ? 'true' : 'false');
       refreshCookAndDishViews();
       showToast(error.message, 'error');
+      el.disabled = false;
+      el.removeAttribute('aria-busy');
       return;
     }
   } else {
     showToast(online ? 'Online will be applied after your cook profile is created.' : 'Offline saved.', 'info');
+    el.disabled = false;
+    el.removeAttribute('aria-busy');
     return;
   }
+  el.disabled = false;
+  el.removeAttribute('aria-busy');
+  el.setAttribute('aria-checked',online ? 'true' : 'false');
   showToast(online ? '🟢 You are online and available to cook' : 'Offline: customers will see you are unavailable', 'info');
 }
 
@@ -5805,7 +5949,15 @@ function updateSettingsAccount() {
   if (name) name.textContent = currentUserName || 'Your account';
   if (region) region.textContent = cook ? `${countryNames[selectedCountry] || 'Selected country'} account · Cook profile ready` : `${countryNames[selectedCountry] || 'Selected country'} account`;
   if (avatar) avatar.innerHTML = photo ? `<img src="${escapeAttr(photo)}" alt="${escapeAttr(displayText(currentUserName, 'User'))} profile picture" loading="lazy" decoding="async">` : '👤';
-  document.getElementById('cookOnlineToggle')?.classList.toggle('on', Boolean(cook?.online));
+  const approvedCook = cook?.status === 'approved' ? cook : null;
+  const availabilitySection = document.getElementById('cookAvailabilitySection');
+  if (availabilitySection) availabilitySection.hidden = !approvedCook;
+  const onlineToggle = document.getElementById('cookOnlineToggle');
+  if (onlineToggle) {
+    onlineToggle.classList.toggle('on', Boolean(approvedCook?.online));
+    onlineToggle.setAttribute('aria-checked',approvedCook?.online ? 'true' : 'false');
+  }
+  renderNotificationSettings();
   syncMyCookPhotos();
   if (currentCook && cook && sameId(currentCook.id, cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
     openCookProfile(cook.id);
