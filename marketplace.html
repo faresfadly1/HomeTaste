@@ -1880,13 +1880,14 @@ ul{list-style:none}
   }
   .cook-profile-body{padding:104px 10px calc(96px + env(safe-area-inset-bottom))}
   .cook-stats{
-    display:flex;gap:16px;padding:0;margin:0 0 24px;background:transparent;border:0;border-radius:0;
-    justify-content:space-between;
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0;margin:0 0 24px;background:transparent;border:0;border-radius:0;
   }
-  .cook-stat{text-align:left;flex:0 0 auto}
+  .cook-stat{text-align:center;min-width:0}
   .cook-stat-val{font-size:12px;color:#1d1712;font-family:'DM Sans',sans-serif}
   .cook-stat-label{font-size:10px;color:#6f6358}
-  .cook-stat:nth-child(3),.cook-stat:nth-child(4),.profile-extra{display:none}
+  .profile-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:20px}
+  .profile-box{padding:11px;min-width:0}
+  .profile-box strong{display:block;overflow-wrap:anywhere}
   .profile-about{
     display:block;border-top:1px solid #eee3d7;border-bottom:1px solid #eee3d7;
     padding:16px 0;margin-bottom:16px;
@@ -1940,7 +1941,7 @@ ul{list-style:none}
   .nav-item svg{width:19px;height:19px}
   .cook-card,.dish-card{grid-template-columns:96px minmax(0,1fr)}
   .orders-tab{font-size:9px;padding:8px 4px}
-  .cook-stats{grid-template-columns:1fr}
+  .cook-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
   .order-card{display:grid}
   .popular-locations button{width:100%}
 }
@@ -1948,6 +1949,7 @@ ul{list-style:none}
   body{font-size:12px}
   .sidebar{left:20px;right:20px;height:64px}
   .sidebar-nav{gap:1px;padding:0}
+  .cook-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .nav-item{width:52px;height:52px;font-size:10px;border-radius:19px}
   .nav-item svg{width:18px;height:18px}
   .hero{height:172px;margin:8px 8px 10px}
@@ -2454,10 +2456,10 @@ ul{list-style:none}
           <h1 id="profileName">Cook Name</h1>
           <p id="profileCuisine">Cuisine Type</p>
           <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
-            <span class="star">★</span>
-            <span id="profileRating">4.9</span>
-            <span style="color:var(--text3);font-size:13px" id="profileReviews">(120 reviews)</span>
-            <span style="color:var(--text3);font-size:13px" id="profileCity">📍 Istanbul</span>
+            <span class="star" id="profileRatingStar" hidden>★</span>
+            <span id="profileRating">New</span>
+            <span style="color:var(--text3);font-size:13px" id="profileReviews">No reviews yet</span>
+            <span style="color:var(--text3);font-size:13px" id="profileCity">📍 Location not set</span>
           </div>
           <div style="display:flex;gap:10px;margin-top:14px">
             <button class="btn-apply" id="profileFollowButton" style="padding:10px 20px;font-size:13px" onclick="followCookFromProfile()">+ Follow</button>
@@ -2468,16 +2470,16 @@ ul{list-style:none}
     </div>
     <div class="cook-profile-body">
       <div class="cook-stats">
-        <div class="cook-stat"><div class="cook-stat-val" id="profileOrders">847</div><div class="cook-stat-label">Orders</div></div>
-        <div class="cook-stat"><div class="cook-stat-val" id="profileFollowers">312</div><div class="cook-stat-label">Followers</div></div>
-        <div class="cook-stat"><div class="cook-stat-val" id="profileDishes">12</div><div class="cook-stat-label">Dishes</div></div>
-        <div class="cook-stat"><div class="cook-stat-val" id="profileSpeed">4.8★</div><div class="cook-stat-label">Speed</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileOrders">0</div><div class="cook-stat-label">Orders</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileFollowers">0</div><div class="cook-stat-label">Followers</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileDishes">0</div><div class="cook-stat-label">Dishes</div></div>
+        <div class="cook-stat"><div class="cook-stat-val" id="profileSpeed">Offline</div><div class="cook-stat-label">Response</div></div>
       </div>
       <div class="profile-about">
         <h3>About me</h3>
-        <p id="profileBio">I love cooking traditional food from my home.</p>
-        <small id="profileAboutCity">⊙ Istanbul, Turkey</small>
-        <small>♙ Member since Jan 2024</small>
+        <p id="profileBio">No bio added yet.</p>
+        <small id="profileAboutCity">⊙ Location not set</small>
+        <small id="profileMemberSince">♙ Member since unknown</small>
       </div>
       <div class="profile-extra">
         <div class="profile-box"><small>Available</small><strong id="profileAvailability">Today 6 PM–10 PM</strong></div>
@@ -2990,11 +2992,10 @@ cooks.forEach((c,i)=>{
   const profilePhoto = c.profilePhoto || '';
   const coverPhoto = c.coverPhoto || coverPhotos[i % coverPhotos.length];
   Object.assign(c,{
-    availability: c.availability || ['Today 6 PM–10 PM','Weekends 1 PM–9 PM','Daily 12 PM–8 PM'][i%3],
     prepTime: c.prepTime || ['35–45 min','45–60 min','25–35 min'][i%3],
-    responseTime: c.responseTime || ['Usually replies in 5 min','Usually replies in 12 min','Usually replies in 20 min'][i%3],
-    phone: c.phone || '+90 5XX XXX XX XX',
-    speedRating: c.speedRating || (4.6 + (i%3)/10).toFixed(1),
+    availability: c.online ? 'Online now' : 'Offline',
+    responseTime: c.online ? 'Online now' : 'Offline',
+    phone: c.phone || 'Hidden until order',
     verifiedPhoto: c.verifiedPhoto ?? (i !== 5),
     profilePhoto,
     coverPhoto,
@@ -3227,7 +3228,7 @@ async function runStandaloneMarketAction(action, payload = {}) {
           method: 'POST',
           body: JSON.stringify({
             cuisine: data.country || 'Home Kitchen',
-            bio: data.bio || 'Fresh home cooking.',
+            bio: data.bio || '',
             profilePhoto: data.profilePhoto || '',
             profileCover: data.coverPhoto || '',
             online: Boolean(data.online)
@@ -3352,19 +3353,19 @@ function normalizeCustomCook(cook) {
     id: cook.id || nextCookId(),
     isCustom: true,
     ownerKey,
-    country: cook.country || selectedCountry,
+    country: cook.country || '',
     emoji: cook.emoji || '🧑‍🍳',
     cuisine: cook.cuisine || 'Home Kitchen',
-    rating: cook.rating || 5,
-    reviews: cook.reviews || 0,
+    rating: Number(cook.rating || 0),
+    reviews: Number(cook.reviews || 0),
     verified: cook.verified ?? true,
     verifiedPhoto: cook.verifiedPhoto ?? false,
-    orders: cook.orders || 0,
-    followers: cook.followers || 0,
-    availability: cook.availability || 'Today 6 PM–10 PM',
+    stats: cook.stats || {ordersTotal:0,deliveredOrders:0,followersTotal:0,dishesTotal:0,reviewsTotal:0,ratingAverage:0},
+    orders: Number(cook.stats?.ordersTotal || 0),
+    followers: Number(cook.stats?.followersTotal || 0),
+    availability: cook.online ? 'Online now' : 'Offline',
     prepTime: cook.prepTime || '45 min',
-    responseTime: cook.responseTime || 'New cook · replies soon',
-    speedRating: cook.speedRating || '5.0',
+    responseTime: cook.online ? 'Online now' : 'Offline',
     profilePhoto,
     coverPhoto,
     img: cook.img || defaultDishPhoto
@@ -3447,6 +3448,43 @@ function getCookCoverPhoto(cook) {
   if (cook.coverPhoto) return cook.coverPhoto;
   return defaultCookCoverPhoto;
 }
+function formatCookRating(cook) {
+  const reviewCount = Number(cook?.stats?.reviewsTotal || 0);
+  const rating = Number(cook?.stats?.ratingAverage || 0);
+  if (!reviewCount || !rating) return {label:'New',detail:'No reviews yet',hasRating:false};
+  return {
+    label: rating.toFixed(1),
+    detail: `${reviewCount} review${reviewCount === 1 ? '' : 's'}`,
+    hasRating: true
+  };
+}
+function formatMemberSince(dateValue) {
+  const date = dateValue ? new Date(dateValue) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'Member since unknown';
+  return `Member since ${date.toLocaleDateString(undefined, {month:'short',year:'numeric'})}`;
+}
+function cookViewModel(cook) {
+  const stats = cook?.stats || {};
+  const city = displayText(cook?.city, '');
+  const countryCode = displayText(cook?.country, '');
+  const country = countryNames[countryCode] || countryCode;
+  const location = city && country ? `${city}, ${country}` : city || country || 'Location not set';
+  return {
+    id: cook?.id || '',
+    name: displayText(cook?.name, 'HomeTaste Cook'),
+    cuisine: displayText(cook?.cuisine, 'Home Kitchen'),
+    bio: displayText(cook?.bio, 'No bio added yet.'),
+    location,
+    rating: formatCookRating(cook),
+    orders: Number(stats.ordersTotal || 0),
+    followers: Number(stats.followersTotal || 0),
+    dishes: Number(stats.dishesTotal || 0),
+    memberSince: formatMemberSince(cook?.createdAt),
+    response: cook?.online ? 'Online now' : 'Offline',
+    profilePhoto: safeImageSrc(getCookProfilePhoto(cook), ''),
+    coverPhoto: safeImageSrc(getCookCoverPhoto(cook), defaultCookCoverPhoto)
+  };
+}
 function syncMyCookPhotos() {
   const cook = getMyCook();
   if (!cook) return;
@@ -3465,6 +3503,7 @@ function updateCustomDishCounts() {
   cooks.filter(c => c.isCustom).forEach(cook => {
     const cookDishes = dishes.filter(d => sameId(d.cookId, cook.id));
     cook.dishes = cookDishes.length;
+    cook.stats = {...(cook.stats || {}), dishesTotal:cookDishes.length};
     if (cookDishes[0]) {
       cook.dish = cookDishes[0].name;
       cook.price = cookDishes[0].price;
@@ -3692,12 +3731,14 @@ function marketplaceFingerprint(rawState) {
       cook.city,
       cook.country,
       cook.cuisine,
+      cook.bio,
+      cook.createdAt,
       cook.status,
       cook.online,
       cook.verified,
       cook.profilePhoto,
       cook.coverPhoto,
-      cook.followers
+      JSON.stringify(cook.stats || null)
     ]),
     dishes: (rawState?.dishes || []).map(dish => [
       dish.id,
@@ -3785,7 +3826,15 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
   const coverStatus = currentUser.mediaStatus?.profileCover || cook.mediaStatus?.coverPhoto;
   const profilePhoto = profileStatus === 'broken_internal_reference' ? '' : normalizeMediaValue(currentUser.profilePhoto || cook.profilePhoto || '');
   const coverPhoto = coverStatus === 'broken_internal_reference' ? '' : normalizeMediaValue(currentUser.profileCover || cook.coverPhoto || '');
-  const cookCountry = cook.country || (isMine ? userCountry : '') || selectedCountry;
+  const cookCountry = cook.country || (isMine ? userCountry : '') || '';
+  const stats = {
+    ordersTotal: Number(cook.stats?.ordersTotal || 0),
+    deliveredOrders: Number(cook.stats?.deliveredOrders || 0),
+    followersTotal: Number(cook.stats?.followersTotal || 0),
+    dishesTotal: Number(cook.stats?.dishesTotal ?? cookDishes.length),
+    reviewsTotal: Number(cook.stats?.reviewsTotal || 0),
+    ratingAverage: Number(cook.stats?.ratingAverage || 0)
+  };
   const cardDishPhoto = getCookCardDishPhoto(cook, cookDishes);
   return {
     id: cook.id,
@@ -3793,10 +3842,11 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     name: cook.name || 'HomeTaste cook',
     emoji: '🧑‍🍳',
     cuisine: cook.cuisine || 'Home Kitchen',
-    city: cook.city || (selectedCountry === 'DE' ? 'Berlin' : 'Istanbul'),
+    city: cook.city || '',
     country: cookCountry,
-    rating: Number(cook.rating || 5),
-    reviews: Number(cook.reviews || 0),
+    rating: stats.ratingAverage,
+    reviews: stats.reviewsTotal,
+    stats,
     dishId: firstDish?.id || '',
     dish: firstDish?.name || 'No dishes yet',
     price: firstDish?.price || 0,
@@ -3805,16 +3855,16 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     img: cardDishPhoto,
     profilePhoto,
     coverPhoto,
-    bio: cook.bio || 'Fresh homemade food from this cook.',
-    orders: (rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length,
-    followers: Number(cook.followers || 0),
-    dishes: cookDishes.length,
+    bio: cook.bio || '',
+    orders: stats.ordersTotal,
+    followers: stats.followersTotal,
+    dishes: stats.dishesTotal,
     availability: cook.online ? 'Online now' : 'Offline',
     online: Boolean(cook.online),
     prepTime: firstDish?.prepTime || '35 min',
     responseTime: cook.online ? 'Online now' : 'Offline',
     phone: cook.phone || 'Hidden until order',
-    speedRating: '5.0',
+    createdAt: cook.createdAt || '',
     status: cook.status || 'approved',
     isCustom: isMine,
     ownerKey: isMine ? userSlug() : ''
@@ -4606,11 +4656,12 @@ function renderBrowseCooks() {
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>${tr('noCooks')}</h3><p>${tr('tryFilters')}</p></div>`;
 }
 function cookCard(c, staggerClass) {
+  const view = cookViewModel(c);
   const isFav = favorites.has(String(c.id));
   const favoriteBusy = pendingSocialKeys.has(socialActionKey({ type: 'follow', cookId: c.id }));
   const cardDishPhoto = safeImageSrc(getCookCardDishPhoto(c), defaultDishPhoto);
-  const profilePhoto = safeImageSrc(getCookProfilePhoto(c), '');
-  const cookName = displayText(c.name, 'HomeTaste Cook');
+  const profilePhoto = view.profilePhoto;
+  const cookName = view.name;
   const dishName = displayText(c.dish, 'Homemade dish');
   return `
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
@@ -4623,12 +4674,12 @@ function cookCard(c, staggerClass) {
         <div class="cook-avatar">${cookAvatarInnerHtml(c, profilePhoto)}</div>
         <div>
           <div class="cook-name">${safeDisplayHtml(cookName)} ${c.verified ? '<span class="cook-verified">✓</span>' : ''}</div>
-          <div class="cook-cuisine">${safeDisplayHtml(c.cuisine)}</div>
+          <div class="cook-cuisine">${safeDisplayHtml(view.cuisine)}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="cook-location">📍 ${safeDisplayHtml(c.city)}</div>
-        <div class="cook-rating"><span class="star">★</span>${safeDisplayHtml(c.rating)} <span style="color:var(--text3)">(${safeDisplayHtml(c.reviews)})</span></div>
+        <div class="cook-location">📍 ${safeDisplayHtml(view.location)}</div>
+        <div class="cook-rating">${view.rating.hasRating ? `<span class="star">★</span>${safeDisplayHtml(view.rating.label)} · ${safeDisplayHtml(view.rating.detail)}` : `${safeDisplayHtml(view.rating.label)} · ${safeDisplayHtml(view.rating.detail)}`}</div>
       </div>
       <div>
         <span class="info-pill">${c.online ? '🟢' : '⚪'} ${safeDisplayHtml(c.availability)}</span>
@@ -4636,7 +4687,7 @@ function cookCard(c, staggerClass) {
         ${c.verifiedPhoto ? '<span class="info-pill verified-photo">📸 Camera verified</span>' : ''}
       </div>
       <div class="cook-footer">
-        <div><div class="cook-dish">${safeDisplayHtml(dishName)}</div><div style="font-size:11px;color:var(--text3)">${safeDisplayHtml(c.orders)} orders · speed ${safeDisplayHtml(c.speedRating)}★</div></div>
+        <div><div class="cook-dish">${safeDisplayHtml(dishName)}</div><div style="font-size:11px;color:var(--text3)">${view.orders ? `${safeDisplayHtml(view.orders)} orders` : 'No orders yet'} · ${safeDisplayHtml(view.response)}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="cook-price">${safeDisplayHtml(c.price)} ₺</div>
           ${c.dishId ? `<button class="btn-add" type="button" aria-label="Add ${escapeAttr(dishName)} to cart" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
@@ -5168,6 +5219,7 @@ function openDishModal(dishId) {
   const dish = dishes.find(d => sameId(d.id, dishId));
   if (!dish) return;
   const cook = cooks.find(c => sameId(c.id, dish.cookId));
+  const cookView = cook ? cookViewModel(cook) : null;
   currentDish = dish;
   const modalImg = document.getElementById('modalImg');
   modalImg.src = safeImageSrc(dish.img, defaultDishPhoto);
@@ -5180,8 +5232,8 @@ function openDishModal(dishId) {
   document.getElementById('modalCook').innerHTML = cook ? `
     <div class="modal-cook-avatar">${cookAvatarInnerHtml(cook)}</div>
     <div class="modal-cook-info">
-      <h4>${safeDisplayHtml(cook.name)}</h4>
-      <p>${safeDisplayHtml(cook.cuisine)} · ⭐ ${safeDisplayHtml(cook.rating)} (${safeDisplayHtml(cook.reviews)} reviews) · ${safeDisplayHtml(cook.responseTime)}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${safeDisplayHtml(cook.phone)}</p>
+      <h4>${safeDisplayHtml(cookView.name)}</h4>
+      <p>${safeDisplayHtml(cookView.cuisine)} · ${cookView.rating.hasRating ? `⭐ ${safeDisplayHtml(cookView.rating.label)} · ${safeDisplayHtml(cookView.rating.detail)}` : `${safeDisplayHtml(cookView.rating.label)} · ${safeDisplayHtml(cookView.rating.detail)}`} · ${safeDisplayHtml(cookView.location)}</p><p>${cook.online ? '🟢 Online' : '⚪ Offline'} · ☎ ${safeDisplayHtml(cook.phone)}</p>
     </div>
     <button style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:600" onclick='closeDishModal();openCookProfile(${jsArg(cook.id)})'>View Profile →</button>
   ` : '';
@@ -5199,24 +5251,24 @@ function openCookProfile(cookId) {
   if (!cook) return;
   if (isMyCook(cookId)) syncMyCookPhotos();
   currentCook = cook;
-  const profilePhoto = safeImageSrc(getCookProfilePhoto(cook), '');
-  const coverPhoto = safeImageSrc(getCookCoverPhoto(cook), defaultCookCoverPhoto);
-  document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url("${coverPhoto.replace(/"/g, '%22')}")`;
-  document.getElementById('profileAvatar').innerHTML = cookAvatarInnerHtml(cook, profilePhoto);
-  document.getElementById('profileName').textContent = displayText(cook.name, 'HomeTaste Cook');
-  document.getElementById('profileCuisine').textContent = `${displayText(cook.cuisine)} · ${cook.online ? 'Online' : 'Offline'}`;
-  document.getElementById('profileRating').textContent = cook.rating;
-  document.getElementById('profileReviews').textContent = `(${cook.reviews} reviews)`;
-  document.getElementById('profileCity').textContent = '📍 ' + displayText(cook.city);
-  document.getElementById('profileOrders').textContent = cook.orders;
-  document.getElementById('profileFollowers').textContent = cook.followers;
-  document.getElementById('profileDishes').textContent = cook.dishes;
-  document.getElementById('profileSpeed').textContent = cook.speedRating + '★';
+  const view = cookViewModel(cook);
+  document.querySelector('.cook-profile-hero-bg').style.backgroundImage = `url("${view.coverPhoto.replace(/"/g, '%22')}")`;
+  document.getElementById('profileAvatar').innerHTML = cookAvatarInnerHtml(cook, view.profilePhoto);
+  document.getElementById('profileName').textContent = view.name;
+  document.getElementById('profileCuisine').textContent = `${view.cuisine} · ${view.response}`;
+  document.getElementById('profileRatingStar').hidden = !view.rating.hasRating;
+  document.getElementById('profileRating').textContent = view.rating.label;
+  document.getElementById('profileReviews').textContent = view.rating.detail;
+  document.getElementById('profileCity').textContent = '📍 ' + view.location;
+  document.getElementById('profileOrders').textContent = view.orders;
+  document.getElementById('profileFollowers').textContent = view.followers;
+  document.getElementById('profileDishes').textContent = view.dishes;
+  document.getElementById('profileSpeed').textContent = view.response;
   document.getElementById('profileAvailability').textContent = displayText(cook.availability);
   document.getElementById('profilePrep').textContent = displayText(cook.prepTime);
   document.getElementById('profilePhone').textContent = displayText(cook.phone);
   document.getElementById('profilePhotoTrust').textContent = cook.verifiedPhoto ? 'Camera Verified' : 'Gallery photo';
-  document.getElementById('profileBio').textContent = displayText(cook.bio);
+  document.getElementById('profileBio').textContent = view.bio;
   const followButton = document.getElementById('profileFollowButton');
   if (followButton) {
     const followBusy = pendingSocialKeys.has(socialActionKey({ type: 'follow', cookId: cook.id }));
@@ -5225,8 +5277,9 @@ function openCookProfile(cookId) {
     followButton.classList.toggle('is-busy', followBusy);
     followButton.setAttribute('aria-busy', followBusy ? 'true' : 'false');
   }
-  document.getElementById('profileAboutCity').textContent = `⊙ ${displayText(cook.city)}, ${countryNames[cook.country || selectedCountry] || 'Türkiye'}`;
-  document.getElementById('profileDishesTitle').textContent = `Dishes by ${displayText(cook.name, 'this cook')}`;
+  document.getElementById('profileAboutCity').textContent = `⊙ ${view.location}`;
+  document.getElementById('profileMemberSince').textContent = `♙ ${view.memberSince}`;
+  document.getElementById('profileDishesTitle').textContent = `Dishes by ${view.name}`;
   const cookDishes = dishes.filter(d => sameId(d.cookId, cookId));
   document.getElementById('profileDishesGrid').innerHTML = cookDishes.length
     ? cookDishes.map(d => dishCard(d, '', {manage:isMyCook(cookId)})).join('')
@@ -5502,9 +5555,9 @@ async function createCookDemo(button = null){
   if (getMyCook()) { renderMyCookDishManager(); showToast('You already have a cook profile. Add another dish below.', 'info'); return; }
   if (!phone || !phone.match(/^[\+\d\s\-]+$/)) { showToast('Please enter a valid phone number', 'error'); return; }
   if (!policyConfirmed) { showToast('Please confirm the publishing policy before submitting.', 'error'); return; }
-  const city = document.getElementById('cityLabel').dataset.city || getCountryDefault(selectedCountry).city || 'Istanbul';
+  const city = document.getElementById('cityLabel').dataset.city || '';
   const dish = document.getElementById('cookDishInput').value.trim() || 'Homemade Special';
-  const bio = document.getElementById('cookBioInput').value.trim() || 'Fresh homemade food from a new cook.';
+  const bio = document.getElementById('cookBioInput').value.trim();
   const prep = document.getElementById('cookPrepInput').value.trim() || '45 min';
   const country = document.getElementById('cookDishCountryInput').value.trim();
   if (!country) { showToast('Please enter the country of the dish.', 'error'); return; }

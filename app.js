@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-media-storage-01";
+const APP_BUILD = "20260619-cook-truth-01";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -309,7 +309,7 @@ async function handleMarketplaceMessage(event) {
           method: "POST",
           body: JSON.stringify({
             cuisine: payload.country || "Home Kitchen",
-            bio: payload.bio || "Fresh home cooking.",
+            bio: payload.bio || "",
             profilePhoto: payload.profilePhoto || "",
             profileCover: payload.profileCover || payload.coverPhoto || payload.backgroundPhoto || "",
             online: Boolean(payload.online)
@@ -966,6 +966,19 @@ function staticVisibleOrders(db, user) {
   return db.orders.filter((order) => order.customerId === user.id);
 }
 
+function staticCookStats(db, cookId) {
+  const matchesCook = (value) => String(value || "") === String(cookId || "");
+  const cookOrders = db.orders.filter((order) => matchesCook(order.cookId));
+  return {
+    ordersTotal: cookOrders.filter((order) => order.status !== "cancelled").length,
+    deliveredOrders: cookOrders.filter((order) => order.status === "delivered").length,
+    followersTotal: db.socialActions.filter((action) => action.type === "follow" && matchesCook(action.cookId)).length,
+    dishesTotal: db.dishes.filter((dish) => matchesCook(dish.cookId) && dish.available !== false).length,
+    reviewsTotal: 0,
+    ratingAverage: 0
+  };
+}
+
 function staticPublicState(db, user) {
   const cooks = user?.role === "owner"
     ? db.cooks
@@ -990,7 +1003,15 @@ function staticPublicState(db, user) {
   });
   return {
     user: staticSafeUser(user),
-    cooks,
+    cooks: cooks.map((cook) => {
+      const owner = db.users.find((item) => String(item.id || "") === String(cook.userId || ""));
+      return {
+        ...cook,
+        city: cook.city || owner?.city || "",
+        country: cook.country || owner?.country || "",
+        stats: staticCookStats(db, cook.id)
+      };
+    }),
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: visibleOrdersWithContacts,
     messages: user ? db.messages.filter((message) => visible.some((order) => order.id === message.orderId)) : [],
@@ -1154,13 +1175,16 @@ async function staticApi(path, options = {}) {
     if (hasIncomingCover) user.profileCover = String(input.profileCover ?? input.coverPhoto ?? input.backgroundPhoto ?? "").trim();
     if (input.name) user.name = String(input.name).trim();
     if (input.city) user.city = String(input.city).trim();
+    if (input.country) user.country = String(input.country).trim();
     if (input.phone) user.phone = String(input.phone).trim();
     const cook = staticCookForUser(db, user.id);
     if (cook) {
+      if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
       if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
       if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       if (input.name) cook.name = user.name;
       if (input.city) cook.city = user.city;
+      if (input.country) cook.country = user.country;
     }
     saveStaticDb(db);
     return staticPublicState(db, user);
@@ -1183,11 +1207,12 @@ async function staticApi(path, options = {}) {
       userId: user.id,
       name: String(user.name || input.name || "HomeTaste cook").trim(),
       cuisine: String(input.cuisine || input.country || "Home Kitchen").trim(),
-      city: String(user.city || input.city || "Istanbul").trim(),
-      bio: String(input.bio || "Fresh home cooking.").trim(),
+      city: String(user.city || input.city || "").trim(),
+      country: String(user.country || input.country || "").trim(),
+      bio: String(input.bio || "").trim(),
       verified: false,
       status: "pending",
-      rating: 5,
+      rating: 0,
       reviews: 0,
       followers: 0,
       availability: "",
@@ -3038,8 +3063,8 @@ function renderCookStudio() {
       <div class="stat"><small>${t("ordersTitle")}</small><strong>${orders.length}</strong></div>
       <div class="stat"><small>${t("revenue")}</small><strong>${money(revenue)}</strong></div>
       <div class="stat"><small>${t("cookPayout")}</small><strong>${money(payout)}</strong></div>
-      <div class="stat"><small>${t("rating", "Rating")}</small><strong>${cook.rating || 5}</strong></div>
-      <div class="stat"><small>${t("followers", "Followers")}</small><strong>${social.filter((action) => action.type === "follow").length}</strong></div>
+      <div class="stat"><small>${t("rating", "Rating")}</small><strong>${cook.stats?.reviewsTotal ? Number(cook.stats.ratingAverage || 0).toFixed(1) : "New"}</strong></div>
+      <div class="stat"><small>${t("followers", "Followers")}</small><strong>${Number(cook.stats?.followersTotal ?? social.filter((action) => action.type === "follow").length)}</strong></div>
       <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${subscriptions.length}</strong></div>
     </section>
     <section class="grid cols-2" style="margin-top:18px">

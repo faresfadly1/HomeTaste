@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-media-storage-01", "durable media storage build marker is exposed");
+  assert(health.build === "20260619-cook-truth-01", "real cook statistics build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -250,6 +250,9 @@ try {
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
   assert(!marketplaceSrcEarly.includes('class="btn-reorder" onclick="${action}"'), "mobile order action buttons do not use broken double-quoted handlers");
   assert(marketplaceSrcEarly.includes("refreshActiveMarketplaceViews()"), "mobile marketplace refreshes only the active page after state sync");
+  assert(marketplaceSrcEarly.includes("function cookViewModel(cook)") && marketplaceSrcEarly.includes("function formatCookRating(cook)") && marketplaceSrcEarly.includes("function formatMemberSince(dateValue)"), "cook cards and profiles share one canonical real-data view model");
+  assert(marketplaceSrcEarly.includes("orders: stats.ordersTotal") && !marketplaceSrcEarly.includes("(rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length"), "public cook order totals never come from the viewer's visible orders");
+  assert(marketplaceSrcEarly.includes("No reviews yet") && !marketplaceSrcEarly.includes("speed ${safeDisplayHtml(c.speedRating)}★") && !marketplaceSrcEarly.includes("Member since Jan 2024"), "new cooks show honest review, response, and membership labels without fake ratings");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
@@ -258,6 +261,7 @@ try {
   assert(serverSrcEarly.includes("Owner promotion requires a separate protected process"), "backend blocks owner promotion through normal role management");
   assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto") && serverSrcEarly.includes("row.auth_meta?.backgroundPhoto"), "backend normalizes legacy user and cook background aliases into canonical fields");
   assert(serverSrcEarly.includes("function preserveImageSource") && serverSrcEarly.includes("broken_internal_reference"), "backend preserves original image bytes and identifies broken internal references");
+  assert(serverSrcEarly.includes("function cookStats(db, cookId)") && serverSrcEarly.includes("followersTotal") && serverSrcEarly.includes("ordersTotal"), "backend computes public cook statistics independently of viewer permissions");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
@@ -352,6 +356,10 @@ try {
   assert(pendingCook?.status === "pending", "become-a-cook request is created immediately");
   assert(pendingCook.city === "Moda, Istanbul" && isPublicImageUrl(pendingCook.profilePhoto) && isPublicImageUrl(pendingCook.coverPhoto), "cook request uses the same user city, profile photo, and background photo");
   assert(pendingCook.online === true, "new cook profile preserves online toggle during publish");
+  assert(pendingCook.city === "Moda, Istanbul" && pendingCook.country === "TR", "cook application keeps the user's real city and country");
+  assert(pendingCook.bio === "Real homemade flow-test dishes.", "cook application keeps the submitted About me bio");
+  assert(pendingCook.stats?.reviewsTotal === 0 && pendingCook.stats?.ratingAverage === 0 && pendingCook.rating === 0, "new cook has no fake five-star rating or reviews");
+  assert(Boolean(pendingCook.createdAt), "cook membership date comes from the real creation timestamp");
   const validMediaDb = JSON.parse(await readFile(dbFile, "utf8"));
   const brokenMediaDb = structuredClone(validMediaDb);
   const brokenProfileUrl = `${base}/api/images/${"a".repeat(40)}.jpg`;
@@ -369,6 +377,11 @@ try {
   assert(brokenAdminUser?.mediaStatus?.profilePhoto === "broken_internal_reference" && brokenAdminUser?.mediaStatus?.profileCover === "broken_internal_reference", "admin user state identifies broken stored profile media references");
   assert(brokenAdminCook?.mediaStatus?.profilePhoto === "broken_internal_reference" && brokenAdminCook?.mediaStatus?.coverPhoto === "broken_internal_reference", "admin cook request identifies broken stored profile and background references");
   await writeFile(dbFile, JSON.stringify(validMediaDb, null, 2));
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { bio: "Updated real cook biography." });
+  const updatedBioCook = cookState.cooks.find((cook) => cook.id === pendingCook.id);
+  assert(updatedBioCook?.bio === "Updated real cook biography.", "cook can update About me through the existing profile flow");
+  const reloadedBioState = await request(base, cookAccount.token, "GET", "/api/state");
+  assert(reloadedBioState.cooks.find((cook) => cook.id === pendingCook.id)?.bio === "Updated real cook biography.", "updated cook About me persists after reload");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { coverPhoto: updatedCoverPhotoImage });
   let updatedPendingCook = cookState.cooks.find((cook) => cook.id === pendingCook.id);
   await assertImageServesUpload(base, cookState.user.profileCover, updatedCoverPhotoImage, "pending cook updated background photo");
@@ -463,6 +476,12 @@ try {
   assert(customerState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action saves for the current customer");
   let persistedSocialState = await request(base, customer.token, "GET", "/api/state");
   assert(persistedSocialState.socialActions.some((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id), "follow action survives fresh API sync");
+  let otherCustomerState = await request(base, otherCustomer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: true });
+  assert(otherCustomerState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.followersTotal === 2, "two real customer follows produce two public followers");
+  otherCustomerState = await request(base, otherCustomer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: false });
+  assert(otherCustomerState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.followersTotal === 1, "unfollowing updates the public follower total to one");
+  persistedSocialState = await request(base, customer.token, "GET", "/api/state");
+  assert(persistedSocialState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.followersTotal === 1, "follower total remains correct for another viewer after refresh");
   customerState = await request(base, customer.token, "POST", "/api/social", { type: "follow", cookId: ownerCook.id, active: true });
   assert(customerState.socialActions.filter((action) => action.type === "follow" && action.cookId === ownerCook.id && action.userId === customer.state.user.id).length === 1, "repeated favorite request is idempotent and creates no duplicate follow");
   const followDuplicateDb = JSON.parse(await readFile(dbFile, "utf8"));
@@ -525,6 +544,17 @@ try {
   });
   const cardFallbackOrder = cardFallbackResult.state.orders.find((item) => item.notes === "Card fallback flow check order");
   assert(cardFallbackOrder?.paymentMethod === "stripe" && cardFallbackOrder.payment?.metadata?.status === "missing_configuration", "credit card order saves when Stripe keys are missing");
+  const secondCustomerOrderResult = await request(base, otherCustomer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Bursa",
+    customerLocation: "40.1885,29.0610",
+    paymentMethod: "iban",
+    notes: "Second customer public stats order"
+  });
+  const secondCustomerCook = secondCustomerOrderResult.state.cooks.find((cook) => cook.id === ownerCook.id);
+  assert(secondCustomerOrderResult.state.orders.length === 1 && secondCustomerCook?.stats?.ordersTotal === 2, "cook order total includes orders from customers hidden from the current viewer");
+  const firstCustomerStatsState = await request(base, customer.token, "GET", "/api/state");
+  assert(firstCustomerStatsState.orders.length === 1 && firstCustomerStatsState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.ordersTotal === 2, "different customer receives the same complete public cook order total");
 
   const orderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],

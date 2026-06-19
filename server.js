@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-media-storage-01";
+const backendBuild = "20260619-cook-truth-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -2034,6 +2034,7 @@ function syncCookProfileFromUser(db, cook) {
   const canonicalCover = owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto || "";
   cook.name = owner.name || cook.name || "HomeTaste cook";
   cook.city = owner.city || cook.city || "";
+  cook.country = owner.country || cook.country || "";
   cook.profilePhoto = owner.profilePhoto || cook.profilePhoto || "";
   cook.coverPhoto = canonicalCover;
   owner.profileCover = canonicalCover;
@@ -2110,6 +2111,21 @@ function socialSummary(db, cookId = null) {
   };
 }
 
+function cookStats(db, cookId) {
+  const cookOrders = db.orders.filter((order) => String(order.cookId || "") === String(cookId || ""));
+  const nonCancelledOrders = cookOrders.filter((order) => order.status !== "cancelled");
+  const deliveredOrders = cookOrders.filter((order) => order.status === "delivered");
+  const followersTotal = db.socialActions.filter((action) => action.type === "follow" && String(action.cookId || "") === String(cookId || "")).length;
+  return {
+    ordersTotal: nonCancelledOrders.length,
+    deliveredOrders: deliveredOrders.length,
+    followersTotal,
+    dishesTotal: db.dishes.filter((dish) => String(dish.cookId || "") === String(cookId || "") && dish.available !== false).length,
+    reviewsTotal: 0,
+    ratingAverage: 0
+  };
+}
+
 function publicState(db, user = null) {
   syncCookProfilesFromUsers(db);
   const cooks = user?.role === "owner"
@@ -2118,6 +2134,7 @@ function publicState(db, user = null) {
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const publicCooks = cooks.map((cook) => ({
     ...cook,
+    stats: cookStats(db, cook.id),
     mediaStatus: {
       profilePhoto: imageStorageStatus(db, cook.profilePhoto),
       coverPhoto: imageStorageStatus(db, cook.coverPhoto)
@@ -2182,6 +2199,7 @@ function publicMarketplaceState(db) {
   return publicPayload({
     cooks: cooks.map((cook) => ({
       ...cook,
+      stats: cookStats(db, cook.id),
       mediaStatus: {
         profilePhoto: imageStorageStatus(db, cook.profilePhoto),
         coverPhoto: imageStorageStatus(db, cook.coverPhoto)
@@ -2601,6 +2619,7 @@ async function api(req, res, pathname) {
     }
     const cook = cookForUser(db, user.id);
     if (cook) {
+      if (input.bio !== undefined) cook.bio = textValue(input.bio || "", "Bio", { max: 700 });
       if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       syncCookProfileFromUser(db, cook);
     }
@@ -2723,11 +2742,12 @@ async function api(req, res, pathname) {
       userId: user.id,
       name: textValue(user.name || input.name || "HomeTaste cook", "Cook name", { min: 1, max: 80 }),
       cuisine: textValue(input.cuisine || input.country || "Home Kitchen", "Cuisine", { min: 1, max: 80 }),
-      city: textValue(user.city || input.city || "Istanbul", "City", { min: 1, max: 100 }),
-      bio: textValue(input.bio || "Fresh home cooking.", "Bio", { min: 1, max: 700 }),
+      city: textValue(user.city || input.city || "", "City", { max: 100 }),
+      country: user.country || input.country || "",
+      bio: textValue(input.bio || "", "Bio", { max: 700 }),
       verified: false,
       status: "pending",
-      rating: 5,
+      rating: 0,
       reviews: 0,
       followers: 0,
       availability: "",
