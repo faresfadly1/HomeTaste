@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-cook-cover-01", "cook cover synchronization build marker is exposed");
+  assert(health.build === "20260619-cook-cover-02", "cook cover synchronization build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -255,7 +255,7 @@ try {
   assert(serverSrcEarly.includes("cascadeRemovalStillPresent") && serverSrcEarly.includes("Cook removal did not persist"), "backend verifies Supabase cook cascade removal before reporting success");
   assert(serverSrcEarly.includes("function auditAdminAction") && serverSrcEarly.includes("Admin cancellation requires a reason"), "backend records admin audit events and requires cancellation reasons");
   assert(serverSrcEarly.includes("Owner promotion requires a separate protected process"), "backend blocks owner promotion through normal role management");
-  assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto"), "backend normalizes legacy cook background aliases into canonical fields");
+  assert(serverSrcEarly.includes("input.profileCover || input.coverPhoto || input.backgroundPhoto") && serverSrcEarly.includes("owner.profileCover || cook.coverPhoto || cook.profileCover || cook.backgroundPhoto") && serverSrcEarly.includes("row.auth_meta?.backgroundPhoto"), "backend normalizes legacy user and cook background aliases into canonical fields");
 
   const owner = await auth(base, "login", { email: ownerEmail, password: ownerPassword });
   const secondOwnerSession = await auth(base, "login", { email: ownerEmail, password: ownerPassword });

@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-cook-cover-01";
+const backendBuild = "20260619-cook-cover-02";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1211,7 +1211,9 @@ function normalizeDb(db) {
     user.authProvider ||= "password";
     user.nationalId ||= "";
     user.profilePhoto ||= "";
-    user.profileCover ||= "";
+    user.profileCover ||= user.coverPhoto || user.backgroundPhoto || user.authMeta?.profileCover || user.authMeta?.coverPhoto || user.authMeta?.backgroundPhoto || "";
+    delete user.coverPhoto;
+    delete user.backgroundPhoto;
   }
   for (const cook of db.cooks) {
     cook.verification ||= defaultVerification(cook.verified ? "verified" : "pending");
@@ -1318,7 +1320,7 @@ const toUser = (row) => ({
   authProvider: row.auth_provider || "password",
   authMeta: row.auth_meta || {},
   profilePhoto: row.profile_photo || row.auth_meta?.profilePhoto || "",
-  profileCover: row.profile_cover || row.auth_meta?.profileCover || "",
+  profileCover: row.profile_cover || row.auth_meta?.profileCover || row.auth_meta?.coverPhoto || row.auth_meta?.backgroundPhoto || "",
   createdAt: row.created_at
 });
 

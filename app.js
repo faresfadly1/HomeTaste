@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-cook-cover-01";
+const APP_BUILD = "20260619-cook-cover-02";
 const chefLogoIcon = `
   <svg viewBox="0 0 48 48" aria-hidden="true">
     <path d="M15 35h18l-1.5 7h-15L15 35Z"></path>
@@ -806,6 +806,13 @@ function loadStaticDb() {
   seeded.subscriptions ||= [];
   seeded.payments ||= [];
   seeded.refunds ||= [];
+  seeded.users.forEach((user) => {
+    const canonicalCover = user.profileCover || user.coverPhoto || user.backgroundPhoto || user.authMeta?.profileCover || user.authMeta?.coverPhoto || user.authMeta?.backgroundPhoto || "";
+    if (user.profileCover !== canonicalCover || user.coverPhoto !== undefined || user.backgroundPhoto !== undefined) changed = true;
+    user.profileCover = canonicalCover;
+    delete user.coverPhoto;
+    delete user.backgroundPhoto;
+  });
   const beforeCount = seeded.users.length;
   seeded.users = seeded.users.filter((user) => !["usr_owner", "usr_cook_1", "usr_driver_1"].includes(user.id));
   if (seeded.users.length !== beforeCount) changed = true;
