@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260619-settings-compact-01";
+const backendBuild = "20260619-cook-studio-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1490,6 +1490,7 @@ const toDish = (row) => ({
   prepMinutes: Number(row.prep_minutes || 0),
   image: row.image,
   country: row.country || (Array.isArray(row.tags) ? row.tags[0] : "") || "",
+  category: row.category || (Array.isArray(row.tags) ? row.tags[1] : "") || "Main dish",
   tags: row.tags || [],
   available: row.available,
   featured: row.featured
@@ -1504,7 +1505,7 @@ const fromDish = (dish) => ({
   prep_minutes: dish.prepMinutes || 30,
   image: dish.image || "",
   country: dish.country || dish.tags?.[0] || "",
-  tags: dish.tags || [],
+  tags: [dish.country || dish.tags?.[0] || "", dish.category || dish.tags?.[1] || ""].filter(Boolean),
   available: Boolean(dish.available),
   featured: Boolean(dish.featured)
 });
@@ -1517,7 +1518,7 @@ const fromDishLegacy = (dish) => ({
   price: dish.price || 0,
   prep_minutes: dish.prepMinutes || 30,
   image: dish.image || "",
-  tags: dish.tags || [],
+  tags: [dish.country || dish.tags?.[0] || "", dish.category || dish.tags?.[1] || ""].filter(Boolean),
   available: Boolean(dish.available),
   featured: Boolean(dish.featured)
 });
@@ -2643,6 +2644,7 @@ async function api(req, res, pathname) {
     const cook = cookForUser(db, user.id);
     if (cook) {
       if (input.bio !== undefined) cook.bio = textValue(input.bio || "", "Bio", { max: 700 });
+      if (input.cuisine !== undefined) cook.cuisine = textValue(input.cuisine || "Home Kitchen", "Cuisine", { min: 1, max: 80 });
       if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       syncCookProfileFromUser(db, cook);
     }
@@ -2656,6 +2658,18 @@ async function api(req, res, pathname) {
     if (cook.status !== "approved") return json(res, 403, { error: "Admin approval is required before going online." });
     const input = await body(req);
     cook.online = Boolean(input.online);
+    await saveDb(db);
+    return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/cooks/reapply") {
+    const cook = cookForUser(db, user.id);
+    if (!cook) return json(res, 404, { error: "Cook profile not found." });
+    if (cook.status !== "rejected") return json(res, 409, { error: "Only rejected applications can be resubmitted." });
+    cook.status = "pending";
+    cook.online = false;
+    cook.updatedAt = now();
+    notifyOwners(db, `${cook.name} reapplied to become a cook.`, { type: "cook_application", cookId: cook.id, userId: user.id });
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -2848,6 +2862,7 @@ async function api(req, res, pathname) {
     if (user.role !== "owner" && !validCookCanPublish(targetCook)) return json(res, 403, { error: "This cook profile cannot publish dishes." });
     if (user.role === "owner" && !String(input.image || "").trim()) return json(res, 400, { error: "A real dish image is required for admin-created dishes." });
     const country = textValue(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
+    const category = textValue(input.category || "Main dish", "Dish category", { min: 1, max: 80 });
     const dish = {
       id: id("dish"),
       cookId: targetCook.id,
@@ -2857,8 +2872,9 @@ async function api(req, res, pathname) {
       prepMinutes: numberValue(input.prepMinutes, "Prep time", { min: 5, max: 240, fallback: 30 }),
       image: validateImageValue(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80", "Dish photo"),
       country,
-      tags: [country].filter(Boolean),
-      available: true,
+      category,
+      tags: [country, category].filter(Boolean),
+      available: input.available === undefined ? true : Boolean(input.available),
       featured: false
     };
     db.dishes.push(dish);
@@ -2887,8 +2903,9 @@ async function api(req, res, pathname) {
       if (input.image !== undefined) target.image = validateImageValue(input.image || "", "Dish photo");
       if (input.country !== undefined || input.tags !== undefined) {
         target.country = textValue(String(input.country || input.tags || "").split(",")[0], "Dish country", { max: 80 });
-        target.tags = target.country ? [target.country] : [];
       }
+      if (input.category !== undefined) target.category = textValue(input.category || "Main dish", "Dish category", { min: 1, max: 80 });
+      target.tags = [target.country || "", target.category || target.tags?.[1] || ""].filter(Boolean);
     });
     auditAdminAction(db, user, "updated dish", "dish", dish.id, dish.name);
     await saveDb(db);

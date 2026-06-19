@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-settings-compact-01", "compact mobile settings build marker is exposed");
+  assert(health.build === "20260619-cook-studio-01", "Cook Studio build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -260,7 +260,7 @@ try {
   assert(marketplaceSrcEarly.includes("market-notification-preferences") && marketplaceSrcEarly.includes("notificationInbox") && marketplaceSrcEarly.includes("notificationsNavBadge"), "mobile settings use persisted preferences, a real inbox, and unread badge");
   assert(!marketplaceSrcEarly.includes("Notification.requestPermission") && !marketplaceSrcEarly.includes("Browser notifications"), "browser notifications control stays hidden until real browser delivery exists");
   assert(!marketplaceSrcEarly.includes("['promotions','Promotions'") && marketplaceSrcEarly.includes("['refunds','Refund updates'"), "normal Settings hides unused Promotions while keeping supported preferences");
-  assert(["Become a Cook", "Cook application pending", "Manage cook profile", "View rejected application", "Cook account suspended"].every((label) => marketplaceSrcEarly.includes(label)), "cook Settings action covers no-profile, pending, approved, rejected, and suspended states");
+  assert(["Become a cook", "Apply to sell homemade food", "Pending review", "Cook Studio", "Manage profile, dishes and availability", "Rejected · View or reapply", "Suspended · Contact support"].every((label) => marketplaceSrcEarly.includes(label)), "compact cook Settings row covers customer, pending, approved, rejected, and suspended states");
   assert(marketplaceSrcEarly.includes("markAll.disabled = unread === 0") && marketplaceSrcEarly.includes("clearRead.disabled = read === 0") && marketplaceSrcEarly.includes("No unread notifications"), "notification inbox disables unavailable actions and has contextual empty states");
   assert((marketplaceSrcEarly.match(/finally \{ renderNotificationSettings\(\); \}/g) || []).length >= 2, "notification inbox actions preserve disabled state after async completion");
   assert(marketplaceSrcEarly.includes("View chat") && marketplaceSrcEarly.includes("View order") && marketplaceSrcEarly.includes("View all notifications"), "notification inbox uses clear destinations and supports expanding beyond eight items");
@@ -270,6 +270,10 @@ try {
   assert(marketplaceSrcEarly.includes("function notificationPresentation(note)") && marketplaceSrcEarly.includes("Order #${shortId}") && marketplaceSrcEarly.includes("Your order was cancelled"), "notification cards use friendly titles and short record references");
   assert(marketplaceSrcEarly.includes("calc(150px + env(safe-area-inset-bottom))"), "mobile Settings reserves space above the floating bottom navigation");
   assert(appSrcEarly.includes("settings-page-active") && stylesSrcEarly.includes(".market-shell.settings-page-active .market-user #logout"), "mobile Settings hides the duplicate header sign out action");
+  assert(marketplaceSrcEarly.includes("function setCookStudioTab(tab)") && ["Cook profile", "Menu / Dishes", "Availability"].every((label) => marketplaceSrcEarly.includes(label)), "approved cooks have a three-section Cook Studio");
+  assert(marketplaceSrcEarly.includes("publishExtraDish(this)") && marketplaceSrcEarly.includes("function editCookDish(dishId)") && marketplaceSrcEarly.includes("function toggleCookDishAvailability"), "Cook Studio connects add, edit, remove, and dish availability tools");
+  assert(marketplaceSrcEarly.includes("function saveCookStudioProfile(event)") && marketplaceSrcEarly.includes("studioCookBio") && marketplaceSrcEarly.includes("studioCookCuisine"), "Cook Studio edits cook profile, bio, cuisine, and location");
+  assert(marketplaceSrcEarly.includes("openCookSettingsAction") && marketplaceSrcEarly.includes("activeCookStudioTab = 'profile'") && !marketplaceSrcEarly.includes("presentation.action === 'profile' && cook"), "approved cooks open Cook Studio instead of the public profile or application form");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
@@ -473,6 +477,10 @@ try {
   assert(ownerState.cooks.find((cook) => cook.id === ownerCook.id)?.status === "rejected" && ownerState.stats.pendingCooks === 0, "admin decline action removes cook from pending requests");
   let hiddenMarket = await request(base, "", "GET", "/api/marketplace");
   assert(!hiddenMarket.cooks.some((cook) => cook.id === ownerCook.id), "declined cook is not visible publicly");
+  const rejectedCookLogin = await auth(base, "login", { email: `cook.${runId}@hometaste.test`, password: "CookPass123!" });
+  cookAccount.token = rejectedCookLogin.token;
+  cookState = await request(base, cookAccount.token, "POST", "/api/cooks/reapply", {});
+  assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.status === "pending", "rejected cook can reapply from the Cook application view");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/cooks/${ownerCook.id}`, {
     status: "approved",
     verified: true,
@@ -489,6 +497,16 @@ try {
   assert(liveCook?.mediaStatus?.profilePhoto === "stored" && liveCook?.mediaStatus?.coverPhoto === "stored", "public marketplace reports durable cook media health");
   assert(market.dishes.some((item) => item.id === dish.id && isPublicImageUrl(item.image)), "approved dish is visible publicly with uploaded photo");
   assert(!JSON.stringify(market).includes("data:image"), "public marketplace JSON does not inline uploaded base64 images");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { bio: "Cook Studio biography.", cuisine: "Anatolian", city: "Kadikoy, Istanbul" });
+  assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.bio === "Cook Studio biography." && cookState.cooks.find((cook) => cook.id === ownerCook.id)?.cuisine === "Anatolian", "approved cook can edit profile data from Cook Studio");
+  cookState = await request(base, cookAccount.token, "POST", "/api/dishes", { name: "Cook Studio Dish", description: "Added from studio.", price: 175, prepMinutes: 25, image: dishPhotoImage, country: "Turkey", category: "Main dish", available: true });
+  const studioDish = cookState.dishes.find((item) => item.name === "Cook Studio Dish");
+  assert(studioDish?.category === "Main dish" && studioDish?.available === true, "approved cook can add a categorized dish from Cook Studio");
+  cookState = await request(base, cookAccount.token, "PATCH", `/api/dishes/${studioDish.id}`, { price: 190, prepMinutes: 30, category: "Breakfast", available: false });
+  const editedStudioDish = cookState.dishes.find((item) => item.id === studioDish.id);
+  assert(editedStudioDish?.price === 190 && editedStudioDish?.prepMinutes === 30 && editedStudioDish?.category === "Breakfast" && editedStudioDish?.available === false, "approved cook can edit dish details and availability from Cook Studio");
+  cookState = await request(base, cookAccount.token, "PATCH", `/api/dishes/${studioDish.id}`, { available: true });
+  assert(cookState.dishes.find((item) => item.id === studioDish.id)?.available === true, "Cook Studio can restore a hidden dish");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: false });
   assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");
   const offlineMarket = await request(base, "", "GET", "/api/marketplace");

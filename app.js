@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-settings-compact-01";
+const APP_BUILD = "20260619-cook-studio-01";
 const defaultStaticNotificationPreferences = Object.freeze({ orderUpdates: true, deliveryUpdates: true, messages: true, refunds: true, promotions: false });
 const staticNotificationPreferenceKeys = new Set(Object.keys(defaultStaticNotificationPreferences));
 function staticNotificationPreferencesFor(user) {
@@ -364,6 +364,26 @@ async function handleMarketplaceMessage(event) {
   if (event.data.action === "market-add-dish") {
     try {
       state = await api("/api/dishes", { method: "POST", body: JSON.stringify(event.data.payload || {}) });
+      reply({ action: "market-sync", ok: true, state });
+      refreshEmbeddedRolePanel();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-update-dish") {
+    try {
+      state = await api(`/api/dishes/${event.data.dishId}`, { method: "PATCH", body: JSON.stringify(event.data.payload || {}) });
+      reply({ action: "market-sync", ok: true, state });
+      refreshEmbeddedRolePanel();
+    } catch (err) {
+      reply({ action: "market-error", error: err.message });
+    }
+    return;
+  }
+  if (event.data.action === "market-cook-reapply") {
+    try {
+      state = await api("/api/cooks/reapply", { method: "POST" });
       reply({ action: "market-sync", ok: true, state });
       refreshEmbeddedRolePanel();
     } catch (err) {
@@ -1215,6 +1235,7 @@ async function staticApi(path, options = {}) {
     const cook = staticCookForUser(db, user.id);
     if (cook) {
       if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
+      if (input.cuisine !== undefined) cook.cuisine = String(input.cuisine || "Home Kitchen").trim();
       if ("profilePhoto" in input) cook.profilePhoto = user.profilePhoto;
       if (hasIncomingCover) cook.coverPhoto = user.profileCover;
       if (input.name) cook.name = user.name;
@@ -1229,6 +1250,17 @@ async function staticApi(path, options = {}) {
     const cook = staticCookForUser(db, user.id);
     if (!cook) throw new Error("Create a cook profile first.");
     cook.online = Boolean(input.online);
+    saveStaticDb(db);
+    return staticPublicState(db, user);
+  }
+
+  if (method === "POST" && path === "/api/cooks/reapply") {
+    const cook = staticCookForUser(db, user.id);
+    if (!cook) throw new Error("Cook profile not found.");
+    if (cook.status !== "rejected") throw new Error("Only rejected applications can be resubmitted.");
+    cook.status = "pending";
+    cook.online = false;
+    staticNotifyOwners(db, `${cook.name} reapplied to become a cook.`, { type: "cook_application", cookId: cook.id, userId: user.id });
     saveStaticDb(db);
     return staticPublicState(db, user);
   }
@@ -1324,8 +1356,9 @@ async function staticApi(path, options = {}) {
       prepMinutes: Number(input.prepMinutes || 30),
       image: String(input.image || "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&q=80").trim(),
       country: String(input.country || input.tags || "").split(",")[0].trim(),
-      tags: [String(input.country || input.tags || "").split(",")[0].trim()].filter(Boolean),
-      available: true,
+      category: String(input.category || "Main dish").trim(),
+      tags: [String(input.country || input.tags || "").split(",")[0].trim(), String(input.category || "Main dish").trim()].filter(Boolean),
+      available: input.available === undefined ? true : Boolean(input.available),
       featured: false
     };
     if (!dish.name || dish.price <= 0) throw new Error("Dish name and price are required.");
@@ -1352,8 +1385,9 @@ async function staticApi(path, options = {}) {
       if (input.image !== undefined) target.image = String(input.image || "").trim();
       if (input.country !== undefined || input.tags !== undefined) {
         target.country = String(input.country || input.tags || "").split(",")[0].trim();
-        target.tags = target.country ? [target.country] : [];
       }
+      if (input.category !== undefined) target.category = String(input.category || "Main dish").trim();
+      target.tags = [target.country || "", target.category || target.tags?.[1] || ""].filter(Boolean);
     });
     saveStaticDb(db);
     return staticPublicState(db, user);
