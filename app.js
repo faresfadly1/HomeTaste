@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260619-settings-mobile-01";
+const APP_BUILD = "20260619-settings-compact-01";
 const defaultStaticNotificationPreferences = Object.freeze({ orderUpdates: true, deliveryUpdates: true, messages: true, refunds: true, promotions: false });
 const staticNotificationPreferenceKeys = new Set(Object.keys(defaultStaticNotificationPreferences));
 function staticNotificationPreferencesFor(user) {
@@ -280,6 +280,7 @@ async function handleMarketplaceMessage(event) {
   }, event.origin);
   if (event.data.action === "market-page") {
     currentMarketPage = event.data.page || "home";
+    document.querySelector(".market-shell")?.classList.toggle("settings-page-active", currentMarketPage === "settings");
     updateRolePanelVisibility();
     return;
   }
@@ -2197,7 +2198,7 @@ function renderMarketplaceFrame() {
   const hideCustomerPanel = !isDriver();
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
-    <div class="market-shell">
+    <div class="market-shell ${currentMarketPage === "settings" ? "settings-page-active" : ""}">
       <header class="market-top">
         <div class="brand compact">
           <div class="mark">${chefLogoIcon}</div>

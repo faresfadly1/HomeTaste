@@ -1443,6 +1443,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   }
   .brand.compact { grid-area: brand; }
   .market-user { grid-area: user; gap: 6px; }
+  .market-shell.settings-page-active .market-user #logout { display: none; }
   .market-location {
     grid-area: location;
     width: 100%;

@@ -984,8 +984,8 @@ ul{list-style:none}
 .faq-arrow.open{transform:rotate(180deg)}
 
 /* ======== SETTINGS ======== */
-.settings-layout{padding:32px;max-width:640px}
-.settings-section{margin-bottom:28px}
+.settings-layout{padding:24px;max-width:640px}
+.settings-section{margin-bottom:20px}
 .settings-section h3{
   font-size:16px;font-weight:700;margin-bottom:14px;
   font-family:'DM Sans',sans-serif;color:var(--text2);
@@ -994,9 +994,9 @@ ul{list-style:none}
 .mobile-account-become{display:none}
 .setting-item{
   display:flex;align-items:center;justify-content:space-between;
-  padding:14px 0;border-bottom:1px solid var(--border);
+  min-height:56px;padding:10px 0;border-bottom:1px solid var(--border);
 }
-.setting-label{font-size:14px;font-weight:500}
+.setting-label{font-size:14px;font-weight:700}
 .setting-desc{font-size:12px;color:var(--text3);margin-top:2px}
 .settings-avatar{
   width:72px;height:72px;border-radius:50%;
@@ -1006,36 +1006,58 @@ ul{list-style:none}
 }
 .settings-avatar img{width:100%;height:100%;object-fit:cover}
 .toggle{
-  width:48px;height:28px;border-radius:14px;
-  background:var(--bg4);position:relative;cursor:pointer;
-  transition:background var(--transition);flex-shrink:0;
+  width:44px;height:44px;position:relative;cursor:pointer;
+  flex:0 0 44px;background:transparent;border-radius:999px;
 }
-.toggle.on{background:var(--orange)}
+.toggle::before{
+  content:'';position:absolute;left:1px;top:10px;width:42px;height:24px;
+  border-radius:999px;background:var(--bg4);transition:background var(--transition);
+}
+.toggle.on::before{background:var(--orange)}
 .toggle::after{
   content:'';position:absolute;
-  top:3px;left:3px;
-  width:22px;height:22px;border-radius:50%;
+  top:12px;left:3px;
+  width:20px;height:20px;border-radius:50%;
   background:#fff;transition:left var(--transition);
+  box-shadow:0 1px 4px rgba(48,29,16,.18);
 }
-.toggle.on::after{left:23px}
+.toggle.on::after{left:21px}
 .toggle:disabled{cursor:wait;opacity:.65}
 .notification-inbox-head,.notification-inbox-actions{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-.settings-account-card{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.settings-account-card{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:12px;margin-bottom:18px}
 .settings-account-copy{min-width:0;flex:1}
-.settings-account-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.settings-account-actions button{
-  min-height:44px;padding:10px 13px;border:1px solid var(--border);border-radius:8px;
-  color:var(--orange);background:var(--bg3);font-size:12px;font-weight:800;
+.settings-edit-profile{
+  min-height:44px;padding:8px 11px;border:1px solid var(--border);border-radius:10px;
+  color:var(--orange);background:var(--bg3);font-size:12px;font-weight:800;white-space:nowrap;
 }
-.account-setting-command{text-align:left;color:var(--orange);font-weight:700;min-height:44px}
-.account-setting-command strong,.account-setting-command small{display:block}
-.account-setting-command small{margin-top:3px;color:var(--text3);font-size:11px;font-weight:600}
-#mobileBecomeCookSetting{min-height:44px;text-align:left;color:var(--orange);font-weight:700}
-#mobileBecomeCookSetting:disabled{color:var(--text3);cursor:not-allowed}
+.settings-summary-card{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--card);
+  box-shadow:0 8px 22px rgba(89,55,28,.06);margin-bottom:18px;
+}
+.settings-summary-copy{min-width:0}
+.settings-summary-copy strong{display:block;font-size:15px}
+.settings-summary-copy small{display:block;color:var(--text3);font-size:12px;margin-top:3px}
+.settings-summary-card button{min-width:74px;min-height:44px;border-radius:10px;background:var(--orange-light);color:var(--orange);font-size:12px;font-weight:800}
+.settings-menu{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card)}
+.settings-menu-row{
+  width:100%;min-height:52px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  text-align:left;border-bottom:1px solid var(--border);color:var(--text);background:transparent;
+}
+.settings-menu-row:last-child{border-bottom:0}
+.settings-menu-row.mobile-account-become{display:none}
+.settings-menu-row strong,.settings-menu-row small{display:block}
+.settings-menu-row strong{font-size:14px;font-weight:700}
+.settings-menu-row small{font-size:11px;color:var(--text3);margin-top:2px}
+.settings-menu-row .settings-chevron{font-size:20px;color:var(--text3);line-height:1}
+.settings-menu-row.sign-out strong{color:#dc2626}
+.settings-menu-row:disabled{cursor:not-allowed;opacity:.58}
+.compact-availability .setting-item{padding:8px 12px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+.compact-availability .setting-label{font-size:14px}
 .notification-action{
-  min-height:36px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;
+  min-height:44px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;
   background:var(--bg3);color:var(--text2);font-size:12px;font-weight:800;
 }
 .notification-action:disabled{opacity:.55;cursor:wait}
@@ -1056,6 +1078,18 @@ ul{list-style:none}
 .notification-entry button{font-size:11px;color:var(--orange);font-weight:800}
 .notification-view-all{width:100%;margin-top:10px}
 .notification-entry p,.notification-entry time,.setting-label,.setting-desc{overflow-wrap:anywhere}
+.notification-entry .notification-title{font-size:13px;font-weight:800;margin-bottom:5px}
+.notifications-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.notifications-panel-head h2{margin:0}
+.notifications-panel-close{width:44px;height:44px;border-radius:12px;background:var(--bg3);color:var(--text);font-size:18px;flex:0 0 auto}
+.edit-profile-media{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;margin:14px 0}
+.edit-profile-media-card{min-width:0;padding:10px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
+.edit-profile-media-card strong{display:block;font-size:12px;margin-bottom:8px}
+.edit-profile-preview{height:92px;border-radius:12px;overflow:hidden;background:var(--card);display:grid;place-items:center;color:var(--text3);font-size:11px;text-align:center}
+.edit-profile-preview.avatar{width:72px;height:72px;border-radius:50%;margin:0 auto}
+.edit-profile-preview img{width:100%;height:100%;object-fit:cover}
+.edit-profile-media-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.edit-profile-media-actions button{min-height:44px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--orange);font-size:10px;font-weight:800}
 
 /* ======== DISH MODAL ======== */
 .modal-overlay{
@@ -1952,28 +1986,37 @@ ul{list-style:none}
   #profileDishesGrid .btn-add{display:none}
   .help-layout > div[style*="grid-template-columns:repeat(3,1fr)"]{grid-template-columns:1fr!important;gap:10px!important;margin-bottom:20px!important}
   .feature-card{padding:14px}
-  .settings-layout{padding:16px 10px calc(92px + env(safe-area-inset-bottom))}
+  .settings-layout{padding:14px 14px calc(150px + env(safe-area-inset-bottom))}
   .settings-layout .checkout-section{
     padding:12px!important;
-    margin-bottom:14px!important;
+    margin-bottom:16px!important;
     border-radius:14px;
   }
-  .settings-account-card{display:grid!important;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:12px!important}
-  .settings-avatar{width:64px;height:64px}
-  .settings-account-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px}
-  .settings-account-actions button{width:100%;min-width:0}
+  .settings-account-card{grid-template-columns:52px minmax(0,1fr) auto;gap:10px!important}
+  .settings-avatar{width:52px;height:52px;border-width:2px;font-size:20px}
+  #settingsProfileName,#settingsProfileRegion{
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;
+  }
+  #settingsProfileName{font-size:15px!important;line-height:1.18}
+  #settingsProfileRegion{font-size:11px!important;line-height:1.25;margin-top:3px}
+  .settings-edit-profile{min-height:44px;padding-inline:9px}
   .notification-inbox-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
   .notification-inbox-actions .notification-action{padding-inline:6px;min-width:0}
   #notificationUnreadFilterButton{grid-column:1/-1}
   .notification-entry{grid-template-columns:8px minmax(0,1fr);gap:8px}
-  .notification-entry > button{grid-column:2;justify-self:start;min-height:36px}
-  .settings-section{margin-bottom:14px}
-  .settings-section h3{margin-bottom:8px}
-  .setting-item{padding:9px 0;gap:10px}
-  .setting-desc{font-size:11px;line-height:1.25}
-  .settings-avatar{width:58px;height:58px;font-size:22px}
+  .notification-entry > button{grid-column:2;justify-self:start;min-height:44px}
+  .settings-section{margin-bottom:18px}
+  .settings-section h3{font-size:11px;letter-spacing:.08em;margin-bottom:8px}
+  .setting-item{min-height:56px;padding:10px 0;gap:10px}
+  .setting-label{font-size:15px}
+  .setting-desc{font-size:12px;line-height:1.3}
   .settings-row{gap:10px}
-  .mobile-account-become{display:flex}
+  .settings-menu-row.mobile-account-become{display:flex}
+  .account-modal .modal-body{padding:16px}
+  .edit-profile-media{grid-template-columns:96px minmax(0,1fr);gap:8px}
+  .edit-profile-media-card{padding:8px}
+  .edit-profile-preview{height:78px}
+  .edit-profile-preview.avatar{width:64px;height:64px}
   .welcome-overlay{padding:10px}
   .welcome-card{width:100%;max-height:calc(100dvh - 20px);overflow:auto}
 }
@@ -2445,50 +2488,35 @@ ul{list-style:none}
         <div class="settings-account-copy">
           <div id="settingsProfileName" style="font-size:18px;font-weight:700">Your account</div>
           <div id="settingsProfileRegion" style="font-size:13px;color:var(--text3)">HomeTaste customer</div>
-          <div class="settings-account-actions">
-            <button type="button" onclick="openProfilePicturePanel()">Profile photo</button>
-            <button type="button" onclick="openProfileCoverPanel()">Background photo</button>
-          </div>
         </div>
+        <button class="settings-edit-profile" type="button" onclick="openEditProfilePanel()">Edit profile</button>
       </div>
 
       <div class="settings-section">
-        <h3>Notifications</h3>
+        <h3>Notification preferences</h3>
         <div id="notificationPreferencesList"></div>
       </div>
 
-      <div class="settings-section" id="cookAvailabilitySection" hidden>
-        <h3>Cook Availability</h3>
+      <div class="settings-section compact-availability" id="cookAvailabilitySection" hidden>
+        <h3>Cook availability</h3>
         <div class="setting-item">
-          <div><div class="setting-label">Online / Offline</div><div class="setting-desc">Customers see whether you are available to cook.</div></div>
+          <div><div class="setting-label" id="cookAvailabilityLabel">Offline</div><div class="setting-desc">Visible to customers</div></div>
           <button class="toggle" id="cookOnlineToggle" type="button" role="switch" aria-label="Cook availability" aria-checked="false" onclick="toggleOnlineSetting(this)"></button>
         </div>
       </div>
 
-      <div class="settings-section">
-        <div class="notification-inbox-head"><h3>Notification Inbox</h3><span id="notificationUnreadSummary">0 unread</span></div>
-        <div class="notification-inbox-actions">
-          <button class="notification-action" id="markAllNotificationsReadButton" type="button" onclick="markAllNotificationsRead(this)">Mark all read</button>
-          <button class="notification-action" id="clearReadNotificationsButton" type="button" onclick="clearReadNotifications(this)">Clear read</button>
-          <button class="notification-action" id="notificationUnreadFilterButton" type="button" aria-pressed="false" onclick="toggleUnreadNotifications()">Unread only</button>
-        </div>
-        <div id="notificationInbox" class="notification-inbox"></div>
-        <button class="notification-action notification-view-all" id="notificationViewAllButton" type="button" onclick="showAllNotifications()" hidden>View all notifications</button>
+      <div class="settings-summary-card">
+        <div class="settings-summary-copy"><strong>Notifications</strong><small id="settingsNotificationSummary">No unread alerts</small></div>
+        <button type="button" onclick="openNotificationsPanel()">View</button>
       </div>
 
       <div class="settings-section">
         <h3>Account</h3>
-        <div class="setting-item mobile-account-become">
-          <button id="mobileBecomeCookSetting" class="setting-label" type="button" onclick="openCookSettingsAction()">Become a Cook</button>
-        </div>
-        <div class="setting-item">
-          <button class="setting-label" style="cursor:pointer;color:var(--orange);font-weight:700" onclick="openPasswordPanel()">Change Password</button>
-        </div>
-        <div class="setting-item">
-          <button class="setting-label account-setting-command" type="button" onclick="openPaymentPanel()"><strong>Checkout display preferences</strong><small>Saved on this device only.</small></button>
-        </div>
-        <div class="setting-item">
-          <button class="setting-label" style="cursor:pointer;color:#ef4444" onclick="marketSignOut()">Sign Out</button>
+        <div class="settings-menu">
+          <button id="mobileBecomeCookSetting" class="settings-menu-row mobile-account-become" type="button" onclick="openCookSettingsAction()"><span><strong id="mobileBecomeCookLabel">Become a Cook</strong><small id="mobileBecomeCookHint">Create your cook profile</small></span><span class="settings-chevron" aria-hidden="true">›</span></button>
+          <button class="settings-menu-row" type="button" onclick="openPasswordPanel()"><span><strong>Change password</strong></span><span class="settings-chevron" aria-hidden="true">›</span></button>
+          <button class="settings-menu-row" type="button" onclick="openPaymentPanel()"><span><strong>Checkout display</strong><small>Saved on this device</small></span><span class="settings-chevron" aria-hidden="true">›</span></button>
+          <button class="settings-menu-row sign-out" type="button" onclick="marketSignOut()"><span><strong>Sign out</strong></span></button>
         </div>
       </div>
     </div>
@@ -5815,6 +5843,44 @@ function notificationActionLabel(note) {
   if (note?.data?.orderId || note?.data?.refundId) return 'View order';
   return 'Open';
 }
+function notificationPresentation(note) {
+  const data = note?.data || {};
+  const statusTitles = {
+    placed:'Order received',accepted:'Your cook accepted the order',cooking:'Your meal is being prepared',
+    ready:'Your food is ready',picked_up:'Your order was picked up',out_for_delivery:'Your order is on the way',
+    near_you:'Your driver is near you',delivered:'Your order was delivered',cancelled:'Your order was cancelled'
+  };
+  let title = statusTitles[data.status] || '';
+  if (data.type === 'message') title = 'New message about your order';
+  else if (data.type === 'refund_update') title = 'Refund request received';
+  else if (data.type === 'refund_decision') title = 'Refund decision available';
+  else if (data.type === 'order_cancelled') title = 'Your order was cancelled';
+  else if (!title && data.type === 'delivery_update') title = 'Delivery update';
+  else if (!title && data.type === 'order_update') title = 'Order update';
+  if (!title) title = displayText(note?.text, 'HomeTaste notification')
+    .replace(String(data.orderId || ''), 'your order')
+    .replace(String(data.refundId || ''), 'your refund');
+  const recordId = data.orderId || data.refundId || '';
+  const shortId = String(recordId).replace(/[^a-z0-9]/gi,'').slice(-4).toUpperCase();
+  const recordLabel = data.orderId ? `Order #${shortId}` : data.refundId ? `Refund #${shortId}` : 'HomeTaste';
+  const dateLabel = formatTrackDateTime(note?.createdAt || Date.now());
+  return {title,meta:`${recordLabel} · ${dateLabel}`};
+}
+function openNotificationsPanel() {
+  notificationInboxUnreadOnly = false;
+  notificationInboxShowAll = false;
+  openAccountModal(`
+    <div class="notifications-panel-head"><div><h2>Notifications</h2><p class="account-hint" id="notificationUnreadSummary">0 unread</p></div><button class="notifications-panel-close" type="button" data-close-account onclick="closeAccountPanel(event)" aria-label="Close notifications">✕</button></div>
+    <div class="notification-inbox-actions">
+      <button class="notification-action" id="markAllNotificationsReadButton" type="button" onclick="markAllNotificationsRead(this)">Mark all read</button>
+      <button class="notification-action" id="clearReadNotificationsButton" type="button" onclick="clearReadNotifications(this)">Clear read</button>
+      <button class="notification-action" id="notificationUnreadFilterButton" type="button" aria-pressed="false" onclick="toggleUnreadNotifications()">Unread only</button>
+    </div>
+    <div id="notificationInbox" class="notification-inbox"></div>
+    <button class="notification-action notification-view-all" id="notificationViewAllButton" type="button" onclick="showAllNotifications()" hidden>View all notifications</button>
+  `);
+  renderNotificationSettings();
+}
 function renderNotificationSettings() {
   const preferences = currentNotificationPreferences();
   const list = document.getElementById('notificationPreferencesList');
@@ -5825,6 +5891,8 @@ function renderNotificationSettings() {
     </div>`).join('');
   const unread = marketplaceNotifications.filter(note => !note.read).length;
   const read = marketplaceNotifications.length - unread;
+  const settingsSummary = document.getElementById('settingsNotificationSummary');
+  if (settingsSummary) settingsSummary.textContent = unread ? `${unread} unread alert${unread === 1 ? '' : 's'}` : 'No unread alerts';
   const summary = document.getElementById('notificationUnreadSummary');
   if (summary) summary.textContent = `${unread} unread`;
   const markAll = document.getElementById('markAllNotificationsReadButton');
@@ -5836,12 +5904,15 @@ function renderNotificationSettings() {
   const filteredNotifications = notificationInboxUnreadOnly ? marketplaceNotifications.filter(note => !note.read) : marketplaceNotifications;
   const displayedNotifications = notificationInboxShowAll ? filteredNotifications : filteredNotifications.slice(0,8);
   const inbox = document.getElementById('notificationInbox');
-  if (inbox) inbox.innerHTML = displayedNotifications.length ? displayedNotifications.map(note => `
+  if (inbox) inbox.innerHTML = displayedNotifications.length ? displayedNotifications.map(note => {
+    const presentation = notificationPresentation(note);
+    return `
     <div class="notification-entry ${note.read ? 'is-read' : ''}">
       <span class="notification-dot" aria-hidden="true"></span>
-      <div><p>${safeDisplayHtml(note.text,'HomeTaste notification')}</p><time>${safeDisplayHtml(new Date(note.createdAt || Date.now()).toLocaleString())}</time></div>
+      <div><p class="notification-title">${safeDisplayHtml(presentation.title,'HomeTaste notification')}</p><time>${safeDisplayHtml(presentation.meta)}</time></div>
       <button type="button" onclick='openNotification(${jsArg(note.id)})'>${notificationActionLabel(note)}</button>
-    </div>`).join('') : `<div class="account-hint">${notificationInboxUnreadOnly ? 'No unread notifications' : 'No notifications yet'}</div>`;
+    </div>`;
+  }).join('') : `<div class="account-hint">${notificationInboxUnreadOnly ? 'No unread notifications' : 'No notifications yet'}</div>`;
   const viewAll = document.getElementById('notificationViewAllButton');
   if (viewAll) viewAll.hidden = notificationInboxShowAll || filteredNotifications.length <= 8;
   updateNavBadges();
@@ -5890,6 +5961,7 @@ async function openNotification(notificationId) {
     try { await sendMarketAction('market-notification-read',{notificationId}); }
     catch (error) { showToast(error.message,'error'); return; }
   }
+  document.getElementById('accountModal')?.classList.remove('open');
   if (note.data?.type === 'message' && note.data?.orderId) {
     showPage('messages',null);
     if (chatMessages.some(chat => sameId(chat.id,note.data.orderId))) openChat(note.data.orderId);
@@ -5900,6 +5972,8 @@ async function toggleOnlineSetting(el) {
   if (el.disabled) return;
   el.classList.toggle('on');
   const online = el.classList.contains('on');
+  const availabilityLabel = document.getElementById('cookAvailabilityLabel');
+  if (availabilityLabel) availabilityLabel.textContent = online ? 'Online' : 'Offline';
   el.disabled = true;
   el.setAttribute('aria-busy','true');
   setDesiredCookOnline(online);
@@ -5916,6 +5990,7 @@ async function toggleOnlineSetting(el) {
       setDesiredCookOnline(cook.online);
       el.classList.toggle('on', cook.online);
       el.setAttribute('aria-checked',cook.online ? 'true' : 'false');
+      if (availabilityLabel) availabilityLabel.textContent = cook.online ? 'Online' : 'Offline';
       refreshCookAndDishViews();
       showToast(error.message, 'error');
       el.disabled = false;
@@ -6001,12 +6076,17 @@ function updateSettingsAccount() {
     onlineToggle.classList.toggle('on', Boolean(approvedCook?.online));
     onlineToggle.setAttribute('aria-checked',approvedCook?.online ? 'true' : 'false');
   }
+  const availabilityLabel = document.getElementById('cookAvailabilityLabel');
+  if (availabilityLabel) availabilityLabel.textContent = approvedCook?.online ? 'Online' : 'Offline';
   const cookAction = document.getElementById('mobileBecomeCookSetting');
+  const cookActionLabel = document.getElementById('mobileBecomeCookLabel');
+  const cookActionHint = document.getElementById('mobileBecomeCookHint');
   if (cookAction) {
-    cookAction.textContent = cookPresentation.label;
     cookAction.disabled = cookPresentation.disabled;
     cookAction.setAttribute('aria-disabled',cookPresentation.disabled ? 'true' : 'false');
   }
+  if (cookActionLabel) cookActionLabel.textContent = cookPresentation.label;
+  if (cookActionHint) cookActionHint.textContent = cookPresentation.region;
   renderNotificationSettings();
   syncMyCookPhotos();
   if (currentCook && cook && sameId(currentCook.id, cook.id) && document.getElementById('page-cook-profile')?.classList.contains('active')) {
@@ -6021,6 +6101,62 @@ function closeAccountPanel(event) {
   if (!event || event.target.id === 'accountModal' || event.target.closest('[data-close-account]')) {
     document.getElementById('accountModal')?.classList.remove('open');
   }
+}
+function openEditProfilePanel() {
+  const photo = safeImageSrc(getSavedProfilePicture(), '');
+  const cover = safeImageSrc(getSavedProfileCover(), '');
+  const cook = getMyCook();
+  const city = marketplaceUserState.city || document.getElementById('cityLabel')?.dataset.city || '';
+  pendingProfilePicture = '';
+  pendingProfileCover = '';
+  openAccountModal(`
+    <div class="notifications-panel-head"><div><h2>Edit profile</h2><p class="account-hint">Update the profile customers see across HomeTaste.</p></div><button class="notifications-panel-close" type="button" data-close-account onclick="closeAccountPanel(event)" aria-label="Close edit profile">✕</button></div>
+    <div class="edit-profile-media">
+      <div class="edit-profile-media-card">
+        <strong>Profile photo</strong>
+        <div class="edit-profile-preview avatar" id="profilePicturePreview">${photo ? `<img src="${escapeAttr(photo)}" alt="Current profile photo" loading="lazy" decoding="async">` : 'No photo'}</div>
+        <div class="edit-profile-media-actions"><button type="button" onclick="document.getElementById('profileGalleryInput').click()">Change</button><button type="button" onclick="removeProfilePicture()">Remove</button></div>
+      </div>
+      <div class="edit-profile-media-card">
+        <strong>Background photo</strong>
+        <div class="edit-profile-preview" id="profileCoverPreview">${cover ? `<img src="${escapeAttr(cover)}" alt="Current background photo" loading="lazy" decoding="async">` : 'No background'}</div>
+        <div class="edit-profile-media-actions"><button type="button" onclick="document.getElementById('coverGalleryInput').click()">Change</button><button type="button" onclick="removeProfileCover()">Remove</button></div>
+      </div>
+    </div>
+    <input id="profileGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfilePicture(this)">
+    <input id="coverGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfileCover(this)">
+    <form class="account-form" onsubmit="saveEditProfile(event)">
+      <div class="form-group"><label for="editProfileName">Name</label><input class="form-input" id="editProfileName" maxlength="80" value="${escapeAttr(currentUserName)}" required></div>
+      <div class="form-group"><label for="editProfileLocation">Location</label><input class="form-input" id="editProfileLocation" maxlength="100" value="${escapeAttr(city)}" placeholder="City or neighborhood"></div>
+      ${cook ? `<div class="form-group"><label for="editProfileBio">About me</label><textarea class="form-input" id="editProfileBio" maxlength="700" rows="4" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>` : ''}
+      <div class="account-actions"><button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Cancel</button><button class="btn-place-order" type="submit">Save profile</button></div>
+    </form>
+  `);
+}
+async function saveEditProfile(event) {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('[type="submit"]');
+  const name = document.getElementById('editProfileName')?.value.trim() || '';
+  const city = document.getElementById('editProfileLocation')?.value.trim() || '';
+  if (!name) return showToast('Enter your name.', 'error');
+  const profile = {name,city};
+  const bioInput = document.getElementById('editProfileBio');
+  if (bioInput) profile.bio = bioInput.value.trim();
+  if (pendingProfilePicture) profile.profilePhoto = pendingProfilePicture;
+  if (pendingProfileCover) profile.profileCover = pendingProfileCover;
+  await withMarketButton(button, 'Saving...', async () => {
+    try {
+      await sendMarketAction('market-profile', {profile});
+      pendingProfilePicture = '';
+      pendingProfileCover = '';
+      updateSettingsAccount();
+      refreshCookAndDishViews();
+      document.getElementById('accountModal')?.classList.remove('open');
+      showToast('Profile updated.', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
 function openProfilePicturePanel() {
   const photo = safeImageSrc(getSavedProfilePicture(), '');

@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260619-settings-mobile-01", "mobile settings polish build marker is exposed");
+  assert(health.build === "20260619-settings-compact-01", "compact mobile settings build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -234,6 +234,7 @@ try {
   assert(appSrcEarly.includes("function safeImageSrc") && appSrcEarly.includes("coverImageSrc"), "admin cook request validates image sources before rendering");
   assert(appSrcEarly.includes("function normalizeMediaValue") && appSrcEarly.includes("function resolveCookMedia") && appSrcEarly.includes("Stored background image is unavailable"), "admin media resolver supports legacy formats and clear broken-image states");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
+  const stylesSrcEarly = await readFile(path.join(root, "public/styles.css"), "utf8");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
   assert(!marketplaceSrcEarly.includes("requestMarketplaceState();\n  loadPublicMarketplaceState();"), "mobile marketplace does not race authenticated state with public fallback on first load");
@@ -264,6 +265,11 @@ try {
   assert((marketplaceSrcEarly.match(/finally \{ renderNotificationSettings\(\); \}/g) || []).length >= 2, "notification inbox actions preserve disabled state after async completion");
   assert(marketplaceSrcEarly.includes("View chat") && marketplaceSrcEarly.includes("View order") && marketplaceSrcEarly.includes("View all notifications"), "notification inbox uses clear destinations and supports expanding beyond eight items");
   assert(marketplaceSrcEarly.includes("overflow-wrap:anywhere") && marketplaceSrcEarly.includes("Saved on this device only"), "mobile Settings wraps long content and labels checkout preferences as device-only");
+  assert(marketplaceSrcEarly.includes("settings-summary-card") && marketplaceSrcEarly.includes("openNotificationsPanel()") && marketplaceSrcEarly.includes("settingsNotificationSummary"), "default mobile Settings uses a compact notification summary");
+  assert(marketplaceSrcEarly.includes("function openEditProfilePanel()") && marketplaceSrcEarly.includes('id="editProfileName"') && marketplaceSrcEarly.includes('id="editProfileLocation"') && marketplaceSrcEarly.includes('id="editProfileBio"'), "Edit Profile combines media, name, location, and cook bio controls");
+  assert(marketplaceSrcEarly.includes("function notificationPresentation(note)") && marketplaceSrcEarly.includes("Order #${shortId}") && marketplaceSrcEarly.includes("Your order was cancelled"), "notification cards use friendly titles and short record references");
+  assert(marketplaceSrcEarly.includes("calc(150px + env(safe-area-inset-bottom))"), "mobile Settings reserves space above the floating bottom navigation");
+  assert(appSrcEarly.includes("settings-page-active") && stylesSrcEarly.includes(".market-shell.settings-page-active .market-user #logout"), "mobile Settings hides the duplicate header sign out action");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
   assert(serverSrcEarly.includes('deleteSupabaseValues("social_actions", "id", ids)'), "Supabase unfollow and unlike operations delete persisted social rows");
