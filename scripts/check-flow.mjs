@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-profile-become-cleanup-01", "Profile and Become a Cook cleanup build marker is exposed");
+  assert(health.build === "20260620-become-media-cleanup-01", "Become a Cook media cleanup build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -282,10 +282,15 @@ try {
   assert(marketplaceSrcEarly.includes("Application pending review") && marketplaceSrcEarly.includes("Application rejected") && marketplaceSrcEarly.includes("Cook account suspended"), "old Become a Cook manager renders pending, rejected, and suspended states");
   assert(marketplaceSrcEarly.includes("publishExtraDish(this)") && marketplaceSrcEarly.includes("function editCookDish(dishId)") && marketplaceSrcEarly.includes("function toggleCookDishAvailability") && marketplaceSrcEarly.includes("removeCookDish(event"), "approved old Become a Cook view connects add, edit, remove, hide, and show dish tools");
   assert(marketplaceSrcEarly.includes("function saveCookManagementProfile(event)") && marketplaceSrcEarly.includes("cookManagementBio") && marketplaceSrcEarly.includes("cookManagementCuisine") && marketplaceSrcEarly.includes("cookManagementLocation"), "approved old Become a Cook view edits profile, bio, cuisine, and location");
-  assert(marketplaceSrcEarly.includes("Profile photo") && marketplaceSrcEarly.includes("Background photo") && marketplaceSrcEarly.includes("openEditProfilePanel()"), "new and approved cooks can update profile and background photos from the old flow");
-  assert(marketplaceSrcEarly.includes("cook-media-status") && marketplaceSrcEarly.includes("photo ? 'Uploaded' : 'Missing'"), "approved cook media buttons show a thumbnail and uploaded or missing state");
+  const becomeMarkupSource = marketplaceSrcEarly.split('<!-- BECOME A COOK PAGE -->')[1]?.split('<!-- HELP & SUPPORT PAGE -->')[0] || "";
+  const becomeManagerSource = marketplaceSrcEarly.split("function renderMyCookDishManager(){")[1]?.split("async function saveCookManagementProfile")[0] || "";
+  const editProfileSource = marketplaceSrcEarly.split("function openEditProfilePanel() {")[1]?.split("async function saveEditProfile")[0] || "";
+  assert(becomeMarkupSource && becomeManagerSource && !/Profile photo|Background photo|Cook profile photos|cook-media-status/.test(`${becomeMarkupSource}${becomeManagerSource}`), "Become a Cook application and approved management do not show profile or background media controls");
+  assert(editProfileSource.includes("<strong>Profile photo</strong>") && editProfileSource.includes("<strong>Background photo</strong>"), "Profile Edit Profile remains the single profile and background photo editor");
+  assert(marketplaceSrcEarly.includes("const profilePhoto = getSavedProfilePicture() || ''") && marketplaceSrcEarly.includes("const coverPhoto = getSavedProfileCover() || ''") && marketplaceSrcEarly.includes("profilePhoto,") && marketplaceSrcEarly.includes("coverPhoto,"), "cook applications still inherit saved user profile and background photos");
+  assert(marketplaceSrcEarly.includes('id="cookDishGalleryInput"') && marketplaceSrcEarly.includes('id="extraDishPhotoInput"') && marketplaceSrcEarly.includes('id="editDishPhotoInput"'), "first dish, extra dish, and dish editor image uploads remain available");
   assert(marketplaceSrcEarly.includes(".manager-edit,.manager-availability{min-height:44px") && marketplaceSrcEarly.includes(".manager-remove{min-height:44px"), "dish edit, hide, show, and remove actions meet mobile tap target height");
-  assert(marketplaceSrcEarly.includes(".cook-management-profile{grid-template-columns:1fr}") && marketplaceSrcEarly.includes(".cook-management-media{grid-template-columns:1fr}"), "unified Become a Cook controls stack safely at mobile widths");
+  assert(marketplaceSrcEarly.includes(".cook-management-profile{grid-template-columns:1fr}") && marketplaceSrcEarly.includes(".manager-dish{grid-template-columns:52px minmax(0,1fr)"), "unified Become a Cook controls and dish actions stack safely at mobile widths");
   assert(marketplaceSrcEarly.includes("function toggleCookManagementOnline(button)") && marketplaceSrcEarly.includes("cookManagementOnlineToggle"), "approved old Become a Cook view controls online availability");
   assert(!/localStorage\.(?:getItem|setItem)\([^\n]*(?:studio|cook.?ui)/i.test(marketplaceSrcEarly), "no localStorage flag can force a separate cook UI");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");

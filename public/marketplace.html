@@ -1433,9 +1433,6 @@ ul{list-style:none}
 .cook-management-section:last-child{padding-bottom:0;border-bottom:0}
 .cook-management-profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .cook-management-profile .wide{grid-column:1/-1}
-.cook-management-media{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.cook-management-media button{min-height:54px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);text-align:left;color:var(--text);font-weight:800}
-.cook-management-media small{display:block;color:var(--text3);font-size:11px;margin-top:3px}
 .cook-management-availability{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
 .cook-management-availability strong,.cook-management-availability small{display:block}
 .cook-management-availability small{color:var(--text3);font-size:12px;margin-top:3px}
@@ -1460,10 +1457,6 @@ ul{list-style:none}
 .manager-dish strong{font-size:13px}.manager-dish span{font-size:11px;color:var(--text3)}
 .manager-remove{min-height:44px;color:#ef4444;font-size:12px;font-weight:900;padding:8px 10px;border-radius:8px}
 .manager-remove:hover{background:rgba(239,68,68,.12)}
-.cook-media-status{display:flex;align-items:center;gap:10px;min-width:0}
-.cook-media-status img,.cook-media-placeholder{width:42px;height:42px;flex:0 0 42px;border-radius:9px;object-fit:cover;background:var(--bg4)}
-.cook-media-placeholder{display:grid;place-items:center;color:var(--orange);font-size:18px}
-.cook-media-status span{min-width:0}
 .tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
 .order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
 @media(max-width:1100px){
@@ -1852,7 +1845,6 @@ ul{list-style:none}
   .cook-dish-manager{margin:0 14px 18px;padding:16px}
   .cook-management-profile{grid-template-columns:1fr}
   .cook-management-profile .wide{grid-column:auto}
-  .cook-management-media{grid-template-columns:1fr}
   .cook-management-availability{padding:12px}
   .manager-head{display:grid;gap:12px}
   .manager-dish{grid-template-columns:52px minmax(0,1fr);align-items:start}
@@ -2446,13 +2438,6 @@ ul{list-style:none}
       <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
       <div><div class="welcome-label">Country of the dish</div><input id="cookDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt"></div>
       <div class="wide"><div class="welcome-label">Short bio</div><textarea id="cookBioInput" class="cook-input" rows="5" placeholder="Tell customers what you cook and where your food is from."></textarea></div>
-      <div class="wide">
-        <div class="welcome-label">Cook profile photos</div>
-        <div class="profile-photo-actions">
-          <button class="photo-action" type="button" onclick="openEditProfilePanel()">Profile photo<small>Upload your circular cook photo</small></button>
-          <button class="photo-action" type="button" onclick="openEditProfilePanel()">Background photo<small>Upload your cook profile cover</small></button>
-        </div>
-      </div>
       <label class="wide policy-confirm">
         <input id="cookPolicyConfirm" type="checkbox">
         <span>I confirm this is my own kitchen profile and I understand my profile and dishes require admin approval before they appear publicly.</span>
@@ -5775,9 +5760,6 @@ function renderMyCookDishManager(){
   if (subtitle) subtitle.textContent = 'Manage your cook profile, dishes and availability from the same Become a Cook page.';
   if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = 'Manage my cook profile'; primaryAction.onclick = () => manager.scrollIntoView({behavior:'smooth',block:'start'}); }
   const cookDishes = cookManagementDishes.filter(d => sameId(d.cookId, cook.id));
-  const profilePhoto = safeImageSrc(cook.profilePhoto || getSavedProfilePicture(), '');
-  const backgroundPhoto = safeImageSrc(cook.coverPhoto || getSavedProfileCover(), '');
-  const mediaStatus = (label, photo, fallback) => `<span class="cook-media-status">${photo ? `<img src="${escapeAttr(photo)}" alt="${escapeAttr(label)} preview" loading="lazy" decoding="async">` : `<span class="cook-media-placeholder" aria-hidden="true">${fallback}</span>`}<span>${safeDisplayHtml(label)}<small>${photo ? 'Uploaded' : 'Missing'}</small></span></span>`;
   manager.innerHTML = `
     <div class="cook-management">
       <section class="cook-management-section">
@@ -5787,7 +5769,6 @@ function renderMyCookDishManager(){
           <div><div class="welcome-label">Cuisine</div><input id="cookManagementCuisine" class="cook-input" maxlength="80" value="${escapeAttr(cook.cuisine || '')}" placeholder="Turkish, Egyptian, Syrian"></div>
           <div class="wide"><div class="welcome-label">Location</div><input id="cookManagementLocation" class="cook-input" maxlength="100" value="${escapeAttr(cook.city || marketplaceUserState.city || '')}" placeholder="City or neighborhood"></div>
           <div class="wide"><div class="welcome-label">About me</div><textarea id="cookManagementBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
-          <div class="wide cook-management-media"><button type="button" onclick="openEditProfilePanel()">${mediaStatus('Profile photo',profilePhoto,'👤')}</button><button type="button" onclick="openEditProfilePanel()">${mediaStatus('Background photo',backgroundPhoto,'▧')}</button></div>
           <div class="wide"><button class="btn-apply" type="submit">Save cook profile</button></div>
         </form>
       </section>
