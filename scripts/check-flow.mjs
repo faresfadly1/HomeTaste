@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-distance-delivery-01" && health.tracking?.deliveryRatePerKmTry === 6, "distance-based delivery build and canonical rate are exposed");
+  assert(health.build === "20260620-fulfillment-auto-track-01" && health.tracking?.deliveryRatePerKmTry === 6, "fulfillment and automatic tracking build exposes the canonical delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -278,6 +278,11 @@ try {
   assert(appSrcEarly.includes('order.status === "ready"') && !appSrcEarly.includes('["accepted", "preparing", "ready"].includes(order.status)'), "driver queue exposes only food-ready orders");
   assert(appSrcEarly.includes("Actual distance starts after acceptance") && appSrcEarly.includes("Current earning"), "driver cards show estimated distance, actual distance, and current earnings");
   assert(marketplaceSrcEarly.includes("Estimated delivery") && marketplaceSrcEarly.includes("Actual delivery") && marketplaceSrcEarly.includes("Delivery charged"), "Track Order shows estimated, actual, and charged delivery pricing");
+  assert(marketplaceSrcEarly.includes("Delivered by a driver · 6 ₺/km") && marketplaceSrcEarly.includes("I will pick it up · no delivery fee") && marketplaceSrcEarly.includes("function setFulfillmentMode(type)"), "mobile checkout offers synchronized Delivery and Pickup choices");
+  assert(marketplaceSrcEarly.includes("const delivery = isPickup ? 0 : estimate.fee") && marketplaceSrcEarly.includes("fulfillmentType: cartFulfillmentMode"), "switching fulfillment updates totals immediately and persists the selection");
+  assert(marketplaceSrcEarly.includes("Customer pickup") && marketplaceSrcEarly.includes("No driver, live route, or delivery tracking is required") && marketplaceSrcEarly.includes("completePickupOrder"), "pickup Track Order hides driver tracking and supports customer completion");
+  assert(appSrcEarly.includes("navigator.geolocation.watchPosition") && appSrcEarly.includes("Date.now() - previous.sentAt >= 20000") && appSrcEarly.includes("driverPointDistanceMeters(previous.point, point) >= 40"), "driver auto tracking uses browser watchPosition with 20-second or 40-meter throttling");
+  assert(appSrcEarly.includes("stopAllDriverAutoTracking") && appSrcEarly.includes('window.addEventListener("pagehide"') && appSrcEarly.includes("sendDriverLocation(orderId, current, { automatic: false"), "auto tracking stops at session/page boundaries while manual location remains available");
   assert(appSrcEarly.includes("settings-page-active") && stylesSrcEarly.includes(".market-shell.settings-page-active .market-user #logout"), "mobile Settings hides the duplicate header sign out action");
   assert(!/Cook Studio|cook-studio|activeCookStudioTab|setCookStudioTab/.test(marketplaceSrcEarly), "no user-facing new Cook Studio visual path remains");
   assert(!/camera verified dishes|speed rating/i.test(marketplaceSrcEarly) && marketplaceSrcEarly.includes("real orders, followers, dishes, and an honest review status") && marketplaceSrcEarly.includes("never receive fake ratings"), "Become a Cook feature text describes truthful profile data without stale verification or rating claims");
@@ -637,6 +642,7 @@ try {
     customerLocation: "41.0240,29.0170",
     scheduledFor: "2026-06-12T18:00:00.000Z",
     paymentMethod: "iban",
+    fulfillmentType: "delivery",
     notes: "Flow check order"
   });
   customerState = orderResult.state;
@@ -644,6 +650,7 @@ try {
   const expectedEstimatedFee = Math.round(Number(order.route.distanceKm) * 6 * 100) / 100;
   const expectedEstimatedTotal = Math.round((250 + 37.5 + expectedEstimatedFee) * 100) / 100;
   assert(order?.serviceFee === 37.5 && order.delivery?.ratePerKm === 6 && order.delivery?.estimatedDistanceKm === order.route.distanceKm && order.deliveryFee === expectedEstimatedFee && order.total === expectedEstimatedTotal, "checkout uses route distance at 6 TL per km instead of a fixed delivery fee");
+  assert(order.fulfillmentType === "delivery" && order.requiresDriver === true, "delivery checkout stores delivery fulfillment and requires a driver");
   assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.driverPayout === expectedEstimatedFee && order.payment.gross === expectedEstimatedTotal, "commission, gross payment, cook payout, and estimated driver payout calculate correctly");
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
@@ -674,10 +681,10 @@ try {
   assert(customerTrackedOrder?.driverName === "Flow Driver" && customerTrackedOrder.driverPhone === "+90 555 900 1000", "customer track order can show driver call/contact details after assignment");
   const blockedLocation = await requestRaw(base, otherCustomer.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: "41.0000,29.0000" });
   assert(blockedLocation.status === 403, "unrelated customer cannot update order tracking location");
-  driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300 } });
+  driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300, accuracy: 8, heading: 90, speed: 4, at: new Date().toISOString() }, automatic: true });
   driverOrder = driverState.orders.find((item) => item.id === order.id);
   const actualFeeAfterMove = Math.round(Number(driverOrder.delivery.actualDistanceKm) * 6 * 100) / 100;
-  assert(driverOrder.locationHistory?.length === 1 && driverOrder.driverLocation?.lat && driverOrder.delivery.actualDistanceKm > 0 && driverOrder.delivery.source === "actual", "driver live location saves and accumulates a reasonable movement segment");
+  assert(driverOrder.locationHistory?.length === 1 && driverOrder.locationHistory[0].source === "auto" && driverOrder.driverLocation?.lat && driverOrder.driverLocation.accuracy === 8 && driverOrder.delivery.actualDistanceKm > 0 && driverOrder.delivery.source === "actual", "automatic driver location saves metadata, source, and a reasonable movement segment");
   assert(driverOrder.deliveryFee === actualFeeAfterMove && driverOrder.driverPayout === actualFeeAfterMove && driverOrder.total === Math.round((250 + 37.5 + actualFeeAfterMove) * 100) / 100 && driverOrder.payment.gross === driverOrder.total, "actual tracked distance updates delivery fee, driver payout, total, and payment ledger together");
   const customerLocationState = await request(base, customer.token, "GET", "/api/state");
   const customerLocationOrder = customerLocationState.orders.find((item) => item.id === order.id);
@@ -694,6 +701,35 @@ try {
   assert(customerState.orders.find((item) => item.id === order.id)?.payment?.status === "released", "delivered order releases escrow payment");
   const deliveredTrackOrder = customerState.orders.find((item) => item.id === order.id);
   assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.delivery.source === "actual" && deliveredTrackOrder.delivery.completedAt && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "delivered tracking finalizes the actual-distance delivery fee for the customer");
+  const blockedDeliveredLocation = await requestRaw(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.036, lng: 29.031 }, automatic: true });
+  assert(blockedDeliveredLocation.status === 400, "delivered order rejects further automatic driver location updates");
+
+  const pickupResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    fulfillmentType: "pickup",
+    paymentMethod: "iban",
+    scheduledFor: "2026-06-12T20:00:00.000Z",
+    notes: "Customer pickup flow"
+  });
+  let pickupOrder = pickupResult.state.orders.find((item) => item.notes === "Customer pickup flow");
+  assert(pickupOrder.fulfillmentType === "pickup" && pickupOrder.requiresDriver === false, "pickup checkout stores pickup fulfillment without requiring a driver");
+  assert(pickupOrder.deliveryFee === 0 && pickupOrder.deliveryDistanceKm === 0 && pickupOrder.driverPayout === 0 && pickupOrder.delivery.source === "pickup", "pickup order stores zero delivery distance, fee, and driver payout");
+  assert(pickupOrder.route === null && pickupOrder.etaMinutes === null && pickupOrder.total === 287.5 && pickupOrder.payment.gross === 287.5 && pickupOrder.payment.driverPayout === 0, "pickup total and payment ledger exclude delivery and route accounting");
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "accepted" });
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "preparing" });
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "ready" });
+  driverState = await request(base, driver.token, "GET", "/api/state");
+  assert(!driverState.orders.some((item) => item.id === pickupOrder.id), "ready pickup order never appears in the driver queue");
+  const blockedPickupAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${pickupOrder.id}/accept`, {});
+  assert(blockedPickupAccept.status === 400, "driver cannot accept a pickup order");
+  const blockedPickupLocation = await requestRaw(base, driver.token, "PATCH", `/api/orders/${pickupOrder.id}/location`, { driverLocation: { lat: 41.03, lng: 29.02 }, automatic: true });
+  assert(!blockedPickupLocation.ok, "pickup order ignores driver location updates");
+  const pickupAdminState = await request(base, owner.token, "GET", "/api/state");
+  pickupOrder = pickupAdminState.orders.find((item) => item.id === pickupOrder.id);
+  assert(pickupOrder.fulfillmentType === "pickup" && pickupOrder.driverId === null && pickupOrder.deliveryFee === 0, "admin state shows pickup fulfillment with no driver required");
+  const completedPickupState = await request(base, customer.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "delivered", note: "Customer confirmed pickup." });
+  pickupOrder = completedPickupState.orders.find((item) => item.id === pickupOrder.id);
+  assert(pickupOrder.status === "delivered" && pickupOrder.payment.status === "released" && pickupOrder.delivery.source === "pickup" && pickupOrder.delivery.completedAt, "customer completes pickup without a driver and releases payment");
 
   const fallbackOrder = secondCustomerOrderResult.state.orders.find((item) => item.notes === "Second customer public stats order");
   await request(base, cookAccount.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "accepted" });
@@ -727,6 +763,8 @@ try {
   assert(customerNotificationState.notifications.find((note) => note.id === criticalCancellationNote.id)?.read === true, "customer can mark one notification as read");
   const blockedCancelledAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${cancelOrder.id}/accept`, {});
   assert(blockedCancelledAccept.status === 400, "driver cannot accept a cook-cancelled order");
+  const blockedCancelledLocation = await requestRaw(base, driver.token, "PATCH", `/api/orders/${cancelOrder.id}/location`, { driverLocation: { lat: 41.03, lng: 29.02 }, automatic: true });
+  assert(!blockedCancelledLocation.ok, "cancelled order ignores further automatic driver location updates");
 
   const adminCancelOrderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],

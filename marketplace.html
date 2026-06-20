@@ -221,6 +221,9 @@ ul{list-style:none}
   color:var(--text2);
 }
 .cart-tab.active{background:var(--orange);color:#fff}
+.cart-tab strong,.cart-tab small{display:block}.cart-tab small{margin-top:2px;font-size:10px;line-height:1.2;color:inherit;opacity:.82}
+.checkout-fulfillment-tabs{margin:0;gap:8px;background:var(--bg3)}
+.checkout-fulfillment-tabs .cart-tab{min-height:58px;text-align:left;padding:10px 12px}
 .cart-items{flex:1;padding:8px 16px;overflow-y:auto}
 .cart-item{
   display:flex;align-items:center;gap:10px;
@@ -748,6 +751,7 @@ ul{list-style:none}
 .track-summary-item span{display:block;font-size:11px;color:var(--text3);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .track-summary-item strong{display:block;margin-top:4px;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .track-summary-item.full{grid-column:1/-1}
+.track-summary-item.full strong{white-space:normal;overflow-wrap:anywhere}
 .track-map{
   height:190px;border-radius:16px;overflow:hidden;border:1px solid var(--border);
   background:
@@ -2613,6 +2617,13 @@ ul{list-style:none}
     <div class="checkout-layout">
       <div>
         <div class="checkout-section">
+          <h3>Fulfillment</h3>
+          <div class="cart-tabs checkout-fulfillment-tabs">
+            <button class="cart-tab active" type="button" data-fulfillment-mode="delivery" onclick="setFulfillmentMode('delivery')"><strong>Delivery</strong><small>Delivered by a driver · 6 ₺/km</small></button>
+            <button class="cart-tab" type="button" data-fulfillment-mode="pickup" onclick="setFulfillmentMode('pickup')"><strong>Pickup</strong><small>I will pick it up · no delivery fee</small></button>
+          </div>
+        </div>
+        <div class="checkout-section">
           <h3>💳 Payment Method</h3>
           <div class="payment-methods" id="paymentMethods"></div>
           <div class="payment-note" id="paymentNote">Payment methods change depending on the selected country.</div>
@@ -2635,7 +2646,7 @@ ul{list-style:none}
           <div class="summary-items" id="checkoutItems"></div>
           <div class="summary-totals">
             <div class="summary-row"><span>Subtotal</span><span id="checkoutSubtotal">370 ₺</span></div>
-            <div class="summary-row"><span>Delivery estimate</span><span id="checkoutDeliveryFee">0 ₺</span></div>
+            <div class="summary-row"><span id="checkoutDeliveryLabel">Delivery estimate</span><span id="checkoutDeliveryFee">0 ₺</span></div>
             <div class="delivery-price-note" id="checkoutDeliveryMeta">6 ₺/km · route estimate pending</div>
             <div class="summary-row"><span>Service fee</span><span id="checkoutServiceFee">15 ₺</span></div>
             <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
@@ -2658,15 +2669,15 @@ ul{list-style:none}
     <div style="display:flex;align-items:center;gap:8px"><span class="cart-badge" id="cartBadge">0</span><button class="cart-close" type="button" aria-label="Close cart" onclick="toggleCart(false)">✕</button></div>
   </div>
   <div class="cart-tabs">
-    <button class="cart-tab active" onclick="cartTab(this,'delivery')">Delivery</button>
-    <button class="cart-tab" onclick="cartTab(this,'pickup')">Pickup</button>
+    <button class="cart-tab active" data-fulfillment-mode="delivery" onclick="cartTab(this,'delivery')"><strong>Delivery</strong><small>Driver · 6 ₺/km</small></button>
+    <button class="cart-tab" data-fulfillment-mode="pickup" onclick="cartTab(this,'pickup')"><strong>Pickup</strong><small>No delivery fee</small></button>
   </div>
   <div class="cart-items" id="cartItems">
     <!-- Populated by JS -->
   </div>
   <div class="cart-footer">
     <div class="cart-row"><span>Subtotal</span><span id="cartSubtotal">0 ₺</span></div>
-    <div class="cart-row"><span>Delivery estimate</span><span id="cartDeliveryFee">0 ₺</span></div>
+    <div class="cart-row"><span id="cartDeliveryLabel">Delivery estimate</span><span id="cartDeliveryFee">0 ₺</span></div>
     <div class="delivery-price-note" id="cartDeliveryMeta">6 ₺/km · add a dish to estimate</div>
     <div class="cart-row"><span>Service fee (15%)</span><span id="cartServiceFee">0 ₺</span></div>
     <div class="cart-total"><span>Total</span><span id="cartTotal">0 ₺</span></div>
@@ -2713,11 +2724,11 @@ ul{list-style:none}
 <div class="success-overlay" id="successOverlay">
   <div class="success-icon">🎉</div>
   <h1 style="font-size:32px;font-weight:900">Order Placed!</h1>
-  <p style="color:var(--text2);font-size:15px;max-width:360px">Your food is being prepared. You can track: accepted → cooking → courier pickup → on the way → delivered.</p>
+  <p id="successOrderMessage" style="color:var(--text2);font-size:15px;max-width:360px">Your food is being prepared. You can track: accepted → cooking → courier pickup → on the way → delivered.</p>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 32px;margin-top:8px;text-align:center">
-    <div style="font-size:32px;margin-bottom:8px">🛵</div>
-    <div style="font-weight:700;font-size:16px">Estimated Delivery</div>
-    <div style="color:var(--orange);font-size:24px;font-weight:900;margin-top:4px">25–35 min</div>
+    <div id="successFulfillmentIcon" style="font-size:32px;margin-bottom:8px">🛵</div>
+    <div id="successFulfillmentTitle" style="font-weight:700;font-size:16px">Estimated Delivery</div>
+    <div id="successFulfillmentDetail" style="color:var(--orange);font-size:24px;font-weight:900;margin-top:4px">25–35 min</div>
   </div>
   <button class="btn-apply" style="margin-top:8px" onclick="trackLastPlacedOrder()">Track My Order →</button>
 </div>
@@ -3394,6 +3405,8 @@ async function runStandaloneMarketAction(action, payload = {}) {
       return syncMarketplaceFromApi(await marketApi('/api/cooks/reapply', { method: 'POST' }));
     case 'market-place-order':
       return syncMarketplaceFromApi(await marketApi('/api/orders', { method: 'POST', body: JSON.stringify(payload.payload || {}) }));
+    case 'market-order-status':
+      return syncMarketplaceFromApi(await marketApi(`/api/orders/${payload.orderId}`, { method: 'PATCH', body: JSON.stringify(payload.payload || {}) }));
     case 'market-social':
       return marketApi('/api/social', { method: 'POST', body: JSON.stringify(payload.payload || {}) });
     case 'market-message':
@@ -3904,6 +3917,8 @@ function marketplaceFingerprint(rawState) {
       JSON.stringify(order.delivery || null),
       order.deliveryFee,
       order.driverPayout,
+      order.fulfillmentType,
+      order.requiresDriver,
       Array.isArray(order.statusHistory) ? order.statusHistory.length : 0,
       Array.isArray(order.locationHistory) ? order.locationHistory.length : 0
     ]),
@@ -4018,7 +4033,8 @@ function mapOrderForMobile(order) {
   const dish = first ? dishes.find(item => sameId(item.id, first.dishId)) : null;
   const cook = cooks.find(item => sameId(item.id, order.cookId));
   const created = order.createdAt ? new Date(order.createdAt) : new Date();
-  const label = orderLabelByStatus[order.status] || order.status || 'Order placed';
+  const pickup = order.fulfillmentType === 'pickup';
+  const label = pickup && order.status === 'delivered' ? 'Picked up' : (orderLabelByStatus[order.status] || order.status || 'Order placed');
   const rawItems = Array.isArray(order.items) ? order.items : [];
   return {
     raw: order,
@@ -4055,6 +4071,8 @@ function mapOrderForMobile(order) {
     route: order.route || null,
     etaMinutes: order.etaMinutes || order.route?.etaMinutes || null,
     deliveryAddress: order.deliveryAddress || '',
+    fulfillmentType: order.fulfillmentType === 'pickup' ? 'pickup' : 'delivery',
+    requiresDriver: order.requiresDriver !== false && order.fulfillmentType !== 'pickup',
     delivery: order.delivery || order.payment?.delivery || null,
     deliveryFee: Number(order.deliveryFee || 0),
     deliveryDistanceKm: Number(order.deliveryDistanceKm || 0),
@@ -4546,7 +4564,7 @@ function applyTranslations() {
   setText('#page-settings .page-header h1', tr('settingsTitle'));
 
   setText('.cart-header h3', tr('yourCart'));
-  const cartTabs = document.querySelectorAll('.cart-tab');
+  const cartTabs = document.querySelectorAll('#cartPanel .cart-tab strong');
   if (cartTabs[0]) cartTabs[0].textContent = tr('delivery');
   if (cartTabs[1]) cartTabs[1].textContent = tr('pickup');
   const cartRows = document.querySelectorAll('.cart-footer .cart-row span:first-child');
@@ -4594,6 +4612,7 @@ window.addEventListener('message', (event) => {
       pendingOrderPlacement = false;
       cart = [];
       renderCart();
+      updateSuccessOverlayForFulfillment();
       document.getElementById('successOverlay')?.classList.add('open');
     }
     if (pending) {
@@ -4958,6 +4977,10 @@ function setOrdersFilter(button, filter) {
 function orderRaw(order) {
   return order?.raw || order || {};
 }
+function isPickupOrder(order) {
+  const raw = orderRaw(order);
+  return raw.fulfillmentType === 'pickup' || raw.delivery?.source === 'pickup' || order?.fulfillmentType === 'pickup';
+}
 function findTrackOrder(orderId = activeTrackOrderId) {
   return demoOrders.find(item => sameId(item.id, orderId)) || null;
 }
@@ -5003,6 +5026,7 @@ function orderTotalLabel(order) {
   return total > 0 ? `₺${total.toLocaleString('tr-TR')}` : (order.price || 'Total pending');
 }
 function orderEtaLabel(order) {
+  if (isPickupOrder(order)) return 'No driver needed';
   const raw = orderRaw(order);
   const eta = Number(raw.etaMinutes || raw.route?.etaMinutes || order.etaMinutes || 0);
   return eta > 0 ? `${eta} min` : 'Updating';
@@ -5019,6 +5043,7 @@ function rememberLastPlacedOrderFromOrders() {
 function orderDeliveryPricing(order) {
   const raw = orderRaw(order);
   const delivery = raw.delivery || raw.payment?.delivery || {};
+  if (isPickupOrder(order)) return { rate: DELIVERY_RATE_PER_KM_TRY, estimatedDistanceKm: 0, estimatedFee: 0, actualDistanceKm: 0, actualFee: 0, source: 'pickup', fee: 0 };
   const estimatedDistanceKm = roundDeliveryKm(delivery.estimatedDistanceKm ?? raw.route?.distanceKm ?? raw.deliveryDistanceKm ?? 0);
   const actualDistanceKm = roundDeliveryKm(delivery.actualDistanceKm || 0);
   const source = delivery.source === 'actual' && actualDistanceKm > 0 ? 'actual' : 'estimated';
@@ -5039,33 +5064,48 @@ function renderTrackSummary(order) {
   const route = raw.route || {};
   const distance = route.distanceKm ? `${route.distanceKm} km` : 'Route updating';
   const delivery = orderDeliveryPricing(order);
+  const pickup = isPickupOrder(order);
   const summary = document.getElementById('trackSummary');
   if (!summary) return;
   summary.innerHTML = `
     <div class="track-summary-item"><span>Status</span><strong>${safeDisplayHtml(orderLabelByStatus[raw.status] || order.status || 'Order placed')}</strong></div>
-    <div class="track-summary-item"><span>ETA</span><strong>${safeDisplayHtml(orderEtaLabel(order))}</strong></div>
+    <div class="track-summary-item"><span>Fulfillment</span><strong>${pickup ? 'Pickup order' : 'Driver delivery'}</strong></div>
     <div class="track-summary-item"><span>Total</span><strong>${safeDisplayHtml(orderTotalLabel(order))}</strong></div>
+    ${pickup ? `
+    <div class="track-summary-item"><span>Pickup fee</span><strong>0 ₺</strong></div>
+    <div class="track-summary-item"><span>Driver</span><strong>Not required</strong></div>
+    <div class="track-summary-item full"><span>Pickup</span><strong>You can collect your order when the cook marks it ready.</strong></div>` : `
+    <div class="track-summary-item"><span>ETA</span><strong>${safeDisplayHtml(orderEtaLabel(order))}</strong></div>
     <div class="track-summary-item"><span>Route</span><strong>${safeDisplayHtml(distance)}</strong></div>
     <div class="track-summary-item"><span>Delivery rate</span><strong>${safeDisplayHtml(delivery.rate)} ₺/km</strong></div>
     <div class="track-summary-item"><span>Estimated delivery</span><strong>${safeDisplayHtml(delivery.estimatedDistanceKm)} km · ${safeDisplayHtml(delivery.estimatedFee)} ₺</strong></div>
     <div class="track-summary-item"><span>Actual delivery</span><strong>${delivery.actualDistanceKm > 0 ? `${safeDisplayHtml(delivery.actualDistanceKm)} km · ${safeDisplayHtml(delivery.actualFee)} ₺` : 'Waiting for tracked movement'}</strong></div>
     <div class="track-summary-item"><span>Delivery charged</span><strong>${safeDisplayHtml(delivery.fee)} ₺ · ${safeDisplayHtml(delivery.source)}</strong></div>
-    <div class="track-summary-item full"><span>How delivery pricing works</span><strong>Delivery is ${safeDisplayHtml(delivery.rate)} ₺/km. The final fee is calculated when delivery is completed.</strong></div>
+    <div class="track-summary-item full"><span>How delivery pricing works</span><strong>Delivery is ${safeDisplayHtml(delivery.rate)} ₺/km. The final fee is calculated when delivery is completed.</strong></div>`}
     <div class="track-summary-item full"><span>Items</span><strong>${safeDisplayHtml(orderItemsLabel(order))}</strong></div>
-    <div class="track-summary-item full"><span>Delivery</span><strong>${safeDisplayHtml(address)} · ${safeDisplayHtml(scheduled)}</strong></div>`;
+    <div class="track-summary-item full"><span>${pickup ? 'Pickup time' : 'Delivery'}</span><strong>${pickup ? safeDisplayHtml(scheduled) : `${safeDisplayHtml(address)} · ${safeDisplayHtml(scheduled)}`}</strong></div>`;
 }
 function renderTrackTimeline(order) {
   const raw = orderRaw(order);
   const status = raw.status || order.statusRaw || 'placed';
   const currentStatus = latestTrackedStatus(order);
-  const currentIndex = orderStatusIndex(currentStatus);
+  const pickup = isPickupOrder(order);
+  const steps = pickup ? [
+    {status:'placed',title:'Order placed',body:'HomeTaste received your pickup order.'},
+    {status:'accepted',title:'Order received',body:'The cook accepted your order.'},
+    {status:'preparing',title:'Cooking',body:'Your meal is being prepared.'},
+    {status:'ready',title:'Ready for pickup',body:'Collect your meal from the cook.'},
+    {status:'delivered',title:'Picked up',body:'Pickup completed. Enjoy your meal!'}
+  ] : trackStatusSteps;
+  const statusIndex = value => Math.max(0, steps.findIndex(step => step.status === value));
+  const currentIndex = statusIndex(currentStatus);
   const history = Array.isArray(raw.statusHistory) ? raw.statusHistory : [];
   const historyStatuses = new Set(history.map(item => item.status).filter(Boolean));
   const visibleSteps = status === 'cancelled'
-    ? trackStatusSteps.filter((step, index) => index <= currentIndex || historyStatuses.has(step.status))
-    : trackStatusSteps;
+    ? steps.filter((step, index) => index <= currentIndex || historyStatuses.has(step.status))
+    : steps;
   const timelineHtml = visibleSteps.map((step, index) => {
-    const originalIndex = orderStatusIndex(step.status);
+    const originalIndex = statusIndex(step.status);
     const done = status === 'cancelled'
       ? originalIndex <= currentIndex && (historyStatuses.size === 0 || historyStatuses.has(step.status) || originalIndex === 0)
       : originalIndex < currentIndex;
@@ -5101,6 +5141,10 @@ function renderTrackMap(order) {
   const customerPoint = raw.customerLocation || route.customer || null;
   const map = document.getElementById('trackMap');
   if (!map) return;
+  if (isPickupOrder(order)) {
+    map.innerHTML = `<div class="track-map-empty"><strong>Customer pickup</strong><br>No driver, live route, or delivery tracking is required.</div>`;
+    return;
+  }
   if (!driverPoint && !customerPoint) {
     map.innerHTML = `<div class="track-map-empty">Route will appear when the order location is available.</div>`;
     return;
@@ -5150,6 +5194,7 @@ function renderTrackDriverCard(order) {
   const raw = orderRaw(order);
   const status = raw.status || order.statusRaw || 'placed';
   const assigned = Boolean(raw.driverId);
+  const pickup = isPickupOrder(order);
   const driverName = displayText(raw.driverName || order.driverName, 'Driver assigned');
   const driverPhone = phoneHref(raw.driverPhone || order.driverPhone || '');
   const title = status === 'cancelled'
@@ -5164,6 +5209,14 @@ function renderTrackDriverCard(order) {
       : 'A driver will appear here after the cook marks the food ready.';
   const card = document.getElementById('trackDriverCard');
   if (!card) return;
+  if (pickup) {
+    const ready = status === 'ready';
+    card.innerHTML = `
+      <div class="driver-avatar">🛍️</div>
+      <div class="driver-meta"><strong>${status === 'delivered' ? 'Pickup completed' : 'Customer pickup'}</strong><span>${ready ? 'Your meal is ready. Confirm after you collect it.' : 'No driver is required for this order.'}</span></div>
+      <div class="driver-actions">${ready ? `<button class="btn-reorder" type="button" onclick='completePickupOrder(${jsArg(order.id)},this)'>Confirm pickup</button>` : ''}</div>`;
+    return;
+  }
   const callAction = driverPhone && status !== 'cancelled'
     ? `<a class="driver-action" href="tel:${attrText(driverPhone)}" aria-label="Call driver" title="Call driver">☎</a>`
     : `<button class="driver-action" type="button" disabled aria-disabled="true" title="${assigned ? 'Driver phone not available yet' : 'Waiting for driver'}">☎</button>`;
@@ -5193,6 +5246,18 @@ function renderTrackOrder(order) {
   renderTrackTimeline(order);
   renderTrackMap(order);
   renderTrackDriverCard(order);
+}
+async function completePickupOrder(orderId, button = null) {
+  await withMarketButton(button, 'Confirming...', async () => {
+    try {
+      await sendMarketAction('market-order-status', { orderId, payload: { status: 'delivered', note: 'Customer confirmed pickup.' } });
+      const updated = findTrackOrder(orderId);
+      if (updated) renderTrackOrder(updated);
+      renderOrders();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
 function startTrackOrderRefresh() {
   stopTrackOrderRefresh();
@@ -5323,16 +5388,21 @@ function removeFromCart(id) {
 function updateCartTotals() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const estimate = deliveryEstimateForCart();
-  const delivery = estimate.fee;
+  const isPickup = cartFulfillmentMode === 'pickup';
+  const delivery = isPickup ? 0 : estimate.fee;
   const serviceFee = roundDeliveryMoney(sub * .15);
   document.getElementById('cartSubtotal').textContent = sub + ' ₺';
   document.getElementById('cartDeliveryFee').textContent = delivery + ' ₺';
+  const deliveryLabel = document.getElementById('cartDeliveryLabel');
+  if (deliveryLabel) deliveryLabel.textContent = isPickup ? 'Pickup fee' : 'Delivery estimate';
   document.getElementById('cartServiceFee').textContent = serviceFee + ' ₺';
   document.getElementById('cartTotal').textContent = roundDeliveryMoney(sub + delivery + serviceFee) + ' ₺';
   const deliveryMeta = document.getElementById('cartDeliveryMeta');
-  if (deliveryMeta) deliveryMeta.textContent = cart.length
-    ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final delivery fee uses tracked distance.`
-    : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · add a dish to estimate`;
+  if (deliveryMeta) deliveryMeta.textContent = isPickup
+    ? 'Pickup from the cook · no driver or delivery fee.'
+    : cart.length
+      ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final delivery fee uses tracked distance.`
+      : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · add a dish to estimate`;
   const checkoutBtn = document.getElementById('cartCheckoutBtn');
   if (checkoutBtn) {
     checkoutBtn.disabled = cart.length === 0;
@@ -5358,16 +5428,24 @@ function updateNavBadges() {
   setNavBadge('messagesNavBadge', chatMessages.reduce((sum, conv) => sum + Number(conv.unread || 0), 0));
   setNavBadge('notificationsNavBadge', marketplaceNotifications.filter(note => !note.read).length);
 }
-function cartTab(btn, type) {
+function setFulfillmentMode(type) {
   cartFulfillmentMode = type === 'pickup' ? 'pickup' : 'delivery';
-  document.querySelectorAll('.cart-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  showToast(cartFulfillmentMode === 'pickup' ? 'Pickup selected. The cook will confirm pickup details.' : 'Delivery selected.', 'info');
+  document.querySelectorAll('[data-fulfillment-mode]').forEach(button => {
+    button.classList.toggle('active', button.dataset.fulfillmentMode === cartFulfillmentMode);
+  });
+  updateCartTotals();
+  updateCheckoutItems();
+  const timeTitle = document.querySelector('#deliveryTimeOptions')?.closest('.checkout-section')?.querySelector('h3');
+  if (timeTitle) timeTitle.textContent = cartFulfillmentMode === 'pickup' ? '⏰ Pickup Time' : '⏰ Delivery Time';
+}
+function cartTab(btn, type) {
+  setFulfillmentMode(type);
 }
 function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
   toggleCart(false);
   showPage('checkout', null);
+  setFulfillmentMode(cartFulfillmentMode);
 }
 function backFromCart() {
   toggleCart(false);
@@ -6565,12 +6643,17 @@ function updateCheckoutItems() {
   subtotalEl.textContent = sub + ' ₺';
   const serviceFee = Math.round(sub * 0.15 * 100) / 100;
   const estimate = deliveryEstimateForCart();
-  const deliveryFee = estimate.fee;
+  const isPickup = cartFulfillmentMode === 'pickup';
+  const deliveryFee = isPickup ? 0 : estimate.fee;
   deliveryEl.textContent = deliveryFee + ' ₺';
+  const deliveryLabel = document.getElementById('checkoutDeliveryLabel');
+  if (deliveryLabel) deliveryLabel.textContent = isPickup ? 'Pickup fee' : 'Delivery estimate';
   const deliveryMeta = document.getElementById('checkoutDeliveryMeta');
-  if (deliveryMeta) deliveryMeta.textContent = cart.length
-    ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final fee uses tracked driver distance.`
-    : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · route estimate pending`;
+  if (deliveryMeta) deliveryMeta.textContent = isPickup
+    ? 'Pickup from the cook · no driver or delivery fee.'
+    : cart.length
+      ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final fee uses tracked driver distance.`
+      : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · route estimate pending`;
   serviceEl.textContent = serviceFee + ' ₺';
   totalEl.textContent = (sub + deliveryFee + serviceFee) + ' ₺';
 }
@@ -6582,6 +6665,19 @@ function paymentValue(method) {
   if (name === 'iban') return 'iban';
   if (name === 'cash on delivery') return 'cash';
   return 'cash';
+}
+function updateSuccessOverlayForFulfillment() {
+  const pickup = cartFulfillmentMode === 'pickup';
+  const message = document.getElementById('successOrderMessage');
+  const icon = document.getElementById('successFulfillmentIcon');
+  const title = document.getElementById('successFulfillmentTitle');
+  const detail = document.getElementById('successFulfillmentDetail');
+  if (message) message.textContent = pickup
+    ? 'Your food is being prepared. We will show when it is ready for you to pick up.'
+    : 'Your food is being prepared. Track cook acceptance, driver pickup, the route, and delivery.';
+  if (icon) icon.textContent = pickup ? '🛍️' : '🛵';
+  if (title) title.textContent = pickup ? 'Customer Pickup' : 'Estimated Delivery';
+  if (detail) detail.textContent = pickup ? 'No delivery fee' : '25–35 min';
 }
 function renderPaymentDetails(method) {
   const panel = document.getElementById('paymentDetails');
@@ -6672,6 +6768,7 @@ async function placeOrder(button = null) {
         payload: {
           items,
           paymentMethod,
+          fulfillmentType: cartFulfillmentMode,
           deliveryAddress: currentSavedAddress(),
           customerLocation: currentSavedLocationQuery(),
           scheduledFor
@@ -6683,6 +6780,7 @@ async function placeOrder(button = null) {
         cart = [];
         renderCart();
         updateCartBadge();
+        updateSuccessOverlayForFulfillment();
         document.getElementById('successOverlay')?.classList.add('open');
         updateNavBadges();
         showToast('Order placed and saved.', 'success');
@@ -6692,6 +6790,7 @@ async function placeOrder(button = null) {
       cart = [];
       renderCart();
       updateCartBadge();
+      updateSuccessOverlayForFulfillment();
       document.getElementById('successOverlay')?.classList.add('open');
       updateNavBadges();
       showToast('Order placed and saved.', 'success');

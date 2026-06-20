@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-distance-delivery-01";
+const backendBuild = "20260620-fulfillment-auto-track-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1075,9 +1075,41 @@ function routeForOrder(order) {
   };
 }
 
+function normalizeOrderFulfillment(order) {
+  const fulfillmentType = order.fulfillmentType === "pickup" || order.delivery?.source === "pickup" ? "pickup" : "delivery";
+  order.fulfillmentType = fulfillmentType;
+  order.requiresDriver = fulfillmentType === "delivery";
+  return fulfillmentType;
+}
+
 function normalizeOrderDelivery(order) {
+  const fulfillmentType = normalizeOrderFulfillment(order);
   const routeDistance = roundKm(order.route?.distanceKm || 0);
   const stored = order.delivery && typeof order.delivery === "object" ? order.delivery : {};
+  if (fulfillmentType === "pickup") {
+    order.driverId = null;
+    order.driverLocation = null;
+    order.route = null;
+    order.etaMinutes = null;
+    order.delivery = {
+      ratePerKm: DELIVERY_RATE_PER_KM_TRY,
+      ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
+      estimatedDistanceKm: 0,
+      estimatedFee: 0,
+      actualDistanceKm: 0,
+      actualFee: 0,
+      startedAt: null,
+      completedAt: stored.completedAt || null,
+      lastLocation: null,
+      lastLocationAt: null,
+      source: "pickup"
+    };
+    order.deliveryFee = 0;
+    order.deliveryDistanceKm = 0;
+    order.driverPayout = 0;
+    order.total = roundMoney(Number(order.subtotal || 0) + Number(order.serviceFee || 0));
+    return order.delivery;
+  }
   const estimatedDistanceKm = roundKm(stored.estimatedDistanceKm ?? order.deliveryDistanceKm ?? routeDistance);
   const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
   const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
@@ -1125,6 +1157,8 @@ function refreshOrderFinancials(order, paymentRecord = null) {
     paymentRecord.updatedAt = now();
     paymentRecord.metadata = {
       ...(paymentRecord.metadata || {}),
+      fulfillmentType: order.fulfillmentType,
+      requiresDriver: order.requiresDriver,
       delivery: order.delivery,
       deliveryAccounting: {
         deliveryFee: order.deliveryFee,
@@ -1172,6 +1206,11 @@ function addDriverLocationSegment(order, nextLocation) {
 function finalizeOrderDelivery(order) {
   normalizeOrderDelivery(order);
   order.delivery.completedAt ||= now();
+  if (order.fulfillmentType === "pickup") {
+    order.delivery.source = "pickup";
+    refreshOrderFinancials(order);
+    return;
+  }
   order.delivery.source = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
   refreshOrderFinancials(order);
 }
@@ -1297,6 +1336,8 @@ function paymentLedgerForOrder(order) {
     commission,
     cookPayout: foodAmount,
     driverPayout: deliveryFee,
+    fulfillmentType: order.fulfillmentType || "delivery",
+    requiresDriver: order.requiresDriver !== false,
     delivery: order.delivery || null,
     provider: "manual",
     capturedAt: order.createdAt || now(),
@@ -1387,6 +1428,8 @@ function normalizeDb(db) {
   }
   for (const order of db.orders) {
     order.statusHistory ||= [];
+    if (!order.delivery && order.payment?.delivery) order.delivery = order.payment.delivery;
+    normalizeOrderFulfillment(order);
     order.payment ||= paymentLedgerForOrder(order);
     if (order.status === "cancelled" && ["held", "pending"].includes(order.payment.status)) {
       order.payment.status = "refunded";
@@ -1398,9 +1441,10 @@ function normalizeDb(db) {
     order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
     order.cookLocation ||= coordinateFromText(db.cooks.find((cook) => cook.id === order.cookId)?.city || "Istanbul");
     order.driverLocation ||= null;
-    order.route ||= routeForOrder(order);
-    order.etaMinutes ||= order.route.etaMinutes;
-    if (!order.delivery && order.payment?.delivery) order.delivery = order.payment.delivery;
+    if (order.requiresDriver) {
+      order.route ||= routeForOrder(order);
+      order.etaMinutes ||= order.route.etaMinutes;
+    }
     normalizeOrderDelivery(order);
     refreshOrderFinancials(order);
     order.dailyEarning = order.driverPayout;
@@ -1648,7 +1692,9 @@ const toOrder = (row) => ({
   deliveryFee: Number(row.delivery_fee || 0),
   serviceFee: Number(row.service_fee || 0),
   total: Number(row.total || 0),
-  status: row.status === "ready" && row.driver_id ? "driver_assigned" : row.status,
+  fulfillmentType: row.fulfillment_type || row.payment?.fulfillmentType || (row.payment?.delivery?.source === "pickup" ? "pickup" : "delivery"),
+  requiresDriver: row.requires_driver ?? row.payment?.requiresDriver ?? (row.payment?.delivery?.source !== "pickup"),
+  status: row.status === "ready" && row.driver_id && row.fulfillment_type !== "pickup" && row.payment?.fulfillmentType !== "pickup" ? "driver_assigned" : row.status,
   statusHistory: row.status_history || [],
   paymentMethod: row.payment_method,
   payment: row.payment || null,
@@ -1676,6 +1722,8 @@ const fromOrder = (order) => ({
   delivery_fee: order.deliveryFee || 0,
   service_fee: order.serviceFee || 0,
   total: order.total || 0,
+  fulfillment_type: order.fulfillmentType || "delivery",
+  requires_driver: order.requiresDriver !== false,
   status: order.status,
   status_history: order.statusHistory || [],
   payment_method: order.paymentMethod || "cash",
@@ -1687,7 +1735,7 @@ const fromOrder = (order) => ({
   driver_location: order.driverLocation || null,
   location_history: order.locationHistory || [],
   delivery: order.delivery || null,
-  route: order.route || routeForOrder(order),
+  route: order.requiresDriver !== false ? (order.route || routeForOrder(order)) : null,
   eta_minutes: order.etaMinutes || order.route?.etaMinutes || null,
   notes: order.notes || "",
   created_at: order.createdAt || now(),
@@ -1709,13 +1757,15 @@ const fromOrderLegacy = (order) => ({
   payment_method: order.paymentMethod || "cash",
   payment: {
     ...(order.payment || paymentLedgerForOrder(order)),
+    fulfillmentType: order.fulfillmentType || "delivery",
+    requiresDriver: order.requiresDriver !== false,
     scheduledFor: order.scheduledFor || null,
     customerLocation: order.customerLocation || null,
     cookLocation: order.cookLocation || null,
     driverLocation: order.driverLocation || null,
     locationHistory: order.locationHistory || [],
     delivery: order.delivery || null,
-    route: order.route || routeForOrder(order),
+    route: order.requiresDriver !== false ? (order.route || routeForOrder(order)) : null,
     etaMinutes: order.etaMinutes || order.route?.etaMinutes || null
   },
   delivery_address: order.deliveryAddress || "",
@@ -2207,6 +2257,7 @@ function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") {
     return db.orders
+      .filter((order) => order.fulfillmentType !== "pickup" && order.requiresDriver !== false)
       .filter((order) => order.driverId === user.id || (!order.driverId && order.status === "ready"))
       .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
   }
@@ -3083,6 +3134,7 @@ async function api(req, res, pathname) {
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
+    const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
     const customerLocation = normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
     const cookLocation = coordinateFromText(db.cooks.find((cook) => cook.id === firstDish.cookId)?.city || "Istanbul");
@@ -3096,6 +3148,8 @@ async function api(req, res, pathname) {
       deliveryFee: 0,
       serviceFee,
       total: subtotal + serviceFee,
+      fulfillmentType,
+      requiresDriver: fulfillmentType === "delivery",
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
@@ -3110,18 +3164,20 @@ async function api(req, res, pathname) {
       createdAt: now(),
       updatedAt: now()
     };
-    order.route = routeForOrder(order);
-    order.etaMinutes = order.route.etaMinutes;
+    if (order.requiresDriver) {
+      order.route = routeForOrder(order);
+      order.etaMinutes = order.route.etaMinutes;
+    }
     order.delivery = {
       ratePerKm: DELIVERY_RATE_PER_KM_TRY,
       ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
-      estimatedDistanceKm: order.route.distanceKm,
+      estimatedDistanceKm: order.route?.distanceKm || 0,
       actualDistanceKm: 0,
       startedAt: null,
       completedAt: null,
       lastLocation: null,
       lastLocationAt: null,
-      source: "estimated"
+      source: order.requiresDriver ? "estimated" : "pickup"
     };
     normalizeOrderDelivery(order);
     order.payment = paymentLedgerForOrder(order);
@@ -3146,7 +3202,7 @@ async function api(req, res, pathname) {
       provider: order.payment.provider,
       externalPaymentId: "",
       checkoutUrl: "",
-      metadata: { delivery: order.delivery },
+      metadata: { delivery: order.delivery, fulfillmentType: order.fulfillmentType, requiresDriver: order.requiresDriver },
       createdAt: now(),
       releasedAt: null
     };
@@ -3187,16 +3243,22 @@ async function api(req, res, pathname) {
     const order = db.orders.find((item) => item.id === orderId);
     if (!order) return json(res, 404, { error: "Order not found." });
     const input = await body(req);
-    const isOrderDriver = order.driverId === user.id || user.role === "owner";
-    const isOrderCustomer = order.customerId === user.id || user.role === "owner";
-    if (!isOrderDriver && !isOrderCustomer) return json(res, 403, { error: "No access to update this order location." });
+    normalizeOrderFulfillment(order);
+    const isOrderDriver = order.driverId === user.id && user.role === "driver";
+    if (!isOrderDriver) return json(res, 403, { error: "Only the assigned driver can update delivery location." });
+    if (!order.requiresDriver || order.fulfillmentType !== "delivery") return json(res, 400, { error: "Pickup orders do not use driver tracking." });
+    if (["delivered", "cancelled"].includes(order.status)) return json(res, 400, { error: "Location tracking has ended for this order." });
+    if (!["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status)) return json(res, 400, { error: "Delivery tracking is not active yet." });
     if (typeof input.driverLocation === "string" && input.driverLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Driver location is too long." });
-    if (typeof input.customerLocation === "string" && input.customerLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Customer location is too long." });
+    if (!input.driverLocation) return json(res, 400, { code: "INVALID_LOCATION", error: "Driver location is required." });
     let segmentKm = 0;
-    if (input.driverLocation && isOrderDriver) {
-      segmentKm = addDriverLocationSegment(order, normalizeLocation(input.driverLocation));
+    const nextLocation = normalizeLocation(input.driverLocation);
+    for (const key of ["accuracy", "heading", "speed"]) {
+      const value = Number(input.driverLocation?.[key]);
+      if (Number.isFinite(value)) nextLocation[key] = value;
     }
-    if (input.customerLocation && isOrderCustomer) order.customerLocation = normalizeLocation(input.customerLocation, order.deliveryAddress);
+    if (input.driverLocation?.at) nextLocation.at = String(input.driverLocation.at);
+    segmentKm = addDriverLocationSegment(order, nextLocation);
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
     order.locationHistory ||= [];
@@ -3209,6 +3271,7 @@ async function api(req, res, pathname) {
       actualDistanceKm: order.delivery?.actualDistanceKm || 0,
       totalDistanceKm: order.delivery?.actualDistanceKm || 0,
       deliveryFee: order.deliveryFee,
+      source: input.automatic === true ? "auto" : "manual",
       at: now(),
       byUserId: user.id
     });
@@ -3228,7 +3291,9 @@ async function api(req, res, pathname) {
     const isOrderCook = cook?.id === order.cookId;
     const isOrderDriver = order.driverId === user.id;
     const isOrderCustomer = user.id === order.customerId;
-    const customerCanReceive = isOrderCustomer && input.status === "delivered" && ["near_you", "out_for_delivery"].includes(order.status);
+    const customerCanReceiveDelivery = isOrderCustomer && input.status === "delivered" && ["near_you", "out_for_delivery"].includes(order.status);
+    const customerCanCompletePickup = isOrderCustomer && order.fulfillmentType === "pickup" && input.status === "delivered" && order.status === "ready";
+    const customerCanReceive = customerCanReceiveDelivery || customerCanCompletePickup;
     if (user.role !== "owner" && !isOrderCook && !isOrderDriver && !customerCanReceive) {
       return json(res, 403, { error: "Only the cook, assigned driver, customer receiver, or owner can update this order." });
     }
@@ -3237,6 +3302,9 @@ async function api(req, res, pathname) {
     }
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
+    }
+    if (order.fulfillmentType === "pickup" && ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(input.status)) {
+      return json(res, 400, { error: "Pickup orders do not use driver delivery steps." });
     }
     const driverTransitions = { driver_assigned: "picked_up", picked_up: "out_for_delivery", out_for_delivery: "near_you", near_you: "delivered" };
     if (isOrderDriver && driverTransitions[order.status] !== input.status) {
@@ -3293,12 +3361,12 @@ async function api(req, res, pathname) {
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
     if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
     const pushNotes = [];
-    if (order.status === "ready") {
+    if (order.status === "ready" && order.requiresDriver && order.fulfillmentType === "delivery") {
       for (const driver of db.users.filter((item) => item.role === "driver")) {
         pushNotes.push(optionalNotification(db, driver.id, "deliveryUpdates", `Ready delivery: ${order.id}.`, { type: "delivery_update", orderId: order.id, status: order.status }));
       }
     }
-    const notificationPreference = ["driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
+    const notificationPreference = order.fulfillmentType === "delivery" && ["driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
     for (const userId of new Set(notifyIds.filter(Boolean))) {
       pushNotes.push(optionalNotification(db, userId, notificationPreference, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { type: notificationPreference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: order.status }));
     }
@@ -3312,6 +3380,8 @@ async function api(req, res, pathname) {
     const orderId = pathname.split("/").at(-2);
     const order = db.orders.find((item) => item.id === orderId);
     if (!order) return json(res, 404, { error: "Order not found." });
+    normalizeOrderFulfillment(order);
+    if (!order.requiresDriver || order.fulfillmentType !== "delivery") return json(res, 400, { error: "Pickup orders cannot be assigned to drivers." });
     if (order.driverId && order.driverId !== user.id) return json(res, 409, { error: "This order is already assigned." });
     if (order.status !== "ready") return json(res, 400, { error: "Order is not ready for driver assignment." });
     const input = await body(req);

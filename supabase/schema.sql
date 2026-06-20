@@ -62,6 +62,8 @@ create table if not exists orders (
   delivery_fee numeric not null default 0,
   service_fee numeric not null default 0,
   total numeric not null default 0,
+  fulfillment_type text not null default 'delivery' check (fulfillment_type in ('delivery', 'pickup')),
+  requires_driver boolean not null default true,
   status text not null default 'placed' check (status in ('placed', 'accepted', 'preparing', 'ready', 'driver_assigned', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled')),
   status_history jsonb not null default '[]'::jsonb,
   payment_method text not null default 'cash',
@@ -177,6 +179,10 @@ create table if not exists payments (
 );
 
 alter table orders add column if not exists delivery jsonb not null default '{}'::jsonb;
+alter table orders add column if not exists fulfillment_type text not null default 'delivery';
+alter table orders add column if not exists requires_driver boolean not null default true;
+alter table orders drop constraint if exists orders_fulfillment_type_check;
+alter table orders add constraint orders_fulfillment_type_check check (fulfillment_type in ('delivery', 'pickup'));
 alter table payments add column if not exists delivery_fee numeric not null default 0;
 alter table payments add column if not exists driver_payout numeric not null default 0;
 alter table payments add column if not exists updated_at timestamptz not null default now();
