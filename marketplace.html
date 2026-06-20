@@ -1428,27 +1428,18 @@ ul{list-style:none}
   border-radius:16px;display:none;
 }
 .cook-dish-manager.active{display:block}
-.cook-studio{display:grid;gap:16px}
-.cook-studio-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-.cook-studio-header h2{font-family:'DM Sans',sans-serif;font-size:22px;margin-bottom:4px}
-.cook-studio-header p{font-size:13px;color:var(--text3);line-height:1.45}
-.cook-studio-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:12px;background:var(--bg3)}
-.cook-studio-tab{min-height:44px;padding:8px;border-radius:9px;color:var(--text2);font-size:12px;font-weight:800}
-.cook-studio-tab.active{background:var(--card);color:var(--orange);box-shadow:0 5px 16px rgba(89,55,28,.08)}
-.cook-studio-panel{display:none}
-.cook-studio-panel.active{display:block}
-.studio-profile-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.studio-profile-form .wide{grid-column:1/-1}
-.studio-media-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.studio-media-action{min-height:54px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);text-align:left;color:var(--text);font-weight:800}
-.studio-media-action small{display:block;color:var(--text3);font-size:11px;margin-top:3px}
-.studio-availability-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
-.studio-availability-card strong,.studio-availability-card small{display:block}
-.studio-availability-card small{color:var(--text3);font-size:12px;margin-top:3px}
-.studio-status-card{padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--card)}
-.studio-status-card h2{font-family:'DM Sans',sans-serif;font-size:20px;margin-bottom:6px}
-.studio-status-card p{font-size:13px;color:var(--text3);line-height:1.55;margin-bottom:14px}
-.studio-status-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cook-management{display:grid;gap:20px}
+.cook-management-section{padding-bottom:20px;border-bottom:1px solid var(--border)}
+.cook-management-section:last-child{padding-bottom:0;border-bottom:0}
+.cook-management-profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.cook-management-profile .wide{grid-column:1/-1}
+.cook-management-media{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cook-management-media button{min-height:54px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);text-align:left;color:var(--text);font-weight:800}
+.cook-management-media small{display:block;color:var(--text3);font-size:11px;margin-top:3px}
+.cook-management-availability{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
+.cook-management-availability strong,.cook-management-availability small{display:block}
+.cook-management-availability small{color:var(--text3);font-size:12px;margin-top:3px}
+.cook-status-actions{display:flex;gap:8px;flex-wrap:wrap}
 .manager-dish-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .manager-edit,.manager-availability{font-size:11px;font-weight:800;padding:8px;border-radius:8px;color:var(--orange)}
 .manager-availability.offline{color:var(--text3)}
@@ -1855,13 +1846,10 @@ ul{list-style:none}
   .cook-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .cook-form{padding:18px 14px}
   .cook-dish-manager{margin:0 14px 18px;padding:16px}
-  .cook-studio-header{display:grid}
-  .cook-studio-header .btn-apply{width:100%;text-align:center}
-  .cook-studio-tabs{position:sticky;top:0;z-index:5}
-  .studio-profile-form{grid-template-columns:1fr}
-  .studio-profile-form .wide{grid-column:auto}
-  .studio-media-actions{grid-template-columns:1fr}
-  .studio-availability-card{padding:12px}
+  .cook-management-profile{grid-template-columns:1fr}
+  .cook-management-profile .wide{grid-column:auto}
+  .cook-management-media{grid-template-columns:1fr}
+  .cook-management-availability{padding:12px}
   .manager-head{display:grid;gap:12px}
   .manager-dish{grid-template-columns:52px minmax(0,1fr);align-items:start}
   .manager-dish-actions{grid-column:1/-1;justify-content:flex-start}
@@ -2454,6 +2442,13 @@ ul{list-style:none}
       <div><div class="welcome-label">Preparation time</div><input id="cookPrepInput" class="cook-input" placeholder="45 minutes"></div>
       <div><div class="welcome-label">Country of the dish</div><input id="cookDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt"></div>
       <div class="wide"><div class="welcome-label">Short bio</div><textarea id="cookBioInput" class="cook-input" rows="5" placeholder="Tell customers what you cook and where your food is from."></textarea></div>
+      <div class="wide">
+        <div class="welcome-label">Cook profile photos</div>
+        <div class="profile-photo-actions">
+          <button class="photo-action" type="button" onclick="openEditProfilePanel()">Profile photo<small>Upload your circular cook photo</small></button>
+          <button class="photo-action" type="button" onclick="openEditProfilePanel()">Background photo<small>Upload your cook profile cover</small></button>
+        </div>
+      </div>
       <label class="wide policy-confirm">
         <input id="cookPolicyConfirm" type="checkbox">
         <span>I confirm this is my own kitchen profile and I understand my profile and dishes require admin approval before they appear publicly.</span>
@@ -2546,7 +2541,7 @@ ul{list-style:none}
       <div class="settings-section">
         <h3>Account</h3>
         <div class="settings-menu">
-          <button id="mobileBecomeCookSetting" class="settings-menu-row mobile-account-become" type="button" onclick="openCookSettingsAction()"><span><strong id="mobileBecomeCookLabel">Become a cook</strong><small id="mobileBecomeCookHint">Apply to sell homemade food</small></span><span class="settings-chevron" aria-hidden="true">›</span></button>
+          <button id="mobileBecomeCookSetting" class="settings-menu-row mobile-account-become" type="button" onclick="openCookSettingsAction()"><span><strong id="mobileBecomeCookLabel">Become a Cook</strong><small id="mobileBecomeCookHint">Apply to sell homemade food</small></span><span class="settings-chevron" aria-hidden="true">›</span></button>
           <button class="settings-menu-row" type="button" onclick="openPasswordPanel()"><span><strong>Change password</strong></span><span class="settings-chevron" aria-hidden="true">›</span></button>
           <button class="settings-menu-row" type="button" onclick="openPaymentPanel()"><span><strong>Checkout display</strong><small>Saved on this device</small></span><span class="settings-chevron" aria-hidden="true">›</span></button>
           <button class="settings-menu-row sign-out" type="button" onclick="marketSignOut()"><span><strong>Sign out</strong></span></button>
@@ -2784,7 +2779,6 @@ let cookDishPhotoPreviewUrl = '';
 let extraDishPhotoPreviewUrl = '';
 let editingDishPhotoPreviewUrl = '';
 let cookManagementDishes = [];
-let activeCookStudioTab = 'profile';
 let pendingProfilePicture = '';
 let pendingProfileCover = '';
 let lastCookFilterSummary = 'All cooks';
@@ -5737,11 +5731,6 @@ function focusCookApplication() {
   document.getElementById('cookCreateForm')?.scrollIntoView({behavior:'smooth',block:'start'});
   document.getElementById('cookDishInput')?.focus();
 }
-function setCookStudioTab(tab) {
-  if (!['profile','menu','availability'].includes(tab)) return;
-  activeCookStudioTab = tab;
-  renderMyCookDishManager();
-}
 function renderMyCookDishManager(){
   const manager = document.getElementById('myCookDishManager');
   const createForm = document.getElementById('cookCreateForm');
@@ -5765,40 +5754,37 @@ function renderMyCookDishManager(){
   }
   createForm.hidden = true;
   if (features) features.hidden = true;
-  if (hero) hero.hidden = true;
+  if (hero) hero.hidden = false;
+  if (title) title.innerHTML = 'Become a <span>Cook</span>';
   manager.classList.add('active');
   if (cook.status !== 'approved') {
     const statusContent = {
-      pending:{title:'Cook application',body:'Your application is pending review. You can keep your profile details current while the admin reviews it.',action:'Edit application'},
-      rejected:{title:'Cook application rejected',body:'Review your profile information, make any corrections, and send it back for review.',action:'Reapply for review'},
-      suspended:{title:'Cook profile suspended',body:'Dish publishing and availability are paused. Contact HomeTaste support for help.',action:'Contact support'}
+      pending:{subtitle:'Your cook application is pending review.',title:'Application pending review',body:'Your submitted cook details are saved. You can keep your account profile and photos current while the admin reviews it.',action:'Edit profile and photos'},
+      rejected:{subtitle:'Your cook application was rejected. Review it and reapply when ready.',title:'Application rejected',body:'Review your profile information, make any corrections, and send it back for review.',action:'Reapply for review'},
+      suspended:{subtitle:'Your cook account is suspended. Contact support for help.',title:'Cook account suspended',body:'Dish publishing and availability are paused. Contact HomeTaste support for help.',action:'Contact support'}
     }[cook.status] || {title:'Cook application',body:'Review your cook profile status and information.',action:'Edit profile'};
-    manager.innerHTML = `<div class="studio-status-card"><div class="welcome-label">Application status</div><h2>${safeDisplayHtml(statusContent.title)}</h2><p>${safeDisplayHtml(statusContent.body)}</p><div class="studio-status-actions">${cook.status === 'suspended' ? '<button class="btn-apply" type="button" onclick="openSupportChat()">Contact support</button>' : `<button class="btn-apply" type="button" onclick="${cook.status === 'rejected' ? 'reapplyCookApplication(this)' : 'openEditProfilePanel()'}">${safeDisplayHtml(statusContent.action)}</button>`}<button class="account-cancel" type="button" onclick="openEditProfilePanel()">View profile data</button></div></div>`;
+    if (subtitle) subtitle.textContent = statusContent.subtitle || statusContent.body;
+    if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = statusContent.action; primaryAction.onclick = cook.status === 'suspended' ? openSupportChat : cook.status === 'rejected' ? () => reapplyCookApplication(primaryAction) : openEditProfilePanel; }
+    manager.innerHTML = `<div class="manager-head"><div><div class="welcome-label">Application status</div><h2>${safeDisplayHtml(statusContent.title)}</h2><p>${safeDisplayHtml(statusContent.body)}</p></div></div><div class="cook-status-actions">${cook.status === 'suspended' ? '<button class="btn-apply" type="button" onclick="openSupportChat()">Contact support</button>' : `<button class="btn-apply" type="button" onclick="${cook.status === 'rejected' ? 'reapplyCookApplication(this)' : 'openEditProfilePanel()'}">${safeDisplayHtml(statusContent.action)}</button>`}<button class="account-cancel" type="button" onclick="openEditProfilePanel()">View submitted details</button></div>`;
     return;
   }
+  if (subtitle) subtitle.textContent = 'Manage your cook profile, dishes and availability from the same Become a Cook page.';
+  if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = 'Manage my cook profile'; primaryAction.onclick = () => manager.scrollIntoView({behavior:'smooth',block:'start'}); }
   const cookDishes = cookManagementDishes.filter(d => sameId(d.cookId, cook.id));
-  const profileActive = activeCookStudioTab === 'profile';
-  const menuActive = activeCookStudioTab === 'menu';
-  const availabilityActive = activeCookStudioTab === 'availability';
   manager.innerHTML = `
-    <div class="cook-studio">
-      <div class="cook-studio-header"><div><div class="welcome-label">Cook Studio</div><h2>${safeDisplayHtml(cook.name)}</h2><p>Manage profile, dishes and cook settings.</p></div><button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View public profile</button></div>
-      <div class="cook-studio-tabs" role="tablist" aria-label="Cook Studio sections">
-        <button class="cook-studio-tab ${profileActive ? 'active' : ''}" type="button" role="tab" aria-selected="${profileActive}" onclick="setCookStudioTab('profile')">Cook profile</button>
-        <button class="cook-studio-tab ${menuActive ? 'active' : ''}" type="button" role="tab" aria-selected="${menuActive}" onclick="setCookStudioTab('menu')">Menu / Dishes</button>
-        <button class="cook-studio-tab ${availabilityActive ? 'active' : ''}" type="button" role="tab" aria-selected="${availabilityActive}" onclick="setCookStudioTab('availability')">Availability</button>
-      </div>
-      <section class="cook-studio-panel ${profileActive ? 'active' : ''}" id="cookStudioProfilePanel">
-        <form class="studio-profile-form" onsubmit="saveCookStudioProfile(event)">
-          <div><div class="welcome-label">Name</div><input id="studioCookName" class="cook-input" maxlength="80" value="${escapeAttr(cook.name || currentUserName)}" required></div>
-          <div><div class="welcome-label">Cuisine</div><input id="studioCookCuisine" class="cook-input" maxlength="80" value="${escapeAttr(cook.cuisine || '')}" placeholder="Turkish, Egyptian, Syrian"></div>
-          <div class="wide"><div class="welcome-label">Location</div><input id="studioCookLocation" class="cook-input" maxlength="100" value="${escapeAttr(cook.city || marketplaceUserState.city || '')}" placeholder="City or neighborhood"></div>
-          <div class="wide"><div class="welcome-label">About me</div><textarea id="studioCookBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
-          <div class="wide studio-media-actions"><button class="studio-media-action" type="button" onclick="openEditProfilePanel()">Profile photo<small>Change your circular profile image</small></button><button class="studio-media-action" type="button" onclick="openEditProfilePanel()">Background photo<small>Change your cook profile cover</small></button></div>
+    <div class="cook-management">
+      <section class="cook-management-section">
+        <div class="manager-head"><div><div class="welcome-label">Cook profile</div><h2>${safeDisplayHtml(cook.name)}</h2><p>Update the details customers see on your public cook profile.</p></div><button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View public profile</button></div>
+        <form class="cook-management-profile" onsubmit="saveCookManagementProfile(event)">
+          <div><div class="welcome-label">Name</div><input id="cookManagementName" class="cook-input" maxlength="80" value="${escapeAttr(cook.name || currentUserName)}" required></div>
+          <div><div class="welcome-label">Cuisine</div><input id="cookManagementCuisine" class="cook-input" maxlength="80" value="${escapeAttr(cook.cuisine || '')}" placeholder="Turkish, Egyptian, Syrian"></div>
+          <div class="wide"><div class="welcome-label">Location</div><input id="cookManagementLocation" class="cook-input" maxlength="100" value="${escapeAttr(cook.city || marketplaceUserState.city || '')}" placeholder="City or neighborhood"></div>
+          <div class="wide"><div class="welcome-label">About me</div><textarea id="cookManagementBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
+          <div class="wide cook-management-media"><button type="button" onclick="openEditProfilePanel()">Profile photo<small>Change your circular profile image</small></button><button type="button" onclick="openEditProfilePanel()">Background photo<small>Change your cook profile cover</small></button></div>
           <div class="wide"><button class="btn-apply" type="submit">Save cook profile</button></div>
         </form>
       </section>
-      <section class="cook-studio-panel ${menuActive ? 'active' : ''}" id="cookStudioMenuPanel">
+      <section class="cook-management-section">
         <div class="manager-head"><div><div class="welcome-label">Menu / Dishes</div><h2>${cookDishes.length} dish${cookDishes.length === 1 ? '' : 'es'}</h2><p>Add a new dish or edit price, prep time, category, image and availability.</p></div></div>
         <div class="manager-form">
           <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" placeholder="Example: Chicken Biryani"></div>
@@ -5817,21 +5803,21 @@ function renderMyCookDishManager(){
         return `<div class="manager-dish"><img src="${escapeAttr(dishImg)}" alt="${escapeAttr(dishName)}" loading="lazy" decoding="async" onerror="this.src='${escapeAttr(defaultDishPhoto)}'"><div><strong>${safeDisplayHtml(dishName)}</strong><br><span>${safeDisplayHtml(d.price)} ₺ · ${safeDisplayHtml(d.prepTime || '45 min')} · ${safeDisplayHtml(d.category || 'Main dish')} · ${d.available ? 'Available' : 'Hidden'}</span></div><div class="manager-dish-actions"><button class="manager-edit" type="button" onclick='editCookDish(${jsArg(d.id)})'>Edit</button><button class="manager-availability ${d.available ? '' : 'offline'}" type="button" onclick='toggleCookDishAvailability(${jsArg(d.id)},this)'>${d.available ? 'Hide' : 'Show'}</button><button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button></div></div>`;
       }).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}</div>
       </section>
-      <section class="cook-studio-panel ${availabilityActive ? 'active' : ''}" id="cookStudioAvailabilityPanel">
-        <div class="studio-availability-card"><div><strong id="studioAvailabilityLabel">${cook.online ? 'Online' : 'Offline'}</strong><small>Visible to customers when you are available to cook</small></div><button class="toggle ${cook.online ? 'on' : ''}" id="studioOnlineToggle" type="button" role="switch" aria-label="Cook Studio availability" aria-checked="${cook.online ? 'true' : 'false'}" onclick="toggleStudioOnlineSetting(this)"></button></div>
-        <div class="studio-status-card" style="margin-top:12px"><h2>Meal and delivery settings</h2><p>Meal plan and delivery timing stay connected to your existing HomeTaste order settings.</p></div>
+      <section class="cook-management-section">
+        <div class="manager-head"><div><div class="welcome-label">Availability</div><h2>Cook availability</h2><p>Switch online when you are ready to receive customer orders.</p></div></div>
+        <div class="cook-management-availability"><div><strong id="cookManagementAvailabilityLabel">${cook.online ? 'Online' : 'Offline'}</strong><small>Visible to customers when you are available to cook</small></div><button class="toggle ${cook.online ? 'on' : ''}" id="cookManagementOnlineToggle" type="button" role="switch" aria-label="Cook availability" aria-checked="${cook.online ? 'true' : 'false'}" onclick="toggleCookManagementOnline(this)"></button></div>
       </section>
     </div>
   `;
 }
-async function saveCookStudioProfile(event) {
+async function saveCookManagementProfile(event) {
   event.preventDefault();
   const button = event.currentTarget.querySelector('[type="submit"]');
   const profile = {
-    name: document.getElementById('studioCookName')?.value.trim() || '',
-    cuisine: document.getElementById('studioCookCuisine')?.value.trim() || '',
-    city: document.getElementById('studioCookLocation')?.value.trim() || '',
-    bio: document.getElementById('studioCookBio')?.value.trim() || ''
+    name: document.getElementById('cookManagementName')?.value.trim() || '',
+    cuisine: document.getElementById('cookManagementCuisine')?.value.trim() || '',
+    city: document.getElementById('cookManagementLocation')?.value.trim() || '',
+    bio: document.getElementById('cookManagementBio')?.value.trim() || ''
   };
   if (!profile.name || !profile.cuisine) return showToast('Enter your name and cuisine.', 'error');
   await withMarketButton(button, 'Saving...', async () => {
@@ -5853,8 +5839,8 @@ async function reapplyCookApplication(button = null) {
     }
   });
 }
-async function toggleStudioOnlineSetting(button) {
-  const label = document.getElementById('studioAvailabilityLabel');
+async function toggleCookManagementOnline(button) {
+  const label = document.getElementById('cookManagementAvailabilityLabel');
   const online = !button.classList.contains('on');
   button.disabled = true;
   try {
@@ -5871,7 +5857,7 @@ function editCookDish(dishId) {
   if (!dish) return showToast('Dish not found.', 'error');
   editingDishPhotoPreviewUrl = '';
   openAccountModal(`
-    <div class="notifications-panel-head"><div><h2>Edit dish</h2><p class="account-hint">Update this dish in Cook Studio.</p></div><button class="notifications-panel-close" type="button" data-close-account onclick="closeAccountPanel(event)" aria-label="Close dish editor">✕</button></div>
+    <div class="notifications-panel-head"><div><h2>Edit dish</h2><p class="account-hint">Update this dish in your Become a Cook menu.</p></div><button class="notifications-panel-close" type="button" data-close-account onclick="closeAccountPanel(event)" aria-label="Close dish editor">✕</button></div>
     <form class="account-form" onsubmit='saveCookDishEdit(event,${jsArg(dish.id)})'>
       <div class="form-group"><label>Dish name</label><input class="form-input" id="editDishName" maxlength="120" value="${escapeAttr(dish.name)}" required></div>
       <div class="form-row"><div class="form-group"><label>Price (₺)</label><input class="form-input" id="editDishPrice" type="number" min="1" value="${escapeAttr(dish.price)}" required></div><div class="form-group"><label>Prep time</label><input class="form-input" id="editDishPrep" type="number" min="5" max="240" value="${escapeAttr(parsePrepMinutes(dish.prepTime))}" required></div></div>
@@ -6225,21 +6211,16 @@ function setSavedProfileCover(value) {
   localStorage.setItem(userProfileCoverKey(), value);
 }
 function cookSettingsPresentation(cook) {
-  if (!cook) return {label:'Become a cook',hint:'Apply to sell homemade food',region:'HomeTaste customer',disabled:false,action:'apply'};
+  if (!cook) return {label:'Become a Cook',hint:'Apply to sell homemade food',region:'HomeTaste customer',disabled:false};
   const presentations = {
-    pending:{label:'Cook application',hint:'Pending review',region:'Cook application pending',disabled:false,action:'application'},
-    approved:{label:'Cook Studio',hint:'Manage profile, dishes and availability',region:'Approved cook profile',disabled:false,action:'studio'},
-    rejected:{label:'Cook application',hint:'Rejected · View or reapply',region:'Cook application rejected',disabled:false,action:'application'},
-    suspended:{label:'Cook profile',hint:'Suspended · Contact support',region:'Cook account suspended',disabled:false,action:'support'}
+    pending:{label:'Become a Cook',hint:'Application pending review',region:'Cook application pending',disabled:false},
+    approved:{label:'Become a Cook',hint:'Manage your cook profile, dishes and availability',region:'Approved cook profile',disabled:false},
+    rejected:{label:'Become a Cook',hint:'Application rejected · View or reapply',region:'Cook application rejected',disabled:false},
+    suspended:{label:'Become a Cook',hint:'Cook account suspended · Contact support',region:'Cook account suspended',disabled:false}
   };
-  return presentations[cook.status] || {label:'Cook application',hint:'View application',region:'Cook profile',disabled:false,action:'application'};
+  return presentations[cook.status] || {label:'Become a Cook',hint:'View cook application',region:'Cook profile',disabled:false};
 }
 function openCookSettingsAction() {
-  const cook = getMyCook();
-  const presentation = cookSettingsPresentation(cook);
-  if (presentation.disabled) return;
-  if (presentation.action === 'support') return openSupportChat();
-  if (presentation.action === 'studio') activeCookStudioTab = 'profile';
   showPage('become',null);
 }
 function updateSettingsAccount() {
