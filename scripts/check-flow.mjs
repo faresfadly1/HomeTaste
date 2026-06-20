@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-become-availability-cleanup-01", "Become a Cook availability cleanup build marker is exposed");
+  assert(health.build === "20260620-approved-cook-compact-01", "approved cook compact UI build marker is exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -285,6 +285,10 @@ try {
   const becomeMarkupSource = marketplaceSrcEarly.split('<!-- BECOME A COOK PAGE -->')[1]?.split('<!-- HELP & SUPPORT PAGE -->')[0] || "";
   const becomeManagerSource = marketplaceSrcEarly.split("function renderMyCookDishManager(){")[1]?.split("async function saveCookManagementProfile")[0] || "";
   const editProfileSource = marketplaceSrcEarly.split("function openEditProfilePanel() {")[1]?.split("async function saveEditProfile")[0] || "";
+  assert(becomeManagerSource.includes("if (hero) hero.hidden = true") && becomeManagerSource.includes("if (primaryAction) primaryAction.hidden = true") && marketplaceSrcEarly.includes("approved-cook-header"), "approved cooks skip the dark hero and CTA and use a compact light header");
+  assert(!marketplaceSrcEarly.includes("Manage my cook profile") && !marketplaceSrcEarly.includes("same Become a Cook page"), "approved cook page removes the redundant landing copy and large manage CTA");
+  assert(marketplaceSrcEarly.includes("manager-public-profile") && marketplaceSrcEarly.includes("body.approved-cook-page .main") && marketplaceSrcEarly.includes("height:calc(100dvh - 104px - env(safe-area-inset-bottom))") && marketplaceSrcEarly.includes("min-height:0") && marketplaceSrcEarly.includes("margin:0 14px calc(112px + env(safe-area-inset-bottom))"), "approved cook secondary action stays compact and its scroll region clears the bottom navigation");
+  assert(becomeManagerSource.includes("<h2>Cook details</h2>") && becomeManagerSource.includes("Menu / Dishes") && becomeManagerSource.indexOf("<h2>Cook details</h2>") < becomeManagerSource.indexOf("Menu / Dishes"), "approved cook page shows Cook details followed directly by Menu and Dishes");
   assert(becomeMarkupSource && becomeManagerSource && !/Profile photo|Background photo|Cook profile photos|cook-media-status/.test(`${becomeMarkupSource}${becomeManagerSource}`), "Become a Cook application and approved management do not show profile or background media controls");
   assert(!/Cook availability|cookManagementOnlineToggle|toggleCookManagementOnline|Switch online|\bOnline\b|\bOffline\b/.test(`${becomeMarkupSource}${becomeManagerSource}`), "Become a Cook application and approved management do not show cook Availability or Online and Offline controls");
   assert(editProfileSource.includes("<strong>Profile photo</strong>") && editProfileSource.includes("<strong>Background photo</strong>"), "Profile Edit Profile remains the single profile and background photo editor");

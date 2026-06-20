@@ -1429,6 +1429,12 @@ ul{list-style:none}
 }
 .cook-dish-manager.active{display:block}
 .cook-management{display:grid;gap:20px}
+.approved-cook-header{padding:0 0 18px;border-bottom:1px solid var(--border)}
+.approved-cook-header h1{font-family:'DM Sans',sans-serif;font-size:24px;line-height:1.2;margin-bottom:8px;color:var(--text)}
+.approved-cook-header strong{display:block;font-size:14px;color:var(--orange);margin-bottom:4px}
+.approved-cook-header p{font-size:13px;line-height:1.5;color:var(--text2)}
+.manager-public-profile{min-height:44px;padding:10px 14px;border:1px solid var(--orange);border-radius:10px;background:var(--orange-light);color:var(--orange);font-size:13px;font-weight:800;justify-self:start}
+.manager-public-profile:hover{background:var(--orange);color:#fff}
 .cook-management-section{padding-bottom:20px;border-bottom:1px solid var(--border)}
 .cook-management-section:last-child{padding-bottom:0;border-bottom:0}
 .cook-management-profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -1586,6 +1592,14 @@ ul{list-style:none}
     padding-bottom:0;
     width:100%;
     max-width:100%;
+  }
+  body.approved-cook-page{overflow:hidden;padding-bottom:0}
+  body.approved-cook-page .main{
+    height:calc(100dvh - 104px - env(safe-area-inset-bottom));
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:16px;
   }
   .welcome-overlay{align-items:flex-start;overflow:auto;padding:16px}
   .welcome-card{padding:18px;border-radius:18px;margin:12px 0 88px}
@@ -1839,7 +1853,8 @@ ul{list-style:none}
   .cook-profile-info{padding:24px 14px;align-items:center;flex-direction:column;text-align:center}
   .cook-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   .cook-form{padding:18px 14px}
-  .cook-dish-manager{margin:0 14px 18px;padding:16px}
+  .cook-dish-manager{margin:0 14px calc(112px + env(safe-area-inset-bottom));padding:16px}
+  .approved-cook-header h1{font-size:22px}
   .cook-management-profile{grid-template-columns:1fr}
   .cook-management-profile .wide{grid-column:auto}
   .manager-head{display:grid;gap:12px}
@@ -4357,6 +4372,7 @@ function showPage(pageId, navEl) {
   if (pageId === 'checkout') updateCheckoutItems();
   if (pageId === 'settings') updateSettingsAccount();
   if (pageId === 'become') renderMyCookDishManager();
+  else document.body.classList.remove('approved-cook-page');
   if (!['checkout', 'cook-profile'].includes(pageId)) renderMarketplacePage(pageId);
   if (isOrdersFocusedPage(pageId)) setTimeout(() => refreshOrdersView(), 0);
   updateCartButtonVisibility(pageId);
@@ -5726,6 +5742,7 @@ function renderMyCookDishManager(){
   const features = document.getElementById('cookFlowFeatures');
   if (!manager || !createForm) return;
   const cook = getMyCook();
+  document.body.classList.toggle('approved-cook-page', Boolean(cook?.status === 'approved' && document.getElementById('page-become')?.classList.contains('active')));
   if (!cook) {
     if (hero) hero.hidden = false;
     if (title) title.innerHTML = 'Become a <span>Cook</span> in minutes';
@@ -5739,10 +5756,10 @@ function renderMyCookDishManager(){
   }
   createForm.hidden = true;
   if (features) features.hidden = true;
-  if (hero) hero.hidden = false;
-  if (title) title.innerHTML = 'Become a <span>Cook</span>';
   manager.classList.add('active');
   if (cook.status !== 'approved') {
+    if (hero) hero.hidden = false;
+    if (title) title.innerHTML = 'Become a <span>Cook</span>';
     const statusContent = {
       pending:{subtitle:'Your cook application is pending review.',title:'Application pending review',body:'Your submitted cook details are saved. You can keep your account profile and photos current while the admin reviews it.',action:'Edit profile and photos'},
       rejected:{subtitle:'Your cook application was rejected. Review it and reapply when ready.',title:'Application rejected',body:'Review your profile information, make any corrections, and send it back for review.',action:'Reapply for review'},
@@ -5753,18 +5770,23 @@ function renderMyCookDishManager(){
     manager.innerHTML = `<div class="manager-head"><div><div class="welcome-label">Application status</div><h2>${safeDisplayHtml(statusContent.title)}</h2><p>${safeDisplayHtml(statusContent.body)}</p></div></div><div class="cook-status-actions">${cook.status === 'suspended' ? '<button class="btn-apply" type="button" onclick="openSupportChat()">Contact support</button>' : `<button class="btn-apply" type="button" onclick="${cook.status === 'rejected' ? 'reapplyCookApplication(this)' : 'openEditProfilePanel()'}">${safeDisplayHtml(statusContent.action)}</button>`}<button class="account-cancel" type="button" onclick="openEditProfilePanel()">View submitted details</button></div>`;
     return;
   }
-  if (subtitle) subtitle.textContent = 'Manage your cook profile and dishes from the same Become a Cook page.';
-  if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = 'Manage my cook profile'; primaryAction.onclick = () => manager.scrollIntoView({behavior:'smooth',block:'start'}); }
+  if (hero) hero.hidden = true;
+  if (primaryAction) primaryAction.hidden = true;
   const cookDishes = cookManagementDishes.filter(d => sameId(d.cookId, cook.id));
   manager.innerHTML = `
     <div class="cook-management">
+      <header class="approved-cook-header">
+        <h1>Become a Cook</h1>
+        <strong>Your cook profile is approved.</strong>
+        <p>Update your cook details and manage your menu below.</p>
+      </header>
       <section class="cook-management-section">
-        <div class="manager-head"><div><div class="welcome-label">Cook profile</div><h2>${safeDisplayHtml(cook.name)}</h2><p>Update the details customers see on your public cook profile.</p></div><button class="btn-apply" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View public profile</button></div>
+        <div class="manager-head"><div><h2>Cook details</h2><p>Update the details customers see on your public cook profile.</p></div><button class="manager-public-profile" type="button" onclick='openCookProfile(${jsArg(cook.id)})'>View public profile</button></div>
         <form class="cook-management-profile" onsubmit="saveCookManagementProfile(event)">
           <div><div class="welcome-label">Name</div><input id="cookManagementName" class="cook-input" maxlength="80" value="${escapeAttr(cook.name || currentUserName)}" required></div>
+          <div class="wide"><div class="welcome-label">About me</div><textarea id="cookManagementBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
           <div><div class="welcome-label">Cuisine</div><input id="cookManagementCuisine" class="cook-input" maxlength="80" value="${escapeAttr(cook.cuisine || '')}" placeholder="Turkish, Egyptian, Syrian"></div>
           <div class="wide"><div class="welcome-label">Location</div><input id="cookManagementLocation" class="cook-input" maxlength="100" value="${escapeAttr(cook.city || marketplaceUserState.city || '')}" placeholder="City or neighborhood"></div>
-          <div class="wide"><div class="welcome-label">About me</div><textarea id="cookManagementBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
           <div class="wide"><button class="btn-apply" type="submit">Save cook profile</button></div>
         </form>
       </section>
