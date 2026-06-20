@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-fixed-checkout-delivery-01";
+const backendBuild = "20260620-driver-incoming-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -2265,9 +2265,10 @@ function syncCookProfilesFromUsers(db) {
 function visibleOrders(db, user) {
   if (user.role === "owner") return db.orders;
   if (user.role === "driver") {
+    const visibleUnassignedStatuses = new Set(["placed", "accepted", "preparing", "ready"]);
     return db.orders
       .filter((order) => order.fulfillmentType !== "pickup" && order.requiresDriver !== false)
-      .filter((order) => order.driverId === user.id || (!order.driverId && order.status === "ready"))
+      .filter((order) => order.driverId === user.id || (!order.driverId && visibleUnassignedStatuses.has(order.status)))
       .sort((a, b) => (a.driverId === user.id ? 0 : 1) - (b.driverId === user.id ? 0 : 1) || Number(a.etaMinutes || 999) - Number(b.etaMinutes || 999));
   }
   if (user.role === "cook") {

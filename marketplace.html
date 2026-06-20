@@ -5186,13 +5186,17 @@ function renderTrackDriverCard(order) {
   const title = status === 'cancelled'
     ? 'Order cancelled'
     : assigned
-      ? driverName
-      : 'Waiting for driver';
+      ? 'Driver assigned'
+      : status === 'ready'
+        ? 'Waiting for driver'
+        : 'Finding a driver soon';
   const subtitle = status === 'cancelled'
     ? 'No driver action is needed.'
     : assigned
-      ? `ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}${driverPhone ? ' · Call available' : ''}`
-      : 'A driver will appear here after the cook marks the food ready.';
+      ? `${driverName} · ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}${driverPhone ? ' · Call available' : ''}`
+      : status === 'ready'
+        ? 'Your order is ready. A driver can accept it now.'
+        : 'The cook is preparing your order.';
   const card = document.getElementById('trackDriverCard');
   if (!card) return;
   if (pickup) {

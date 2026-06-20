@@ -1574,6 +1574,26 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   line-height: 1.25;
 }
 
+.driver-waiting-copy {
+  display: grid;
+  gap: 3px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.driver-waiting-copy strong { color: var(--accent); }
+.driver-waiting-copy span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+
+@media (max-width: 768px) {
+  .driver-waiting-copy,
+  .operation-card .meta { overflow-wrap: anywhere; }
+  .operation-card .toolbar { align-items: stretch; }
+  .operation-card .toolbar .button { min-height: 44px; }
+}
+
 @media (max-width: 380px) {
   .fulfillment-choice {
     grid-template-columns: 1fr;

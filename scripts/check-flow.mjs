@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-fixed-checkout-delivery-01" && health.tracking?.deliveryRatePerKmTry === 6, "fixed checkout delivery build exposes the canonical internal delivery rate");
+  assert(health.build === "20260620-driver-incoming-01" && health.tracking?.deliveryRatePerKmTry === 6, "driver incoming build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -283,7 +283,11 @@ try {
   assert(mobileCheckoutMarkup.includes("To your address") && mobileCheckoutMarkup.includes("Collect from cook") && !mobileCheckoutMarkup.includes("₺/km") && !mobileCheckoutMarkup.includes("delivery-price-note"), "mobile Checkout keeps a simple fulfillment choice without distance formulas");
   assert(hostCartSource.indexOf('id="checkoutForm"') < hostCartSource.indexOf('data-fulfillment="delivery"') && !hostCartSource.includes("TL/km") && hostCartSource.includes("Total before delivery"), "host Cart moves the fulfillment choice into its Checkout section and hides technical math");
   assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
-  assert(appSrcEarly.includes('order.status === "ready"') && !appSrcEarly.includes('["accepted", "preparing", "ready"].includes(order.status)'), "driver queue exposes only food-ready orders");
+  assert(appSrcEarly.includes('new Set(["placed", "accepted", "preparing", "ready"])') && appSrcEarly.includes("Incoming delivery orders") && appSrcEarly.includes("Waiting for cook"), "driver state and UI expose incoming delivery orders before food is ready");
+  assert(appSrcEarly.includes('!order.driverId && order.status === "ready"') && appSrcEarly.includes('data-driver-accept="${order.id}"') && appSrcEarly.includes('disabled aria-disabled="true">Waiting for cook'), "driver acceptance stays enabled only for ready orders");
+  assert(appSrcEarly.includes('document.addEventListener("visibilitychange"') && appSrcEarly.includes("setInterval(() => refresh(), isDriverSession ? 8000 : 10000)"), "driver state refreshes on visibility and a guarded safe interval");
+  assert(appSrcEarly.includes("Driver visibility") && appSrcEarly.includes("Ready for driver") && appSrcEarly.includes("Assigned"), "admin order details explain driver visibility state");
+  assert(marketplaceSrcEarly.includes("Finding a driver soon") && marketplaceSrcEarly.includes("The cook is preparing your order.") && marketplaceSrcEarly.includes("Waiting for driver") && marketplaceSrcEarly.includes("Driver assigned"), "customer Track Order uses clear pre-ready, ready, and assigned driver copy");
   assert(appSrcEarly.includes("Actual distance starts after acceptance") && appSrcEarly.includes("Current earning"), "driver cards show estimated distance, actual distance, and current earnings");
   assert(mobileTrackSource.includes("Delivery fee") && !/Delivery rate|Estimated delivery|Actual delivery|How delivery pricing works|₺\/km/.test(mobileTrackSource), "customer Track Order shows only the final delivery fee number");
   assert(marketplaceSrcEarly.includes("To your address") && marketplaceSrcEarly.includes("Collect from cook") && marketplaceSrcEarly.includes("function setFulfillmentMode(type)"), "mobile Checkout offers synchronized Delivery and Pickup choices with simple copy");
@@ -665,13 +669,18 @@ try {
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
   assert(order.status === "placed" && order.statusHistory?.some((item) => item.status === "placed"), "track order starts from real placed status history");
   assert(order.deliveryAddress === "Uskudar, Istanbul" && order.scheduledFor === "2026-06-12T18:00:00.000Z", "track order carries delivery address and scheduled time");
+  let earlyDriverState = await request(base, driver.token, "GET", "/api/state");
+  let earlyDriverOrder = earlyDriverState.orders.find((item) => item.id === order.id);
+  assert(earlyDriverOrder?.status === "placed" && !earlyDriverOrder.driverId, "new delivery order appears to drivers immediately as unassigned incoming work");
+  assert(!earlyDriverOrder.delivery?.startedAt && !(earlyDriverOrder.locationHistory || []).length, "incoming delivery does not start tracking or mileage before acceptance");
 
   let trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "accepted" });
   assert(trackingState.orders.find((item) => item.id === order.id)?.statusHistory?.some((item) => item.status === "accepted"), "track order records cook accepted status");
   trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "preparing" });
   assert(trackingState.orders.find((item) => item.id === order.id)?.status === "preparing", "track order records cooking status");
-  let earlyDriverState = await request(base, driver.token, "GET", "/api/state");
-  assert(!earlyDriverState.orders.some((item) => item.id === order.id), "driver does not see order before food is ready");
+  earlyDriverState = await request(base, driver.token, "GET", "/api/state");
+  earlyDriverOrder = earlyDriverState.orders.find((item) => item.id === order.id);
+  assert(earlyDriverOrder?.status === "preparing" && !earlyDriverOrder.driverId, "preparing delivery remains visible to drivers as waiting for cook");
   const earlyDriverAccept = await requestRaw(base, driver.token, "PATCH", `/api/driver/orders/${order.id}/accept`, {});
   assert(earlyDriverAccept.status === 400, "driver cannot accept order before food is ready");
   trackingState = await request(base, cookAccount.token, "PATCH", `/api/orders/${order.id}`, { status: "ready" });
@@ -724,8 +733,12 @@ try {
   assert(pickupOrder.fulfillmentType === "pickup" && pickupOrder.requiresDriver === false, "pickup checkout stores pickup fulfillment without requiring a driver");
   assert(pickupOrder.deliveryFee === 0 && pickupOrder.deliveryDistanceKm === 0 && pickupOrder.driverPayout === 0 && pickupOrder.delivery.source === "pickup", "pickup order stores zero delivery distance, fee, and driver payout");
   assert(pickupOrder.route === null && pickupOrder.etaMinutes === null && pickupOrder.total === 287.5 && pickupOrder.payment.gross === 287.5 && pickupOrder.payment.driverPayout === 0, "pickup total and payment ledger exclude delivery and route accounting");
+  driverState = await request(base, driver.token, "GET", "/api/state");
+  assert(!driverState.orders.some((item) => item.id === pickupOrder.id), "placed pickup order never appears to drivers");
   await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "accepted" });
   await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "preparing" });
+  driverState = await request(base, driver.token, "GET", "/api/state");
+  assert(!driverState.orders.some((item) => item.id === pickupOrder.id), "preparing pickup order remains hidden from drivers");
   await request(base, cookAccount.token, "PATCH", `/api/orders/${pickupOrder.id}`, { status: "ready" });
   driverState = await request(base, driver.token, "GET", "/api/state");
   assert(!driverState.orders.some((item) => item.id === pickupOrder.id), "ready pickup order never appears in the driver queue");
