@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-driver-incoming-01" && health.tracking?.deliveryRatePerKmTry === 6, "driver incoming build exposes the canonical internal delivery rate");
+  assert(health.build === "20260620-driver-pickup-copy-01" && health.tracking?.deliveryRatePerKmTry === 6, "driver pickup copy build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -284,6 +284,12 @@ try {
   assert(hostCartSource.indexOf('id="checkoutForm"') < hostCartSource.indexOf('data-fulfillment="delivery"') && !hostCartSource.includes("TL/km") && hostCartSource.includes("Total before delivery"), "host Cart moves the fulfillment choice into its Checkout section and hides technical math");
   assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
   assert(appSrcEarly.includes('new Set(["placed", "accepted", "preparing", "ready"])') && appSrcEarly.includes("Incoming delivery orders") && appSrcEarly.includes("Waiting for cook"), "driver state and UI expose incoming delivery orders before food is ready");
+  const driverDashboardSource = appSrcEarly.split("function renderDashboard() {")[1]?.split("function renderSubscriptions()")[0] || "";
+  const driverCardSource = appSrcEarly.split("function driverOrderCard(order) {")[1]?.split("function routeMap(order)")[0] || "";
+  const driverOperationsSource = appSrcEarly.split("function renderDriverOperations() {")[1]?.split("function renderCustomerOperations()")[0] || "";
+  const driverCopySource = `${driverDashboardSource}${driverCardSource}${driverOperationsSource}`;
+  assert(driverCopySource.includes("Ready for driver pickup") && !driverCopySource.includes("Ready for pickup"), "driver ready-delivery sections and cards use unambiguous driver pickup copy");
+  assert(mobileCheckoutMarkup.includes('<strong>Pickup</strong>') && mobileCheckoutMarkup.includes("Collect from cook"), "customer checkout keeps the Pickup fulfillment option unchanged");
   assert(appSrcEarly.includes('!order.driverId && order.status === "ready"') && appSrcEarly.includes('data-driver-accept="${order.id}"') && appSrcEarly.includes('disabled aria-disabled="true">Waiting for cook'), "driver acceptance stays enabled only for ready orders");
   assert(appSrcEarly.includes('document.addEventListener("visibilitychange"') && appSrcEarly.includes("setInterval(() => refresh(), isDriverSession ? 8000 : 10000)"), "driver state refreshes on visibility and a guarded safe interval");
   assert(appSrcEarly.includes("Driver visibility") && appSrcEarly.includes("Ready for driver") && appSrcEarly.includes("Assigned"), "admin order details explain driver visibility state");

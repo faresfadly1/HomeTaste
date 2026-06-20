@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-driver-incoming-01";
+const APP_BUILD = "20260620-driver-pickup-copy-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -2651,7 +2651,7 @@ function renderDashboard() {
           ${incomingOrders.map(driverOrderCard).join("") || `<div class="empty">No orders are waiting for a cook.</div>`}
         </div>
         <div class="panel">
-          <h3>Ready for pickup</h3>
+          <h3>Ready for driver pickup</h3>
           ${availableOrders.map(driverOrderCard).join("") || `<div class="empty">${t("noAvailableOrders")}</div>`}
         </div>
         <div class="panel" style="grid-column:1/-1">
@@ -3224,7 +3224,7 @@ function driverOrderCard(order) {
         <span class="price">${money(delivery.driverPayout)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
-      <div class="meta"><strong>${readyToAccept ? "Ready for pickup" : "Delivery order"}</strong> · ${delivery.estimatedDistanceKm} km estimated · ${money(delivery.estimatedFee)} estimated earning</div>
+      <div class="meta"><strong>${readyToAccept ? "Ready for driver pickup" : "Delivery order"}</strong> · ${delivery.estimatedDistanceKm} km estimated · ${money(delivery.estimatedFee)} estimated earning</div>
       ${waitingForCook ? `<div class="driver-waiting-copy"><strong>Waiting for cook</strong><span>The cook is preparing this order.</span><span>You can accept delivery when it is ready.</span></div>` : ""}
       <div class="meta">${t("pickup")}: ${cookName(order.cookId)} · ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
       <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
@@ -3351,7 +3351,7 @@ function renderDriverOperations() {
     <p class="meta">${t("driverQueueBody")}</p>
     <h4>Incoming delivery orders</h4>
     ${incoming.map(orderOperationCard).join("") || `<div class="empty">No orders are waiting for a cook.</div>`}
-    <h4>Ready for pickup</h4>
+    <h4>Ready for driver pickup</h4>
     ${ready.map(orderOperationCard).join("") || `<div class="empty">${t("noAvailableOrders")}</div>`}
     <h4>Your deliveries</h4>
     ${assigned.map(orderOperationCard).join("") || `<div class="empty">${t("noAssignedDeliveries")}</div>`}
