@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-fulfillment-auto-track-01";
+const backendBuild = "20260620-fixed-checkout-delivery-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1096,13 +1096,16 @@ function normalizeOrderDelivery(order) {
       ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
       estimatedDistanceKm: 0,
       estimatedFee: 0,
+      customerChargedDistanceKm: 0,
+      customerDeliveryFee: 0,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
       completedAt: stored.completedAt || null,
       lastLocation: null,
       lastLocationAt: null,
-      source: "pickup"
+      source: "pickup",
+      driverPayoutSource: "pickup"
     };
     order.deliveryFee = 0;
     order.deliveryDistanceKm = 0;
@@ -1114,25 +1117,29 @@ function normalizeOrderDelivery(order) {
   const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
   const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
   const actualFee = actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : 0;
-  const source = stored.source === "actual" && actualDistanceKm > 0 ? "actual" : "estimated";
-  const selectedDistance = source === "actual" ? actualDistanceKm : estimatedDistanceKm;
-  const selectedFee = source === "actual" ? actualFee : estimatedFee;
+  const customerChargedDistanceKm = roundKm(stored.customerChargedDistanceKm ?? estimatedDistanceKm);
+  const customerDeliveryFee = deliveryFeeForKm(customerChargedDistanceKm);
+  const driverPayoutSource = actualDistanceKm > 0 ? "actual" : "estimated";
+  const driverPayout = driverPayoutSource === "actual" ? actualFee : estimatedFee;
   order.delivery = {
     ratePerKm: DELIVERY_RATE_PER_KM_TRY,
     ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
     estimatedDistanceKm,
     estimatedFee,
+    customerChargedDistanceKm,
+    customerDeliveryFee,
     actualDistanceKm,
     actualFee,
     startedAt: stored.startedAt || null,
     completedAt: stored.completedAt || null,
     lastLocation: stored.lastLocation || order.driverLocation || null,
     lastLocationAt: stored.lastLocationAt || null,
-    source
+    source: "cook_to_customer",
+    driverPayoutSource
   };
-  order.deliveryFee = roundMoney(selectedFee);
-  order.deliveryDistanceKm = roundKm(selectedDistance);
-  order.driverPayout = order.deliveryFee;
+  order.deliveryFee = roundMoney(customerDeliveryFee);
+  order.deliveryDistanceKm = customerChargedDistanceKm;
+  order.driverPayout = roundMoney(driverPayout);
   order.total = roundMoney(Number(order.subtotal || 0) + Number(order.serviceFee || 0) + order.deliveryFee);
   return order.delivery;
 }
@@ -1177,7 +1184,8 @@ function startOrderDelivery(order, driverLocation = null) {
   order.delivery.actualFee = 0;
   order.delivery.lastLocation = driverLocation || null;
   order.delivery.lastLocationAt = driverLocation ? startedAt : null;
-  order.delivery.source = "estimated";
+  order.delivery.source = "cook_to_customer";
+  order.delivery.driverPayoutSource = "estimated";
   if (driverLocation) order.driverLocation = driverLocation;
   refreshOrderFinancials(order);
 }
@@ -1197,7 +1205,7 @@ function addDriverLocationSegment(order, nextLocation) {
   if (segmentKm > 0) {
     order.delivery.actualDistanceKm = roundKm(Number(order.delivery.actualDistanceKm || 0) + segmentKm);
     order.delivery.actualFee = deliveryFeeForKm(order.delivery.actualDistanceKm);
-    order.delivery.source = "actual";
+    order.delivery.driverPayoutSource = "actual";
   }
   refreshOrderFinancials(order);
   return roundKm(segmentKm);
@@ -1211,7 +1219,8 @@ function finalizeOrderDelivery(order) {
     refreshOrderFinancials(order);
     return;
   }
-  order.delivery.source = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
+  order.delivery.source = "cook_to_customer";
+  order.delivery.driverPayoutSource = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
   refreshOrderFinancials(order);
 }
 
@@ -3172,12 +3181,17 @@ async function api(req, res, pathname) {
       ratePerKm: DELIVERY_RATE_PER_KM_TRY,
       ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
       estimatedDistanceKm: order.route?.distanceKm || 0,
+      estimatedFee: deliveryFeeForKm(order.route?.distanceKm || 0),
+      customerChargedDistanceKm: order.route?.distanceKm || 0,
+      customerDeliveryFee: deliveryFeeForKm(order.route?.distanceKm || 0),
       actualDistanceKm: 0,
+      actualFee: 0,
       startedAt: null,
       completedAt: null,
       lastLocation: null,
       lastLocationAt: null,
-      source: order.requiresDriver ? "estimated" : "pickup"
+      source: order.requiresDriver ? "cook_to_customer" : "pickup",
+      driverPayoutSource: order.requiresDriver ? "estimated" : "pickup"
     };
     normalizeOrderDelivery(order);
     order.payment = paymentLedgerForOrder(order);
@@ -3271,6 +3285,7 @@ async function api(req, res, pathname) {
       actualDistanceKm: order.delivery?.actualDistanceKm || 0,
       totalDistanceKm: order.delivery?.actualDistanceKm || 0,
       deliveryFee: order.deliveryFee,
+      driverPayout: order.driverPayout,
       source: input.automatic === true ? "auto" : "manual",
       at: now(),
       byUserId: user.id

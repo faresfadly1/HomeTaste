@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-fulfillment-auto-track-01" && health.tracking?.deliveryRatePerKmTry === 6, "fulfillment and automatic tracking build exposes the canonical delivery rate");
+  assert(health.build === "20260620-fixed-checkout-delivery-01" && health.tracking?.deliveryRatePerKmTry === 6, "fixed checkout delivery build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -274,12 +274,20 @@ try {
   assert(marketplaceSrcEarly.includes("function notificationPresentation(note)") && marketplaceSrcEarly.includes("Order #${shortId}") && marketplaceSrcEarly.includes("Your order was cancelled"), "notification cards use friendly titles and short record references");
   assert(marketplaceSrcEarly.includes("calc(150px + env(safe-area-inset-bottom))"), "mobile Settings reserves space above the floating bottom navigation");
   assert(appSrcEarly.includes("const DELIVERY_RATE_PER_KM_TRY = 6") && marketplaceSrcEarly.includes("const DELIVERY_RATE_PER_KM_TRY = 6"), "all customer and driver surfaces use the canonical 6 TL per km delivery rate");
-  assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("Final fee uses tracked driver distance"), "mobile checkout shows a route-based delivery estimate and final-fee explanation");
+  const mobileCartMarkup = marketplaceSrcEarly.split('<!-- ===== CART PANEL ===== -->')[1]?.split('<!-- ===== DISH MODAL ===== -->')[0] || "";
+  const mobileCheckoutMarkup = marketplaceSrcEarly.split('<!-- CHECKOUT PAGE -->')[1]?.split('</main>')[0] || "";
+  const mobileTrackSource = marketplaceSrcEarly.split('function renderTrackSummary(order)')[1]?.split('function renderTrackTimeline(order)')[0] || "";
+  const hostCartSource = appSrcEarly.split('function renderCart()')[1]?.split('function dishCard(')[0] || "";
+  assert(mobileCartMarkup && !mobileCartMarkup.includes("cart-tabs") && !mobileCartMarkup.includes("data-fulfillment-mode") && !mobileCartMarkup.includes("₺/km"), "mobile Cart has no Delivery/Pickup choice or technical delivery math");
+  assert(mobileCartMarkup.includes("Total before delivery") && mobileCartMarkup.includes("Delivery or pickup is selected at checkout.") && mobileCartMarkup.includes('id="cartCheckoutBtn"'), "mobile Cart shows clean pre-delivery totals and Checkout action");
+  assert(mobileCheckoutMarkup.includes("To your address") && mobileCheckoutMarkup.includes("Collect from cook") && !mobileCheckoutMarkup.includes("₺/km") && !mobileCheckoutMarkup.includes("delivery-price-note"), "mobile Checkout keeps a simple fulfillment choice without distance formulas");
+  assert(hostCartSource.indexOf('id="checkoutForm"') < hostCartSource.indexOf('data-fulfillment="delivery"') && !hostCartSource.includes("TL/km") && hostCartSource.includes("Total before delivery"), "host Cart moves the fulfillment choice into its Checkout section and hides technical math");
+  assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
   assert(appSrcEarly.includes('order.status === "ready"') && !appSrcEarly.includes('["accepted", "preparing", "ready"].includes(order.status)'), "driver queue exposes only food-ready orders");
   assert(appSrcEarly.includes("Actual distance starts after acceptance") && appSrcEarly.includes("Current earning"), "driver cards show estimated distance, actual distance, and current earnings");
-  assert(marketplaceSrcEarly.includes("Estimated delivery") && marketplaceSrcEarly.includes("Actual delivery") && marketplaceSrcEarly.includes("Delivery charged"), "Track Order shows estimated, actual, and charged delivery pricing");
-  assert(marketplaceSrcEarly.includes("Delivered by a driver · 6 ₺/km") && marketplaceSrcEarly.includes("I will pick it up · no delivery fee") && marketplaceSrcEarly.includes("function setFulfillmentMode(type)"), "mobile checkout offers synchronized Delivery and Pickup choices");
-  assert(marketplaceSrcEarly.includes("const delivery = isPickup ? 0 : estimate.fee") && marketplaceSrcEarly.includes("fulfillmentType: cartFulfillmentMode"), "switching fulfillment updates totals immediately and persists the selection");
+  assert(mobileTrackSource.includes("Delivery fee") && !/Delivery rate|Estimated delivery|Actual delivery|How delivery pricing works|₺\/km/.test(mobileTrackSource), "customer Track Order shows only the final delivery fee number");
+  assert(marketplaceSrcEarly.includes("To your address") && marketplaceSrcEarly.includes("Collect from cook") && marketplaceSrcEarly.includes("function setFulfillmentMode(type)"), "mobile Checkout offers synchronized Delivery and Pickup choices with simple copy");
+  assert(marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee") && marketplaceSrcEarly.includes("fulfillmentType: cartFulfillmentMode"), "switching fulfillment updates totals immediately and persists the selection");
   assert(marketplaceSrcEarly.includes("Customer pickup") && marketplaceSrcEarly.includes("No driver, live route, or delivery tracking is required") && marketplaceSrcEarly.includes("completePickupOrder"), "pickup Track Order hides driver tracking and supports customer completion");
   assert(appSrcEarly.includes("navigator.geolocation.watchPosition") && appSrcEarly.includes("Date.now() - previous.sentAt >= 20000") && appSrcEarly.includes("driverPointDistanceMeters(previous.point, point) >= 40"), "driver auto tracking uses browser watchPosition with 20-second or 40-meter throttling");
   assert(appSrcEarly.includes("stopAllDriverAutoTracking") && appSrcEarly.includes('window.addEventListener("pagehide"') && appSrcEarly.includes("sendDriverLocation(orderId, current, { automatic: false"), "auto tracking stops at session/page boundaries while manual location remains available");
@@ -649,7 +657,8 @@ try {
   const order = customerState.orders.find((item) => item.items.some((orderItem) => orderItem.dishId === dish.id));
   const expectedEstimatedFee = Math.round(Number(order.route.distanceKm) * 6 * 100) / 100;
   const expectedEstimatedTotal = Math.round((250 + 37.5 + expectedEstimatedFee) * 100) / 100;
-  assert(order?.serviceFee === 37.5 && order.delivery?.ratePerKm === 6 && order.delivery?.estimatedDistanceKm === order.route.distanceKm && order.deliveryFee === expectedEstimatedFee && order.total === expectedEstimatedTotal, "checkout uses route distance at 6 TL per km instead of a fixed delivery fee");
+  assert(order?.serviceFee === 37.5 && order.delivery?.ratePerKm === 6 && order.delivery?.estimatedDistanceKm === order.route.distanceKm && order.delivery?.customerChargedDistanceKm === order.route.distanceKm && order.delivery?.customerDeliveryFee === expectedEstimatedFee && order.deliveryFee === expectedEstimatedFee && order.total === expectedEstimatedTotal, "checkout fixes the customer delivery fee from cook-to-customer distance at 6 TL per km");
+  assert(order.delivery.source === "cook_to_customer" && order.delivery.driverPayoutSource === "estimated", "delivery accounting records the customer charge source separately from driver payout distance");
   assert(order.fulfillmentType === "delivery" && order.requiresDriver === true, "delivery checkout stores delivery fulfillment and requires a driver");
   assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.driverPayout === expectedEstimatedFee && order.payment.gross === expectedEstimatedTotal, "commission, gross payment, cook payout, and estimated driver payout calculate correctly");
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
@@ -684,8 +693,8 @@ try {
   driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300, accuracy: 8, heading: 90, speed: 4, at: new Date().toISOString() }, automatic: true });
   driverOrder = driverState.orders.find((item) => item.id === order.id);
   const actualFeeAfterMove = Math.round(Number(driverOrder.delivery.actualDistanceKm) * 6 * 100) / 100;
-  assert(driverOrder.locationHistory?.length === 1 && driverOrder.locationHistory[0].source === "auto" && driverOrder.driverLocation?.lat && driverOrder.driverLocation.accuracy === 8 && driverOrder.delivery.actualDistanceKm > 0 && driverOrder.delivery.source === "actual", "automatic driver location saves metadata, source, and a reasonable movement segment");
-  assert(driverOrder.deliveryFee === actualFeeAfterMove && driverOrder.driverPayout === actualFeeAfterMove && driverOrder.total === Math.round((250 + 37.5 + actualFeeAfterMove) * 100) / 100 && driverOrder.payment.gross === driverOrder.total, "actual tracked distance updates delivery fee, driver payout, total, and payment ledger together");
+  assert(driverOrder.locationHistory?.length === 1 && driverOrder.locationHistory[0].source === "auto" && driverOrder.driverLocation?.lat && driverOrder.driverLocation.accuracy === 8 && driverOrder.delivery.actualDistanceKm > 0 && driverOrder.delivery.source === "cook_to_customer" && driverOrder.delivery.driverPayoutSource === "actual", "automatic driver location saves metadata and updates only the driver-distance accounting source");
+  assert(driverOrder.deliveryFee === expectedEstimatedFee && driverOrder.delivery.customerDeliveryFee === expectedEstimatedFee && driverOrder.driverPayout === actualFeeAfterMove && driverOrder.locationHistory[0].driverPayout === actualFeeAfterMove && driverOrder.total === expectedEstimatedTotal && driverOrder.payment.gross === expectedEstimatedTotal && driverOrder.payment.driverPayout === actualFeeAfterMove, "driver movement updates payout while customer delivery fee, total, gross, and refund base stay fixed");
   const customerLocationState = await request(base, customer.token, "GET", "/api/state");
   const customerLocationOrder = customerLocationState.orders.find((item) => item.id === order.id);
   assert(customerLocationOrder?.driverLocation?.lat && customerLocationOrder.locationHistory?.length === 1 && customerLocationOrder.route?.polyline?.length === 2, "customer track order sees live driver location, route, and location history");
@@ -700,7 +709,7 @@ try {
   customerState = await request(base, customer.token, "PATCH", `/api/orders/${order.id}`, { status: "delivered" });
   assert(customerState.orders.find((item) => item.id === order.id)?.payment?.status === "released", "delivered order releases escrow payment");
   const deliveredTrackOrder = customerState.orders.find((item) => item.id === order.id);
-  assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.delivery.source === "actual" && deliveredTrackOrder.delivery.completedAt && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "delivered tracking finalizes the actual-distance delivery fee for the customer");
+  assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.delivery.source === "cook_to_customer" && deliveredTrackOrder.delivery.driverPayoutSource === "actual" && deliveredTrackOrder.deliveryFee === expectedEstimatedFee && deliveredTrackOrder.total === expectedEstimatedTotal && deliveredTrackOrder.delivery.completedAt && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "delivered tracking finalizes driver payout without changing the customer checkout total");
   const blockedDeliveredLocation = await requestRaw(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.036, lng: 29.031 }, automatic: true });
   assert(blockedDeliveredLocation.status === 400, "delivered order rejects further automatic driver location updates");
 
@@ -741,7 +750,7 @@ try {
   await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "near_you" });
   const fallbackDeliveredState = await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "delivered" });
   const fallbackDeliveredOrder = fallbackDeliveredState.orders.find((item) => item.id === fallbackOrder.id);
-  assert(fallbackDeliveredOrder.delivery.source === "estimated" && fallbackDeliveredOrder.delivery.actualDistanceKm === 0 && fallbackDeliveredOrder.deliveryFee === fallbackDeliveredOrder.delivery.estimatedFee, "delivery without usable GPS movement finalizes with the checkout estimate");
+  assert(fallbackDeliveredOrder.delivery.source === "cook_to_customer" && fallbackDeliveredOrder.delivery.driverPayoutSource === "estimated" && fallbackDeliveredOrder.delivery.actualDistanceKm === 0 && fallbackDeliveredOrder.deliveryFee === fallbackDeliveredOrder.delivery.customerDeliveryFee && fallbackDeliveredOrder.driverPayout === fallbackDeliveredOrder.delivery.estimatedFee, "delivery without usable GPS movement keeps customer charge and estimated driver payout");
 
   const cancelOrderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
@@ -810,7 +819,7 @@ try {
   assert(refund?.status === "pending", "refund request goes to admin review");
   assert(!customerState.notifications.some((note) => note.data?.type === "refund_update" && note.data?.refundId === refund.id), "disabled refund preference suppresses optional refund receipt notifications");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/refunds/${refund.id}`, { outcome: "half", adminNote: "Approved half refund." });
-  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === Math.round(deliveredTrackOrder.total * 0.5 * 100) / 100, "admin half refund outcome uses the final distance-adjusted order total");
+  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === Math.round(deliveredTrackOrder.total * 0.5 * 100) / 100, "admin half refund outcome uses the fixed customer checkout total");
   const refundCustomerState = await request(base, customer.token, "GET", "/api/state");
   assert(refundCustomerState.notifications.some((note) => note.data?.type === "refund_decision" && note.data?.refundId === refund.id), "critical refund decision notification appears even when refund updates are disabled");
 

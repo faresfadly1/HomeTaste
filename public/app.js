@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-fulfillment-auto-track-01";
+const APP_BUILD = "20260620-fixed-checkout-delivery-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -72,19 +72,25 @@ const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 function deliveryBreakdown(order = {}) {
   const delivery = order.delivery || order.payment?.delivery || {};
   if (order.fulfillmentType === "pickup" || delivery.source === "pickup") {
-    return { ratePerKmTry: DELIVERY_RATE_PER_KM_TRY, estimatedDistanceKm: 0, estimatedFee: 0, actualDistanceKm: 0, actualFee: 0, source: "pickup", fee: 0 };
+    return { ratePerKmTry: DELIVERY_RATE_PER_KM_TRY, estimatedDistanceKm: 0, estimatedFee: 0, customerChargedDistanceKm: 0, customerFee: 0, actualDistanceKm: 0, actualFee: 0, driverPayout: 0, source: "pickup", driverPayoutSource: "pickup", fee: 0 };
   }
   const estimatedDistanceKm = roundKm(delivery.estimatedDistanceKm ?? order.route?.distanceKm ?? order.deliveryDistanceKm ?? 0);
   const actualDistanceKm = roundKm(delivery.actualDistanceKm || 0);
-  const source = delivery.source === "actual" && actualDistanceKm > 0 ? "actual" : "estimated";
+  const customerChargedDistanceKm = roundKm(delivery.customerChargedDistanceKm ?? estimatedDistanceKm);
+  const customerFee = Number(delivery.customerDeliveryFee ?? order.deliveryFee ?? deliveryFeeForKm(customerChargedDistanceKm));
+  const driverPayoutSource = delivery.driverPayoutSource || (actualDistanceKm > 0 ? "actual" : "estimated");
   return {
     ratePerKmTry: Number(delivery.ratePerKm || delivery.ratePerKmTry || DELIVERY_RATE_PER_KM_TRY),
     estimatedDistanceKm,
     estimatedFee: Number(delivery.estimatedFee ?? deliveryFeeForKm(estimatedDistanceKm)),
+    customerChargedDistanceKm,
+    customerFee,
     actualDistanceKm,
     actualFee: actualDistanceKm > 0 ? Number(delivery.actualFee ?? deliveryFeeForKm(actualDistanceKm)) : null,
-    source,
-    fee: Number(order.deliveryFee ?? (source === "actual" ? deliveryFeeForKm(actualDistanceKm) : deliveryFeeForKm(estimatedDistanceKm)))
+    driverPayout: Number(order.driverPayout ?? (actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : deliveryFeeForKm(estimatedDistanceKm))),
+    source: "cook_to_customer",
+    driverPayoutSource,
+    fee: customerFee
   };
 }
 const byId = (list, id) => list.find((item) => item.id === id);
@@ -1207,13 +1213,16 @@ function staticNormalizeOrderDelivery(order) {
       ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
       estimatedDistanceKm: 0,
       estimatedFee: 0,
+      customerChargedDistanceKm: 0,
+      customerDeliveryFee: 0,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
       completedAt: stored.completedAt || null,
       lastLocation: null,
       lastLocationAt: null,
-      source: "pickup"
+      source: "pickup",
+      driverPayoutSource: "pickup"
     };
     order.deliveryDistanceKm = 0;
     order.deliveryFee = 0;
@@ -1225,23 +1234,28 @@ function staticNormalizeOrderDelivery(order) {
   const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
   const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
   const actualFee = actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : 0;
-  const source = stored.source === "actual" && actualDistanceKm > 0 ? "actual" : "estimated";
+  const customerChargedDistanceKm = roundKm(stored.customerChargedDistanceKm ?? estimatedDistanceKm);
+  const customerDeliveryFee = deliveryFeeForKm(customerChargedDistanceKm);
+  const driverPayoutSource = actualDistanceKm > 0 ? "actual" : "estimated";
   order.delivery = {
     ratePerKm: DELIVERY_RATE_PER_KM_TRY,
     ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
     estimatedDistanceKm,
     estimatedFee,
+    customerChargedDistanceKm,
+    customerDeliveryFee,
     actualDistanceKm,
     actualFee,
     startedAt: stored.startedAt || null,
     completedAt: stored.completedAt || null,
     lastLocation: stored.lastLocation || order.driverLocation || null,
     lastLocationAt: stored.lastLocationAt || null,
-    source
+    source: "cook_to_customer",
+    driverPayoutSource
   };
-  order.deliveryDistanceKm = source === "actual" ? actualDistanceKm : estimatedDistanceKm;
-  order.deliveryFee = source === "actual" ? actualFee : estimatedFee;
-  order.driverPayout = order.deliveryFee;
+  order.deliveryDistanceKm = customerChargedDistanceKm;
+  order.deliveryFee = customerDeliveryFee;
+  order.driverPayout = driverPayoutSource === "actual" ? actualFee : estimatedFee;
   order.total = roundMoney(Number(order.subtotal || 0) + Number(order.serviceFee || 0) + order.deliveryFee);
   return order.delivery;
 }
@@ -1266,7 +1280,8 @@ function staticStartOrderDelivery(order, driverLocation = null) {
   order.delivery.actualFee = 0;
   order.delivery.lastLocation = driverLocation;
   order.delivery.lastLocationAt = driverLocation ? startedAt : null;
-  order.delivery.source = "estimated";
+  order.delivery.source = "cook_to_customer";
+  order.delivery.driverPayoutSource = "estimated";
   if (driverLocation) order.driverLocation = driverLocation;
   staticRefreshOrderFinancials(order);
 }
@@ -1286,7 +1301,7 @@ function staticAddDriverLocationSegment(order, nextLocation) {
   if (segmentKm > 0) {
     order.delivery.actualDistanceKm = roundKm(Number(order.delivery.actualDistanceKm || 0) + segmentKm);
     order.delivery.actualFee = deliveryFeeForKm(order.delivery.actualDistanceKm);
-    order.delivery.source = "actual";
+    order.delivery.driverPayoutSource = "actual";
   }
   staticRefreshOrderFinancials(order);
   return roundKm(segmentKm);
@@ -1300,7 +1315,8 @@ function staticFinalizeOrderDelivery(order) {
     staticRefreshOrderFinancials(order);
     return;
   }
-  order.delivery.source = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
+  order.delivery.source = "cook_to_customer";
+  order.delivery.driverPayoutSource = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
   staticRefreshOrderFinancials(order);
 }
 
@@ -1627,12 +1643,17 @@ async function staticApi(path, options = {}) {
       ratePerKm: DELIVERY_RATE_PER_KM_TRY,
       ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
       estimatedDistanceKm: order.route?.distanceKm || 0,
+      estimatedFee: deliveryFeeForKm(order.route?.distanceKm || 0),
+      customerChargedDistanceKm: order.route?.distanceKm || 0,
+      customerDeliveryFee: deliveryFeeForKm(order.route?.distanceKm || 0),
       actualDistanceKm: 0,
+      actualFee: 0,
       startedAt: null,
       completedAt: null,
       lastLocation: null,
       lastLocationAt: null,
-      source: order.requiresDriver ? "estimated" : "pickup"
+      source: order.requiresDriver ? "cook_to_customer" : "pickup",
+      driverPayoutSource: order.requiresDriver ? "estimated" : "pickup"
     };
     staticNormalizeOrderDelivery(order);
     order.payment = staticPaymentForOrder(order);
@@ -1696,6 +1717,7 @@ async function staticApi(path, options = {}) {
       actualDistanceKm: order.delivery?.actualDistanceKm || 0,
       totalDistanceKm: order.delivery?.actualDistanceKm || 0,
       deliveryFee: order.deliveryFee,
+      driverPayout: order.driverPayout,
       source: input.automatic === true ? "auto" : "manual",
       at: new Date().toISOString(),
       byUserId: user.id
@@ -2989,19 +3011,20 @@ function renderCart() {
           <div class="qty"><button data-qty="${item.dishId}" data-delta="-1">-</button><strong>${item.qty}</strong><button data-qty="${item.dishId}" data-delta="1">+</button></div>
         </div>
       `).join("") : `<div class="empty">${t("cartEmpty")}</div>`}
-      <div class="fulfillment-choice" role="group" aria-label="Fulfillment method">
-        <button type="button" class="${isPickup ? "" : "active"}" data-fulfillment="delivery"><strong>Delivery</strong><small>Delivered by a driver · 6 TL/km</small></button>
-        <button type="button" class="${isPickup ? "active" : ""}" data-fulfillment="pickup"><strong>Pickup</strong><small>I will pick it up · no delivery fee</small></button>
-      </div>
       <div class="row"><span>${t("subtotal")}</span><strong>${money(subtotal)}</strong></div>
-      <div class="row"><span>${isPickup ? "Pickup fee" : t("delivery")}</span><strong>${money(deliveryFee)}</strong></div>
-      <div class="meta">${isPickup ? "Pickup from the cook. No driver is required." : `Estimated ${estimatedDistanceKm} km · ${DELIVERY_RATE_PER_KM_TRY} TL/km. Final driver payout uses tracked distance.`}</div>
-      <div class="row"><span>${t("commissionAfterDelivery")}</span><strong>${money(commission)}</strong></div>
-      <div class="row"><span>${t("payoutAfterCommission")}</span><strong>${money(Math.max(0, subtotal - commission))}</strong></div>
-      <div class="row"><span>${t("totalPaid")}</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
+      <div class="row"><span>Service fee</span><strong>${money(commission)}</strong></div>
+      <div class="row"><span>Total before delivery</span><strong>${money(cart.length ? subtotal + commission : 0)}</strong></div>
+      <div class="meta">Delivery or pickup is selected at checkout.</div>
       <form class="form" id="checkoutForm">
+        <h3>Checkout</h3>
+        <div class="fulfillment-choice" role="group" aria-label="Fulfillment method">
+          <button type="button" class="${isPickup ? "" : "active"}" data-fulfillment="delivery"><strong>Delivery</strong><small>To your address</small></button>
+          <button type="button" class="${isPickup ? "active" : ""}" data-fulfillment="pickup"><strong>Pickup</strong><small>Collect from cook</small></button>
+        </div>
         <input type="hidden" name="fulfillmentType" value="${checkoutFulfillmentType}">
         ${isPickup ? `<div class="field"><label>Pickup location</label><input class="input" value="${firstCartCook?.city || "Cook location"}" readonly></div>` : `<div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${state.user.city || "Istanbul"}"></div>`}
+        <div class="row"><span>Delivery fee</span><strong>${money(deliveryFee)}</strong></div>
+        <div class="row"><span>Total</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
         <div class="field"><label>${t("paymentMethod")}</label><select name="paymentMethod">
           <option value="iban">IBAN</option>
@@ -3123,7 +3146,7 @@ function adminOrderDetails(order) {
           <span><small>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery"}</small><strong>${order.fulfillmentType === "pickup" ? `${cookName(order.cookId)} pickup location` : (order.deliveryAddress || "No address")}</strong></span>
         </div>
         <div class="detail-section"><h4>Items</h4>${order.items.map((item) => `<div class="row"><span>${item.qty}x ${item.name}</span><strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong></div>`).join("")}</div>
-        <div class="detail-section"><h4>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery pricing"}</h4>${order.fulfillmentType === "pickup" ? `<p>Customer pickup · no delivery fee, driver payout, route, or live tracking.</p>` : `<div class="admin-order-grid"><span><small>Rate</small><strong>${delivery.ratePerKmTry} TL/km</strong></span><span><small>Estimated</small><strong>${delivery.estimatedDistanceKm} km · ${money(delivery.estimatedFee)}</strong></span><span><small>Actual</small><strong>${delivery.actualDistanceKm > 0 ? `${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Waiting for driver movement"}</strong></span><span><small>Charged / driver payout</small><strong>${money(delivery.fee)}</strong><em>${delivery.source} distance</em></span><span><small>Location updates</small><strong>${order.locationHistory?.length || 0}</strong></span><span><small>Last driver location</small><strong>${order.delivery?.lastLocation ? `${Number(order.delivery.lastLocation.lat).toFixed(4)}, ${Number(order.delivery.lastLocation.lng).toFixed(4)}` : "Not available"}</strong></span></div>`}</div>
+        <div class="detail-section"><h4>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery pricing"}</h4>${order.fulfillmentType === "pickup" ? `<p>Customer pickup · no delivery fee, driver payout, route, or live tracking.</p>` : `<div class="admin-order-grid"><span><small>Rate</small><strong>${delivery.ratePerKmTry} TL/km</strong></span><span><small>Customer distance</small><strong>${delivery.customerChargedDistanceKm} km · ${money(delivery.customerFee)}</strong></span><span><small>Driver actual</small><strong>${delivery.actualDistanceKm > 0 ? `${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Waiting for driver movement"}</strong></span><span><small>Customer charged</small><strong>${money(delivery.customerFee)}</strong><em>fixed at checkout</em></span><span><small>Driver payout</small><strong>${money(delivery.driverPayout)}</strong><em>${delivery.driverPayoutSource}</em></span><span><small>Location updates</small><strong>${order.locationHistory?.length || 0}</strong></span><span><small>Last driver location</small><strong>${order.delivery?.lastLocation ? `${Number(order.delivery.lastLocation.lat).toFixed(4)}, ${Number(order.delivery.lastLocation.lng).toFixed(4)}` : "Not available"}</strong></span></div>`}</div>
         <div class="detail-section"><h4>Status history</h4><div class="timeline">${(order.statusHistory || []).map((entry) => `<div><span></span><p><strong>${statusLabel(entry.status)}</strong><small>${new Date(entry.at).toLocaleString()} · ${entry.role || userName(entry.byUserId, "system")}</small>${entry.note ? `<em>${entry.note}</em>` : ""}</p></div>`).join("") || `<div class="empty">No history yet.</div>`}</div></div>
         <div class="detail-section"><h4>Payment</h4><div class="admin-order-grid"><span><small>Method</small><strong>${paymentLabel(order.paymentMethod)}</strong></span><span><small>Status</small><strong>${payment.status || "pending"}</strong></span><span><small>Commission</small><strong>${money(payment.commission || 0)}</strong></span><span><small>Cook payout</small><strong>${money(payment.cookPayout || 0)}</strong></span><span><small>Driver payout</small><strong>${money(payment.driverPayout ?? order.driverPayout ?? order.deliveryFee)}</strong></span><span><small>Gross</small><strong>${money(payment.gross ?? order.total)}</strong></span></div></div>
         <div class="detail-section"><h4>Refund</h4>${refund ? `<p><strong>${refund.status}</strong> · ${refundLabel(refund.reason)} · ${money(refund.amount || 0)}</p><p class="meta">${refund.details || "No customer note"}${refund.adminNote ? ` · Admin: ${refund.adminNote}` : ""}</p>` : `<div class="empty">No refund request.</div>`}</div>
@@ -3169,13 +3192,13 @@ function driverOrderCard(order) {
     <article class="operation-card">
       <div class="price-row">
         <strong>${order.id}</strong>
-        <span class="price">${money(order.driverPayout ?? order.deliveryFee ?? delivery.fee)}</span>
+        <span class="price">${money(delivery.driverPayout)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
       <div class="meta"><strong>Delivery order</strong> · ${delivery.estimatedDistanceKm} km estimated · ${money(delivery.estimatedFee)} estimated earning</div>
       <div class="meta">${t("pickup")}: ${cookName(order.cookId)} · ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
       <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
-      <div class="delivery-breakdown"><strong>Rate: ${delivery.ratePerKmTry} TL/km</strong><span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Delivery starts when you accept."}</span><span>Estimated ${delivery.estimatedDistanceKm} km · ${money(delivery.estimatedFee)}</span><span data-driver-actual="${order.id}">${delivery.actualDistanceKm > 0 ? `Actual so far ${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Actual distance starts after acceptance"}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final delivery fee" : "Current earning"} ${money(delivery.fee)}</span><span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span><span>Delivery fee finalizes when the trip is completed.</span></div>
+      <div class="delivery-breakdown"><strong>Rate: ${delivery.ratePerKmTry} TL/km</strong><span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Delivery starts when you accept."}</span><span>Estimated ${delivery.estimatedDistanceKm} km · ${money(delivery.estimatedFee)}</span><span data-driver-actual="${order.id}">${delivery.actualDistanceKm > 0 ? `Actual so far ${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Actual distance starts after acceptance"}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current earning"} ${money(delivery.driverPayout)}</span><span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span><span>Driver payout finalizes when the trip is completed.</span></div>
       ${routeMap(order)}
       <div class="toolbar" style="margin:10px 0 0">
         ${!assigned ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
@@ -4227,7 +4250,7 @@ function updateDriverTrackingUi(orderId) {
   const earning = document.querySelector(`[data-driver-earning="${CSS.escape(key)}"]`);
   const last = document.querySelector(`[data-driver-last-update="${CSS.escape(key)}"]`);
   if (actual) actual.textContent = delivery.actualDistanceKm > 0 ? `Actual so far ${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Actual distance starts after acceptance";
-  if (earning) earning.textContent = `${order.status === "delivered" ? "Final delivery fee" : "Current earning"} ${money(delivery.fee)}`;
+  if (earning) earning.textContent = `${order.status === "delivered" ? "Final payout" : "Current earning"} ${money(delivery.driverPayout)}`;
   if (last) last.textContent = `Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}`;
 }
 
