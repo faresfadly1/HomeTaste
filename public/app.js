@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-unified-become-cook-01";
+const APP_BUILD = "20260620-profile-become-cleanup-01";
 const defaultStaticNotificationPreferences = Object.freeze({ orderUpdates: true, deliveryUpdates: true, messages: true, refunds: true, promotions: false });
 const staticNotificationPreferenceKeys = new Set(Object.keys(defaultStaticNotificationPreferences));
 function staticNotificationPreferencesFor(user) {
@@ -1674,8 +1674,10 @@ function saveCart() {
 }
 
 function setPage(next) {
+  if (next === "cook") next = "become";
   if (page === next) return;
   page = next;
+  if (next === "become") currentMarketPage = "become";
   renderApp();
 }
 
@@ -2182,7 +2184,6 @@ function navItems() {
     ["chat", t("nav_chat")],
     ["become", t("nav_become")]
   ];
-  if (isCook()) base.splice(4, 0, ["cook", t("nav_cook")]);
   if (isOwner()) base.splice(1, 0, ["admin", t("nav_admin")]);
   base.push(["settings", t("nav_settings")]);
   return base;
@@ -2193,6 +2194,10 @@ function renderApp() {
   if (!state?.user) {
     scheduleOwnerRefresh();
     return renderAuth();
+  }
+  if (page === "become" || page === "cook") {
+    currentMarketPage = "become";
+    return renderMarketplaceFrame();
   }
   if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
   scheduleOwnerRefresh();
@@ -2301,8 +2306,6 @@ function renderPage() {
   if (page === "orders") return renderOrders();
   if (page === "subscriptions") return renderSubscriptions();
   if (page === "chat") return renderChat();
-  if (page === "cook") return renderBecomeCook();
-  if (page === "become") return renderBecomeCook();
   if (page === "settings") return renderSettings();
   return renderDashboard();
 }
@@ -3158,101 +3161,6 @@ function chatThread(orderId) {
   `;
 }
 
-function renderCookOperations() {
-  const cook = myCook();
-  if (!cook) return renderBecomeCook();
-  const dishes = state.dishes.filter((dish) => dish.cookId === cook.id);
-  const orders = state.orders.filter((order) => order.cookId === cook.id);
-  const payments = state.payments?.filter((payment) => payment.cookId === cook.id) || [];
-  const social = state.socialActions?.filter((action) => action.cookId === cook.id) || [];
-  const revenue = payments.reduce((sum, payment) => sum + Number(payment.gross || 0), 0);
-  const payout = payments.reduce((sum, payment) => sum + Number(payment.cookPayout || 0), 0);
-  const popularDish = [...dishes].sort((a, b) => {
-    const bCount = orders.flatMap((order) => order.items).filter((item) => item.dishId === b.id).length;
-    const aCount = orders.flatMap((order) => order.items).filter((item) => item.dishId === a.id).length;
-    return bCount - aCount;
-  })[0];
-  const subscriptions = state.subscriptions?.filter((subscription) => subscription.cookId === cook.id && subscription.status === "active") || [];
-  return `
-    ${header(t("cookStudioTitle"), t("cookStudioSubtitle"))}
-    <section class="grid cols-4">
-      <div class="stat"><small>${t("status")}</small><strong>${cook.status}</strong></div>
-      <div class="stat"><small>Online</small><strong>${cook.online ? "online" : "offline"}</strong></div>
-      <div class="stat"><small>${t("dishes")}</small><strong>${dishes.length}</strong></div>
-      <div class="stat"><small>${t("ordersTitle")}</small><strong>${orders.length}</strong></div>
-      <div class="stat"><small>${t("revenue")}</small><strong>${money(revenue)}</strong></div>
-      <div class="stat"><small>${t("cookPayout")}</small><strong>${money(payout)}</strong></div>
-      <div class="stat"><small>${t("rating", "Rating")}</small><strong>${cook.stats?.reviewsTotal ? Number(cook.stats.ratingAverage || 0).toFixed(1) : "New"}</strong></div>
-      <div class="stat"><small>${t("followers", "Followers")}</small><strong>${Number(cook.stats?.followersTotal ?? social.filter((action) => action.type === "follow").length)}</strong></div>
-      <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${subscriptions.length}</strong></div>
-    </section>
-    <section class="grid cols-2" style="margin-top:18px">
-      <div class="panel">
-        <h3>${t("businessSummary")}</h3>
-        <div class="toolbar" style="margin:0 0 12px">
-          <button class="button small ${cook.online ? "secondary" : "good"}" data-cook-online="${cook.online ? "false" : "true"}">${cook.online ? "Go offline" : "Go online"}</button>
-        </div>
-        <div class="row"><span>${t("popularDish")}</span><strong>${popularDish?.name || t("noOrdersYet")}</strong></div>
-        <div class="row"><span>${t("likes")}</span><strong>${social.filter((action) => action.type === "like").length}</strong></div>
-        <div class="row"><span>${t("comments")}</span><strong>${social.filter((action) => action.type === "comment").length}</strong></div>
-        <div class="row"><span>${t("customerPhotos")}</span><strong>${social.filter((action) => action.type === "photo").length}</strong></div>
-      </div>
-      <div class="panel">
-        <h3>${t("createSubscriptionPlan")}</h3>
-        <form class="form" id="mealPlanForm">
-          <div class="field"><label>${t("name")}</label><input class="input" name="name" value="5 meals weekly"></div>
-          <div class="field"><label>${t("mealsPerWeek")}</label><input class="input" type="number" name="mealsPerWeek" value="5"></div>
-          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" value="1500"></div>
-          <div class="field"><label>${t("description")}</label><textarea name="description">Five homemade meals delivered weekly.</textarea></div>
-          <button class="button">${t("createPlan")}</button>
-        </form>
-      </div>
-      <div class="panel">
-        <h3>${t("addDish")}</h3>
-        <form class="form" id="dishForm">
-          <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Homemade special"></div>
-          <div class="field"><label>${t("description")}</label><textarea name="description" required></textarea></div>
-          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required value="180"></div>
-          <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" value="35"></div>
-          <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-          <div class="field"><label>Dish photo upload</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
-          <div class="field"><label>${t("imageUrl")}</label><input class="input" name="image" placeholder="Optional image URL"></div>
-          <button class="button">${t("createDish")}</button>
-        </form>
-      </div>
-      <div class="panel">
-        <h3>${t("yourDishes")}</h3>
-        ${dishes.map((dish) => `<div class="row"><div><strong>${dish.name}</strong><div class="meta">${money(dish.price)} - ${dish.country || "No country"} - ${dish.available ? t("availableLower") : t("hidden")}</div></div><div class="toolbar" style="margin:0"><button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button><button class="button small bad" data-delete-dish="${dish.id}">Remove</button></div></div>`).join("") || `<div class="empty">${t("noDishesYet")}</div>`}
-      </div>
-    </section>
-  `;
-}
-
-function renderBecomeCook() {
-  const cook = myCook();
-  if (cook) {
-    return `
-      ${header(t("cookApplicationTitle"), t("cookApplicationSubtitle"))}
-      <section class="panel">
-        <h3>${cook.name}</h3>
-        <p class="meta">${cook.bio}</p>
-        <div class="notice">${t("status")}: ${cook.status}. ${t("cookApplicationNotice")}</div>
-      </section>
-    `;
-  }
-  return `
-    ${header(t("becomeCookTitle"), t("becomeCookSubtitle"))}
-      <section class="panel">
-        <form class="form" id="cookApplyForm">
-        <div class="notice">Your cook name will be your account username: <strong>${state.user.name}</strong>.</div>
-        <div class="field"><label>${t("cuisine")}</label><input class="input" name="cuisine" required value="Home Kitchen"></div>
-        <div class="field"><label>${t("bio")}</label><textarea name="bio">Fresh homemade dishes prepared in small batches.</textarea></div>
-        <button class="button">${t("submitCookApplication")}</button>
-      </form>
-    </section>
-  `;
-}
-
 function systemHealthHtml() {
   if (!systemHealth) return `<div class="notice">Loading live backend health…</div>`;
   const checks = [
@@ -3272,7 +3180,6 @@ function renderSettings() {
     ${header(t("profileTitle"), "Account, security, and system settings are separated for clarity.")}
     <section class="settings-stack">
       <div class="panel">
-        <div class="section-heading"><div><h3>Account</h3><p>Public profile media and account information.</p></div></div>
         <div class="settings-account-grid">
           <div>
             <div class="profile-media-block"><div class="profile-cover-preview" style="${state.user.profileCover ? `background-image:url('${state.user.profileCover.replace(/'/g, "%27")}')` : ""}"></div>${profilePhotoHtml(state.user.profilePhoto, state.user.name, "profile-avatar large")}</div>

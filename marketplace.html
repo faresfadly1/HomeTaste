@@ -1441,7 +1441,7 @@ ul{list-style:none}
 .cook-management-availability small{color:var(--text3);font-size:12px;margin-top:3px}
 .cook-status-actions{display:flex;gap:8px;flex-wrap:wrap}
 .manager-dish-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
-.manager-edit,.manager-availability{font-size:11px;font-weight:800;padding:8px;border-radius:8px;color:var(--orange)}
+.manager-edit,.manager-availability{min-height:44px;font-size:11px;font-weight:800;padding:8px 10px;border-radius:8px;color:var(--orange)}
 .manager-availability.offline{color:var(--text3)}
 .manager-head{
   display:flex;align-items:flex-start;justify-content:space-between;
@@ -1458,8 +1458,12 @@ ul{list-style:none}
 }
 .manager-dish img{width:56px;height:56px;border-radius:9px;object-fit:cover;background:var(--bg4)}
 .manager-dish strong{font-size:13px}.manager-dish span{font-size:11px;color:var(--text3)}
-.manager-remove{color:#ef4444;font-size:12px;font-weight:900;padding:8px;border-radius:8px}
+.manager-remove{min-height:44px;color:#ef4444;font-size:12px;font-weight:900;padding:8px 10px;border-radius:8px}
 .manager-remove:hover{background:rgba(239,68,68,.12)}
+.cook-media-status{display:flex;align-items:center;gap:10px;min-width:0}
+.cook-media-status img,.cook-media-placeholder{width:42px;height:42px;flex:0 0 42px;border-radius:9px;object-fit:cover;background:var(--bg4)}
+.cook-media-placeholder{display:grid;place-items:center;color:var(--orange);font-size:18px}
+.cook-media-status span{min-width:0}
 .tracking-steps{display:flex;gap:6px;margin-top:10px}.track-dot{flex:1;height:5px;border-radius:99px;background:var(--bg4)}.track-dot.done{background:var(--orange)}
 .order-track-text{font-size:12px;color:var(--text3);margin-top:6px}.payment-note{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.6}
 @media(max-width:1100px){
@@ -2469,7 +2473,7 @@ ul{list-style:none}
     <div class="become-features" id="cookFlowFeatures">
       <div class="feature-card"><div class="feature-icon">⚡</div><h3>Fast setup</h3><p>No complicated application. Add your profile, dish, price, prep time, and dish country.</p></div>
       <div class="feature-card"><div class="feature-icon">💬</div><h3>Chat first</h3><p>Customers can ask if you are free before ordering and can see your phone/WhatsApp if you allow it.</p></div>
-      <div class="feature-card"><div class="feature-icon">⭐</div><h3>Build trust</h3><p>Your profile shows ratings, total orders, speed rating, camera verified dishes, and customer reviews.</p></div>
+      <div class="feature-card"><div class="feature-icon">⭐</div><h3>Build trust</h3><p>Your profile shows real orders, followers, dishes, availability, and an honest review status. New cooks never receive fake ratings.</p></div>
     </div>
   </div>
 
@@ -2507,7 +2511,7 @@ ul{list-style:none}
   <!-- SETTINGS PAGE -->
   <div class="page" id="page-settings">
     <div class="page-header">
-      <h1>Settings</h1>
+      <h1>Profile &amp; Settings</h1>
     </div>
     <div class="settings-layout">
 
@@ -2826,7 +2830,7 @@ const translations = {
     messagesBody: 'Chat with your cooks',
     messagePlaceholder: 'Type a message...',
     helpTitle: 'Help & Support',
-    settingsTitle: 'Settings',
+    settingsTitle: 'Profile & Settings',
     yourCart: 'Your Cart',
     delivery: 'Delivery',
     pickup: 'Pickup',
@@ -2887,7 +2891,7 @@ const translations = {
     messagesBody: 'Aşçılarla sohbet et',
     messagePlaceholder: 'Mesaj yaz...',
     helpTitle: 'Yardım ve destek',
-    settingsTitle: 'Ayarlar',
+    settingsTitle: 'Profil ve Ayarlar',
     yourCart: 'Sepetin',
     delivery: 'Teslimat',
     pickup: 'Gel al',
@@ -2948,7 +2952,7 @@ const translations = {
     messagesBody: 'Chatte mit deinen Kochen',
     messagePlaceholder: 'Nachricht schreiben...',
     helpTitle: 'Hilfe & Support',
-    settingsTitle: 'Einstellungen',
+    settingsTitle: 'Profil & Einstellungen',
     yourCart: 'Dein Warenkorb',
     delivery: 'Lieferung',
     pickup: 'Abholung',
@@ -3009,7 +3013,7 @@ const translations = {
     messagesBody: 'تحدث مع الطهاة',
     messagePlaceholder: 'اكتب رسالة...',
     helpTitle: 'المساعدة والدعم',
-    settingsTitle: 'الإعدادات',
+    settingsTitle: 'الملف الشخصي والإعدادات',
     yourCart: 'سلتك',
     delivery: 'توصيل',
     pickup: 'استلام',
@@ -5771,6 +5775,9 @@ function renderMyCookDishManager(){
   if (subtitle) subtitle.textContent = 'Manage your cook profile, dishes and availability from the same Become a Cook page.';
   if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = 'Manage my cook profile'; primaryAction.onclick = () => manager.scrollIntoView({behavior:'smooth',block:'start'}); }
   const cookDishes = cookManagementDishes.filter(d => sameId(d.cookId, cook.id));
+  const profilePhoto = safeImageSrc(cook.profilePhoto || getSavedProfilePicture(), '');
+  const backgroundPhoto = safeImageSrc(cook.coverPhoto || getSavedProfileCover(), '');
+  const mediaStatus = (label, photo, fallback) => `<span class="cook-media-status">${photo ? `<img src="${escapeAttr(photo)}" alt="${escapeAttr(label)} preview" loading="lazy" decoding="async">` : `<span class="cook-media-placeholder" aria-hidden="true">${fallback}</span>`}<span>${safeDisplayHtml(label)}<small>${photo ? 'Uploaded' : 'Missing'}</small></span></span>`;
   manager.innerHTML = `
     <div class="cook-management">
       <section class="cook-management-section">
@@ -5780,7 +5787,7 @@ function renderMyCookDishManager(){
           <div><div class="welcome-label">Cuisine</div><input id="cookManagementCuisine" class="cook-input" maxlength="80" value="${escapeAttr(cook.cuisine || '')}" placeholder="Turkish, Egyptian, Syrian"></div>
           <div class="wide"><div class="welcome-label">Location</div><input id="cookManagementLocation" class="cook-input" maxlength="100" value="${escapeAttr(cook.city || marketplaceUserState.city || '')}" placeholder="City or neighborhood"></div>
           <div class="wide"><div class="welcome-label">About me</div><textarea id="cookManagementBio" class="cook-input" maxlength="700" rows="5" placeholder="Tell customers about your cooking">${safeDisplayHtml(cook.bio || '')}</textarea></div>
-          <div class="wide cook-management-media"><button type="button" onclick="openEditProfilePanel()">Profile photo<small>Change your circular profile image</small></button><button type="button" onclick="openEditProfilePanel()">Background photo<small>Change your cook profile cover</small></button></div>
+          <div class="wide cook-management-media"><button type="button" onclick="openEditProfilePanel()">${mediaStatus('Profile photo',profilePhoto,'👤')}</button><button type="button" onclick="openEditProfilePanel()">${mediaStatus('Background photo',backgroundPhoto,'▧')}</button></div>
           <div class="wide"><button class="btn-apply" type="submit">Save cook profile</button></div>
         </form>
       </section>
@@ -6323,48 +6330,12 @@ async function saveEditProfile(event) {
     }
   });
 }
-function openProfilePicturePanel() {
-  const photo = safeImageSrc(getSavedProfilePicture(), '');
-  pendingProfilePicture = '';
-  openAccountModal(`
-    <h2>Change Profile Picture</h2>
-    <p class="account-hint">Take a fresh photo or upload one from your device, then press Save picture.</p>
-    <div class="profile-picture-preview" id="profilePicturePreview">${photo ? `<img src="${escapeAttr(photo)}" alt="Current profile picture" loading="lazy" decoding="async">` : 'No profile picture selected'}</div>
-    <div class="profile-picture-actions">
-      <button class="photo-action" type="button" onclick="document.getElementById('profileCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
-      <button class="photo-action" type="button" onclick="document.getElementById('profileGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
-    </div>
-    <input id="profileCameraInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="user" hidden onchange="handleProfilePicture(this)">
-    <input id="profileGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfilePicture(this)">
-    <div class="account-actions">
-      <button class="account-cancel" type="button" onclick="removeProfilePicture()">Remove photo</button>
-      <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
-      <button class="btn-place-order" type="button" onclick="saveProfilePicture(this)">Save picture</button>
-    </div>
-  `);
-}
 function handleProfilePicture(input) {
   readImageAsDataUrl(input, value => {
     if (!value) return;
     pendingProfilePicture = value;
     document.getElementById('profilePicturePreview').innerHTML = `<img src="${escapeAttr(safeImageSrc(value, ''))}" alt="New profile picture" loading="lazy" decoding="async">`;
-    showToast('Picture selected. Press Save picture to confirm.', 'info');
-  });
-}
-async function saveProfilePicture(button = null) {
-  if (!pendingProfilePicture) return showToast('Choose a photo first.', 'error');
-  await withMarketButton(button, 'Saving...', async () => {
-    try {
-      await sendMarketAction('market-profile', { profile: { profilePhoto: pendingProfilePicture } });
-      setSavedProfilePicture(pendingProfilePicture);
-      pendingProfilePicture = '';
-      updateSettingsAccount();
-      refreshCookAndDishViews();
-      document.getElementById('accountModal')?.classList.remove('open');
-      showToast('Profile picture saved.', 'success');
-    } catch (error) {
-      showToast(error.message, 'error');
-    }
+    showToast('Picture selected. Save profile to apply it.', 'info');
   });
 }
 async function removeProfilePicture() {
@@ -6386,48 +6357,12 @@ async function removeProfilePicture() {
   document.getElementById('profilePicturePreview').textContent = 'No profile picture selected';
   showToast('Profile picture removed.', 'info');
 }
-function openProfileCoverPanel() {
-  const cover = safeImageSrc(getSavedProfileCover(), '');
-  pendingProfileCover = '';
-  openAccountModal(`
-    <h2>Change Background Photo</h2>
-    <p class="account-hint">This photo is used as the large background image on your cook profile.</p>
-    <div class="profile-picture-preview" id="profileCoverPreview">${cover ? `<img src="${escapeAttr(cover)}" alt="Current background photo" loading="lazy" decoding="async">` : 'No background photo selected'}</div>
-    <div class="profile-picture-actions">
-      <button class="photo-action" type="button" onclick="document.getElementById('coverCameraInput').click()">📸 Take Photo<small>Open camera</small></button>
-      <button class="photo-action" type="button" onclick="document.getElementById('coverGalleryInput').click()">🖼️ Upload Photo<small>Choose from gallery</small></button>
-    </div>
-    <input id="coverCameraInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="environment" hidden onchange="handleProfileCover(this)">
-    <input id="coverGalleryInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleProfileCover(this)">
-    <div class="account-actions">
-      <button class="account-cancel" type="button" onclick="removeProfileCover()">Remove background</button>
-      <button class="account-cancel" type="button" data-close-account onclick="closeAccountPanel(event)">Close</button>
-      <button class="btn-place-order" type="button" onclick="saveProfileCover(this)">Save background</button>
-    </div>
-  `);
-}
 function handleProfileCover(input) {
   readImageAsDataUrl(input, value => {
     if (!value) return;
     pendingProfileCover = value;
     document.getElementById('profileCoverPreview').innerHTML = `<img src="${escapeAttr(safeImageSrc(value, ''))}" alt="New background photo" loading="lazy" decoding="async">`;
-    showToast('Background selected. Press Save background to confirm.', 'info');
-  });
-}
-async function saveProfileCover(button = null) {
-  if (!pendingProfileCover) return showToast('Choose a background photo first.', 'error');
-  await withMarketButton(button, 'Saving...', async () => {
-    try {
-      await sendMarketAction('market-profile', { profile: { profileCover: pendingProfileCover } });
-      setSavedProfileCover(pendingProfileCover);
-      pendingProfileCover = '';
-      updateSettingsAccount();
-      refreshCookAndDishViews();
-      document.getElementById('accountModal')?.classList.remove('open');
-      showToast('Background photo saved.', 'success');
-    } catch (error) {
-      showToast(error.message, 'error');
-    }
+    showToast('Background selected. Save profile to apply it.', 'info');
   });
 }
 async function removeProfileCover() {
