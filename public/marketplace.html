@@ -255,6 +255,7 @@ ul{list-style:none}
 .cart-footer{padding:16px;border-top:1px solid var(--border)}
 .cart-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;color:var(--text2)}
 .cart-total{display:flex;justify-content:space-between;font-size:16px;font-weight:700;margin:10px 0 14px;color:var(--text)}
+.delivery-price-note{margin:4px 0 10px;font-size:11px;line-height:1.4;color:var(--text3);overflow-wrap:anywhere}
 .btn-checkout{
   width:100%;padding:13px;border-radius:10px;
   background:var(--orange);color:#fff;
@@ -2634,7 +2635,8 @@ ul{list-style:none}
           <div class="summary-items" id="checkoutItems"></div>
           <div class="summary-totals">
             <div class="summary-row"><span>Subtotal</span><span id="checkoutSubtotal">370 ₺</span></div>
-            <div class="summary-row"><span>Delivery fee</span><span id="checkoutDeliveryFee">30 ₺</span></div>
+            <div class="summary-row"><span>Delivery estimate</span><span id="checkoutDeliveryFee">0 ₺</span></div>
+            <div class="delivery-price-note" id="checkoutDeliveryMeta">6 ₺/km · route estimate pending</div>
             <div class="summary-row"><span>Service fee</span><span id="checkoutServiceFee">15 ₺</span></div>
             <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
           </div>
@@ -2664,7 +2666,9 @@ ul{list-style:none}
   </div>
   <div class="cart-footer">
     <div class="cart-row"><span>Subtotal</span><span id="cartSubtotal">0 ₺</span></div>
-    <div class="cart-row"><span>Delivery fee</span><span id="cartDeliveryFee">0 ₺</span></div>
+    <div class="cart-row"><span>Delivery estimate</span><span id="cartDeliveryFee">0 ₺</span></div>
+    <div class="delivery-price-note" id="cartDeliveryMeta">6 ₺/km · add a dish to estimate</div>
+    <div class="cart-row"><span>Service fee (15%)</span><span id="cartServiceFee">0 ₺</span></div>
     <div class="cart-total"><span>Total</span><span id="cartTotal">0 ₺</span></div>
     <button class="btn-checkout" id="cartCheckoutBtn" onclick="checkoutFromCart()">Checkout</button>
     <button class="btn-cart-back" onclick="backFromCart()">← Back</button>
@@ -2726,12 +2730,17 @@ ul{list-style:none}
 const cooks = [];
 const dishes = [];
 const demoOrders = [];
+const DELIVERY_RATE_PER_KM_TRY = 6;
+const roundDeliveryMoney = value => Math.round((Number(value) || 0) * 100) / 100;
+const roundDeliveryKm = value => Math.round((Number(value) || 0) * 100) / 100;
+const deliveryFeeForKm = kilometers => roundDeliveryMoney(Math.max(0, Number(kilometers) || 0) * DELIVERY_RATE_PER_KM_TRY);
 
 const trackStatusSteps = [
   {status:'placed',title:'Order placed',body:'HomeTaste received your order.'},
   {status:'accepted',title:'Order received',body:'The cook accepted your order.'},
   {status:'preparing',title:'Cooking',body:'Your meal is being prepared.'},
   {status:'ready',title:'Food ready',body:'Your meal is ready for pickup.'},
+  {status:'driver_assigned',title:'Driver assigned',body:'A driver accepted your delivery.'},
   {status:'picked_up',title:'Driver picked up',body:'The driver has your order.'},
   {status:'out_for_delivery',title:'On the way',body:'Your driver is on the route.'},
   {status:'near_you',title:'Near you',body:'The driver is close to your address.'},
@@ -3892,6 +3901,9 @@ function marketplaceFingerprint(rawState) {
       JSON.stringify(order.customerLocation || null),
       JSON.stringify(order.cookLocation || null),
       JSON.stringify(order.route || null),
+      JSON.stringify(order.delivery || null),
+      order.deliveryFee,
+      order.driverPayout,
       Array.isArray(order.statusHistory) ? order.statusHistory.length : 0,
       Array.isArray(order.locationHistory) ? order.locationHistory.length : 0
     ]),
@@ -3908,12 +3920,13 @@ function marketplaceFingerprint(rawState) {
 }
 
 const MARKET_API_BASE = location.hostname.endsWith('github.io') ? 'https://hometaste-api-production.up.railway.app' : '';
-const orderStepByStatus = { placed:1, accepted:1, preparing:2, ready:3, picked_up:4, out_for_delivery:4, near_you:5, delivered:6, cancelled:1 };
+const orderStepByStatus = { placed:1, accepted:1, preparing:2, ready:3, driver_assigned:4, picked_up:5, out_for_delivery:5, near_you:6, delivered:7, cancelled:1 };
 const orderLabelByStatus = {
   placed:'Order placed',
   accepted:'Order received',
   preparing:'Cooking',
   ready:'Food is ready',
+  driver_assigned:'Driver assigned',
   picked_up:'Driver picked up',
   out_for_delivery:'On the way',
   near_you:'Near you',
@@ -4041,7 +4054,11 @@ function mapOrderForMobile(order) {
     locationHistory: Array.isArray(order.locationHistory) ? order.locationHistory : [],
     route: order.route || null,
     etaMinutes: order.etaMinutes || order.route?.etaMinutes || null,
-    deliveryAddress: order.deliveryAddress || ''
+    deliveryAddress: order.deliveryAddress || '',
+    delivery: order.delivery || order.payment?.delivery || null,
+    deliveryFee: Number(order.deliveryFee || 0),
+    deliveryDistanceKm: Number(order.deliveryDistanceKm || 0),
+    driverPayout: Number(order.driverPayout ?? order.deliveryFee ?? 0)
   };
 }
 function mapMessagesForMobile(rawState) {
@@ -4999,12 +5016,29 @@ function rememberLastPlacedOrderFromOrders() {
   if (latest?.id) lastPlacedOrderId = latest.id;
   return latest || null;
 }
+function orderDeliveryPricing(order) {
+  const raw = orderRaw(order);
+  const delivery = raw.delivery || raw.payment?.delivery || {};
+  const estimatedDistanceKm = roundDeliveryKm(delivery.estimatedDistanceKm ?? raw.route?.distanceKm ?? raw.deliveryDistanceKm ?? 0);
+  const actualDistanceKm = roundDeliveryKm(delivery.actualDistanceKm || 0);
+  const source = delivery.source === 'actual' && actualDistanceKm > 0 ? 'actual' : 'estimated';
+  return {
+    rate: Number(delivery.ratePerKm || delivery.ratePerKmTry || DELIVERY_RATE_PER_KM_TRY),
+    estimatedDistanceKm,
+    estimatedFee: Number(delivery.estimatedFee ?? deliveryFeeForKm(estimatedDistanceKm)),
+    actualDistanceKm,
+    actualFee: actualDistanceKm > 0 ? Number(delivery.actualFee ?? deliveryFeeForKm(actualDistanceKm)) : null,
+    source,
+    fee: Number(raw.deliveryFee ?? (source === 'actual' ? deliveryFeeForKm(actualDistanceKm) : deliveryFeeForKm(estimatedDistanceKm)))
+  };
+}
 function renderTrackSummary(order) {
   const raw = orderRaw(order);
   const address = displayText(raw.deliveryAddress || order.deliveryAddress, 'Delivery address not set');
   const scheduled = raw.scheduledFor ? formatTrackDateTime(raw.scheduledFor) : 'ASAP';
   const route = raw.route || {};
   const distance = route.distanceKm ? `${route.distanceKm} km` : 'Route updating';
+  const delivery = orderDeliveryPricing(order);
   const summary = document.getElementById('trackSummary');
   if (!summary) return;
   summary.innerHTML = `
@@ -5012,6 +5046,11 @@ function renderTrackSummary(order) {
     <div class="track-summary-item"><span>ETA</span><strong>${safeDisplayHtml(orderEtaLabel(order))}</strong></div>
     <div class="track-summary-item"><span>Total</span><strong>${safeDisplayHtml(orderTotalLabel(order))}</strong></div>
     <div class="track-summary-item"><span>Route</span><strong>${safeDisplayHtml(distance)}</strong></div>
+    <div class="track-summary-item"><span>Delivery rate</span><strong>${safeDisplayHtml(delivery.rate)} ₺/km</strong></div>
+    <div class="track-summary-item"><span>Estimated delivery</span><strong>${safeDisplayHtml(delivery.estimatedDistanceKm)} km · ${safeDisplayHtml(delivery.estimatedFee)} ₺</strong></div>
+    <div class="track-summary-item"><span>Actual delivery</span><strong>${delivery.actualDistanceKm > 0 ? `${safeDisplayHtml(delivery.actualDistanceKm)} km · ${safeDisplayHtml(delivery.actualFee)} ₺` : 'Waiting for tracked movement'}</strong></div>
+    <div class="track-summary-item"><span>Delivery charged</span><strong>${safeDisplayHtml(delivery.fee)} ₺ · ${safeDisplayHtml(delivery.source)}</strong></div>
+    <div class="track-summary-item full"><span>How delivery pricing works</span><strong>Delivery is ${safeDisplayHtml(delivery.rate)} ₺/km. The final fee is calculated when delivery is completed.</strong></div>
     <div class="track-summary-item full"><span>Items</span><strong>${safeDisplayHtml(orderItemsLabel(order))}</strong></div>
     <div class="track-summary-item full"><span>Delivery</span><strong>${safeDisplayHtml(address)} · ${safeDisplayHtml(scheduled)}</strong></div>`;
 }
@@ -5283,10 +5322,17 @@ function removeFromCart(id) {
 }
 function updateCartTotals() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const delivery = cart.length ? 30 : 0;
+  const estimate = deliveryEstimateForCart();
+  const delivery = estimate.fee;
+  const serviceFee = roundDeliveryMoney(sub * .15);
   document.getElementById('cartSubtotal').textContent = sub + ' ₺';
   document.getElementById('cartDeliveryFee').textContent = delivery + ' ₺';
-  document.getElementById('cartTotal').textContent = (sub + delivery) + ' ₺';
+  document.getElementById('cartServiceFee').textContent = serviceFee + ' ₺';
+  document.getElementById('cartTotal').textContent = roundDeliveryMoney(sub + delivery + serviceFee) + ' ₺';
+  const deliveryMeta = document.getElementById('cartDeliveryMeta');
+  if (deliveryMeta) deliveryMeta.textContent = cart.length
+    ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final delivery fee uses tracked distance.`
+    : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · add a dish to estimate`;
   const checkoutBtn = document.getElementById('cartCheckoutBtn');
   if (checkoutBtn) {
     checkoutBtn.disabled = cart.length === 0;
@@ -6459,6 +6505,43 @@ function currentSavedLocationQuery() {
     currentSavedAddress();
 }
 
+function deliveryCoordinateFromText(value, fallback = { lat:41.0082, lng:28.9784 }) {
+  const text = String(value || '').toLowerCase();
+  const known = [
+    ['istanbul',41.0082,28.9784],['kadikoy',40.9909,29.0303],['besiktas',41.0438,29.0094],
+    ['bursa',40.1885,29.061],['ankara',39.9334,32.8597],['berlin',52.52,13.405],['munich',48.1351,11.582]
+  ].find(([name]) => text.includes(name));
+  return known ? { lat:known[1], lng:known[2] } : fallback;
+}
+function normalizeDeliveryLocation(value, fallbackText = '') {
+  if (value && typeof value === 'object') {
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  const text = typeof value === 'string' ? value : fallbackText;
+  const match = String(text || '').match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  return match ? { lat:Number(match[1]), lng:Number(match[2]) } : deliveryCoordinateFromText(text);
+}
+function straightLineDeliveryKm(a, b) {
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+function deliveryEstimateForCart() {
+  if (!cart.length) return { distanceKm:0, fee:0 };
+  const firstDish = dishes.find(dish => sameId(dish.id, cart[0].id));
+  const cook = cooks.find(item => sameId(item.id, firstDish?.cookId));
+  const cookPoint = deliveryCoordinateFromText(cook?.city || 'Istanbul');
+  const customerPoint = normalizeDeliveryLocation(currentSavedLocationQuery(), currentSavedAddress());
+  const distanceKm = roundDeliveryKm(Math.max(.5, straightLineDeliveryKm(cookPoint, customerPoint)));
+  return { distanceKm, fee:deliveryFeeForKm(distanceKm), cookPoint, customerPoint };
+}
+
 // ===== CHECKOUT =====
 function updateCheckoutItems() {
   const checkoutItems = document.getElementById('checkoutItems');
@@ -6481,8 +6564,13 @@ function updateCheckoutItems() {
   if (!subtotalEl || !deliveryEl || !serviceEl || !totalEl) return;
   subtotalEl.textContent = sub + ' ₺';
   const serviceFee = Math.round(sub * 0.15 * 100) / 100;
-  const deliveryFee = cart.length ? 30 : 0;
+  const estimate = deliveryEstimateForCart();
+  const deliveryFee = estimate.fee;
   deliveryEl.textContent = deliveryFee + ' ₺';
+  const deliveryMeta = document.getElementById('checkoutDeliveryMeta');
+  if (deliveryMeta) deliveryMeta.textContent = cart.length
+    ? `${estimate.distanceKm} km × ${DELIVERY_RATE_PER_KM_TRY} ₺/km. Final fee uses tracked driver distance.`
+    : `${DELIVERY_RATE_PER_KM_TRY} ₺/km · route estimate pending`;
   serviceEl.textContent = serviceFee + ' ₺';
   totalEl.textContent = (sub + deliveryFee + serviceFee) + ' ₺';
 }

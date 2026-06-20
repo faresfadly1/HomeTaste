@@ -62,7 +62,7 @@ create table if not exists orders (
   delivery_fee numeric not null default 0,
   service_fee numeric not null default 0,
   total numeric not null default 0,
-  status text not null default 'placed' check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled')),
+  status text not null default 'placed' check (status in ('placed', 'accepted', 'preparing', 'ready', 'driver_assigned', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled')),
   status_history jsonb not null default '[]'::jsonb,
   payment_method text not null default 'cash',
   payment jsonb not null default '{}'::jsonb,
@@ -72,6 +72,7 @@ create table if not exists orders (
   cook_location jsonb,
   driver_location jsonb,
   location_history jsonb not null default '[]'::jsonb,
+  delivery jsonb not null default '{}'::jsonb,
   route jsonb,
   eta_minutes integer,
   notes text,
@@ -164,13 +165,27 @@ create table if not exists payments (
   commission_rate numeric not null default 0.15,
   commission numeric not null default 0,
   cook_payout numeric not null default 0,
+  delivery_fee numeric not null default 0,
+  driver_payout numeric not null default 0,
   provider text not null default 'manual',
   external_payment_id text,
   checkout_url text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   released_at timestamptz
 );
+
+alter table orders add column if not exists delivery jsonb not null default '{}'::jsonb;
+alter table payments add column if not exists delivery_fee numeric not null default 0;
+alter table payments add column if not exists driver_payout numeric not null default 0;
+alter table payments add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  alter table orders drop constraint if exists orders_status_check;
+  alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'driver_assigned', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
+end $$;
 
 create table if not exists notification_devices (
   id text primary key,

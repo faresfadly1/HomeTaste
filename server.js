@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-approved-cook-compact-01";
+const backendBuild = "20260620-distance-delivery-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -129,6 +129,7 @@ const healthPayload = () => ({
   },
   tracking: {
     provider: mapProvider,
+    deliveryRatePerKmTry: DELIVERY_RATE_PER_KM_TRY,
     mapbox: Boolean(mapboxPublicToken),
     googleMaps: Boolean(googleMapsBrowserKey),
     openStreetMap: true
@@ -167,6 +168,10 @@ const id = (prefix) => `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
 
 const now = () => new Date().toISOString();
 const commissionRate = 0.15;
+const DELIVERY_RATE_PER_KM_TRY = 6;
+const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
+const deliveryFeeForKm = (kilometers) => roundMoney(Math.max(0, Number(kilometers) || 0) * DELIVERY_RATE_PER_KM_TRY);
 const sha256 = (value) => crypto.createHash("sha256").update(String(value || "")).digest("hex");
 const sessionExpiresAt = () => new Date(Date.now() + sessionTtlMs).toISOString();
 const createSession = (userId) => ({ userId, createdAt: now(), expiresAt: sessionExpiresAt() });
@@ -1050,6 +1055,10 @@ function distanceKm(a, b) {
   return 2 * radius * Math.asin(Math.sqrt(h));
 }
 
+function isReasonableDriverSegment(segmentKm) {
+  return Number.isFinite(segmentKm) && segmentKm >= 0 && segmentKm <= 15;
+}
+
 function routeForOrder(order) {
   const driver = order.driverLocation || order.cookLocation || coordinateFromText("Kadikoy");
   const customer = order.customerLocation || normalizeLocation(order.deliveryAddress || "");
@@ -1059,11 +1068,112 @@ function routeForOrder(order) {
     provider: mapProvider,
     driver,
     customer,
-    distanceKm: Math.round(km * 10) / 10,
+    distanceKm: roundKm(km),
     etaMinutes,
     polyline: [driver, customer],
     optimizedAt: now()
   };
+}
+
+function normalizeOrderDelivery(order) {
+  const routeDistance = roundKm(order.route?.distanceKm || 0);
+  const stored = order.delivery && typeof order.delivery === "object" ? order.delivery : {};
+  const estimatedDistanceKm = roundKm(stored.estimatedDistanceKm ?? order.deliveryDistanceKm ?? routeDistance);
+  const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
+  const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
+  const actualFee = actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : 0;
+  const source = stored.source === "actual" && actualDistanceKm > 0 ? "actual" : "estimated";
+  const selectedDistance = source === "actual" ? actualDistanceKm : estimatedDistanceKm;
+  const selectedFee = source === "actual" ? actualFee : estimatedFee;
+  order.delivery = {
+    ratePerKm: DELIVERY_RATE_PER_KM_TRY,
+    ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
+    estimatedDistanceKm,
+    estimatedFee,
+    actualDistanceKm,
+    actualFee,
+    startedAt: stored.startedAt || null,
+    completedAt: stored.completedAt || null,
+    lastLocation: stored.lastLocation || order.driverLocation || null,
+    lastLocationAt: stored.lastLocationAt || null,
+    source
+  };
+  order.deliveryFee = roundMoney(selectedFee);
+  order.deliveryDistanceKm = roundKm(selectedDistance);
+  order.driverPayout = order.deliveryFee;
+  order.total = roundMoney(Number(order.subtotal || 0) + Number(order.serviceFee || 0) + order.deliveryFee);
+  return order.delivery;
+}
+
+function refreshOrderFinancials(order, paymentRecord = null) {
+  normalizeOrderDelivery(order);
+  const previous = order.payment || {};
+  order.payment = {
+    ...paymentLedgerForOrder(order),
+    ...previous,
+    gross: order.total,
+    deliveryFee: order.deliveryFee,
+    driverPayout: order.driverPayout,
+    delivery: order.delivery
+  };
+  if (paymentRecord) {
+    paymentRecord.gross = order.total;
+    paymentRecord.deliveryFee = order.deliveryFee;
+    paymentRecord.driverPayout = order.driverPayout;
+    paymentRecord.commission = order.payment.commission;
+    paymentRecord.cookPayout = order.payment.cookPayout;
+    paymentRecord.updatedAt = now();
+    paymentRecord.metadata = {
+      ...(paymentRecord.metadata || {}),
+      delivery: order.delivery,
+      deliveryAccounting: {
+        deliveryFee: order.deliveryFee,
+        driverPayout: order.driverPayout,
+        updatedAt: paymentRecord.updatedAt
+      }
+    };
+  }
+}
+
+function startOrderDelivery(order, driverLocation = null) {
+  normalizeOrderDelivery(order);
+  const startedAt = now();
+  order.delivery.startedAt ||= startedAt;
+  order.delivery.actualDistanceKm = 0;
+  order.delivery.actualFee = 0;
+  order.delivery.lastLocation = driverLocation || null;
+  order.delivery.lastLocationAt = driverLocation ? startedAt : null;
+  order.delivery.source = "estimated";
+  if (driverLocation) order.driverLocation = driverLocation;
+  refreshOrderFinancials(order);
+}
+
+function addDriverLocationSegment(order, nextLocation) {
+  normalizeOrderDelivery(order);
+  const previous = order.delivery.lastLocation || order.driverLocation || null;
+  let segmentKm = 0;
+  if (previous && nextLocation) {
+    const measured = distanceKm(previous, nextLocation);
+    if (!isReasonableDriverSegment(measured)) return 0;
+    if (measured > 0) segmentKm = measured;
+  }
+  order.driverLocation = nextLocation;
+  order.delivery.lastLocation = nextLocation;
+  order.delivery.lastLocationAt = now();
+  if (segmentKm > 0) {
+    order.delivery.actualDistanceKm = roundKm(Number(order.delivery.actualDistanceKm || 0) + segmentKm);
+    order.delivery.actualFee = deliveryFeeForKm(order.delivery.actualDistanceKm);
+    order.delivery.source = "actual";
+  }
+  refreshOrderFinancials(order);
+  return roundKm(segmentKm);
+}
+
+function finalizeOrderDelivery(order) {
+  normalizeOrderDelivery(order);
+  order.delivery.completedAt ||= now();
+  order.delivery.source = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
+  refreshOrderFinancials(order);
 }
 
 const seedDb = () => ({
@@ -1186,6 +1296,8 @@ function paymentLedgerForOrder(order) {
     commissionRate,
     commission,
     cookPayout: foodAmount,
+    driverPayout: deliveryFee,
+    delivery: order.delivery || null,
     provider: "manual",
     capturedAt: order.createdAt || now(),
     releasedAt: order.status === "delivered" ? (order.updatedAt || now()) : null,
@@ -1285,10 +1397,13 @@ function normalizeDb(db) {
     order.scheduledFor ||= null;
     order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
     order.cookLocation ||= coordinateFromText(db.cooks.find((cook) => cook.id === order.cookId)?.city || "Istanbul");
-    order.driverLocation ||= order.driverId ? coordinateFromText(db.users.find((item) => item.id === order.driverId)?.city || "Istanbul") : null;
+    order.driverLocation ||= null;
     order.route ||= routeForOrder(order);
     order.etaMinutes ||= order.route.etaMinutes;
-    order.dailyEarning ||= Math.round(Number(order.deliveryFee || 0) * 100) / 100;
+    if (!order.delivery && order.payment?.delivery) order.delivery = order.payment.delivery;
+    normalizeOrderDelivery(order);
+    refreshOrderFinancials(order);
+    order.dailyEarning = order.driverPayout;
   }
   for (const subscription of db.subscriptions) {
     subscription.status ||= "active";
@@ -1533,7 +1648,7 @@ const toOrder = (row) => ({
   deliveryFee: Number(row.delivery_fee || 0),
   serviceFee: Number(row.service_fee || 0),
   total: Number(row.total || 0),
-  status: row.status,
+  status: row.status === "ready" && row.driver_id ? "driver_assigned" : row.status,
   statusHistory: row.status_history || [],
   paymentMethod: row.payment_method,
   payment: row.payment || null,
@@ -1543,6 +1658,7 @@ const toOrder = (row) => ({
   cookLocation: row.cook_location || null,
   driverLocation: row.driver_location || null,
   locationHistory: row.location_history || [],
+  delivery: row.delivery || row.payment?.delivery || null,
   route: row.route || null,
   etaMinutes: Number(row.eta_minutes || 0),
   notes: row.notes,
@@ -1570,6 +1686,7 @@ const fromOrder = (order) => ({
   cook_location: order.cookLocation || null,
   driver_location: order.driverLocation || null,
   location_history: order.locationHistory || [],
+  delivery: order.delivery || null,
   route: order.route || routeForOrder(order),
   eta_minutes: order.etaMinutes || order.route?.etaMinutes || null,
   notes: order.notes || "",
@@ -1587,7 +1704,7 @@ const fromOrderLegacy = (order) => ({
   delivery_fee: order.deliveryFee || 0,
   service_fee: order.serviceFee || 0,
   total: order.total || 0,
-  status: order.status,
+  status: order.status === "driver_assigned" ? "ready" : order.status,
   status_history: order.statusHistory || [],
   payment_method: order.paymentMethod || "cash",
   payment: {
@@ -1597,6 +1714,7 @@ const fromOrderLegacy = (order) => ({
     cookLocation: order.cookLocation || null,
     driverLocation: order.driverLocation || null,
     locationHistory: order.locationHistory || [],
+    delivery: order.delivery || null,
     route: order.route || routeForOrder(order),
     etaMinutes: order.etaMinutes || order.route?.etaMinutes || null
   },
@@ -1751,11 +1869,14 @@ const toPayment = (row) => ({
   commissionRate: Number(row.commission_rate || commissionRate),
   commission: Number(row.commission || 0),
   cookPayout: Number(row.cook_payout || 0),
+  deliveryFee: Number(row.delivery_fee || row.metadata?.deliveryAccounting?.deliveryFee || row.metadata?.delivery?.estimatedFee || 0),
+  driverPayout: Number(row.driver_payout || row.metadata?.deliveryAccounting?.driverPayout || row.delivery_fee || 0),
   provider: row.provider || "manual",
   externalPaymentId: row.external_payment_id || "",
   checkoutUrl: row.checkout_url || "",
   metadata: row.metadata || {},
   createdAt: row.created_at,
+  updatedAt: row.updated_at || row.metadata?.deliveryAccounting?.updatedAt || row.created_at,
   releasedAt: row.released_at
 });
 
@@ -1770,11 +1891,14 @@ const fromPayment = (payment) => ({
   commission_rate: payment.commissionRate || commissionRate,
   commission: payment.commission || 0,
   cook_payout: payment.cookPayout || 0,
+  delivery_fee: payment.deliveryFee || 0,
+  driver_payout: payment.driverPayout || payment.deliveryFee || 0,
   provider: payment.provider || "manual",
   external_payment_id: payment.externalPaymentId || "",
   checkout_url: payment.checkoutUrl || "",
   metadata: payment.metadata || {},
   created_at: payment.createdAt || now(),
+  updated_at: payment.updatedAt || payment.createdAt || now(),
   released_at: payment.releasedAt || null
 });
 
@@ -1790,6 +1914,14 @@ const fromPaymentLegacy = (payment) => ({
   commission: payment.commission || 0,
   cook_payout: payment.cookPayout || 0,
   provider: payment.provider || "manual",
+  metadata: {
+    ...(payment.metadata || {}),
+    deliveryAccounting: {
+      deliveryFee: payment.deliveryFee || 0,
+      driverPayout: payment.driverPayout || payment.deliveryFee || 0,
+      updatedAt: payment.updatedAt || now()
+    }
+  },
   created_at: payment.createdAt || now(),
   released_at: payment.releasedAt || null
 });
@@ -2961,9 +3093,9 @@ async function api(req, res, pathname) {
       driverId: null,
       items: normalized,
       subtotal,
-      deliveryFee: 30,
+      deliveryFee: 0,
       serviceFee,
-      total: subtotal + 30 + serviceFee,
+      total: subtotal + serviceFee,
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
@@ -2980,6 +3112,18 @@ async function api(req, res, pathname) {
     };
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
+    order.delivery = {
+      ratePerKm: DELIVERY_RATE_PER_KM_TRY,
+      ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
+      estimatedDistanceKm: order.route.distanceKm,
+      actualDistanceKm: 0,
+      startedAt: null,
+      completedAt: null,
+      lastLocation: null,
+      lastLocationAt: null,
+      source: "estimated"
+    };
+    normalizeOrderDelivery(order);
     order.payment = paymentLedgerForOrder(order);
     const provider = paymentProviderFor(paymentMethod);
     const manualPayment = provider === "cash" || provider === "iban";
@@ -2997,10 +3141,12 @@ async function api(req, res, pathname) {
       commissionRate,
       commission: order.payment.commission,
       cookPayout: order.payment.cookPayout,
+      deliveryFee: order.deliveryFee,
+      driverPayout: order.driverPayout,
       provider: order.payment.provider,
       externalPaymentId: "",
       checkoutUrl: "",
-      metadata: {},
+      metadata: { delivery: order.delivery },
       createdAt: now(),
       releasedAt: null
     };
@@ -3031,9 +3177,6 @@ async function api(req, res, pathname) {
     const pushNotes = [];
     const cook = db.cooks.find((item) => item.id === order.cookId);
     if (cook?.userId) pushNotes.push(optionalNotification(db, cook.userId, "orderUpdates", `New order ${order.id} received.`, { type: "order_update", orderId: order.id, status: order.status }));
-    for (const driver of db.users.filter((item) => item.role === "driver")) {
-      pushNotes.push(optionalNotification(db, driver.id, "deliveryUpdates", `Available delivery: ${order.id}.`, { type: "delivery_update", orderId: order.id, status: order.status }));
-    }
     await saveDb(db);
     await sendPushBatch(db, pushNotes);
     return json(res, 201, { state: publicState(db, user), checkout });
@@ -3049,7 +3192,10 @@ async function api(req, res, pathname) {
     if (!isOrderDriver && !isOrderCustomer) return json(res, 403, { error: "No access to update this order location." });
     if (typeof input.driverLocation === "string" && input.driverLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Driver location is too long." });
     if (typeof input.customerLocation === "string" && input.customerLocation.length > 180) return json(res, 400, { code: "INVALID_LOCATION", error: "Customer location is too long." });
-    if (input.driverLocation && isOrderDriver) order.driverLocation = normalizeLocation(input.driverLocation);
+    let segmentKm = 0;
+    if (input.driverLocation && isOrderDriver) {
+      segmentKm = addDriverLocationSegment(order, normalizeLocation(input.driverLocation));
+    }
     if (input.customerLocation && isOrderCustomer) order.customerLocation = normalizeLocation(input.customerLocation, order.deliveryAddress);
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
@@ -3059,10 +3205,15 @@ async function api(req, res, pathname) {
       customerLocation: order.customerLocation,
       etaMinutes: order.etaMinutes,
       provider: order.route.provider,
+      segmentKm,
+      actualDistanceKm: order.delivery?.actualDistanceKm || 0,
+      totalDistanceKm: order.delivery?.actualDistanceKm || 0,
+      deliveryFee: order.deliveryFee,
       at: now(),
       byUserId: user.id
     });
     order.updatedAt = now();
+    refreshOrderFinancials(order, db.payments.find((item) => item.orderId === order.id));
     await saveDb(db);
     return json(res, 200, publicState(db, user));
   }
@@ -3072,7 +3223,7 @@ async function api(req, res, pathname) {
     if (!order) return json(res, 404, { error: "Order not found." });
     const cook = cookForUser(db, user.id);
     const input = await body(req);
-    const allowed = ["placed", "accepted", "preparing", "ready", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"];
+    const allowed = ["placed", "accepted", "preparing", "ready", "driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"];
     if (!allowed.includes(input.status)) return json(res, 400, { error: "Invalid status." });
     const isOrderCook = cook?.id === order.cookId;
     const isOrderDriver = order.driverId === user.id;
@@ -3086,6 +3237,10 @@ async function api(req, res, pathname) {
     }
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
+    }
+    const driverTransitions = { driver_assigned: "picked_up", picked_up: "out_for_delivery", out_for_delivery: "near_you", near_you: "delivered" };
+    if (isOrderDriver && driverTransitions[order.status] !== input.status) {
+      return json(res, 400, { error: "Complete the delivery steps in order." });
     }
     if (input.status === "cancelled") {
       if (user.role === "owner" && !String(input.note || input.reason || "").trim()) {
@@ -3117,9 +3272,11 @@ async function api(req, res, pathname) {
     order.status = input.status;
     order.updatedAt = now();
     if (order.status === "delivered") {
+      finalizeOrderDelivery(order);
       order.payment = { ...(order.payment || paymentLedgerForOrder(order)), status: "released", releasedAt: order.updatedAt };
       const payment = db.payments.find((item) => item.orderId === order.id);
       if (payment) {
+        refreshOrderFinancials(order, payment);
         payment.status = "released";
         payment.releasedAt = order.updatedAt;
       }
@@ -3136,7 +3293,12 @@ async function api(req, res, pathname) {
     const relatedCook = db.cooks.find((item) => item.id === order.cookId);
     if (relatedCook?.userId) notifyIds.push(relatedCook.userId);
     const pushNotes = [];
-    const notificationPreference = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
+    if (order.status === "ready") {
+      for (const driver of db.users.filter((item) => item.role === "driver")) {
+        pushNotes.push(optionalNotification(db, driver.id, "deliveryUpdates", `Ready delivery: ${order.id}.`, { type: "delivery_update", orderId: order.id, status: order.status }));
+      }
+    }
+    const notificationPreference = ["driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
     for (const userId of new Set(notifyIds.filter(Boolean))) {
       pushNotes.push(optionalNotification(db, userId, notificationPreference, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { type: notificationPreference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: order.status }));
     }
@@ -3152,13 +3314,17 @@ async function api(req, res, pathname) {
     if (!order) return json(res, 404, { error: "Order not found." });
     if (order.driverId && order.driverId !== user.id) return json(res, 409, { error: "This order is already assigned." });
     if (order.status !== "ready") return json(res, 400, { error: "Order is not ready for driver assignment." });
+    const input = await body(req);
     order.driverId = user.id;
-    order.driverLocation = normalizeLocation(user.city || "Istanbul");
+    const acceptedLocation = input.driverLocation ? normalizeLocation(input.driverLocation) : null;
+    startOrderDelivery(order, acceptedLocation);
+    order.status = "driver_assigned";
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
     order.updatedAt = now();
     order.statusHistory ||= [];
-    order.statusHistory.push({ status: order.status, byUserId: user.id, at: order.updatedAt, note: "Driver accepted delivery." });
+    order.statusHistory.push({ status: "driver_assigned", byUserId: user.id, at: order.updatedAt, note: acceptedLocation ? "Driver accepted delivery and location tracking started." : "Driver accepted delivery; waiting for location permission." });
+    refreshOrderFinancials(order, db.payments.find((item) => item.orderId === order.id));
     const pushNote = optionalNotification(db, order.customerId, "deliveryUpdates", `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { type: "delivery_update", orderId: order.id, status: order.status, etaMinutes: order.etaMinutes });
     await saveDb(db);
     await sendPushBatch(db, [pushNote]);

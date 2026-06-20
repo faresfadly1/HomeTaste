@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-approved-cook-compact-01", "approved cook compact UI build marker is exposed");
+  assert(health.build === "20260620-distance-delivery-01" && health.tracking?.deliveryRatePerKmTry === 6, "distance-based delivery build and canonical rate are exposed");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -273,6 +273,11 @@ try {
   assert(marketplaceSrcEarly.includes("function openEditProfilePanel()") && marketplaceSrcEarly.includes('id="editProfileName"') && marketplaceSrcEarly.includes('id="editProfileLocation"') && marketplaceSrcEarly.includes('id="editProfileBio"'), "Edit Profile combines media, name, location, and cook bio controls");
   assert(marketplaceSrcEarly.includes("function notificationPresentation(note)") && marketplaceSrcEarly.includes("Order #${shortId}") && marketplaceSrcEarly.includes("Your order was cancelled"), "notification cards use friendly titles and short record references");
   assert(marketplaceSrcEarly.includes("calc(150px + env(safe-area-inset-bottom))"), "mobile Settings reserves space above the floating bottom navigation");
+  assert(appSrcEarly.includes("const DELIVERY_RATE_PER_KM_TRY = 6") && marketplaceSrcEarly.includes("const DELIVERY_RATE_PER_KM_TRY = 6"), "all customer and driver surfaces use the canonical 6 TL per km delivery rate");
+  assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("Final fee uses tracked driver distance"), "mobile checkout shows a route-based delivery estimate and final-fee explanation");
+  assert(appSrcEarly.includes('order.status === "ready"') && !appSrcEarly.includes('["accepted", "preparing", "ready"].includes(order.status)'), "driver queue exposes only food-ready orders");
+  assert(appSrcEarly.includes("Actual distance starts after acceptance") && appSrcEarly.includes("Current earning"), "driver cards show estimated distance, actual distance, and current earnings");
+  assert(marketplaceSrcEarly.includes("Estimated delivery") && marketplaceSrcEarly.includes("Actual delivery") && marketplaceSrcEarly.includes("Delivery charged"), "Track Order shows estimated, actual, and charged delivery pricing");
   assert(appSrcEarly.includes("settings-page-active") && stylesSrcEarly.includes(".market-shell.settings-page-active .market-user #logout"), "mobile Settings hides the duplicate header sign out action");
   assert(!/Cook Studio|cook-studio|activeCookStudioTab|setCookStudioTab/.test(marketplaceSrcEarly), "no user-facing new Cook Studio visual path remains");
   assert(!/camera verified dishes|speed rating/i.test(marketplaceSrcEarly) && marketplaceSrcEarly.includes("real orders, followers, dishes, and an honest review status") && marketplaceSrcEarly.includes("never receive fake ratings"), "Become a Cook feature text describes truthful profile data without stale verification or rating claims");
@@ -636,8 +641,10 @@ try {
   });
   customerState = orderResult.state;
   const order = customerState.orders.find((item) => item.items.some((orderItem) => orderItem.dishId === dish.id));
-  assert(order?.serviceFee === 37.5 && order.total === 317.5, "checkout total includes food, 30 TL delivery, and 15% commission");
-  assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.gross === 317.5, "15% commission, gross payment, and cook payout calculate correctly");
+  const expectedEstimatedFee = Math.round(Number(order.route.distanceKm) * 6 * 100) / 100;
+  const expectedEstimatedTotal = Math.round((250 + 37.5 + expectedEstimatedFee) * 100) / 100;
+  assert(order?.serviceFee === 37.5 && order.delivery?.ratePerKm === 6 && order.delivery?.estimatedDistanceKm === order.route.distanceKm && order.deliveryFee === expectedEstimatedFee && order.total === expectedEstimatedTotal, "checkout uses route distance at 6 TL per km instead of a fixed delivery fee");
+  assert(order?.payment?.commission === 37.5 && order.payment.cookPayout === 250 && order.payment.driverPayout === expectedEstimatedFee && order.payment.gross === expectedEstimatedTotal, "commission, gross payment, cook payout, and estimated driver payout calculate correctly");
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
   assert(order.status === "placed" && order.statusHistory?.some((item) => item.status === "placed"), "track order starts from real placed status history");
@@ -658,9 +665,9 @@ try {
   let driverState = await request(base, driver.token, "GET", "/api/state");
   assert(driverState.orders.some((item) => item.id === order.id && item.status === "ready"), "driver sees ready available order");
 
-  driverState = await request(base, driver.token, "PATCH", `/api/driver/orders/${order.id}/accept`, {});
+  driverState = await request(base, driver.token, "PATCH", `/api/driver/orders/${order.id}/accept`, { driverLocation: { lat: 41.0300, lng: 29.0200 } });
   let driverOrder = driverState.orders.find((item) => item.id === order.id);
-  assert(driverOrder.driverId === driver.state.user.id && driverOrder.route?.etaMinutes > 0, "driver accepts order and route ETA updates");
+  assert(driverOrder.driverId === driver.state.user.id && driverOrder.status === "driver_assigned" && driverOrder.delivery?.startedAt && driverOrder.route?.etaMinutes > 0, "driver accepts a ready order, enters assigned status, and starts distance tracking");
   const customerDriverState = await request(base, customer.token, "GET", "/api/state");
   const customerTrackedOrder = customerDriverState.orders.find((item) => item.id === order.id);
   assert(customerTrackedOrder?.driverId === driver.state.user.id && customerTrackedOrder.etaMinutes > 0, "customer track order shows assigned driver and ETA");
@@ -669,10 +676,16 @@ try {
   assert(blockedLocation.status === 403, "unrelated customer cannot update order tracking location");
   driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300 } });
   driverOrder = driverState.orders.find((item) => item.id === order.id);
-  assert(driverOrder.locationHistory?.length === 1 && driverOrder.driverLocation?.lat, "driver live location saves");
+  const actualFeeAfterMove = Math.round(Number(driverOrder.delivery.actualDistanceKm) * 6 * 100) / 100;
+  assert(driverOrder.locationHistory?.length === 1 && driverOrder.driverLocation?.lat && driverOrder.delivery.actualDistanceKm > 0 && driverOrder.delivery.source === "actual", "driver live location saves and accumulates a reasonable movement segment");
+  assert(driverOrder.deliveryFee === actualFeeAfterMove && driverOrder.driverPayout === actualFeeAfterMove && driverOrder.total === Math.round((250 + 37.5 + actualFeeAfterMove) * 100) / 100 && driverOrder.payment.gross === driverOrder.total, "actual tracked distance updates delivery fee, driver payout, total, and payment ledger together");
   const customerLocationState = await request(base, customer.token, "GET", "/api/state");
   const customerLocationOrder = customerLocationState.orders.find((item) => item.id === order.id);
   assert(customerLocationOrder?.driverLocation?.lat && customerLocationOrder.locationHistory?.length === 1 && customerLocationOrder.route?.polyline?.length === 2, "customer track order sees live driver location, route, and location history");
+  const beforeImpossibleJumpKm = driverOrder.delivery.actualDistanceKm;
+  driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 39.9334, lng: 32.8597 } });
+  driverOrder = driverState.orders.find((item) => item.id === order.id);
+  assert(driverOrder.delivery.actualDistanceKm === beforeImpossibleJumpKm && driverOrder.driverLocation.lat === 41.035, "implausible driver location jumps over 15 km are ignored for position and billing");
   await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "picked_up" });
   await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "out_for_delivery" });
   trackingState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}`, { status: "near_you" });
@@ -680,7 +693,19 @@ try {
   customerState = await request(base, customer.token, "PATCH", `/api/orders/${order.id}`, { status: "delivered" });
   assert(customerState.orders.find((item) => item.id === order.id)?.payment?.status === "released", "delivered order releases escrow payment");
   const deliveredTrackOrder = customerState.orders.find((item) => item.id === order.id);
-  assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "track order records delivered status for customer");
+  assert(deliveredTrackOrder?.status === "delivered" && deliveredTrackOrder.delivery.source === "actual" && deliveredTrackOrder.delivery.completedAt && deliveredTrackOrder.statusHistory?.some((item) => item.status === "delivered"), "delivered tracking finalizes the actual-distance delivery fee for the customer");
+
+  const fallbackOrder = secondCustomerOrderResult.state.orders.find((item) => item.notes === "Second customer public stats order");
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "accepted" });
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "preparing" });
+  await request(base, cookAccount.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "ready" });
+  await request(base, driver.token, "PATCH", `/api/driver/orders/${fallbackOrder.id}/accept`, {});
+  await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "picked_up" });
+  await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "out_for_delivery" });
+  await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "near_you" });
+  const fallbackDeliveredState = await request(base, driver.token, "PATCH", `/api/orders/${fallbackOrder.id}`, { status: "delivered" });
+  const fallbackDeliveredOrder = fallbackDeliveredState.orders.find((item) => item.id === fallbackOrder.id);
+  assert(fallbackDeliveredOrder.delivery.source === "estimated" && fallbackDeliveredOrder.delivery.actualDistanceKm === 0 && fallbackDeliveredOrder.deliveryFee === fallbackDeliveredOrder.delivery.estimatedFee, "delivery without usable GPS movement finalizes with the checkout estimate");
 
   const cancelOrderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
@@ -747,7 +772,7 @@ try {
   assert(refund?.status === "pending", "refund request goes to admin review");
   assert(!customerState.notifications.some((note) => note.data?.type === "refund_update" && note.data?.refundId === refund.id), "disabled refund preference suppresses optional refund receipt notifications");
   ownerState = await request(base, owner.token, "PATCH", `/api/admin/refunds/${refund.id}`, { outcome: "half", adminNote: "Approved half refund." });
-  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === 158.75, "admin half refund outcome saves");
+  assert(ownerState.refunds.find((item) => item.id === refund.id)?.amount === Math.round(deliveredTrackOrder.total * 0.5 * 100) / 100, "admin half refund outcome uses the final distance-adjusted order total");
   const refundCustomerState = await request(base, customer.token, "GET", "/api/state");
   assert(refundCustomerState.notifications.some((note) => note.data?.type === "refund_decision" && note.data?.refundId === refund.id), "critical refund decision notification appears even when refund updates are disabled");
 
