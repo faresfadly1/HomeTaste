@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-become-media-cleanup-01";
+const APP_BUILD = "20260620-become-availability-cleanup-01";
 const defaultStaticNotificationPreferences = Object.freeze({ orderUpdates: true, deliveryUpdates: true, messages: true, refunds: true, promotions: false });
 const staticNotificationPreferenceKeys = new Set(Object.keys(defaultStaticNotificationPreferences));
 function staticNotificationPreferencesFor(user) {

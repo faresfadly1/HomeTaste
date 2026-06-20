@@ -1433,9 +1433,6 @@ ul{list-style:none}
 .cook-management-section:last-child{padding-bottom:0;border-bottom:0}
 .cook-management-profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .cook-management-profile .wide{grid-column:1/-1}
-.cook-management-availability{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
-.cook-management-availability strong,.cook-management-availability small{display:block}
-.cook-management-availability small{color:var(--text3);font-size:12px;margin-top:3px}
 .cook-status-actions{display:flex;gap:8px;flex-wrap:wrap}
 .manager-dish-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .manager-edit,.manager-availability{min-height:44px;font-size:11px;font-weight:800;padding:8px 10px;border-radius:8px;color:var(--orange)}
@@ -1845,7 +1842,6 @@ ul{list-style:none}
   .cook-dish-manager{margin:0 14px 18px;padding:16px}
   .cook-management-profile{grid-template-columns:1fr}
   .cook-management-profile .wide{grid-column:auto}
-  .cook-management-availability{padding:12px}
   .manager-head{display:grid;gap:12px}
   .manager-dish{grid-template-columns:52px minmax(0,1fr);align-items:start}
   .manager-dish-actions{grid-column:1/-1;justify-content:flex-start}
@@ -2458,7 +2454,7 @@ ul{list-style:none}
     <div class="become-features" id="cookFlowFeatures">
       <div class="feature-card"><div class="feature-icon">⚡</div><h3>Fast setup</h3><p>No complicated application. Add your profile, dish, price, prep time, and dish country.</p></div>
       <div class="feature-card"><div class="feature-icon">💬</div><h3>Chat first</h3><p>Customers can ask if you are free before ordering and can see your phone/WhatsApp if you allow it.</p></div>
-      <div class="feature-card"><div class="feature-icon">⭐</div><h3>Build trust</h3><p>Your profile shows real orders, followers, dishes, availability, and an honest review status. New cooks never receive fake ratings.</p></div>
+      <div class="feature-card"><div class="feature-icon">⭐</div><h3>Build trust</h3><p>Your profile shows real orders, followers, dishes, and an honest review status. New cooks never receive fake ratings.</p></div>
     </div>
   </div>
 
@@ -2732,7 +2728,7 @@ const messages = [];
 const faqs = [
   {q:'How do I track my order?',a:'Go to My Orders to see real-time updates on your order status — from preparation to delivery. You\'ll also receive push notifications at each step.'},
   {q:'Can I cancel my order?',a:'Yes, you can cancel within 5 minutes of placing an order. After that, the cook may have already started preparing your meal.'},
-  {q:'How do I become a cook on HomeTaste?',a:'Click "Become a Cook", add your profile and first dish, set your availability and prep time, then submit it for owner review before customers can order.'},
+  {q:'How do I become a cook on HomeTaste?',a:'Click "Become a Cook", add your cook details and first dish, then submit it for owner review before customers can order.'},
   {q:'Is the food safe and hygienic?',a:'All cooks on HomeTaste complete a food safety certification and agree to our hygiene standards. We regularly review ratings to ensure quality.'},
   {q:'What payment methods are accepted?',a:'We accept credit/debit cards, bank transfers, cash on delivery, and digital wallets.'},
   {q:'How long does delivery take?',a:'Most deliveries take 25–50 minutes depending on your distance from the cook and current order volume.'},
@@ -5750,14 +5746,14 @@ function renderMyCookDishManager(){
     const statusContent = {
       pending:{subtitle:'Your cook application is pending review.',title:'Application pending review',body:'Your submitted cook details are saved. You can keep your account profile and photos current while the admin reviews it.',action:'Edit profile and photos'},
       rejected:{subtitle:'Your cook application was rejected. Review it and reapply when ready.',title:'Application rejected',body:'Review your profile information, make any corrections, and send it back for review.',action:'Reapply for review'},
-      suspended:{subtitle:'Your cook account is suspended. Contact support for help.',title:'Cook account suspended',body:'Dish publishing and availability are paused. Contact HomeTaste support for help.',action:'Contact support'}
+      suspended:{subtitle:'Your cook account is suspended. Contact support for help.',title:'Cook account suspended',body:'Cook account actions are paused. Contact HomeTaste support for help.',action:'Contact support'}
     }[cook.status] || {title:'Cook application',body:'Review your cook profile status and information.',action:'Edit profile'};
     if (subtitle) subtitle.textContent = statusContent.subtitle || statusContent.body;
     if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = statusContent.action; primaryAction.onclick = cook.status === 'suspended' ? openSupportChat : cook.status === 'rejected' ? () => reapplyCookApplication(primaryAction) : openEditProfilePanel; }
     manager.innerHTML = `<div class="manager-head"><div><div class="welcome-label">Application status</div><h2>${safeDisplayHtml(statusContent.title)}</h2><p>${safeDisplayHtml(statusContent.body)}</p></div></div><div class="cook-status-actions">${cook.status === 'suspended' ? '<button class="btn-apply" type="button" onclick="openSupportChat()">Contact support</button>' : `<button class="btn-apply" type="button" onclick="${cook.status === 'rejected' ? 'reapplyCookApplication(this)' : 'openEditProfilePanel()'}">${safeDisplayHtml(statusContent.action)}</button>`}<button class="account-cancel" type="button" onclick="openEditProfilePanel()">View submitted details</button></div>`;
     return;
   }
-  if (subtitle) subtitle.textContent = 'Manage your cook profile, dishes and availability from the same Become a Cook page.';
+  if (subtitle) subtitle.textContent = 'Manage your cook profile and dishes from the same Become a Cook page.';
   if (primaryAction) { primaryAction.hidden = false; primaryAction.textContent = 'Manage my cook profile'; primaryAction.onclick = () => manager.scrollIntoView({behavior:'smooth',block:'start'}); }
   const cookDishes = cookManagementDishes.filter(d => sameId(d.cookId, cook.id));
   manager.innerHTML = `
@@ -5773,14 +5769,14 @@ function renderMyCookDishManager(){
         </form>
       </section>
       <section class="cook-management-section">
-        <div class="manager-head"><div><div class="welcome-label">Menu / Dishes</div><h2>${cookDishes.length} dish${cookDishes.length === 1 ? '' : 'es'}</h2><p>Add a new dish or edit price, prep time, category, image and availability.</p></div></div>
+        <div class="manager-head"><div><div class="welcome-label">Menu / Dishes</div><h2>${cookDishes.length} dish${cookDishes.length === 1 ? '' : 'es'}</h2><p>Add a new dish or edit price, prep time, category, image and visibility.</p></div></div>
         <div class="manager-form">
           <div><div class="welcome-label">New dish name</div><input id="extraDishNameInput" class="cook-input" placeholder="Example: Chicken Biryani"></div>
           <div><div class="welcome-label">Price (₺)</div><input id="extraDishPriceInput" class="cook-input" type="number" min="1" placeholder="150"></div>
           <div><div class="welcome-label">Preparation time</div><input id="extraDishPrepInput" class="cook-input" placeholder="45 minutes"></div>
           <div><div class="welcome-label">Country of the dish</div><input id="extraDishCountryInput" class="cook-input" placeholder="Turkey, Syria, Egypt"></div>
           <div><div class="welcome-label">Category</div><select id="extraDishCategoryInput" class="cook-input"><option>Main dish</option><option>Soup</option><option>Salad</option><option>Dessert</option><option>Breakfast</option><option>Bakery</option></select></div>
-          <div><div class="welcome-label">Availability</div><select id="extraDishAvailabilityInput" class="cook-input"><option value="true">Available</option><option value="false">Hidden</option></select></div>
+          <div><div class="welcome-label">Dish visibility</div><select id="extraDishAvailabilityInput" class="cook-input"><option value="true">Shown</option><option value="false">Hidden</option></select></div>
           <div class="wide"><div class="welcome-label">Dish description</div><textarea id="extraDishDescInput" class="cook-input" rows="4" placeholder="Describe this dish for customers."></textarea></div>
           <div class="wide"><div class="welcome-label">Dish photo</div><div class="profile-photo-actions"><button class="photo-action" type="button" onclick="document.getElementById('extraDishPhotoInput').click()">🖼️ Upload Dish Photo<small>This appears under Dishes by ${safeDisplayHtml(cook.name)}</small></button><button class="photo-action" type="button" onclick="publishExtraDish(this)">Publish Dish<small>Add it to your cook profile</small></button></div><input id="extraDishPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden onchange="handleExtraDishPhoto(this)"></div>
           <div class="wide photo-preview" id="extraDishPhotoPreview">No dish photo selected</div>
@@ -5790,10 +5786,6 @@ function renderMyCookDishManager(){
         const dishImg = safeImageSrc(d.img, defaultDishPhoto);
         return `<div class="manager-dish"><img src="${escapeAttr(dishImg)}" alt="${escapeAttr(dishName)}" loading="lazy" decoding="async" onerror="this.src='${escapeAttr(defaultDishPhoto)}'"><div><strong>${safeDisplayHtml(dishName)}</strong><br><span>${safeDisplayHtml(d.price)} ₺ · ${safeDisplayHtml(d.prepTime || '45 min')} · ${safeDisplayHtml(d.category || 'Main dish')} · ${d.available ? 'Available' : 'Hidden'}</span></div><div class="manager-dish-actions"><button class="manager-edit" type="button" onclick='editCookDish(${jsArg(d.id)})'>Edit</button><button class="manager-availability ${d.available ? '' : 'offline'}" type="button" onclick='toggleCookDishAvailability(${jsArg(d.id)},this)'>${d.available ? 'Hide' : 'Show'}</button><button class="manager-remove" type="button" onclick='removeCookDish(event,${jsArg(d.id)},this)'>Remove</button></div></div>`;
       }).join('') : '<p class="account-hint">No dishes yet. Publish a new dish above.</p>'}</div>
-      </section>
-      <section class="cook-management-section">
-        <div class="manager-head"><div><div class="welcome-label">Availability</div><h2>Cook availability</h2><p>Switch online when you are ready to receive customer orders.</p></div></div>
-        <div class="cook-management-availability"><div><strong id="cookManagementAvailabilityLabel">${cook.online ? 'Online' : 'Offline'}</strong><small>Visible to customers when you are available to cook</small></div><button class="toggle ${cook.online ? 'on' : ''}" id="cookManagementOnlineToggle" type="button" role="switch" aria-label="Cook availability" aria-checked="${cook.online ? 'true' : 'false'}" onclick="toggleCookManagementOnline(this)"></button></div>
       </section>
     </div>
   `;
@@ -5826,19 +5818,6 @@ async function reapplyCookApplication(button = null) {
       showToast(error.message, 'error');
     }
   });
-}
-async function toggleCookManagementOnline(button) {
-  const label = document.getElementById('cookManagementAvailabilityLabel');
-  const online = !button.classList.contains('on');
-  button.disabled = true;
-  try {
-    await sendMarketAction('market-online', {online});
-    if (label) label.textContent = online ? 'Online' : 'Offline';
-  } catch (error) {
-    showToast(error.message, 'error');
-  } finally {
-    button.disabled = false;
-  }
 }
 function editCookDish(dishId) {
   const dish = cookManagementDishes.find(item => sameId(item.id,dishId));
@@ -6202,7 +6181,7 @@ function cookSettingsPresentation(cook) {
   if (!cook) return {label:'Become a Cook',hint:'Apply to sell homemade food',region:'HomeTaste customer',disabled:false};
   const presentations = {
     pending:{label:'Become a Cook',hint:'Application pending review',region:'Cook application pending',disabled:false},
-    approved:{label:'Become a Cook',hint:'Manage your cook profile, dishes and availability',region:'Approved cook profile',disabled:false},
+    approved:{label:'Become a Cook',hint:'Manage your cook profile and dishes',region:'Approved cook profile',disabled:false},
     rejected:{label:'Become a Cook',hint:'Application rejected · View or reapply',region:'Cook application rejected',disabled:false},
     suspended:{label:'Become a Cook',hint:'Cook account suspended · Contact support',region:'Cook account suspended',disabled:false}
   };
