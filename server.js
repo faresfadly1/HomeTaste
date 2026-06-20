@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-driver-pickup-copy-01";
+const backendBuild = "20260620-delivery-handoff-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1044,6 +1044,29 @@ function normalizeLocation(value, fallbackText = "") {
   return coordinateFromText(text);
 }
 
+function exactLocation(value) {
+  if (value && typeof value === "object") {
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  const match = String(typeof value === "string" ? value : "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  return match ? { lat: Number(match[1]), lng: Number(match[2]) } : null;
+}
+
+function cookPickupDetails(db, cookId) {
+  const cook = db.cooks.find((item) => item.id === cookId);
+  const owner = cook ? db.users.find((item) => item.id === cook.userId) : null;
+  const exact = exactLocation(owner?.authMeta?.locationQuery) || exactLocation(cook?.location) || exactLocation(owner?.location);
+  const address = String(owner?.authMeta?.locationLabel || cook?.address || owner?.city || cook?.city || "Cook address unavailable").trim();
+  return {
+    name: cook?.name || owner?.name || "HomeTaste cook",
+    address,
+    location: exact || coordinateFromText(address || cook?.city || owner?.city || "Istanbul"),
+    exact: Boolean(exact)
+  };
+}
+
 function distanceKm(a, b) {
   const toRad = (deg) => deg * Math.PI / 180;
   const radius = 6371;
@@ -1060,8 +1083,12 @@ function isReasonableDriverSegment(segmentKm) {
 }
 
 function routeForOrder(order) {
-  const driver = order.driverLocation || order.cookLocation || coordinateFromText("Kadikoy");
-  const customer = order.customerLocation || normalizeLocation(order.deliveryAddress || "");
+  const approach = order.status === "driver_assigned";
+  const deliveryLeg = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status);
+  const origin = approach || deliveryLeg ? (order.driverLocation || order.cookLocation) : order.cookLocation;
+  const destination = approach ? order.cookLocation : order.customerLocation;
+  const driver = origin || order.cookLocation || coordinateFromText("Kadikoy");
+  const customer = destination || normalizeLocation(order.deliveryAddress || "");
   const km = Math.max(0.5, distanceKm(driver, customer));
   const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
   return {
@@ -1070,6 +1097,7 @@ function routeForOrder(order) {
     customer,
     distanceKm: roundKm(km),
     etaMinutes,
+    leg: approach ? "approach_to_cook" : deliveryLeg ? "delivery_to_customer" : "cook_to_customer_estimate",
     polyline: [driver, customer],
     optimizedAt: now()
   };
@@ -1098,6 +1126,23 @@ function normalizeOrderDelivery(order) {
       estimatedFee: 0,
       customerChargedDistanceKm: 0,
       customerDeliveryFee: 0,
+      pickupLocation: order.cookLocation || stored.pickupLocation || null,
+      dropoffLocation: null,
+      pickupAddress: order.cookAddress || stored.pickupAddress || "",
+      dropoffAddress: "",
+      pickupLocationExact: Boolean(order.cookLocationExact ?? stored.pickupLocationExact),
+      dropoffLocationExact: false,
+      approachDistanceKm: 0,
+      approachStartedAt: null,
+      approachCompletedAt: null,
+      deliveryLegDistanceKm: 0,
+      deliveryLegStartedAt: null,
+      deliveryLegCompletedAt: null,
+      cookFinishedAt: stored.cookFinishedAt || order.cookFinishedAt || null,
+      driverAcceptedAt: null,
+      driverReceivedFromCookAt: null,
+      driverPayoutDistanceKm: 0,
+      lastBillableLocation: null,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
@@ -1114,12 +1159,13 @@ function normalizeOrderDelivery(order) {
     return order.delivery;
   }
   const estimatedDistanceKm = roundKm(stored.estimatedDistanceKm ?? order.deliveryDistanceKm ?? routeDistance);
-  const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
+  const deliveryLegDistanceKm = roundKm(stored.deliveryLegDistanceKm ?? stored.actualDistanceKm ?? 0);
+  const approachDistanceKm = roundKm(stored.approachDistanceKm || 0);
   const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
-  const actualFee = actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : 0;
+  const actualFee = deliveryLegDistanceKm > 0 ? deliveryFeeForKm(deliveryLegDistanceKm) : 0;
   const customerChargedDistanceKm = roundKm(stored.customerChargedDistanceKm ?? estimatedDistanceKm);
   const customerDeliveryFee = deliveryFeeForKm(customerChargedDistanceKm);
-  const driverPayoutSource = actualDistanceKm > 0 ? "actual" : "estimated";
+  const driverPayoutSource = deliveryLegDistanceKm > 0 ? "actual" : "estimated";
   const driverPayout = driverPayoutSource === "actual" ? actualFee : estimatedFee;
   order.delivery = {
     ratePerKm: DELIVERY_RATE_PER_KM_TRY,
@@ -1128,7 +1174,24 @@ function normalizeOrderDelivery(order) {
     estimatedFee,
     customerChargedDistanceKm,
     customerDeliveryFee,
-    actualDistanceKm,
+    pickupLocation: stored.pickupLocation || order.cookLocation || null,
+    dropoffLocation: stored.dropoffLocation || order.customerLocation || null,
+    pickupAddress: stored.pickupAddress || order.cookAddress || "",
+    dropoffAddress: stored.dropoffAddress || order.deliveryAddress || "",
+    pickupLocationExact: Boolean(stored.pickupLocationExact ?? order.cookLocationExact),
+    dropoffLocationExact: Boolean(stored.dropoffLocationExact ?? order.customerLocationExact),
+    approachDistanceKm,
+    approachStartedAt: stored.approachStartedAt || stored.startedAt || null,
+    approachCompletedAt: stored.approachCompletedAt || null,
+    deliveryLegDistanceKm,
+    deliveryLegStartedAt: stored.deliveryLegStartedAt || null,
+    deliveryLegCompletedAt: stored.deliveryLegCompletedAt || stored.completedAt || null,
+    cookFinishedAt: stored.cookFinishedAt || order.cookFinishedAt || null,
+    driverAcceptedAt: stored.driverAcceptedAt || order.driverAcceptedAt || null,
+    driverReceivedFromCookAt: stored.driverReceivedFromCookAt || order.driverReceivedFromCookAt || null,
+    driverPayoutDistanceKm: deliveryLegDistanceKm > 0 ? deliveryLegDistanceKm : estimatedDistanceKm,
+    lastBillableLocation: stored.lastBillableLocation || null,
+    actualDistanceKm: deliveryLegDistanceKm,
     actualFee,
     startedAt: stored.startedAt || null,
     completedAt: stored.completedAt || null,
@@ -1180,6 +1243,14 @@ function startOrderDelivery(order, driverLocation = null) {
   normalizeOrderDelivery(order);
   const startedAt = now();
   order.delivery.startedAt ||= startedAt;
+  order.delivery.approachStartedAt ||= startedAt;
+  order.delivery.approachCompletedAt = null;
+  order.delivery.approachDistanceKm = 0;
+  order.delivery.deliveryLegStartedAt = null;
+  order.delivery.deliveryLegCompletedAt = null;
+  order.delivery.deliveryLegDistanceKm = 0;
+  order.delivery.driverPayoutDistanceKm = order.delivery.estimatedDistanceKm;
+  order.delivery.lastBillableLocation = null;
   order.delivery.actualDistanceKm = 0;
   order.delivery.actualFee = 0;
   order.delivery.lastLocation = driverLocation || null;
@@ -1187,6 +1258,21 @@ function startOrderDelivery(order, driverLocation = null) {
   order.delivery.source = "cook_to_customer";
   order.delivery.driverPayoutSource = "estimated";
   if (driverLocation) order.driverLocation = driverLocation;
+  refreshOrderFinancials(order);
+}
+
+function startOrderDeliveryLeg(order) {
+  normalizeOrderDelivery(order);
+  const startedAt = now();
+  order.delivery.approachCompletedAt ||= startedAt;
+  order.delivery.deliveryLegStartedAt ||= startedAt;
+  order.delivery.deliveryLegCompletedAt = null;
+  order.delivery.deliveryLegDistanceKm = 0;
+  order.delivery.actualDistanceKm = 0;
+  order.delivery.actualFee = 0;
+  order.delivery.driverPayoutDistanceKm = order.delivery.estimatedDistanceKm;
+  order.delivery.driverPayoutSource = "estimated";
+  order.delivery.lastBillableLocation = order.driverLocation || order.cookLocation || null;
   refreshOrderFinancials(order);
 }
 
@@ -1202,10 +1288,20 @@ function addDriverLocationSegment(order, nextLocation) {
   order.driverLocation = nextLocation;
   order.delivery.lastLocation = nextLocation;
   order.delivery.lastLocationAt = now();
-  if (segmentKm > 0) {
-    order.delivery.actualDistanceKm = roundKm(Number(order.delivery.actualDistanceKm || 0) + segmentKm);
-    order.delivery.actualFee = deliveryFeeForKm(order.delivery.actualDistanceKm);
-    order.delivery.driverPayoutSource = "actual";
+  if (segmentKm > 0 && order.status === "driver_assigned") {
+    order.delivery.approachDistanceKm = roundKm(Number(order.delivery.approachDistanceKm || 0) + segmentKm);
+  }
+  if (["picked_up", "out_for_delivery", "near_you"].includes(order.status)) {
+    const billablePrevious = order.delivery.lastBillableLocation || order.cookLocation || previous;
+    const billableSegment = billablePrevious ? distanceKm(billablePrevious, nextLocation) : 0;
+    if (isReasonableDriverSegment(billableSegment) && billableSegment > 0) {
+      order.delivery.deliveryLegDistanceKm = roundKm(Number(order.delivery.deliveryLegDistanceKm || 0) + billableSegment);
+      order.delivery.actualDistanceKm = order.delivery.deliveryLegDistanceKm;
+      order.delivery.actualFee = deliveryFeeForKm(order.delivery.deliveryLegDistanceKm);
+      order.delivery.driverPayoutDistanceKm = order.delivery.deliveryLegDistanceKm;
+      order.delivery.driverPayoutSource = "actual";
+    }
+    if (isReasonableDriverSegment(billableSegment)) order.delivery.lastBillableLocation = nextLocation;
   }
   refreshOrderFinancials(order);
   return roundKm(segmentKm);
@@ -1220,7 +1316,8 @@ function finalizeOrderDelivery(order) {
     return;
   }
   order.delivery.source = "cook_to_customer";
-  order.delivery.driverPayoutSource = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
+  order.delivery.deliveryLegCompletedAt ||= now();
+  order.delivery.driverPayoutSource = Number(order.delivery.deliveryLegDistanceKm || 0) > 0 ? "actual" : "estimated";
   refreshOrderFinancials(order);
 }
 
@@ -1447,8 +1544,12 @@ function normalizeDb(db) {
       order.payment.refundReason ||= "Order cancelled";
     }
     order.scheduledFor ||= null;
+    const pickup = cookPickupDetails(db, order.cookId);
     order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
-    order.cookLocation ||= coordinateFromText(db.cooks.find((cook) => cook.id === order.cookId)?.city || "Istanbul");
+    if (pickup.exact || !order.cookLocation) order.cookLocation = pickup.location;
+    order.cookAddress ||= pickup.address;
+    order.cookLocationExact = Boolean(order.cookLocationExact ?? pickup.exact);
+    order.customerLocationExact = Boolean(order.customerLocationExact ?? exactLocation(order.customerLocation));
     order.driverLocation ||= null;
     if (order.requiresDriver) {
       order.route ||= routeForOrder(order);
@@ -2281,6 +2382,8 @@ function visibleOrders(db, user) {
 function orderWithVisibleContacts(db, order, user) {
   const driver = order.driverId ? db.users.find((item) => item.id === order.driverId) : null;
   const cook = db.cooks.find((item) => item.id === order.cookId);
+  const cookOwner = cook ? db.users.find((item) => item.id === cook.userId) : null;
+  const customer = db.users.find((item) => item.id === order.customerId);
   const canSeeDriverContact = Boolean(
     user?.role === "owner" ||
     user?.id === order.customerId ||
@@ -2291,7 +2394,11 @@ function orderWithVisibleContacts(db, order, user) {
     ...order,
     driverName: driver?.name || "",
     driverCity: driver?.city || "",
-    driverPhone: canSeeDriverContact ? (driver?.phone || "") : ""
+    driverPhone: canSeeDriverContact ? (driver?.phone || "") : "",
+    cookName: cook?.name || cookOwner?.name || "HomeTaste cook",
+    cookAddress: order.cookAddress || cookOwner?.authMeta?.locationLabel || cookOwner?.city || cook?.city || "Cook address unavailable",
+    customerName: customer?.name || "Customer",
+    customerAddress: order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable"
   };
 }
 
@@ -3146,8 +3253,10 @@ async function api(req, res, pathname) {
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
-    const customerLocation = normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
-    const cookLocation = coordinateFromText(db.cooks.find((cook) => cook.id === firstDish.cookId)?.city || "Istanbul");
+    const customerExactLocation = exactLocation(input.customerLocation);
+    const customerLocation = customerExactLocation || normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
+    const pickup = cookPickupDetails(db, firstDish.cookId);
+    const cookLocation = pickup.location;
     const order = {
       id: id("ord"),
       customerId: user.id,
@@ -3166,7 +3275,10 @@ async function api(req, res, pathname) {
       deliveryAddress: textValue(input.deliveryAddress || "", "Delivery address", { max: 240 }),
       scheduledFor: textValue(input.scheduledFor || "", "Scheduled time", { max: 80 }) || null,
       customerLocation,
+      customerLocationExact: Boolean(customerExactLocation),
       cookLocation,
+      cookLocationExact: pickup.exact,
+      cookAddress: pickup.address,
       driverLocation: null,
       route: null,
       etaMinutes: null,
@@ -3185,6 +3297,20 @@ async function api(req, res, pathname) {
       estimatedFee: deliveryFeeForKm(order.route?.distanceKm || 0),
       customerChargedDistanceKm: order.route?.distanceKm || 0,
       customerDeliveryFee: deliveryFeeForKm(order.route?.distanceKm || 0),
+      pickupLocation: cookLocation,
+      dropoffLocation: customerLocation,
+      pickupAddress: pickup.address,
+      dropoffAddress: order.deliveryAddress,
+      pickupLocationExact: pickup.exact,
+      dropoffLocationExact: Boolean(customerExactLocation),
+      approachDistanceKm: 0,
+      approachStartedAt: null,
+      approachCompletedAt: null,
+      deliveryLegDistanceKm: 0,
+      deliveryLegStartedAt: null,
+      deliveryLegCompletedAt: null,
+      driverPayoutDistanceKm: order.route?.distanceKm || 0,
+      lastBillableLocation: null,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
@@ -3283,6 +3409,10 @@ async function api(req, res, pathname) {
       etaMinutes: order.etaMinutes,
       provider: order.route.provider,
       segmentKm,
+      leg: order.status === "driver_assigned" ? "approach_to_cook" : "delivery_to_customer",
+      approachDistanceKm: order.delivery?.approachDistanceKm || 0,
+      deliveryLegDistanceKm: order.delivery?.deliveryLegDistanceKm || 0,
+      driverPayoutDistanceKm: order.delivery?.driverPayoutDistanceKm || 0,
       actualDistanceKm: order.delivery?.actualDistanceKm || 0,
       totalDistanceKm: order.delivery?.actualDistanceKm || 0,
       deliveryFee: order.deliveryFee,
@@ -3315,6 +3445,9 @@ async function api(req, res, pathname) {
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(input.status)) {
       return json(res, 403, { error: "Cook can accept, prepare, mark finished, or cancel." });
+    }
+    if (isOrderCook && input.status === "ready" && !["accepted", "preparing"].includes(order.status)) {
+      return json(res, 400, { error: "The cook can finish only an accepted or preparing order." });
     }
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
@@ -3353,8 +3486,25 @@ async function api(req, res, pathname) {
       await sendPushBatch(db, pushNotes);
       return json(res, 200, publicState(db, user));
     }
+    const statusNote = isOrderCook && input.status === "ready"
+      ? "Cook finished the order. Ready for driver pickup."
+      : textValue(input.note || "", "Status note", { max: 300 });
+    if (isOrderCook && input.status === "ready") {
+      order.cookFinishedAt = now();
+      normalizeOrderDelivery(order);
+      order.delivery.cookFinishedAt = order.cookFinishedAt;
+    }
+    if (isOrderDriver && input.status === "picked_up") {
+      startOrderDeliveryLeg(order);
+      order.driverReceivedFromCookAt = now();
+      order.delivery.driverReceivedFromCookAt = order.driverReceivedFromCookAt;
+    }
     order.status = input.status;
     order.updatedAt = now();
+    if (order.requiresDriver) {
+      order.route = routeForOrder(order);
+      order.etaMinutes = order.route.etaMinutes;
+    }
     if (order.status === "delivered") {
       finalizeOrderDelivery(order);
       order.payment = { ...(order.payment || paymentLedgerForOrder(order)), status: "released", releasedAt: order.updatedAt };
@@ -3370,7 +3520,7 @@ async function api(req, res, pathname) {
       status: input.status,
       byUserId: user.id,
       at: order.updatedAt,
-      note: textValue(input.note || "", "Status note", { max: 300 })
+      note: statusNote
     });
     auditAdminAction(db, user, `changed order to ${input.status}`, "order", order.id);
     const notifyIds = [order.customerId, order.driverId];
@@ -3384,7 +3534,10 @@ async function api(req, res, pathname) {
     }
     const notificationPreference = order.fulfillmentType === "delivery" && ["driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status) ? "deliveryUpdates" : "orderUpdates";
     for (const userId of new Set(notifyIds.filter(Boolean))) {
-      pushNotes.push(optionalNotification(db, userId, notificationPreference, `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { type: notificationPreference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: order.status }));
+      const readyCustomerText = userId === order.customerId && order.status === "ready"
+        ? (order.fulfillmentType === "pickup" ? "Your food is ready for pickup." : "Your food is ready. Waiting for driver.")
+        : null;
+      pushNotes.push(optionalNotification(db, userId, notificationPreference, readyCustomerText || `Order ${order.id} is now ${order.status.replaceAll("_", " ")}.`, { type: notificationPreference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: order.status }));
     }
     await saveDb(db);
     await sendPushBatch(db, pushNotes);
@@ -3408,6 +3561,8 @@ async function api(req, res, pathname) {
     order.route = routeForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
     order.updatedAt = now();
+    order.driverAcceptedAt = order.updatedAt;
+    order.delivery.driverAcceptedAt = order.driverAcceptedAt;
     order.statusHistory ||= [];
     order.statusHistory.push({ status: "driver_assigned", byUserId: user.id, at: order.updatedAt, note: acceptedLocation ? "Driver accepted delivery and location tracking started." : "Driver accepted delivery; waiting for location permission." });
     refreshOrderFinancials(order, db.payments.find((item) => item.orderId === order.id));

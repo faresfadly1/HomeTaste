@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-driver-pickup-copy-01";
+const APP_BUILD = "20260620-delivery-handoff-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -75,19 +75,23 @@ function deliveryBreakdown(order = {}) {
     return { ratePerKmTry: DELIVERY_RATE_PER_KM_TRY, estimatedDistanceKm: 0, estimatedFee: 0, customerChargedDistanceKm: 0, customerFee: 0, actualDistanceKm: 0, actualFee: 0, driverPayout: 0, source: "pickup", driverPayoutSource: "pickup", fee: 0 };
   }
   const estimatedDistanceKm = roundKm(delivery.estimatedDistanceKm ?? order.route?.distanceKm ?? order.deliveryDistanceKm ?? 0);
-  const actualDistanceKm = roundKm(delivery.actualDistanceKm || 0);
+  const deliveryLegDistanceKm = roundKm(delivery.deliveryLegDistanceKm ?? delivery.actualDistanceKm ?? 0);
+  const approachDistanceKm = roundKm(delivery.approachDistanceKm || 0);
   const customerChargedDistanceKm = roundKm(delivery.customerChargedDistanceKm ?? estimatedDistanceKm);
   const customerFee = Number(delivery.customerDeliveryFee ?? order.deliveryFee ?? deliveryFeeForKm(customerChargedDistanceKm));
-  const driverPayoutSource = delivery.driverPayoutSource || (actualDistanceKm > 0 ? "actual" : "estimated");
+  const driverPayoutSource = delivery.driverPayoutSource || (deliveryLegDistanceKm > 0 ? "actual" : "estimated");
   return {
     ratePerKmTry: Number(delivery.ratePerKm || delivery.ratePerKmTry || DELIVERY_RATE_PER_KM_TRY),
     estimatedDistanceKm,
     estimatedFee: Number(delivery.estimatedFee ?? deliveryFeeForKm(estimatedDistanceKm)),
     customerChargedDistanceKm,
     customerFee,
-    actualDistanceKm,
-    actualFee: actualDistanceKm > 0 ? Number(delivery.actualFee ?? deliveryFeeForKm(actualDistanceKm)) : null,
-    driverPayout: Number(order.driverPayout ?? (actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : deliveryFeeForKm(estimatedDistanceKm))),
+    approachDistanceKm,
+    deliveryLegDistanceKm,
+    driverPayoutDistanceKm: roundKm(delivery.driverPayoutDistanceKm ?? (deliveryLegDistanceKm > 0 ? deliveryLegDistanceKm : estimatedDistanceKm)),
+    actualDistanceKm: deliveryLegDistanceKm,
+    actualFee: deliveryLegDistanceKm > 0 ? Number(delivery.actualFee ?? deliveryFeeForKm(deliveryLegDistanceKm)) : null,
+    driverPayout: Number(order.driverPayout ?? (deliveryLegDistanceKm > 0 ? deliveryFeeForKm(deliveryLegDistanceKm) : deliveryFeeForKm(estimatedDistanceKm))),
     source: "cook_to_customer",
     driverPayoutSource,
     fee: customerFee
@@ -200,7 +204,7 @@ const appTranslations = {
     subscriptionsTitle: "Meal Plan Dashboard", subscriptionsSubtitle: "Active plan, pause, resume, and skip-week controls for weekly subscriptions.", activeSubscriptions: "Active subscriptions", noSubscriptions: "No subscriptions yet. Pick a weekly plan below.", weeklyPlans: "Available weekly plans", noMealPlans: "No meal plans are available.", subscribe: "Subscribe", mealsWeekly: "meals weekly", nextDelivery: "Next delivery", notScheduled: "Not scheduled", skippedWeeks: "Skipped weeks", pause: "Pause", resume: "Resume", skipWeek: "Skip week", cancel: "Cancel",
     adminTitle: "Admin Control", adminSubtitle: "All users, registrations, cooks, orders, revenue, and marketplace controls.", users: "Users", drivers: "Drivers", pendingCooks: "Pending cooks", revenue: "Revenue", commission15: "15% commission", refundReview: "Refund review", cookVerification: "Cook verification", approve: "Approve", pending: "Pending", suspend: "Suspend", verifyId: "Verify ID", verifyAddress: "Verify address", verifyPhone: "Verify phone", dishControls: "Dish controls", availableLower: "available", hidden: "hidden", feature: "Feature", unfeature: "Unfeature", hide: "Hide", show: "Show", registrationData: "All registration data", person: "Person", contact: "Contact", registration: "Registration", cookProfile: "Cook profile", changeRole: "Change role", noPhone: "No phone", noCity: "No city", verified: "verified", notVerified: "not verified", eaterAccount: "Eater account", fulfillmentControl: "All orders and fulfillment control", noOrders: "No orders yet.", paymentEscrow: "Payment escrow and payouts", noPaymentRecords: "No payment records yet.", cookPayout: "Cook payout", customerNoteEmpty: "No customer note", outcome: "Outcome", noRefundRequests: "No refund requests yet.",
     browseTitle: "Browse Food", browseSubtitle: "Search real dishes, add them to a cart, and place persisted orders.", searchPlaceholder: "Search dish, cook, city, tag", allCities: "All cities", noDishMatches: "No dishes match your search.", subscriptionMeals: "Subscription meals", cart: "Cart", cartEmpty: "Your cart is empty.", subtotal: "Subtotal", delivery: "Delivery", commissionAfterDelivery: "HomeTaste commission after delivery", payoutAfterCommission: "Cook payout after commission", totalPaid: "Total paid to HomeTaste", deliveryAddress: "Delivery address", scheduleOrder: "Schedule order", paymentMethod: "Payment method", notes: "Notes", notesPlaceholder: "Allergies, spice level, delivery notes", placeOrder: "Place order", cookFallback: "Cook", add: "Add", followCook: "Follow cook", like: "Like", comment: "Comment", sharePhoto: "Share photo",
-    deliveriesTitle: "Deliveries", ordersTitle: "Orders", deliveriesSubtitle: "Receive food from cooks, start delivery, and mark handoff updates live.", ordersSubtitle: "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.", order: "Order", items: "Items", driver: "Driver", total: "Total", status: "Status", actions: "Actions", pickup: "Pickup", dropoff: "Dropoff", customerAddress: "Customer address", eta: "ETA", scheduled: "Scheduled", asap: "ASAP", acceptOrder: "Accept order", navigate: "Navigate", updateLocation: "Update location", customer: "Customer", commission: "Commission", payout: "payout", openChat: "Open chat", lastUpdate: "Last update", noHistory: "No history yet", noActionNeeded: "No action needed", receiveFood: "Receive food", startDelivery: "Start delivery", nearCustomer: "Near customer", markDelivered: "Mark delivered", waitingForCook: "Waiting for cook", startPreparing: "Start preparing", foodFinished: "Food finished", waitingForDriver: "Waiting for driver", waiting: "Waiting", confirmReceived: "Confirm received", driverQueue: "Driver queue", driverQueueBody: "See ready orders, receive them from cooks, then update delivery progress for the customer and admin.", noAssignedDeliveries: "No assigned deliveries yet.", cookOrderFlow: "Cook order flow", cookOrderBody: "Use these buttons when the customer order moves forward. When food is finished, press Food finished.", noActiveCookOrders: "No active cook orders yet.", reportIssue: "Report issue",
+    deliveriesTitle: "Deliveries", ordersTitle: "Orders", deliveriesSubtitle: "Receive food from cooks, start delivery, and mark handoff updates live.", ordersSubtitle: "Clear fulfillment flow: placed, accepted, preparing, finished, driver pickup, on the way, received.", order: "Order", items: "Items", driver: "Driver", total: "Total", status: "Status", actions: "Actions", pickup: "Pickup", dropoff: "Dropoff", customerAddress: "Customer address", eta: "ETA", scheduled: "Scheduled", asap: "ASAP", acceptOrder: "Accept order", navigate: "Navigate", updateLocation: "Update location", customer: "Customer", commission: "Commission", payout: "payout", openChat: "Open chat", lastUpdate: "Last update", noHistory: "No history yet", noActionNeeded: "No action needed", receiveFood: "Received from cook", startDelivery: "Deliver to customer", nearCustomer: "Near customer", markDelivered: "Mark delivered", waitingForCook: "Waiting for cook", startPreparing: "Start preparing", foodFinished: "Finish by cook", waitingForDriver: "Waiting for driver", waiting: "Waiting", confirmReceived: "Confirm received", driverQueue: "Driver queue", driverQueueBody: "See ready orders, receive them from cooks, then update delivery progress for the customer and admin.", noAssignedDeliveries: "No assigned deliveries yet.", cookOrderFlow: "Cook order flow", cookOrderBody: "Prepare each order, then press Finish by cook when it is ready.", noActiveCookOrders: "No active cook orders yet.", reportIssue: "Report issue",
     chatTitle: "Chat", chatSubtitle: "Every message is saved and tied to an order.", conversations: "Conversations", startChatEmpty: "Create an order to start chat.", noChatSelected: "No chat selected.", noMessages: "No messages yet.", message: "Message", messagePlaceholder: "Ask about timing, spice, pickup, delivery", sendMessage: "Send message",
     cookStudioTitle: "Become a Cook", cookStudioSubtitle: "Manage your cook profile, dishes, availability, and incoming orders.", businessSummary: "Business summary", popularDish: "Popular dish", noOrdersYet: "No orders yet", likes: "Likes", comments: "Comments", customerPhotos: "Customer photos", createSubscriptionPlan: "Create subscription plan", name: "Name", mealsPerWeek: "Meals per week", priceTl: "Price TL", description: "Description", createPlan: "Create plan", addDish: "Add dish", prepMinutes: "Prep minutes", imageUrl: "Image URL", tagsComma: "Tags, comma separated", createDish: "Create dish", yourDishes: "Your dishes", noDishesYet: "No dishes yet.",
     cookApplicationTitle: "Cook Application", cookApplicationSubtitle: "Your cook profile exists and is waiting for admin action if not approved.", cookApplicationNotice: "The admin can approve it in Admin Control.", becomeCookTitle: "Become a Cook", becomeCookSubtitle: "Apply with real profile data. Owner approval controls marketplace visibility.", displayName: "Display name", cuisine: "Cuisine", city: "City", availability: "Availability", bio: "Bio", submitCookApplication: "Submit cook application",
@@ -314,6 +318,7 @@ async function handleMarketplaceMessage(event) {
   if (event.data.action === "market-page") {
     currentMarketPage = event.data.page || "home";
     document.querySelector(".market-shell")?.classList.toggle("settings-page-active", currentMarketPage === "settings");
+    if (isCook()) refreshEmbeddedRolePanel();
     updateRolePanelVisibility();
     return;
   }
@@ -509,8 +514,10 @@ window.addEventListener("message", handleMarketplaceMessage);
 function updateRolePanelVisibility() {
   const content = document.querySelector(".market-content");
   if (!content || !state?.user) return;
-  const hideCustomerPanel = !isDriver();
+  const showCookOrders = isCook() && currentMarketPage === "orders";
+  const hideCustomerPanel = !isDriver() && !showCookOrders;
   content.classList.toggle("panel-hidden", hideCustomerPanel);
+  content.classList.toggle("cook-orders-active", showCookOrders);
 }
 
 function refreshEmbeddedRolePanel() {
@@ -1090,6 +1097,11 @@ function staticCookStats(db, cookId) {
 
 function staticPublicState(db, user) {
   db.orders.forEach((order) => {
+    const pickup = staticCookPickupDetails(db, order.cookId);
+    if (pickup.exact || !order.cookLocation) order.cookLocation = pickup.location;
+    order.cookAddress ||= pickup.address;
+    order.cookLocationExact = Boolean(order.cookLocationExact ?? pickup.exact);
+    order.customerLocationExact = Boolean(order.customerLocationExact ?? staticExactLocation(order.customerLocation));
     staticNormalizeOrderFulfillment(order);
     if (order.requiresDriver) order.route ||= staticRouteForOrder(order);
     staticRefreshOrderFinancials(order);
@@ -1102,6 +1114,8 @@ function staticPublicState(db, user) {
   const visibleOrdersWithContacts = visible.map((order) => {
     const driver = order.driverId ? db.users.find((item) => item.id === order.driverId) : null;
     const cook = db.cooks.find((item) => item.id === order.cookId);
+    const cookOwner = cook ? db.users.find((item) => item.id === cook.userId) : null;
+    const customer = db.users.find((item) => item.id === order.customerId);
     const canSeeDriverContact = Boolean(
       user?.role === "owner" ||
       user?.id === order.customerId ||
@@ -1112,7 +1126,11 @@ function staticPublicState(db, user) {
       ...order,
       driverName: driver?.name || "",
       driverCity: driver?.city || "",
-      driverPhone: canSeeDriverContact ? (driver?.phone || "") : ""
+      driverPhone: canSeeDriverContact ? (driver?.phone || "") : "",
+      cookName: cook?.name || cookOwner?.name || "HomeTaste cook",
+      cookAddress: order.cookAddress || cookOwner?.authMeta?.locationLabel || cookOwner?.city || cook?.city || "Cook address unavailable",
+      customerName: customer?.name || "Customer",
+      customerAddress: order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable"
     };
   });
   return {
@@ -1170,6 +1188,24 @@ function staticNormalizeLocation(value, fallbackText = "") {
   return staticCoordinateFromText(text);
 }
 
+function staticExactLocation(value) {
+  if (value && typeof value === "object") {
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  const match = String(typeof value === "string" ? value : "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+  return match ? { lat: Number(match[1]), lng: Number(match[2]) } : null;
+}
+
+function staticCookPickupDetails(db, cookId) {
+  const cook = db.cooks.find((item) => item.id === cookId);
+  const owner = cook ? db.users.find((item) => item.id === cook.userId) : null;
+  const exact = staticExactLocation(owner?.authMeta?.locationQuery) || staticExactLocation(cook?.location) || staticExactLocation(owner?.location);
+  const address = String(owner?.authMeta?.locationLabel || cook?.address || owner?.city || cook?.city || "Cook address unavailable").trim();
+  return { name: cook?.name || owner?.name || "HomeTaste cook", address, location: exact || staticCoordinateFromText(address), exact: Boolean(exact) };
+}
+
 function staticDistanceKm(a, b) {
   const toRad = (deg) => deg * Math.PI / 180;
   const radius = 6371;
@@ -1186,8 +1222,10 @@ function staticIsReasonableDriverSegment(segmentKm) {
 }
 
 function staticRouteForOrder(order) {
-  const driver = order.driverLocation || order.cookLocation || staticCoordinateFromText("Kadikoy");
-  const customer = order.customerLocation || staticNormalizeLocation(order.deliveryAddress || "");
+  const approach = order.status === "driver_assigned";
+  const deliveryLeg = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status);
+  const driver = (approach || deliveryLeg ? order.driverLocation : order.cookLocation) || order.cookLocation || staticCoordinateFromText("Kadikoy");
+  const customer = (approach ? order.cookLocation : order.customerLocation) || staticNormalizeLocation(order.deliveryAddress || "");
   const km = Math.max(0.5, staticDistanceKm(driver, customer));
   const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
   return {
@@ -1196,6 +1234,7 @@ function staticRouteForOrder(order) {
     customer,
     distanceKm: roundKm(km),
     etaMinutes,
+    leg: approach ? "approach_to_cook" : deliveryLeg ? "delivery_to_customer" : "cook_to_customer_estimate",
     polyline: [driver, customer],
     optimizedAt: new Date().toISOString()
   };
@@ -1223,6 +1262,23 @@ function staticNormalizeOrderDelivery(order) {
       estimatedFee: 0,
       customerChargedDistanceKm: 0,
       customerDeliveryFee: 0,
+      pickupLocation: order.cookLocation || stored.pickupLocation || null,
+      dropoffLocation: null,
+      pickupAddress: order.cookAddress || stored.pickupAddress || "",
+      dropoffAddress: "",
+      pickupLocationExact: Boolean(order.cookLocationExact ?? stored.pickupLocationExact),
+      dropoffLocationExact: false,
+      approachDistanceKm: 0,
+      approachStartedAt: null,
+      approachCompletedAt: null,
+      deliveryLegDistanceKm: 0,
+      deliveryLegStartedAt: null,
+      deliveryLegCompletedAt: null,
+      cookFinishedAt: stored.cookFinishedAt || order.cookFinishedAt || null,
+      driverAcceptedAt: null,
+      driverReceivedFromCookAt: null,
+      driverPayoutDistanceKm: 0,
+      lastBillableLocation: null,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
@@ -1239,12 +1295,13 @@ function staticNormalizeOrderDelivery(order) {
     return order.delivery;
   }
   const estimatedDistanceKm = roundKm(stored.estimatedDistanceKm ?? order.deliveryDistanceKm ?? order.route?.distanceKm ?? 0);
-  const actualDistanceKm = roundKm(stored.actualDistanceKm || 0);
+  const deliveryLegDistanceKm = roundKm(stored.deliveryLegDistanceKm ?? stored.actualDistanceKm ?? 0);
+  const approachDistanceKm = roundKm(stored.approachDistanceKm || 0);
   const estimatedFee = deliveryFeeForKm(estimatedDistanceKm);
-  const actualFee = actualDistanceKm > 0 ? deliveryFeeForKm(actualDistanceKm) : 0;
+  const actualFee = deliveryLegDistanceKm > 0 ? deliveryFeeForKm(deliveryLegDistanceKm) : 0;
   const customerChargedDistanceKm = roundKm(stored.customerChargedDistanceKm ?? estimatedDistanceKm);
   const customerDeliveryFee = deliveryFeeForKm(customerChargedDistanceKm);
-  const driverPayoutSource = actualDistanceKm > 0 ? "actual" : "estimated";
+  const driverPayoutSource = deliveryLegDistanceKm > 0 ? "actual" : "estimated";
   order.delivery = {
     ratePerKm: DELIVERY_RATE_PER_KM_TRY,
     ratePerKmTry: DELIVERY_RATE_PER_KM_TRY,
@@ -1252,7 +1309,24 @@ function staticNormalizeOrderDelivery(order) {
     estimatedFee,
     customerChargedDistanceKm,
     customerDeliveryFee,
-    actualDistanceKm,
+    pickupLocation: stored.pickupLocation || order.cookLocation || null,
+    dropoffLocation: stored.dropoffLocation || order.customerLocation || null,
+    pickupAddress: stored.pickupAddress || order.cookAddress || "",
+    dropoffAddress: stored.dropoffAddress || order.deliveryAddress || "",
+    pickupLocationExact: Boolean(stored.pickupLocationExact ?? order.cookLocationExact),
+    dropoffLocationExact: Boolean(stored.dropoffLocationExact ?? order.customerLocationExact),
+    approachDistanceKm,
+    approachStartedAt: stored.approachStartedAt || stored.startedAt || null,
+    approachCompletedAt: stored.approachCompletedAt || null,
+    deliveryLegDistanceKm,
+    deliveryLegStartedAt: stored.deliveryLegStartedAt || null,
+    deliveryLegCompletedAt: stored.deliveryLegCompletedAt || stored.completedAt || null,
+    cookFinishedAt: stored.cookFinishedAt || order.cookFinishedAt || null,
+    driverAcceptedAt: stored.driverAcceptedAt || order.driverAcceptedAt || null,
+    driverReceivedFromCookAt: stored.driverReceivedFromCookAt || order.driverReceivedFromCookAt || null,
+    driverPayoutDistanceKm: deliveryLegDistanceKm > 0 ? deliveryLegDistanceKm : estimatedDistanceKm,
+    lastBillableLocation: stored.lastBillableLocation || null,
+    actualDistanceKm: deliveryLegDistanceKm,
     actualFee,
     startedAt: stored.startedAt || null,
     completedAt: stored.completedAt || null,
@@ -1284,6 +1358,14 @@ function staticStartOrderDelivery(order, driverLocation = null) {
   staticNormalizeOrderDelivery(order);
   const startedAt = new Date().toISOString();
   order.delivery.startedAt ||= startedAt;
+  order.delivery.approachStartedAt ||= startedAt;
+  order.delivery.approachCompletedAt = null;
+  order.delivery.approachDistanceKm = 0;
+  order.delivery.deliveryLegStartedAt = null;
+  order.delivery.deliveryLegCompletedAt = null;
+  order.delivery.deliveryLegDistanceKm = 0;
+  order.delivery.driverPayoutDistanceKm = order.delivery.estimatedDistanceKm;
+  order.delivery.lastBillableLocation = null;
   order.delivery.actualDistanceKm = 0;
   order.delivery.actualFee = 0;
   order.delivery.lastLocation = driverLocation;
@@ -1291,6 +1373,21 @@ function staticStartOrderDelivery(order, driverLocation = null) {
   order.delivery.source = "cook_to_customer";
   order.delivery.driverPayoutSource = "estimated";
   if (driverLocation) order.driverLocation = driverLocation;
+  staticRefreshOrderFinancials(order);
+}
+
+function staticStartOrderDeliveryLeg(order) {
+  staticNormalizeOrderDelivery(order);
+  const startedAt = new Date().toISOString();
+  order.delivery.approachCompletedAt ||= startedAt;
+  order.delivery.deliveryLegStartedAt ||= startedAt;
+  order.delivery.deliveryLegCompletedAt = null;
+  order.delivery.deliveryLegDistanceKm = 0;
+  order.delivery.actualDistanceKm = 0;
+  order.delivery.actualFee = 0;
+  order.delivery.driverPayoutDistanceKm = order.delivery.estimatedDistanceKm;
+  order.delivery.driverPayoutSource = "estimated";
+  order.delivery.lastBillableLocation = order.driverLocation || order.cookLocation || null;
   staticRefreshOrderFinancials(order);
 }
 
@@ -1306,10 +1403,20 @@ function staticAddDriverLocationSegment(order, nextLocation) {
   order.driverLocation = nextLocation;
   order.delivery.lastLocation = nextLocation;
   order.delivery.lastLocationAt = new Date().toISOString();
-  if (segmentKm > 0) {
-    order.delivery.actualDistanceKm = roundKm(Number(order.delivery.actualDistanceKm || 0) + segmentKm);
-    order.delivery.actualFee = deliveryFeeForKm(order.delivery.actualDistanceKm);
-    order.delivery.driverPayoutSource = "actual";
+  if (segmentKm > 0 && order.status === "driver_assigned") {
+    order.delivery.approachDistanceKm = roundKm(Number(order.delivery.approachDistanceKm || 0) + segmentKm);
+  }
+  if (["picked_up", "out_for_delivery", "near_you"].includes(order.status)) {
+    const billablePrevious = order.delivery.lastBillableLocation || order.cookLocation || previous;
+    const billableSegment = billablePrevious ? staticDistanceKm(billablePrevious, nextLocation) : 0;
+    if (staticIsReasonableDriverSegment(billableSegment) && billableSegment > 0) {
+      order.delivery.deliveryLegDistanceKm = roundKm(Number(order.delivery.deliveryLegDistanceKm || 0) + billableSegment);
+      order.delivery.actualDistanceKm = order.delivery.deliveryLegDistanceKm;
+      order.delivery.actualFee = deliveryFeeForKm(order.delivery.deliveryLegDistanceKm);
+      order.delivery.driverPayoutDistanceKm = order.delivery.deliveryLegDistanceKm;
+      order.delivery.driverPayoutSource = "actual";
+    }
+    if (staticIsReasonableDriverSegment(billableSegment)) order.delivery.lastBillableLocation = nextLocation;
   }
   staticRefreshOrderFinancials(order);
   return roundKm(segmentKm);
@@ -1324,7 +1431,8 @@ function staticFinalizeOrderDelivery(order) {
     return;
   }
   order.delivery.source = "cook_to_customer";
-  order.delivery.driverPayoutSource = Number(order.delivery.actualDistanceKm || 0) > 0 ? "actual" : "estimated";
+  order.delivery.deliveryLegCompletedAt ||= new Date().toISOString();
+  order.delivery.driverPayoutSource = Number(order.delivery.deliveryLegDistanceKm || 0) > 0 ? "actual" : "estimated";
   staticRefreshOrderFinancials(order);
 }
 
@@ -1617,6 +1725,8 @@ async function staticApi(path, options = {}) {
     const serviceFee = Math.round(subtotal * 0.15 * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const cook = db.cooks.find((item) => item.id === firstDish.cookId);
+    const pickup = staticCookPickupDetails(db, firstDish.cookId);
+    const customerExactLocation = staticExactLocation(input.customerLocation);
     const createdAt = new Date().toISOString();
     const order = {
       id: `ord_${Date.now()}`,
@@ -1635,8 +1745,11 @@ async function staticApi(path, options = {}) {
       paymentMethod: String(input.paymentMethod || "cash"),
       deliveryAddress: String(input.deliveryAddress || "").trim(),
       scheduledFor: String(input.scheduledFor || "").trim() || null,
-      customerLocation: staticNormalizeLocation(input.customerLocation || input.deliveryAddress || user.city || "Istanbul"),
-      cookLocation: staticCoordinateFromText(cook?.city || "Istanbul"),
+      customerLocation: customerExactLocation || staticNormalizeLocation(input.customerLocation || input.deliveryAddress || user.city || "Istanbul"),
+      customerLocationExact: Boolean(customerExactLocation),
+      cookLocation: pickup.location,
+      cookLocationExact: pickup.exact,
+      cookAddress: pickup.address,
       driverLocation: null,
       locationHistory: [],
       notes: String(input.notes || "").trim(),
@@ -1654,6 +1767,20 @@ async function staticApi(path, options = {}) {
       estimatedFee: deliveryFeeForKm(order.route?.distanceKm || 0),
       customerChargedDistanceKm: order.route?.distanceKm || 0,
       customerDeliveryFee: deliveryFeeForKm(order.route?.distanceKm || 0),
+      pickupLocation: order.cookLocation,
+      dropoffLocation: order.customerLocation,
+      pickupAddress: pickup.address,
+      dropoffAddress: order.deliveryAddress,
+      pickupLocationExact: pickup.exact,
+      dropoffLocationExact: Boolean(customerExactLocation),
+      approachDistanceKm: 0,
+      approachStartedAt: null,
+      approachCompletedAt: null,
+      deliveryLegDistanceKm: 0,
+      deliveryLegStartedAt: null,
+      deliveryLegCompletedAt: null,
+      driverPayoutDistanceKm: order.route?.distanceKm || 0,
+      lastBillableLocation: null,
       actualDistanceKm: 0,
       actualFee: 0,
       startedAt: null,
@@ -1688,6 +1815,8 @@ async function staticApi(path, options = {}) {
     order.route = staticRouteForOrder(order);
     order.etaMinutes = order.route.etaMinutes;
     order.updatedAt = new Date().toISOString();
+    order.driverAcceptedAt = order.updatedAt;
+    order.delivery.driverAcceptedAt = order.driverAcceptedAt;
     order.statusHistory ||= [];
     order.statusHistory.push({ status: "driver_assigned", byUserId: user.id, at: order.updatedAt, note: acceptedLocation ? "Driver accepted delivery and location tracking started." : "Driver accepted delivery; waiting for location permission." });
     staticOptionalNotification(db, order.customerId, "deliveryUpdates", `${user.name} accepted your delivery. ETA ${order.etaMinutes} min.`, { type: "delivery_update", orderId: order.id, status: order.status });
@@ -1722,6 +1851,10 @@ async function staticApi(path, options = {}) {
       etaMinutes: order.etaMinutes,
       provider: order.route.provider,
       segmentKm,
+      leg: order.status === "driver_assigned" ? "approach_to_cook" : "delivery_to_customer",
+      approachDistanceKm: order.delivery?.approachDistanceKm || 0,
+      deliveryLegDistanceKm: order.delivery?.deliveryLegDistanceKm || 0,
+      driverPayoutDistanceKm: order.delivery?.driverPayoutDistanceKm || 0,
       actualDistanceKm: order.delivery?.actualDistanceKm || 0,
       totalDistanceKm: order.delivery?.actualDistanceKm || 0,
       deliveryFee: order.deliveryFee,
@@ -1753,6 +1886,7 @@ async function staticApi(path, options = {}) {
       throw new Error("Only the cook, assigned driver, customer receiver, or owner can update this order.");
     }
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(nextStatus)) throw new Error("Cook can accept, prepare, mark finished, or cancel.");
+    if (isOrderCook && nextStatus === "ready" && !["accepted", "preparing"].includes(order.status)) throw new Error("The cook can finish only an accepted or preparing order.");
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus)) throw new Error("Driver can receive, start delivery, mark near you, or mark delivered.");
     if (order.fulfillmentType === "pickup" && ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(nextStatus)) throw new Error("Pickup orders do not use driver delivery steps.");
     const driverTransitions = { driver_assigned: "picked_up", picked_up: "out_for_delivery", out_for_delivery: "near_you", near_you: "delivered" };
@@ -1767,18 +1901,36 @@ async function staticApi(path, options = {}) {
       saveStaticDb(db);
       return staticPublicState(db, user);
     }
+    const statusNote = isOrderCook && nextStatus === "ready" ? "Cook finished the order. Ready for driver pickup." : String(input.note || "").trim();
+    if (isOrderCook && nextStatus === "ready") {
+      order.cookFinishedAt = new Date().toISOString();
+      staticNormalizeOrderDelivery(order);
+      order.delivery.cookFinishedAt = order.cookFinishedAt;
+    }
+    if (isOrderDriver && nextStatus === "picked_up") {
+      staticStartOrderDeliveryLeg(order);
+      order.driverReceivedFromCookAt = new Date().toISOString();
+      order.delivery.driverReceivedFromCookAt = order.driverReceivedFromCookAt;
+    }
     order.status = nextStatus;
     order.updatedAt = new Date().toISOString();
+    if (order.requiresDriver) {
+      order.route = staticRouteForOrder(order);
+      order.etaMinutes = order.route.etaMinutes;
+    }
     if (nextStatus === "delivered") {
       staticFinalizeOrderDelivery(order);
       order.payment.status = "released";
       order.payment.releasedAt = order.updatedAt;
     }
-    order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: String(input.note || "").trim() });
+    order.statusHistory.push({ status: nextStatus, byUserId: user.id, at: order.updatedAt, note: statusNote });
     const orderCook = db.cooks.find((item) => item.id === order.cookId);
     for (const userId of new Set([order.customerId, order.driverId, orderCook?.userId].filter(Boolean))) {
       const preference = order.fulfillmentType === "delivery" && ["driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered"].includes(nextStatus) ? "deliveryUpdates" : "orderUpdates";
-      staticOptionalNotification(db, userId, preference, `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, { type: preference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: nextStatus });
+      const readyCustomerText = userId === order.customerId && nextStatus === "ready"
+        ? (order.fulfillmentType === "pickup" ? "Your food is ready for pickup." : "Your food is ready. Waiting for driver.")
+        : null;
+      staticOptionalNotification(db, userId, preference, readyCustomerText || `Order ${order.id} is now ${nextStatus.replaceAll("_", " ")}.`, { type: preference === "deliveryUpdates" ? "delivery_update" : "order_update", orderId: order.id, status: nextStatus });
     }
     if (nextStatus === "ready" && order.requiresDriver && order.fulfillmentType === "delivery") {
       for (const driverUser of db.users.filter((item) => item.role === "driver")) {
@@ -2487,7 +2639,8 @@ function renderApp() {
 function renderMarketplaceFrame() {
   const marketCountry = state.user?.country || authCountry || localStorage.getItem("hometaste_country") || "TR";
   localStorage.setItem("hometaste_country", marketCountry);
-  const hideCustomerPanel = !isDriver();
+  const showCookOrders = isCook() && currentMarketPage === "orders";
+  const hideCustomerPanel = !isDriver() && !showCookOrders;
   const pageParam = marketplaceRoutes.has(currentMarketPage) ? `&page=${encodeURIComponent(currentMarketPage)}` : "";
   app.innerHTML = `
     <div class="market-shell ${currentMarketPage === "settings" ? "settings-page-active" : ""}">
@@ -2506,7 +2659,7 @@ function renderMarketplaceFrame() {
           <button class="button secondary small" id="logout">${t("signOut")}</button>
         </div>
       </header>
-      <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""}">
+      <div class="market-content ${hideCustomerPanel ? "panel-hidden" : ""} ${showCookOrders ? "cook-orders-active" : ""}">
         <iframe class="market-frame" title="HomeTaste marketplace" src="${assetBase}marketplace.html?country=${marketCountry}&user=${encodeURIComponent(state.user.name || "User")}${pageParam}&v=${APP_BUILD}"></iframe>
         <aside class="role-panel">
           ${renderRoleOperations()}
@@ -3162,10 +3315,11 @@ function adminOrderDetails(order) {
           <span><small>Fulfillment</small><strong>${order.fulfillmentType === "pickup" ? "Customer pickup" : "Driver delivery"}</strong></span>
           <span><small>Driver</small><strong>${order.fulfillmentType === "pickup" ? "Not required" : (driver?.name || "Unassigned")}</strong><em>${driver?.phone || ""}</em></span>
           <span><small>Driver visibility</small><strong>${driverVisibilityLabel(order)}</strong></span>
-          <span><small>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery"}</small><strong>${order.fulfillmentType === "pickup" ? `${cookName(order.cookId)} pickup location` : (order.deliveryAddress || "No address")}</strong></span>
+          <span><small>Pickup location</small><strong>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</strong></span>
+          <span><small>Dropoff location</small><strong>${order.fulfillmentType === "pickup" ? "Customer pickup" : (order.deliveryAddress || "No address")}</strong></span>
         </div>
         <div class="detail-section"><h4>Items</h4>${order.items.map((item) => `<div class="row"><span>${item.qty}x ${item.name}</span><strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong></div>`).join("")}</div>
-        <div class="detail-section"><h4>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery pricing"}</h4>${order.fulfillmentType === "pickup" ? `<p>Customer pickup · no delivery fee, driver payout, route, or live tracking.</p>` : `<div class="admin-order-grid"><span><small>Rate</small><strong>${delivery.ratePerKmTry} TL/km</strong></span><span><small>Customer distance</small><strong>${delivery.customerChargedDistanceKm} km · ${money(delivery.customerFee)}</strong></span><span><small>Driver actual</small><strong>${delivery.actualDistanceKm > 0 ? `${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Waiting for driver movement"}</strong></span><span><small>Customer charged</small><strong>${money(delivery.customerFee)}</strong><em>fixed at checkout</em></span><span><small>Driver payout</small><strong>${money(delivery.driverPayout)}</strong><em>${delivery.driverPayoutSource}</em></span><span><small>Location updates</small><strong>${order.locationHistory?.length || 0}</strong></span><span><small>Last driver location</small><strong>${order.delivery?.lastLocation ? `${Number(order.delivery.lastLocation.lat).toFixed(4)}, ${Number(order.delivery.lastLocation.lng).toFixed(4)}` : "Not available"}</strong></span></div>`}</div>
+        <div class="detail-section"><h4>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery handoff"}</h4>${order.fulfillmentType === "pickup" ? `<p>Customer pickup · no delivery fee, driver payout, route, or live tracking.</p>` : `<div class="admin-order-grid"><span><small>Cook finished</small><strong>${order.cookFinishedAt || order.delivery?.cookFinishedAt ? new Date(order.cookFinishedAt || order.delivery.cookFinishedAt).toLocaleString() : "Not yet"}</strong></span><span><small>Driver accepted</small><strong>${order.driverAcceptedAt || order.delivery?.driverAcceptedAt ? new Date(order.driverAcceptedAt || order.delivery.driverAcceptedAt).toLocaleString() : "Not yet"}</strong></span><span><small>Received from cook</small><strong>${order.driverReceivedFromCookAt || order.delivery?.driverReceivedFromCookAt ? new Date(order.driverReceivedFromCookAt || order.delivery.driverReceivedFromCookAt).toLocaleString() : "Not yet"}</strong></span><span><small>Approach distance</small><strong>${delivery.approachDistanceKm} km</strong></span><span><small>Delivery distance</small><strong>${delivery.deliveryLegDistanceKm} km</strong></span><span><small>Customer delivery</small><strong>${delivery.customerChargedDistanceKm} km · ${money(delivery.customerFee)}</strong><em>fixed at checkout</em></span><span><small>Driver payout</small><strong>${delivery.driverPayoutDistanceKm} km · ${money(delivery.driverPayout)}</strong><em>${delivery.driverPayoutSource}</em></span><span><small>Location updates</small><strong>${order.locationHistory?.length || 0}</strong></span></div>`}</div>
         <div class="detail-section"><h4>Status history</h4><div class="timeline">${(order.statusHistory || []).map((entry) => `<div><span></span><p><strong>${statusLabel(entry.status)}</strong><small>${new Date(entry.at).toLocaleString()} · ${entry.role || userName(entry.byUserId, "system")}</small>${entry.note ? `<em>${entry.note}</em>` : ""}</p></div>`).join("") || `<div class="empty">No history yet.</div>`}</div></div>
         <div class="detail-section"><h4>Payment</h4><div class="admin-order-grid"><span><small>Method</small><strong>${paymentLabel(order.paymentMethod)}</strong></span><span><small>Status</small><strong>${payment.status || "pending"}</strong></span><span><small>Commission</small><strong>${money(payment.commission || 0)}</strong></span><span><small>Cook payout</small><strong>${money(payment.cookPayout || 0)}</strong></span><span><small>Driver payout</small><strong>${money(payment.driverPayout ?? order.driverPayout ?? order.deliveryFee)}</strong></span><span><small>Gross</small><strong>${money(payment.gross ?? order.total)}</strong></span></div></div>
         <div class="detail-section"><h4>Refund</h4>${refund ? `<p><strong>${refund.status}</strong> · ${refundLabel(refund.reason)} · ${money(refund.amount || 0)}</p><p class="meta">${refund.details || "No customer note"}${refund.adminNote ? ` · Admin: ${refund.adminNote}` : ""}</p>` : `<div class="empty">No refund request.</div>`}</div>
@@ -3217,18 +3371,29 @@ function driverOrderCard(order) {
   const trackingState = driverTrackingStates.get(String(order.id));
   const trackingLabel = trackingState ? `${trackingState.status}${trackingState.detail ? ` · ${trackingState.detail}` : ""}` : "Auto tracking starts after acceptance";
   const navUrl = mapsUrl(order);
+  const pickupLocation = order.delivery?.pickupLocation || order.cookLocation;
+  const dropoffLocation = order.delivery?.dropoffLocation || order.customerLocation;
+  const pickupExact = order.delivery?.pickupLocationExact ?? order.cookLocationExact;
+  const dropoffExact = order.delivery?.dropoffLocationExact ?? order.customerLocationExact;
+  const coordinateLabel = (point) => point?.lat && point?.lng ? `${Number(point.lat).toFixed(5)}, ${Number(point.lng).toFixed(5)}` : "";
+  const stageTitle = order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Deliver to customer" : readyToAccept ? "Ready for driver pickup" : "Delivery order";
+  const mapLocationReady = order.status === "driver_assigned" || !order.driverId ? pickupExact : dropoffExact;
+  const estimateLabel = pickupExact && dropoffExact ? `${delivery.estimatedDistanceKm} km estimated delivery` : "Distance estimate needs exact locations";
   return `
     <article class="operation-card">
       <div class="price-row">
-        <strong>${order.id}</strong>
+        <strong>${stageTitle}</strong>
         <span class="price">${money(delivery.driverPayout)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
-      <div class="meta"><strong>${readyToAccept ? "Ready for driver pickup" : "Delivery order"}</strong> · ${delivery.estimatedDistanceKm} km estimated · ${money(delivery.estimatedFee)} estimated earning</div>
+      <div class="meta">${estimateLabel} · ${money(delivery.estimatedFee)} estimated earning</div>
       ${waitingForCook ? `<div class="driver-waiting-copy"><strong>Waiting for cook</strong><span>The cook is preparing this order.</span><span>You can accept delivery when it is ready.</span></div>` : ""}
-      <div class="meta">${t("pickup")}: ${cookName(order.cookId)} · ${t("dropoff")}: ${order.deliveryAddress || t("customerAddress")}</div>
-      <div class="meta">${t("eta")} ${order.etaMinutes || route.etaMinutes || "-"} min · ${route.distanceKm || "-"} km · ${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
-      ${waitingForCook ? "" : `<div class="delivery-breakdown"><strong>Rate: ${delivery.ratePerKmTry} TL/km</strong><span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Delivery starts when you accept."}</span><span>Estimated ${delivery.estimatedDistanceKm} km · ${money(delivery.estimatedFee)}</span><span data-driver-actual="${order.id}">${delivery.actualDistanceKm > 0 ? `Actual so far ${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Actual distance starts after acceptance"}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current earning"} ${money(delivery.driverPayout)}</span><span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span><span>Driver payout finalizes when the trip is completed.</span></div>${routeMap(order)}`}
+      <div class="handoff-route-card">
+        <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</span><em>${pickupExact && coordinateLabel(pickupLocation) ? coordinateLabel(pickupLocation) : "Exact location unavailable. Use address."}</em></div>
+        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${order.customerAddress || order.deliveryAddress || t("customerAddress")}</span><em>${dropoffExact && coordinateLabel(dropoffLocation) ? coordinateLabel(dropoffLocation) : "Exact location unavailable. Use address."}</em></div>
+      </div>
+      <div class="meta">${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
+      ${waitingForCook ? "" : `<div class="delivery-breakdown"><strong>${order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong><span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Tracking starts after you accept."}</span><span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">Delivery: ${delivery.deliveryLegDistanceKm} km</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span><span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span></div>${mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Exact location unavailable. Use the address above.</div>`}`}
       <div class="toolbar" style="margin:10px 0 0">
         ${waitingForCook ? `<button class="button small secondary" type="button" disabled aria-disabled="true">Waiting for cook</button>` : readyToAccept ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
         ${waitingForCook ? "" : `<a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>`}
@@ -3249,14 +3414,16 @@ function routeMap(order) {
       <span class="map-dot pickup"></span>
       <span class="map-line"></span>
       <span class="map-dot dropoff"></span>
-    <strong>${route.provider || "openstreetmap"} · ${route.distanceKm || "-"} km · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
+    <strong>${route.leg === "approach_to_cook" ? "Route to cook" : "Route to customer"} · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
     </div>
   `;
 }
 
 function mapsUrl(order) {
-  const destination = order.customerLocation || {};
-  const query = destination.lat && destination.lng ? `${destination.lat},${destination.lng}` : (order.deliveryAddress || "Istanbul, Turkey");
+  const goingToCook = order.status === "driver_assigned" || !order.driverId;
+  const destination = goingToCook ? (order.delivery?.pickupLocation || order.cookLocation || {}) : (order.delivery?.dropoffLocation || order.customerLocation || {});
+  const fallback = goingToCook ? (order.cookAddress || order.delivery?.pickupAddress || cookName(order.cookId)) : (order.deliveryAddress || "Istanbul, Turkey");
+  const query = destination.lat && destination.lng ? `${destination.lat},${destination.lng}` : fallback;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
 }
 
@@ -3314,9 +3481,11 @@ function orderActionButtons(order) {
     if (!nextDriver) return `<span class="meta">${t("waitingForCook")}</span>`;
     return `<button class="button small good" data-order-action="${order.id}" data-status="${nextDriver[0]}">${nextDriver[1]}</button>`;
   }
+  if (order.status === "accepted") {
+    return `<div class="toolbar"><button class="button small secondary" data-order-action="${order.id}" data-status="preparing">${t("startPreparing")}</button><button class="button small" data-order-action="${order.id}" data-status="ready">${t("foodFinished")}</button></div>`;
+  }
   const next = {
     placed: ["accepted", t("acceptOrder")],
-    accepted: ["preparing", t("startPreparing")],
     preparing: ["ready", t("foodFinished")],
     ready: ["ready", order.fulfillmentType === "pickup" ? "Waiting for customer pickup" : t("waitingForDriver")]
   }[order.status];
@@ -3338,7 +3507,18 @@ function customerReceiveButton(order) {
 
 function renderRoleOperations() {
   if (isDriver()) return renderDriverOperations();
+  if (isCook()) return renderCookOrderPanel();
   return renderCustomerOperations();
+}
+
+function renderCookOrderPanel() {
+  const active = (state.orders || []).filter((order) => !["delivered", "cancelled"].includes(order.status));
+  return `
+    <h3>Cook orders</h3>
+    <p class="meta">Accept, prepare, then finish each order for pickup.</p>
+    <button class="button small secondary" type="button" data-cook-orders-close>Back to marketplace</button>
+    ${active.map(orderOperationCard).join("") || `<div class="empty">No active cook orders yet.</div>`}
+  `;
 }
 
 function renderDriverOperations() {
@@ -3363,10 +3543,13 @@ function renderCustomerOperations() {
 }
 
 function orderOperationCard(order) {
+  const friendlyTitle = isDriver()
+    ? (order.status === "ready" ? "Ready for driver pickup" : order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Active delivery" : "Delivery order")
+    : "Customer order";
   return `
     <article class="operation-card">
       <div class="price-row">
-        <strong>${order.id}</strong>
+        <strong>${friendlyTitle}</strong>
         <span class="price">${money(order.total)}</span>
       </div>
       <div class="meta">${order.items.map((item) => `${item.qty}x ${item.name}`).join(", ")}</div>
@@ -3673,6 +3856,9 @@ function bindPage() {
   });
   document.querySelectorAll("[data-market-page]").forEach((button) => {
     button.onclick = () => openMarketplacePage(button.dataset.marketPage);
+  });
+  document.querySelectorAll("[data-cook-orders-close]").forEach((button) => {
+    button.onclick = () => openMarketplacePage("home");
   });
   document.querySelectorAll("[data-chat-order]").forEach((button) => {
     button.onclick = () => {
@@ -4288,8 +4474,8 @@ function updateDriverTrackingUi(orderId) {
   const actual = document.querySelector(`[data-driver-actual="${CSS.escape(key)}"]`);
   const earning = document.querySelector(`[data-driver-earning="${CSS.escape(key)}"]`);
   const last = document.querySelector(`[data-driver-last-update="${CSS.escape(key)}"]`);
-  if (actual) actual.textContent = delivery.actualDistanceKm > 0 ? `Actual so far ${delivery.actualDistanceKm} km · ${money(delivery.actualFee)}` : "Actual distance starts after acceptance";
-  if (earning) earning.textContent = `${order.status === "delivered" ? "Final payout" : "Current earning"} ${money(delivery.driverPayout)}`;
+  if (actual) actual.textContent = `Delivery: ${delivery.deliveryLegDistanceKm} km`;
+  if (earning) earning.textContent = `${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}`;
   if (last) last.textContent = `Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}`;
 }
 

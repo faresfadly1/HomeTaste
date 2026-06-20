@@ -935,6 +935,9 @@ body.app-light .auth-wrap {
 .market-content.panel-hidden .role-panel {
   display: none;
 }
+.market-content.cook-orders-active { grid-template-columns: 1fr; }
+.market-content.cook-orders-active .market-frame { display: none; }
+.market-content.cook-orders-active .role-panel { border-left: 0; width: min(900px, 100%); margin: 0 auto; }
 .role-panel {
   overflow: auto;
   border-left: 1px solid var(--line);
@@ -951,6 +954,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
 .role-panel h3 {
   margin: 0 0 8px;
 }
+.role-panel .button { min-height: 44px; }
 .operation-card {
   border: 1px solid var(--line);
   background: var(--panel-2);
@@ -1011,7 +1015,7 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   right: 10px;
   bottom: 8px;
   font-size: 12px;
-  color: var(--muted);
+  color: #fff;
   background: rgba(0,0,0,.62);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1471,6 +1475,8 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .market-location-pin { width: 18px; height: 18px; }
   .icon-action { width: 38px; height: 38px; font-size: 16px; }
   .button.small { min-height: 38px; padding: 9px 10px; font-size: 12px; }
+  .role-panel .button.small { min-height: 44px; }
+  .admin-actions .button.small { min-height: 44px; }
   .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .admin-metric { padding: 12px; }
   .admin-metric strong { font-size: 21px; }
@@ -1478,7 +1484,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .admin-operation-grid, .admin-filter-grid, .admin-order-grid, .settings-account-grid, .health-grid { grid-template-columns: 1fr; }
   .admin-list-card { grid-template-columns: minmax(0, 1fr) auto; }
   .admin-list-card .admin-actions { grid-column: 1 / -1; }
-  .admin-actions .button, .admin-actions select { min-height: 42px; }
+  .admin-actions .button, .admin-actions select { min-height: 44px; }
   .admin-responsive-table thead { display: none; }
   .admin-responsive-table, .admin-responsive-table tbody, .admin-responsive-table tr, .admin-responsive-table td { display: block; width: 100%; }
   .admin-responsive-table tr { margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
@@ -1587,7 +1593,34 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
 .driver-waiting-copy strong { color: var(--accent); }
 .driver-waiting-copy span { color: var(--muted); font-size: 13px; line-height: 1.35; }
 
+.handoff-route-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.handoff-route-card > div {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.handoff-route-card small { color: var(--accent); font-weight: 900; }
+.handoff-route-card strong,
+.handoff-route-card span,
+.handoff-route-card em { overflow-wrap: anywhere; }
+.handoff-route-card span { color: var(--text); font-size: 13px; line-height: 1.35; }
+.handoff-route-card em { color: var(--muted); font-size: 11px; font-style: normal; }
+.route-location-warning { margin: 10px 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--panel-2); font-size: 13px; }
+
 @media (max-width: 768px) {
+  .handoff-route-card { grid-template-columns: 1fr; }
   .driver-waiting-copy,
   .operation-card .meta { overflow-wrap: anywhere; }
   .operation-card .toolbar { align-items: stretch; }

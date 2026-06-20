@@ -1488,7 +1488,7 @@ ul{list-style:none}
   }
   button,.btn-search,.btn-add,.btn-reorder,.btn-apply,.btn-secondary,.btn-checkout,.btn-continue,.btn-cart-back,.btn-place-order,.track-back-btn,.account-cancel{
     max-width:100%;
-    min-height:40px;
+    min-height:44px;
     line-height:1.15;
     white-space:normal;
     overflow-wrap:anywhere;
@@ -1924,7 +1924,7 @@ ul{list-style:none}
   .track-title h2{font-size:18px}
   .track-title p{font-size:12px}
   .track-actions{gap:6px}
-  .track-back-btn,.track-refresh-btn{padding:8px 10px;font-size:12px;min-height:36px}
+  .track-back-btn,.track-refresh-btn{padding:8px 10px;font-size:12px;min-height:44px}
   .track-summary{grid-template-columns:1fr;gap:8px;margin-bottom:12px}
   .track-summary-item{padding:10px;border-radius:12px}
   .track-summary-item strong{font-size:13px}
@@ -2744,11 +2744,11 @@ const deliveryFeeForKm = kilometers => roundDeliveryMoney(Math.max(0, Number(kil
 const trackStatusSteps = [
   {status:'placed',title:'Order placed',body:'HomeTaste received your order.'},
   {status:'accepted',title:'Order received',body:'The cook accepted your order.'},
-  {status:'preparing',title:'Cooking',body:'Your meal is being prepared.'},
-  {status:'ready',title:'Food ready',body:'Your meal is ready for pickup.'},
-  {status:'driver_assigned',title:'Driver assigned',body:'A driver accepted your delivery.'},
-  {status:'picked_up',title:'Driver picked up',body:'The driver has your order.'},
-  {status:'out_for_delivery',title:'On the way',body:'Your driver is on the route.'},
+  {status:'preparing',title:'Cooking',body:'The cook is preparing your order.'},
+  {status:'ready',title:'Food ready',body:'Your food is ready. Waiting for driver.'},
+  {status:'driver_assigned',title:'Driver assigned',body:'Driver is going to pick up your order.'},
+  {status:'picked_up',title:'Driver picked up',body:'Driver picked up your order.'},
+  {status:'out_for_delivery',title:'On the way',body:'Your order is on the way.'},
   {status:'near_you',title:'Near you',body:'The driver is close to your address.'},
   {status:'delivered',title:'Delivered',body:'Enjoy your meal!'}
 ];
@@ -5186,14 +5186,14 @@ function renderTrackDriverCard(order) {
   const title = status === 'cancelled'
     ? 'Order cancelled'
     : assigned
-      ? 'Driver assigned'
+      ? status === 'driver_assigned' ? 'Driver is going to the cook' : 'Driver assigned'
       : status === 'ready'
         ? 'Waiting for driver'
         : 'Finding a driver soon';
   const subtitle = status === 'cancelled'
     ? 'No driver action is needed.'
     : assigned
-      ? `${driverName} · ETA ${orderEtaLabel(order)} · ${formatTrackCoordinate(raw.driverLocation) || 'location updating'}${driverPhone ? ' · Call available' : ''}`
+      ? `${driverName} · ${status === 'driver_assigned' ? 'Picking up your order' : status === 'picked_up' ? 'Order collected from cook' : `ETA ${orderEtaLabel(order)}`}${driverPhone ? ' · Call available' : ''}`
       : status === 'ready'
         ? 'Your order is ready. A driver can accept it now.'
         : 'The cook is preparing your order.';
