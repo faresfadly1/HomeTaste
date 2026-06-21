@@ -2623,6 +2623,11 @@ ul{list-style:none}
             <button class="cart-tab active" type="button" data-fulfillment-mode="delivery" onclick="setFulfillmentMode('delivery')"><strong>Delivery</strong><small>To your address</small></button>
             <button class="cart-tab" type="button" data-fulfillment-mode="pickup" onclick="setFulfillmentMode('pickup')"><strong>Pickup</strong><small>Collect from cook</small></button>
           </div>
+          <div class="form-group checkout-delivery-address" id="checkoutDeliveryAddressGroup">
+            <label for="checkoutDeliveryAddress">Delivery address</label>
+            <input class="form-input" id="checkoutDeliveryAddress" type="text" autocomplete="street-address" placeholder="City, district or full address" oninput="handleCheckoutDeliveryAddress(this)">
+            <small id="checkoutDeliveryLocationStatus">Set the address where this order should be delivered.</small>
+          </div>
         </div>
         <div class="checkout-section">
           <h3>💳 Payment Method</h3>
@@ -4008,6 +4013,7 @@ function normalizeMarketCook(cook, normalizedDishes, rawState) {
     img: cardDishPhoto,
     profilePhoto,
     coverPhoto,
+    deliveryLocation: cook.deliveryLocation || null,
     bio: cook.bio || '',
     orders: stats.ordersTotal,
     followers: stats.followersTotal,
@@ -4122,6 +4128,15 @@ function applyMarketplaceState(rawState, options = {}) {
   currentUserId = user.id || currentUserId;
   if (previousUserId && currentUserId && !sameId(previousUserId, currentUserId)) confirmedSocialStates.clear();
   currentUserName = (user.name || currentUserName || 'User').trim() || 'User';
+  if (currentUserId) {
+    const profileLocationLabel = readableLocationLabel(user.authMeta?.locationLabel || '');
+    const profileLocationQuery = String(user.authMeta?.locationQuery || '').trim();
+    if (profileLocationLabel) localStorage.setItem(userAddressKey(), profileLocationLabel);
+    else localStorage.removeItem(userAddressKey());
+    if (profileLocationQuery) localStorage.setItem(userLocationQueryKey(), profileLocationQuery);
+    else if (profileLocationLabel) localStorage.setItem(userLocationQueryKey(), profileLocationLabel);
+    else localStorage.removeItem(userLocationQueryKey());
+  }
   localStorage.setItem('hometaste_user_name', currentUserName);
   if (user.country && supportedCountries.includes(user.country)) {
     selectedCountry = user.country;
@@ -5415,6 +5430,9 @@ function setFulfillmentMode(type) {
   updateCheckoutItems();
   const timeTitle = document.querySelector('#deliveryTimeOptions')?.closest('.checkout-section')?.querySelector('h3');
   if (timeTitle) timeTitle.textContent = cartFulfillmentMode === 'pickup' ? '⏰ Pickup Time' : '⏰ Delivery Time';
+  const addressGroup = document.getElementById('checkoutDeliveryAddressGroup');
+  if (addressGroup) addressGroup.hidden = cartFulfillmentMode === 'pickup';
+  syncCheckoutDeliveryAddress();
 }
 function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
@@ -6547,24 +6565,24 @@ function userLocationQueryKey() {
   return `hometaste_location_query_${currentUserId || 'guest'}`;
 }
 function currentSavedAddress() {
-  return readableLocationLabel(localStorage.getItem(userAddressKey())) ||
-    readableLocationLabel(localStorage.getItem('hometaste_location_label')) ||
-    readableLocationLabel(document.getElementById('cityLabel')?.dataset.city) ||
-    'Istanbul';
+  const scoped = readableLocationLabel(localStorage.getItem(userAddressKey()));
+  if (currentUserId) return scoped;
+  return scoped || readableLocationLabel(localStorage.getItem('hometaste_location_label')) || '';
 }
 function currentSavedLocationQuery() {
-  return localStorage.getItem(userLocationQueryKey()) ||
-    localStorage.getItem('hometaste_location_query') ||
-    currentSavedAddress();
+  const scoped = localStorage.getItem(userLocationQueryKey());
+  if (currentUserId) return scoped || currentSavedAddress();
+  return scoped || localStorage.getItem('hometaste_location_query') || currentSavedAddress();
 }
 
-function deliveryCoordinateFromText(value, fallback = { lat:41.0082, lng:28.9784 }) {
-  const text = String(value || '').toLowerCase();
+function deliveryCoordinateFromText(value) {
+  const text = String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const known = [
-    ['istanbul',41.0082,28.9784],['kadikoy',40.9909,29.0303],['besiktas',41.0438,29.0094],
-    ['bursa',40.1885,29.061],['ankara',39.9334,32.8597],['berlin',52.52,13.405],['munich',48.1351,11.582]
+    ['ankara demetevler',39.968,32.78],['demetevler',39.968,32.78],
+    ['kadikoy',40.9909,29.0303],['besiktas',41.0438,29.0094],['istanbul',41.0082,28.9784],
+    ['bursa',40.1885,29.061],['ankara',39.9334,32.8597],['izmir',38.4237,27.1428],['antalya',36.8969,30.7133]
   ].find(([name]) => text.includes(name));
-  return known ? { lat:known[1], lng:known[2] } : fallback;
+  return known ? { lat:known[1], lng:known[2] } : null;
 }
 function normalizeDeliveryLocation(value, fallbackText = '') {
   if (value && typeof value === 'object') {
@@ -6574,7 +6592,7 @@ function normalizeDeliveryLocation(value, fallbackText = '') {
   }
   const text = typeof value === 'string' ? value : fallbackText;
   const match = String(text || '').match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
-  return match ? { lat:Number(match[1]), lng:Number(match[2]) } : deliveryCoordinateFromText(text);
+  return match ? { lat:Number(match[1]), lng:Number(match[2]) } : deliveryCoordinateFromText(`${text || ''} ${fallbackText || ''}`);
 }
 function straightLineDeliveryKm(a, b) {
   const toRad = deg => deg * Math.PI / 180;
@@ -6586,13 +6604,39 @@ function straightLineDeliveryKm(a, b) {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 function deliveryEstimateForCart() {
-  if (!cart.length) return { distanceKm:0, fee:0 };
+  if (!cart.length) return { distanceKm:0, fee:0, valid:false };
   const firstDish = dishes.find(dish => sameId(dish.id, cart[0].id));
   const cook = cooks.find(item => sameId(item.id, firstDish?.cookId));
-  const cookPoint = deliveryCoordinateFromText(cook?.city || 'Istanbul');
-  const customerPoint = normalizeDeliveryLocation(currentSavedLocationQuery(), currentSavedAddress());
+  const checkout = document.getElementById('checkoutDeliveryAddress');
+  const checkoutAddress = readableLocationLabel(checkout?.value) || currentSavedAddress();
+  const checkoutQuery = checkout?.dataset.locationQuery || checkoutAddress || currentSavedLocationQuery();
+  const cookPoint = normalizeDeliveryLocation(cook?.deliveryLocation?.point, cook?.deliveryLocation?.label || cook?.city || '');
+  const customerPoint = normalizeDeliveryLocation(checkoutQuery, checkoutAddress);
+  if (!cookPoint || !customerPoint) return { distanceKm:0, fee:0, cookPoint, customerPoint, valid:false };
   const distanceKm = roundDeliveryKm(Math.max(.5, straightLineDeliveryKm(cookPoint, customerPoint)));
-  return { distanceKm, fee:deliveryFeeForKm(distanceKm), cookPoint, customerPoint };
+  return { distanceKm, fee:deliveryFeeForKm(distanceKm), cookPoint, customerPoint, valid:true };
+}
+
+function syncCheckoutDeliveryAddress() {
+  const input = document.getElementById('checkoutDeliveryAddress');
+  if (!input) return;
+  if (!input.value.trim()) input.value = currentSavedAddress();
+  if (!input.dataset.locationQuery) input.dataset.locationQuery = currentSavedLocationQuery() || input.value.trim();
+  const estimate = deliveryEstimateForCart();
+  const status = document.getElementById('checkoutDeliveryLocationStatus');
+  if (status) status.textContent = cartFulfillmentMode === 'pickup'
+    ? 'You will collect this order from the cook.'
+    : estimate.valid ? 'Delivery location ready.' : 'Set a valid delivery location before placing a delivery order.';
+  document.querySelector('.btn-place-order')?.toggleAttribute('disabled', cartFulfillmentMode === 'delivery' && !estimate.valid);
+}
+
+function handleCheckoutDeliveryAddress(input) {
+  input.dataset.locationQuery = input.value.trim();
+  if (currentUserId) {
+    localStorage.setItem(userAddressKey(), input.value.trim());
+    localStorage.setItem(userLocationQueryKey(), input.value.trim());
+  }
+  updateCheckoutItems();
 }
 
 // ===== CHECKOUT =====
@@ -6623,6 +6667,7 @@ function updateCheckoutItems() {
   deliveryEl.textContent = deliveryFee + ' ₺';
   serviceEl.textContent = serviceFee + ' ₺';
   totalEl.textContent = (sub + deliveryFee + serviceFee) + ' ₺';
+  syncCheckoutDeliveryAddress();
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
@@ -6728,6 +6773,13 @@ async function placeOrder(button = null) {
     }
   }
   const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
+  const checkoutAddressInput = document.getElementById('checkoutDeliveryAddress');
+  const checkoutAddress = readableLocationLabel(checkoutAddressInput?.value) || currentSavedAddress();
+  const checkoutLocation = checkoutAddressInput?.dataset.locationQuery || checkoutAddress;
+  if (cartFulfillmentMode === 'delivery' && (!checkoutAddress || !deliveryEstimateForCart().valid)) {
+    showToast('Set a valid delivery location before placing a delivery order.', 'error');
+    return;
+  }
   await withMarketButton(button, 'Placing...', async () => {
     try {
       pendingOrderPlacement = true;
@@ -6736,8 +6788,8 @@ async function placeOrder(button = null) {
           items,
           paymentMethod,
           fulfillmentType: cartFulfillmentMode,
-          deliveryAddress: currentSavedAddress(),
-          customerLocation: currentSavedLocationQuery(),
+          deliveryAddress: checkoutAddress,
+          customerLocation: checkoutLocation,
           scheduledFor
         }
       });

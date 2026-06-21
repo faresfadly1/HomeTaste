@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260620-delivery-handoff-01";
+const backendBuild = "20260621-strict-delivery-location-02";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1032,6 +1032,32 @@ function coordinateFromText(text, fallback = { lat: 41.0082, lng: 28.9784 }) {
   return known ? { lat: known[1], lng: known[2] } : fallback;
 }
 
+const DELIVERY_LOCATION_POINTS = [
+  { keys: ["ankara demetevler", "demetevler"], lat: 39.968, lng: 32.78, quality: "district", city: "Ankara", label: "Demetevler, Ankara" },
+  { keys: ["kadikoy", "kadıkoy", "kadıköy"], lat: 40.9909, lng: 29.0303, quality: "district", city: "Istanbul", label: "Kadikoy, Istanbul" },
+  { keys: ["besiktas", "beşiktaş"], lat: 41.0438, lng: 29.0094, quality: "district", city: "Istanbul", label: "Besiktas, Istanbul" },
+  { keys: ["istanbul"], lat: 41.0082, lng: 28.9784, quality: "city", city: "Istanbul", label: "Istanbul" },
+  { keys: ["ankara"], lat: 39.9334, lng: 32.8597, quality: "city", city: "Ankara", label: "Ankara" },
+  { keys: ["bursa"], lat: 40.1885, lng: 29.061, quality: "city", city: "Bursa", label: "Bursa" },
+  { keys: ["izmir", "i̇zmir"], lat: 38.4237, lng: 27.1428, quality: "city", city: "Izmir", label: "Izmir" },
+  { keys: ["antalya"], lat: 36.8969, lng: 30.7133, quality: "city", city: "Antalya", label: "Antalya" }
+];
+
+function normalizedLocationText(value) {
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en").replace(/[^a-z0-9çğıöşü]+/g, " ").trim();
+}
+
+function resolveDeliveryPoint(value, fallbackText = "") {
+  const exact = exactLocation(value);
+  const valueText = typeof value === "string" ? value : "";
+  const rawLabel = String(fallbackText || valueText || "").trim();
+  if (exact) return { point: exact, label: rawLabel || `${exact.lat}, ${exact.lng}`, quality: "exact", city: "" };
+  const normalized = normalizedLocationText(`${valueText} ${fallbackText}`);
+  const known = DELIVERY_LOCATION_POINTS.find((entry) => entry.keys.some((key) => normalized.includes(normalizedLocationText(key))));
+  if (!known) return { point: null, label: rawLabel, quality: "missing", city: "" };
+  return { point: { lat: known.lat, lng: known.lng }, label: rawLabel || known.label, quality: known.quality, city: known.city };
+}
+
 function normalizeLocation(value, fallbackText = "") {
   if (value && typeof value === "object") {
     const lat = Number(value.lat);
@@ -1057,13 +1083,23 @@ function exactLocation(value) {
 function cookPickupDetails(db, cookId) {
   const cook = db.cooks.find((item) => item.id === cookId);
   const owner = cook ? db.users.find((item) => item.id === cook.userId) : null;
-  const exact = exactLocation(owner?.authMeta?.locationQuery) || exactLocation(cook?.location) || exactLocation(owner?.location);
-  const address = String(owner?.authMeta?.locationLabel || cook?.address || owner?.city || cook?.city || "Cook address unavailable").trim();
+  const exactCandidate = exactLocation(owner?.authMeta?.locationQuery) || exactLocation(cook?.location) || exactLocation(owner?.location);
+  if (exactCandidate) {
+    const address = String(owner?.authMeta?.locationLabel || cook?.address || cook?.city || owner?.city || "Cook location").trim();
+    return { name: cook?.name || owner?.name || "HomeTaste cook", address, location: exactCandidate, exact: true, quality: "exact", city: resolveDeliveryPoint(cook?.city || owner?.city).city };
+  }
+  const canonicalCity = resolveDeliveryPoint(cook?.city || owner?.city || "");
+  const textCandidates = [cook?.address, owner?.authMeta?.locationLabel, cook?.city, owner?.city].filter(Boolean);
+  const resolvedCandidates = textCandidates.map((label) => resolveDeliveryPoint(label)).filter((item) => item.point && (!canonicalCity.city || !item.city || item.city === canonicalCity.city));
+  const resolved = resolvedCandidates.find((item) => item.quality === "district") || resolvedCandidates.find((item) => item.quality === "city") || canonicalCity;
+  const address = String(resolved?.label || cook?.city || owner?.city || "Cook address unavailable").trim();
   return {
     name: cook?.name || owner?.name || "HomeTaste cook",
     address,
-    location: exact || coordinateFromText(address || cook?.city || owner?.city || "Istanbul"),
-    exact: Boolean(exact)
+    location: resolved?.point || null,
+    exact: resolved?.quality === "exact",
+    quality: resolved?.quality || "missing",
+    city: resolved?.city || canonicalCity.city || ""
   };
 }
 
@@ -1087,8 +1123,9 @@ function routeForOrder(order) {
   const deliveryLeg = ["picked_up", "out_for_delivery", "near_you", "delivered"].includes(order.status);
   const origin = approach || deliveryLeg ? (order.driverLocation || order.cookLocation) : order.cookLocation;
   const destination = approach ? order.cookLocation : order.customerLocation;
-  const driver = origin || order.cookLocation || coordinateFromText("Kadikoy");
-  const customer = destination || normalizeLocation(order.deliveryAddress || "");
+  const driver = origin || order.cookLocation || null;
+  const customer = destination || order.customerLocation || null;
+  if (!driver || !customer) return { provider: mapProvider, driver, customer, distanceKm: 0, etaMinutes: null, leg: "location_unavailable", polyline: [], unavailable: true, optimizedAt: now() };
   const km = Math.max(0.5, distanceKm(driver, customer));
   const etaMinutes = Math.max(6, Math.round((km / 28) * 60 + 5));
   return {
@@ -1180,6 +1217,8 @@ function normalizeOrderDelivery(order) {
     dropoffAddress: stored.dropoffAddress || order.deliveryAddress || "",
     pickupLocationExact: Boolean(stored.pickupLocationExact ?? order.cookLocationExact),
     dropoffLocationExact: Boolean(stored.dropoffLocationExact ?? order.customerLocationExact),
+    pickupLocationQuality: stored.pickupLocationQuality || order.pickupLocationQuality || (stored.pickupLocationExact || order.cookLocationExact ? "exact" : "missing"),
+    dropoffLocationQuality: stored.dropoffLocationQuality || order.dropoffLocationQuality || (stored.dropoffLocationExact || order.customerLocationExact ? "exact" : "missing"),
     approachDistanceKm,
     approachStartedAt: stored.approachStartedAt || stored.startedAt || null,
     approachCompletedAt: stored.approachCompletedAt || null,
@@ -1197,7 +1236,8 @@ function normalizeOrderDelivery(order) {
     completedAt: stored.completedAt || null,
     lastLocation: stored.lastLocation || order.driverLocation || null,
     lastLocationAt: stored.lastLocationAt || null,
-    source: "cook_to_customer",
+    source: stored.source === "legacy_location_repair" ? "legacy_location_repair" : "cook_to_customer",
+    distanceSource: stored.distanceSource || order.distanceSource || "server_cook_to_customer",
     driverPayoutSource
   };
   order.deliveryFee = roundMoney(customerDeliveryFee);
@@ -1545,15 +1585,44 @@ function normalizeDb(db) {
     }
     order.scheduledFor ||= null;
     const pickup = cookPickupDetails(db, order.cookId);
-    order.customerLocation ||= normalizeLocation(order.deliveryAddress || "");
-    if (pickup.exact || !order.cookLocation) order.cookLocation = pickup.location;
-    order.cookAddress ||= pickup.address;
-    order.cookLocationExact = Boolean(order.cookLocationExact ?? pickup.exact);
-    order.customerLocationExact = Boolean(order.customerLocationExact ?? exactLocation(order.customerLocation));
+    const customer = db.users.find((item) => item.id === order.customerId);
+    const customerExact = exactLocation(customer?.authMeta?.locationQuery) || (order.customerLocationExact ? exactLocation(order.customerLocation) : null);
+    const dropoff = customerExact
+      ? { point: customerExact, label: order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer location", quality: "exact" }
+      : resolveDeliveryPoint(order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "");
+    const previousEstimatedKm = Number(order.delivery?.estimatedDistanceKm ?? order.deliveryDistanceKm ?? order.route?.distanceKm ?? 0);
+    const repairableLegacyLocation = order.requiresDriver && pickup.location && dropoff.point && previousEstimatedKm <= 0.5;
+    if (pickup.location && (repairableLegacyLocation || !order.cookLocation)) {
+      order.cookLocation = pickup.location;
+      order.cookAddress = pickup.address;
+    }
+    if (!order.cookAddress && pickup.address) order.cookAddress = pickup.address;
+    if (dropoff.point && (repairableLegacyLocation || !order.customerLocation)) order.customerLocation = dropoff.point;
+    order.cookLocationExact = repairableLegacyLocation ? pickup.exact : Boolean(order.cookLocationExact ?? pickup.exact);
+    order.customerLocationExact = repairableLegacyLocation ? dropoff.quality === "exact" : Boolean(order.customerLocationExact ?? (dropoff.quality === "exact"));
+    order.pickupLocationQuality ||= order.cookLocationExact ? "exact" : pickup.quality;
+    order.dropoffLocationQuality ||= order.customerLocationExact ? "exact" : dropoff.quality;
+    order.distanceSource = "server_cook_to_customer";
     order.driverLocation ||= null;
     if (order.requiresDriver) {
-      order.route ||= routeForOrder(order);
-      order.etaMinutes ||= order.route.etaMinutes;
+      const strictRoute = routeForOrder(order);
+      if (!strictRoute.unavailable && (repairableLegacyLocation || !order.route || order.route.unavailable)) order.route = strictRoute;
+      order.etaMinutes = order.route?.etaMinutes || null;
+      if (repairableLegacyLocation && strictRoute.distanceKm > 0.5) {
+        order.delivery ||= {};
+        order.delivery.estimatedDistanceKm = strictRoute.distanceKm;
+        order.delivery.estimatedFee = deliveryFeeForKm(strictRoute.distanceKm);
+        order.delivery.pickupLocation = pickup.location;
+        order.delivery.dropoffLocation = dropoff.point;
+        order.delivery.pickupAddress = pickup.address;
+        order.delivery.dropoffAddress = order.deliveryAddress || dropoff.label;
+        order.delivery.pickupLocationExact = pickup.exact;
+        order.delivery.dropoffLocationExact = dropoff.quality === "exact";
+        order.delivery.pickupLocationQuality = pickup.quality;
+        order.delivery.dropoffLocationQuality = dropoff.quality;
+        order.delivery.source = "legacy_location_repair";
+        order.delivery.distanceSource = "server_location_repair";
+      }
     }
     normalizeOrderDelivery(order);
     refreshOrderFinancials(order);
@@ -2450,6 +2519,18 @@ function cookStats(db, cookId) {
   };
 }
 
+function publicCookDeliveryLocation(db, cook) {
+  const pickup = cookPickupDetails(db, cook.id);
+  return {
+    label: pickup.address,
+    quality: pickup.quality,
+    point: pickup.location ? {
+      lat: Number(Number(pickup.location.lat).toFixed(3)),
+      lng: Number(Number(pickup.location.lng).toFixed(3))
+    } : null
+  };
+}
+
 function publicState(db, user = null) {
   syncCookProfilesFromUsers(db);
   const cooks = user?.role === "owner"
@@ -2458,6 +2539,7 @@ function publicState(db, user = null) {
   const cookIds = new Set(cooks.map((cook) => cook.id));
   const publicCooks = cooks.map((cook) => ({
     ...cook,
+    deliveryLocation: publicCookDeliveryLocation(db, cook),
     stats: cookStats(db, cook.id),
     mediaStatus: {
       profilePhoto: imageStorageStatus(db, cook.profilePhoto),
@@ -2523,6 +2605,7 @@ function publicMarketplaceState(db) {
   return publicPayload({
     cooks: cooks.map((cook) => ({
       ...cook,
+      deliveryLocation: publicCookDeliveryLocation(db, cook),
       stats: cookStats(db, cook.id),
       mediaStatus: {
         profilePhoto: imageStorageStatus(db, cook.profilePhoto),
@@ -3253,10 +3336,13 @@ async function api(req, res, pathname) {
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
-    const customerExactLocation = exactLocation(input.customerLocation);
-    const customerLocation = customerExactLocation || normalizeLocation(input.customerLocation, String(input.deliveryAddress || ""));
+    const customerPoint = resolveDeliveryPoint(input.customerLocation, String(input.deliveryAddress || ""));
+    const customerLocation = customerPoint.point;
     const pickup = cookPickupDetails(db, firstDish.cookId);
     const cookLocation = pickup.location;
+    if (fulfillmentType === "delivery" && (!cookLocation || !customerLocation)) {
+      return json(res, 400, { code: "DELIVERY_LOCATION_REQUIRED", error: "Set a valid cook and customer delivery location before placing a delivery order." });
+    }
     const order = {
       id: id("ord"),
       customerId: user.id,
@@ -3275,9 +3361,12 @@ async function api(req, res, pathname) {
       deliveryAddress: textValue(input.deliveryAddress || "", "Delivery address", { max: 240 }),
       scheduledFor: textValue(input.scheduledFor || "", "Scheduled time", { max: 80 }) || null,
       customerLocation,
-      customerLocationExact: Boolean(customerExactLocation),
+      customerLocationExact: customerPoint.quality === "exact",
       cookLocation,
       cookLocationExact: pickup.exact,
+      pickupLocationQuality: pickup.quality,
+      dropoffLocationQuality: customerPoint.quality,
+      distanceSource: "server_cook_to_customer",
       cookAddress: pickup.address,
       driverLocation: null,
       route: null,
@@ -3302,7 +3391,9 @@ async function api(req, res, pathname) {
       pickupAddress: pickup.address,
       dropoffAddress: order.deliveryAddress,
       pickupLocationExact: pickup.exact,
-      dropoffLocationExact: Boolean(customerExactLocation),
+      dropoffLocationExact: customerPoint.quality === "exact",
+      pickupLocationQuality: pickup.quality,
+      dropoffLocationQuality: customerPoint.quality,
       approachDistanceKm: 0,
       approachStartedAt: null,
       approachCompletedAt: null,
@@ -3318,6 +3409,7 @@ async function api(req, res, pathname) {
       lastLocation: null,
       lastLocationAt: null,
       source: order.requiresDriver ? "cook_to_customer" : "pickup",
+      distanceSource: order.requiresDriver ? "server_cook_to_customer" : "pickup",
       driverPayoutSource: order.requiresDriver ? "estimated" : "pickup"
     };
     normalizeOrderDelivery(order);

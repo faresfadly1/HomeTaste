@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260620-delivery-handoff-01";
+const APP_BUILD = "20260621-strict-delivery-location-02";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -39,6 +39,7 @@ let authProviderStatus = null;
 let authProviderStatusPromise = null;
 let ownerRefreshTimer = null;
 let refreshInFlight = false;
+let lastDriverStateFingerprint = "";
 let searchRenderTimer = null;
 let adminCookFilter = "active";
 let adminCookSearch = "";
@@ -130,6 +131,7 @@ function pruneRemovedCooks(nextState) {
 }
 function applyAdminState(nextState) {
   state = pruneRemovedCooks(nextState);
+  syncUserLocationFromState();
   return state;
 }
 const roleLabel = (role) => t(`role_${role}`, role === "owner" ? "admin" : role);
@@ -436,8 +438,8 @@ async function handleMarketplaceMessage(event) {
         method: "POST",
         body: JSON.stringify({
           items: payload.items || [],
-          deliveryAddress: payload.deliveryAddress || currentSavedAddress() || state.user.city || "",
-          customerLocation: payload.customerLocation || currentSavedLocationQuery() || state.user.city || "",
+          deliveryAddress: payload.deliveryAddress || currentSavedAddress() || "",
+          customerLocation: payload.customerLocation || currentSavedLocationQuery() || "",
           scheduledFor: payload.scheduledFor || "",
           paymentMethod: payload.paymentMethod || "cash",
           fulfillmentType: payload.fulfillmentType === "pickup" ? "pickup" : "delivery",
@@ -651,8 +653,13 @@ function readableLocationLabel(value) {
 function setLocationMap(query, label = query) {
   const cleanQuery = String(query || label || "").trim();
   const cleanLabel = readableLocationLabel(label) || t("currentLocation");
-  localStorage.setItem("hometaste_location_label", cleanLabel);
-  if (cleanQuery) localStorage.setItem("hometaste_location_query", cleanQuery);
+  if (state?.user?.id) {
+    localStorage.setItem(userAddressKey(), cleanLabel);
+    if (cleanQuery) localStorage.setItem(userLocationQueryKey(), cleanQuery);
+  } else {
+    localStorage.setItem("hometaste_location_label", cleanLabel);
+    if (cleanQuery) localStorage.setItem("hometaste_location_query", cleanQuery);
+  }
   const input = document.querySelector("#locationInput");
   if (input) {
     input.value = cleanLabel;
@@ -671,11 +678,24 @@ function userLocationQueryKey() {
 }
 
 function currentSavedAddress() {
-  return readableLocationLabel(localStorage.getItem(userAddressKey())) || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
+  const scoped = readableLocationLabel(localStorage.getItem(userAddressKey()));
+  return state?.user?.id ? scoped : scoped || readableLocationLabel(localStorage.getItem("hometaste_location_label")) || "";
 }
 
 function currentSavedLocationQuery() {
-  return localStorage.getItem(userLocationQueryKey()) || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
+  const scoped = localStorage.getItem(userLocationQueryKey());
+  return state?.user?.id ? scoped || currentSavedAddress() : scoped || localStorage.getItem("hometaste_location_query") || currentSavedAddress();
+}
+
+function syncUserLocationFromState() {
+  const user = state?.user;
+  if (!user?.id) return;
+  const label = readableLocationLabel(user.authMeta?.locationLabel || "");
+  const query = String(user.authMeta?.locationQuery || "").trim();
+  if (label) localStorage.setItem(`hometaste_address_${user.id}`, label);
+  else localStorage.removeItem(`hometaste_address_${user.id}`);
+  if (query || label) localStorage.setItem(`hometaste_location_query_${user.id}`, query || label);
+  else localStorage.removeItem(`hometaste_location_query_${user.id}`);
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -683,7 +703,7 @@ function updateAddressButton(value = currentSavedAddress()) {
   if (label) label.textContent = value || t("selectAddress");
 }
 
-function confirmLocation(value, mapQuery = value) {
+async function confirmLocation(value, mapQuery = value) {
   const clean = value.trim();
   if (!clean) return toast(t("enterAddress"), true);
   const label = readableLocationLabel(clean) || t("currentLocation");
@@ -692,13 +712,23 @@ function confirmLocation(value, mapQuery = value) {
   setLocationMap(mapQuery, label);
   updateAddressButton(label);
   closeLocation();
-  toast(t("addressSaved"));
+  try {
+    if (state?.user?.id) applyAdminState(await api("/api/users/profile", { method: "PATCH", body: JSON.stringify({ locationLabel: label, locationQuery: mapQuery || label }) }));
+    toast(t("addressSaved"));
+  } catch (error) {
+    toast(error.message || "Location could not be saved.", true);
+  }
 }
 
 function openLocation() {
   locationOverlay();
   document.querySelector("#locationOverlay").classList.add("open");
-  setLocationMap(currentSavedAddress() || (authCountry === "DE" ? "Berlin, Germany" : "Istanbul, Turkey"));
+  const saved = currentSavedAddress();
+  if (saved) setLocationMap(currentSavedLocationQuery() || saved, saved);
+  else {
+    const map = document.querySelector("#locationMap");
+    if (map) map.src = `https://maps.google.com/maps?q=${encodeURIComponent(state?.user?.city || "Turkey")}&z=8&output=embed`;
+  }
 }
 
 function closeLocation() {
@@ -855,8 +885,23 @@ async function refresh() {
   if (!token) return renderAuth();
   refreshInFlight = true;
   try {
-    applyAdminState(await api("/api/state"));
-    renderApp();
+    const nextState = await api("/api/state");
+    if (state?.user?.role === "driver") {
+      const fingerprint = JSON.stringify((nextState.orders || []).map((order) => [order.id, order.status, order.driverId, order.updatedAt, order.delivery?.lastLocationAt, order.driverPayout]));
+      applyAdminState(nextState);
+      if (fingerprint !== lastDriverStateFingerprint) {
+        lastDriverStateFingerprint = fingerprint;
+        const main = document.querySelector(".app-shell > .main");
+        if (main) {
+          main.innerHTML = renderPage();
+          bindPage();
+          syncDriverAutoTracking();
+        } else renderApp();
+      }
+    } else {
+      applyAdminState(nextState);
+      renderApp();
+    }
   } catch (error) {
     const message = String(error?.message || "");
     if (/unauthorized|sign in|session (?:expired|not found)/i.test(message)) {
@@ -3317,6 +3362,9 @@ function adminOrderDetails(order) {
           <span><small>Driver visibility</small><strong>${driverVisibilityLabel(order)}</strong></span>
           <span><small>Pickup location</small><strong>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</strong></span>
           <span><small>Dropoff location</small><strong>${order.fulfillmentType === "pickup" ? "Customer pickup" : (order.deliveryAddress || "No address")}</strong></span>
+          <span><small>Pickup quality</small><strong>${order.delivery?.pickupLocationQuality || order.pickupLocationQuality || "missing"}</strong></span>
+          <span><small>Dropoff quality</small><strong>${order.delivery?.dropoffLocationQuality || order.dropoffLocationQuality || "missing"}</strong></span>
+          <span><small>Distance source</small><strong>${order.delivery?.distanceSource || order.distanceSource || "server_cook_to_customer"}</strong></span>
         </div>
         <div class="detail-section"><h4>Items</h4>${order.items.map((item) => `<div class="row"><span>${item.qty}x ${item.name}</span><strong>${money(Number(item.price || 0) * Number(item.qty || 0))}</strong></div>`).join("")}</div>
         <div class="detail-section"><h4>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery handoff"}</h4>${order.fulfillmentType === "pickup" ? `<p>Customer pickup · no delivery fee, driver payout, route, or live tracking.</p>` : `<div class="admin-order-grid"><span><small>Cook finished</small><strong>${order.cookFinishedAt || order.delivery?.cookFinishedAt ? new Date(order.cookFinishedAt || order.delivery.cookFinishedAt).toLocaleString() : "Not yet"}</strong></span><span><small>Driver accepted</small><strong>${order.driverAcceptedAt || order.delivery?.driverAcceptedAt ? new Date(order.driverAcceptedAt || order.delivery.driverAcceptedAt).toLocaleString() : "Not yet"}</strong></span><span><small>Received from cook</small><strong>${order.driverReceivedFromCookAt || order.delivery?.driverReceivedFromCookAt ? new Date(order.driverReceivedFromCookAt || order.delivery.driverReceivedFromCookAt).toLocaleString() : "Not yet"}</strong></span><span><small>Approach distance</small><strong>${delivery.approachDistanceKm} km</strong></span><span><small>Delivery distance</small><strong>${delivery.deliveryLegDistanceKm} km</strong></span><span><small>Customer delivery</small><strong>${delivery.customerChargedDistanceKm} km · ${money(delivery.customerFee)}</strong><em>fixed at checkout</em></span><span><small>Driver payout</small><strong>${delivery.driverPayoutDistanceKm} km · ${money(delivery.driverPayout)}</strong><em>${delivery.driverPayoutSource}</em></span><span><small>Location updates</small><strong>${order.locationHistory?.length || 0}</strong></span></div>`}</div>
@@ -3366,6 +3414,8 @@ function driverOrderCard(order) {
   const route = order.route || {};
   const delivery = deliveryBreakdown(order);
   const assigned = order.driverId === state.user.id;
+  const completed = ["delivered", "cancelled"].includes(order.status);
+  const activeTrip = assigned && ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status);
   const readyToAccept = !assigned && !order.driverId && order.status === "ready";
   const waitingForCook = !assigned && !order.driverId && ["placed", "accepted", "preparing"].includes(order.status);
   const trackingState = driverTrackingStates.get(String(order.id));
@@ -3373,12 +3423,13 @@ function driverOrderCard(order) {
   const navUrl = mapsUrl(order);
   const pickupLocation = order.delivery?.pickupLocation || order.cookLocation;
   const dropoffLocation = order.delivery?.dropoffLocation || order.customerLocation;
-  const pickupExact = order.delivery?.pickupLocationExact ?? order.cookLocationExact;
-  const dropoffExact = order.delivery?.dropoffLocationExact ?? order.customerLocationExact;
+  const pickupQuality = order.delivery?.pickupLocationQuality || order.pickupLocationQuality || ((order.delivery?.pickupLocationExact ?? order.cookLocationExact) ? "exact" : "missing");
+  const dropoffQuality = order.delivery?.dropoffLocationQuality || order.dropoffLocationQuality || ((order.delivery?.dropoffLocationExact ?? order.customerLocationExact) ? "exact" : "missing");
   const coordinateLabel = (point) => point?.lat && point?.lng ? `${Number(point.lat).toFixed(5)}, ${Number(point.lng).toFixed(5)}` : "";
-  const stageTitle = order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Deliver to customer" : readyToAccept ? "Ready for driver pickup" : "Delivery order";
-  const mapLocationReady = order.status === "driver_assigned" || !order.driverId ? pickupExact : dropoffExact;
-  const estimateLabel = pickupExact && dropoffExact ? `${delivery.estimatedDistanceKm} km estimated delivery` : "Distance estimate needs exact locations";
+  const stageTitle = completed ? (order.status === "delivered" ? "Delivered" : "Cancelled") : order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Deliver to customer" : readyToAccept ? "Ready for driver pickup" : "Delivery order";
+  const mapLocationReady = order.status === "driver_assigned" || !order.driverId ? Boolean(pickupLocation) : Boolean(dropoffLocation);
+  const estimateLabel = pickupLocation && dropoffLocation ? `${delivery.estimatedDistanceKm} km estimated delivery` : "Delivery distance unavailable";
+  const payoutDistanceLabel = delivery.deliveryLegDistanceKm > 0 ? `Delivery: ${delivery.deliveryLegDistanceKm} km` : `Estimated delivery distance used: ${delivery.driverPayoutDistanceKm || delivery.estimatedDistanceKm} km`;
   return `
     <article class="operation-card">
       <div class="price-row">
@@ -3389,15 +3440,15 @@ function driverOrderCard(order) {
       <div class="meta">${estimateLabel} · ${money(delivery.estimatedFee)} estimated earning</div>
       ${waitingForCook ? `<div class="driver-waiting-copy"><strong>Waiting for cook</strong><span>The cook is preparing this order.</span><span>You can accept delivery when it is ready.</span></div>` : ""}
       <div class="handoff-route-card">
-        <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</span><em>${pickupExact && coordinateLabel(pickupLocation) ? coordinateLabel(pickupLocation) : "Exact location unavailable. Use address."}</em></div>
-        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${order.customerAddress || order.deliveryAddress || t("customerAddress")}</span><em>${dropoffExact && coordinateLabel(dropoffLocation) ? coordinateLabel(dropoffLocation) : "Exact location unavailable. Use address."}</em></div>
+        <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</span><em>${pickupLocation && coordinateLabel(pickupLocation) ? `${pickupQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(pickupLocation)}` : "Location unavailable. Use address."}</em></div>
+        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${order.customerAddress || order.deliveryAddress || t("customerAddress")}</span><em>${dropoffLocation && coordinateLabel(dropoffLocation) ? `${dropoffQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(dropoffLocation)}` : "Location unavailable. Use address."}</em></div>
       </div>
       <div class="meta">${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
-      ${waitingForCook ? "" : `<div class="delivery-breakdown"><strong>${order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong><span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Tracking starts after you accept."}</span><span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">Delivery: ${delivery.deliveryLegDistanceKm} km</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span><span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span></div>${mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Exact location unavailable. Use the address above.</div>`}`}
+      ${waitingForCook ? "" : `<div class="delivery-breakdown"><strong>${completed ? stageTitle : order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong>${completed ? "" : `<span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Tracking starts after you accept."}</span>`}<span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">${payoutDistanceLabel}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span>${completed ? `<span>Completed at ${new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toLocaleString()}</span>` : `<span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span>`}</div>${!completed ? (mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Location unavailable. Use the address above.</div>`) : ""}`}
       <div class="toolbar" style="margin:10px 0 0">
-        ${waitingForCook ? `<button class="button small secondary" type="button" disabled aria-disabled="true">Waiting for cook</button>` : readyToAccept ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
-        ${waitingForCook ? "" : `<a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>`}
-        ${assigned ? `<button class="button small secondary" data-driver-location="${order.id}">${t("updateLocation")}</button>` : ""}
+        ${completed ? "" : waitingForCook ? `<button class="button small secondary" type="button" disabled aria-disabled="true">Waiting for cook</button>` : readyToAccept ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
+        ${completed || waitingForCook ? "" : `<a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>`}
+        ${activeTrip ? `<button class="button small secondary" data-driver-location="${order.id}">${t("updateLocation")}</button>` : ""}
       </div>
     </article>
   `;
@@ -3406,7 +3457,10 @@ function driverOrderCard(order) {
 function routeMap(order) {
   const route = order.route || {};
   const points = route.polyline || [];
-  const center = points[1] || points[0] || order.customerLocation || order.driverLocation || {};
+  const goingToCook = order.status === "driver_assigned" || !order.driverId;
+  const center = goingToCook
+    ? (order.delivery?.pickupLocation || order.cookLocation || points[0] || {})
+    : (order.delivery?.dropoffLocation || order.customerLocation || points[1] || points[0] || {});
   const mapSrc = center.lat && center.lng ? `https://www.openstreetmap.org/export/embed.html?bbox=${center.lng - 0.035}%2C${center.lat - 0.025}%2C${center.lng + 0.035}%2C${center.lat + 0.025}&layer=mapnik&marker=${center.lat}%2C${center.lng}` : "";
   return `
     <div class="mini-map">
@@ -3414,7 +3468,7 @@ function routeMap(order) {
       <span class="map-dot pickup"></span>
       <span class="map-line"></span>
       <span class="map-dot dropoff"></span>
-    <strong>${route.leg === "approach_to_cook" ? "Route to cook" : "Route to customer"} · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
+    <strong>${goingToCook ? "Route to cook" : "Route to customer"} · ${t("eta")} ${route.etaMinutes || order.etaMinutes || "-"} min</strong>
     </div>
   `;
 }
@@ -3852,7 +3906,7 @@ function bindPage() {
     select.onchange = () => setOrderStatus(select.dataset.orderStatus, select.value, select);
   });
   document.querySelectorAll("[data-order-action]").forEach((button) => {
-    button.onclick = () => setOrderStatus(button.dataset.orderAction, button.dataset.status);
+    button.onclick = () => setOrderStatus(button.dataset.orderAction, button.dataset.status, button);
   });
   document.querySelectorAll("[data-market-page]").forEach((button) => {
     button.onclick = () => openMarketplacePage(button.dataset.marketPage);
@@ -3907,7 +3961,7 @@ function bindPage() {
     button.onclick = () => subscriptionAction(button.dataset.subscription, button.dataset.action);
   });
   document.querySelectorAll("[data-driver-accept]").forEach((button) => {
-    button.onclick = () => acceptDelivery(button.dataset.driverAccept);
+    button.onclick = () => acceptDelivery(button.dataset.driverAccept, button);
   });
   document.querySelectorAll("[data-driver-location]").forEach((button) => {
     button.onclick = () => updateDriverLocation(button.dataset.driverLocation);
@@ -4541,7 +4595,7 @@ function startDriverAutoTracking(orderId, initialPoint = null) {
     if (shouldSendDriverPoint(key, point)) await sendDriverLocation(key, point, { automatic: true, silent: true });
   }, (error) => {
     errorCount += 1;
-    const detail = error.code === 1 ? "Location permission denied" : "Waiting for a reliable location";
+    const detail = error.code === 1 ? "Enable location permission to track delivery automatically." : "Waiting for a reliable location";
     setDriverTrackingState(key, "Tracking error", detail);
     if (error.code === 1 || errorCount >= 3) stopDriverAutoTracking(key, detail);
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
@@ -4558,7 +4612,13 @@ function syncDriverAutoTracking() {
   active.forEach((orderId) => startDriverAutoTracking(orderId));
 }
 
-async function acceptDelivery(orderId) {
+async function acceptDelivery(orderId, control = null) {
+  if (control?.disabled) return;
+  const originalLabel = control?.textContent || "";
+  if (control) {
+    control.disabled = true;
+    control.textContent = "Accepting...";
+  }
   let driverLocation = null;
   try {
     driverLocation = await browserDriverLocation();
@@ -4570,6 +4630,11 @@ async function acceptDelivery(orderId) {
     renderApp();
   } catch (err) {
     toast(err.message, true);
+  } finally {
+    if (control?.isConnected) {
+      control.disabled = false;
+      control.textContent = originalLabel;
+    }
   }
 }
 
@@ -4642,6 +4707,11 @@ async function setOrderStatus(orderId, status, control = null) {
       return;
     }
   }
+  const originalLabel = control?.tagName === "BUTTON" ? control.textContent : "";
+  if (control) {
+    control.disabled = true;
+    if (originalLabel) control.textContent = "Saving...";
+  }
   try {
     state = await api(`/api/orders/${orderId}`, { method: "PATCH", body: JSON.stringify({ status, note }) });
     if (["delivered", "cancelled"].includes(status)) stopDriverAutoTracking(orderId, `Order ${status}`);
@@ -4650,6 +4720,11 @@ async function setOrderStatus(orderId, status, control = null) {
   } catch (err) {
     if (control) control.value = order.status;
     toast(err.message, true);
+  } finally {
+    if (control?.isConnected) {
+      control.disabled = false;
+      if (originalLabel) control.textContent = originalLabel;
+    }
   }
 }
 

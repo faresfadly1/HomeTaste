@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260620-delivery-handoff-01" && health.tracking?.deliveryRatePerKmTry === 6, "delivery handoff build exposes the canonical internal delivery rate");
+  assert(health.build === "20260621-strict-delivery-location-02" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -283,6 +283,9 @@ try {
   assert(mobileCheckoutMarkup.includes("To your address") && mobileCheckoutMarkup.includes("Collect from cook") && !mobileCheckoutMarkup.includes("₺/km") && !mobileCheckoutMarkup.includes("delivery-price-note"), "mobile Checkout keeps a simple fulfillment choice without distance formulas");
   assert(hostCartSource.indexOf('id="checkoutForm"') < hostCartSource.indexOf('data-fulfillment="delivery"') && !hostCartSource.includes("TL/km") && hostCartSource.includes("Total before delivery"), "host Cart moves the fulfillment choice into its Checkout section and hides technical math");
   assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
+  assert(marketplaceSrcEarly.includes('id="checkoutDeliveryAddress"') && marketplaceSrcEarly.includes("checkoutAddressInput?.value") && marketplaceSrcEarly.includes("Set a valid delivery location before placing a delivery order."), "mobile Checkout uses the current address input and blocks unresolved delivery locations");
+  assert(marketplaceSrcEarly.includes("if (currentUserId) return scoped") && appSrcEarly.includes("return state?.user?.id ? scoped"), "authenticated checkout locations use user-scoped storage without generic cross-user fallback");
+  assert(!/deliveryCoordinateFromText\(value, fallback\s*=\s*\{\s*lat:41\.0082/.test(marketplaceSrcEarly), "mobile delivery billing has no silent Istanbul coordinate fallback");
   assert(appSrcEarly.includes('new Set(["placed", "accepted", "preparing", "ready"])') && appSrcEarly.includes("Incoming delivery orders") && appSrcEarly.includes("Waiting for cook"), "driver state and UI expose incoming delivery orders before food is ready");
   const driverDashboardSource = appSrcEarly.split("function renderDashboard() {")[1]?.split("function renderSubscriptions()")[0] || "";
   const driverCardSource = appSrcEarly.split("function driverOrderCard(order) {")[1]?.split("function routeMap(order)")[0] || "";
@@ -294,7 +297,7 @@ try {
   assert(appSrcEarly.includes('document.addEventListener("visibilitychange"') && appSrcEarly.includes("setInterval(() => refresh(), isDriverSession ? 8000 : 10000)"), "driver state refreshes on visibility and a guarded safe interval");
   assert(appSrcEarly.includes("Driver visibility") && appSrcEarly.includes("Ready for driver") && appSrcEarly.includes("Assigned"), "admin order details explain driver visibility state");
   assert(marketplaceSrcEarly.includes("Finding a driver soon") && marketplaceSrcEarly.includes("The cook is preparing your order.") && marketplaceSrcEarly.includes("Waiting for driver") && marketplaceSrcEarly.includes("Driver assigned"), "customer Track Order uses clear pre-ready, ready, and assigned driver copy");
-  assert(appSrcEarly.includes("Pickup from cook") && appSrcEarly.includes("Drop off to customer") && appSrcEarly.includes("Exact location unavailable. Use address."), "driver cards show explicit pickup and dropoff details with a missing-location warning");
+  assert(appSrcEarly.includes("Pickup from cook") && appSrcEarly.includes("Drop off to customer") && appSrcEarly.includes("Location unavailable. Use address."), "driver cards show explicit pickup and dropoff details with a missing-location warning");
   assert(appSrcEarly.includes("Finish by cook") && appSrcEarly.includes("Received from cook") && appSrcEarly.includes("Deliver to customer"), "cook and driver handoff actions use friendly unambiguous labels");
   assert(appSrcEarly.includes("approachDistanceKm") && appSrcEarly.includes("deliveryLegDistanceKm") && appSrcEarly.includes("driverPayoutDistanceKm"), "driver UI separates approach and billable delivery distance");
   assert(appSrcEarly.includes("function renderCookOrderPanel()") && appSrcEarly.includes('data-status="ready">${t("foodFinished")}') && appSrcEarly.includes("Back to marketplace"), "cook My Orders opens a dedicated compact panel with Finish by cook controls");
@@ -306,6 +309,8 @@ try {
   assert(marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee") && marketplaceSrcEarly.includes("fulfillmentType: cartFulfillmentMode"), "switching fulfillment updates totals immediately and persists the selection");
   assert(marketplaceSrcEarly.includes("Customer pickup") && marketplaceSrcEarly.includes("No driver, live route, or delivery tracking is required") && marketplaceSrcEarly.includes("completePickupOrder"), "pickup Track Order hides driver tracking and supports customer completion");
   assert(appSrcEarly.includes("navigator.geolocation.watchPosition") && appSrcEarly.includes("Date.now() - previous.sentAt >= 20000") && appSrcEarly.includes("driverPointDistanceMeters(previous.point, point) >= 40"), "driver auto tracking uses browser watchPosition with 20-second or 40-meter throttling");
+  assert(appSrcEarly.includes("Enable location permission to track delivery automatically.") && appSrcEarly.includes("const activeTrip = assigned") && appSrcEarly.includes("completed || waitingForCook"), "driver active trips explain blocked location permission and delivered cards hide active controls");
+  assert(appSrcEarly.includes("lastDriverStateFingerprint") && appSrcEarly.includes('document.querySelector(".app-shell > .main")'), "driver refresh uses an in-flight guarded panel update without repainting an unchanged page");
   assert(appSrcEarly.includes("stopAllDriverAutoTracking") && appSrcEarly.includes('window.addEventListener("pagehide"') && appSrcEarly.includes("sendDriverLocation(orderId, current, { automatic: false"), "auto tracking stops at session/page boundaries while manual location remains available");
   assert(appSrcEarly.includes("settings-page-active") && stylesSrcEarly.includes(".market-shell.settings-page-active .market-user #logout"), "mobile Settings hides the duplicate header sign out action");
   assert(!/Cook Studio|cook-studio|activeCookStudioTab|setCookStudioTab/.test(marketplaceSrcEarly), "no user-facing new Cook Studio visual path remains");
@@ -640,6 +645,29 @@ try {
   subscription = customerState.subscriptions.find((item) => item.id === subscription.id);
   assert(subscription.status === "active" && subscription.skipWeeks.length === 1, "subscription pause/resume/skip-week flow saves");
 
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Ankara", locationLabel: "Ankara Demetevler", locationQuery: "Ankara Demetevler" });
+  customerState = await request(base, customer.token, "PATCH", "/api/users/profile", { city: "Istanbul", locationLabel: "Istanbul, Turkey", locationQuery: "Istanbul" });
+  const crossCityResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Istanbul, Turkey",
+    customerLocation: "Istanbul",
+    deliveryDistanceKm: 0.5,
+    deliveryFee: 3,
+    paymentMethod: "iban",
+    fulfillmentType: "delivery",
+    notes: "Ankara Istanbul strict location check"
+  });
+  const crossCityOrder = crossCityResult.state.orders.find((item) => item.notes === "Ankara Istanbul strict location check");
+  assert(crossCityOrder.deliveryDistanceKm > 300 && crossCityOrder.deliveryFee > 1800 && crossCityOrder.deliveryFee !== 3, "Ankara Demetevler to Istanbul uses server distance and cannot be spoofed to 3 TL");
+  assert(/ankara|demetevler/i.test(crossCityOrder.delivery.pickupAddress) && /istanbul/i.test(crossCityOrder.delivery.dropoffAddress), "cross-city delivery stores Ankara pickup and Istanbul dropoff labels");
+  assert(crossCityOrder.delivery.pickupLocationQuality === "district" && crossCityOrder.delivery.dropoffLocationQuality === "city" && crossCityOrder.delivery.distanceSource === "server_cook_to_customer", "order stores admin-only location quality and server distance source");
+  const missingCustomerLocation = await requestRaw(base, customer.token, "POST", "/api/orders", { items: [{ dishId: dish.id, qty: 1 }], deliveryAddress: "Unknown place", customerLocation: "Unknown place", paymentMethod: "iban", fulfillmentType: "delivery" });
+  assert(missingCustomerLocation.status === 400 && missingCustomerLocation.body.code === "DELIVERY_LOCATION_REQUIRED", "Delivery blocks an unrecognized customer location instead of falling back to Istanbul");
+  await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Unknown", locationLabel: "Unknown cook place", locationQuery: "Unknown cook place" });
+  const missingCookLocation = await requestRaw(base, customer.token, "POST", "/api/orders", { items: [{ dishId: dish.id, qty: 1 }], deliveryAddress: "Istanbul", customerLocation: "Istanbul", paymentMethod: "iban", fulfillmentType: "delivery" });
+  assert(missingCookLocation.status === 400 && missingCookLocation.body.code === "DELIVERY_LOCATION_REQUIRED", "Delivery blocks an unrecognized cook location instead of creating a fake minimum fee");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Kadikoy, Istanbul", locationLabel: "Moda, Kadikoy, Istanbul", locationQuery: "40.9909,29.0303" });
+
   const cardFallbackResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
     deliveryAddress: "Uskudar, Istanbul",
@@ -658,9 +686,9 @@ try {
     notes: "Second customer public stats order"
   });
   const secondCustomerCook = secondCustomerOrderResult.state.cooks.find((cook) => cook.id === ownerCook.id);
-  assert(secondCustomerOrderResult.state.orders.length === 1 && secondCustomerCook?.stats?.ordersTotal === 2, "cook order total includes orders from customers hidden from the current viewer");
+  assert(secondCustomerOrderResult.state.orders.length === 1 && secondCustomerCook?.stats?.ordersTotal === 3, "cook order total includes orders from customers hidden from the current viewer");
   const firstCustomerStatsState = await request(base, customer.token, "GET", "/api/state");
-  assert(firstCustomerStatsState.orders.length === 1 && firstCustomerStatsState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.ordersTotal === 2, "different customer receives the same complete public cook order total");
+  assert(firstCustomerStatsState.orders.length === 2 && firstCustomerStatsState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.ordersTotal === 3, "different customer receives the same complete public cook order total");
 
   const orderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
@@ -672,7 +700,7 @@ try {
     notes: "Flow check order"
   });
   customerState = orderResult.state;
-  const order = customerState.orders.find((item) => item.items.some((orderItem) => orderItem.dishId === dish.id));
+  const order = customerState.orders.find((item) => item.notes === "Flow check order");
   const expectedEstimatedFee = Math.round(Number(order.route.distanceKm) * 6 * 100) / 100;
   const expectedEstimatedTotal = Math.round((250 + 37.5 + expectedEstimatedFee) * 100) / 100;
   assert(order?.serviceFee === 37.5 && order.delivery?.ratePerKm === 6 && order.delivery?.estimatedDistanceKm === order.route.distanceKm && order.delivery?.customerChargedDistanceKm === order.route.distanceKm && order.delivery?.customerDeliveryFee === expectedEstimatedFee && order.deliveryFee === expectedEstimatedFee && order.total === expectedEstimatedTotal, "checkout fixes the customer delivery fee from cook-to-customer distance at 6 TL per km");
