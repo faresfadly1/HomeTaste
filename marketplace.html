@@ -4837,6 +4837,7 @@ function cookCard(c, staggerClass) {
   const profilePhoto = view.profilePhoto;
   const cookName = view.name;
   const dishName = displayText(c.dish, 'Homemade dish');
+  const offline = c.online === false;
   return `
   <div class="cook-card ${staggerClass}" onclick='openCookProfile(${jsArg(c.id)})'>
     <div class="cook-card-img">
@@ -4856,14 +4857,14 @@ function cookCard(c, staggerClass) {
         <div class="cook-rating">${view.rating.hasRating ? `<span class="star">★</span>${safeDisplayHtml(view.rating.label)} · ${safeDisplayHtml(view.rating.detail)}` : `${safeDisplayHtml(view.rating.label)} · ${safeDisplayHtml(view.rating.detail)}`}</div>
       </div>
       <div>
-        <span class="info-pill">${c.online ? '🟢' : '⚪'} ${safeDisplayHtml(c.availability)}</span>
+        <span class="info-pill">${c.online ? '🟢 Online' : '⚪ Offline'}</span>
         <span class="info-pill">⚡ ${safeDisplayHtml(c.prepTime)}</span>
       </div>
       <div class="cook-footer">
         <div><div class="cook-dish">${safeDisplayHtml(dishName)}</div><div style="font-size:11px;color:var(--text3)">${view.orders ? `${safeDisplayHtml(view.orders)} orders` : 'No orders yet'} · ${safeDisplayHtml(view.response)}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="cook-price">${safeDisplayHtml(c.price)} ₺</div>
-          ${c.dishId ? `<button class="btn-add" type="button" aria-label="Add ${escapeAttr(dishName)} to cart" onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>+ Add</button>` : ''}
+          ${c.dishId ? `<button class="btn-add" type="button" aria-label="${offline ? 'Cook is offline' : `Add ${escapeAttr(dishName)} to cart`}" ${offline ? 'disabled' : ''} onclick='event.stopPropagation();quickAddToCart(${jsArg(c.dishId)})'>${offline ? 'Unavailable' : '+ Add'}</button>` : ''}
         </div>
       </div>
     </div>
@@ -4893,6 +4894,7 @@ function dishCard(d, staggerClass, options = {}) {
   const favoriteBusy = pendingSocialKeys.has(socialActionKey({ type: 'like', dishId: d.id }));
   const dishName = displayText(d.name, 'Dish');
   const dishPhoto = safeImageSrc(d.img, defaultDishPhoto);
+  const offline = cook?.online === false;
   return `
   <div class="dish-card ${staggerClass}" onclick='openDishModal(${jsArg(d.id)})'>
     <div class="dish-img">
@@ -4909,7 +4911,7 @@ function dishCard(d, staggerClass, options = {}) {
         <div class="dish-cook">${cook ? `${safeDisplayHtml(cook.emoji, '👤')} ${safeDisplayHtml(cook.name)}` : ''}</div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="dish-price">${safeDisplayHtml(d.price)} ₺</div>
-          <button class="btn-add" type="button" aria-label="Add ${escapeAttr(dishName)} to cart" onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>+ Add</button>
+          <button class="btn-add" type="button" aria-label="${offline ? 'Cook is offline' : `Add ${escapeAttr(dishName)} to cart`}" ${offline ? 'disabled' : ''} onclick='event.stopPropagation();quickAddToCart(${jsArg(d.id)})'>${offline ? 'Unavailable' : '+ Add'}</button>
         </div>
       </div>
     </div>
@@ -5398,9 +5400,15 @@ function updateCartTotals() {
   document.getElementById('cartTotal').textContent = roundDeliveryMoney(sub + serviceFee) + ' ₺';
   const checkoutBtn = document.getElementById('cartCheckoutBtn');
   if (checkoutBtn) {
-    checkoutBtn.disabled = cart.length === 0;
-    checkoutBtn.style.opacity = cart.length === 0 ? '.55' : '1';
-    checkoutBtn.style.cursor = cart.length === 0 ? 'not-allowed' : 'pointer';
+    const offlineCook = cart.some(item => {
+      const dish = dishes.find(d => sameId(d.id, item.id));
+      const cookId = item.cookId || dish?.cookId;
+      return cooks.find(c => sameId(c.id, cookId))?.online === false;
+    });
+    checkoutBtn.disabled = cart.length === 0 || offlineCook;
+    checkoutBtn.textContent = offlineCook ? 'Unavailable' : tr('checkout');
+    checkoutBtn.style.opacity = (cart.length === 0 || offlineCook) ? '.55' : '1';
+    checkoutBtn.style.cursor = (cart.length === 0 || offlineCook) ? 'not-allowed' : 'pointer';
   }
 }
 function updateCartBadge() {
@@ -5436,6 +5444,12 @@ function setFulfillmentMode(type) {
 }
 function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
+  const offlineCook = cart.some(item => {
+    const dish = dishes.find(d => sameId(d.id, item.id));
+    const cookId = item.cookId || dish?.cookId;
+    return cooks.find(c => sameId(c.id, cookId))?.online === false;
+  });
+  if (offlineCook) { showToast('Cook is offline. Ordering is currently unavailable.', 'error'); return; }
   toggleCart(false);
   showPage('checkout', null);
   setFulfillmentMode(cartFulfillmentMode);
@@ -5451,10 +5465,14 @@ function backToCartFromCheckout() {
 function addToCart(dish) {
   const existing = cart.find(i => sameId(i.id, dish.id));
   const cook = cooks.find(c => sameId(c.id, dish.cookId));
+  if (cook?.online === false) {
+    showToast('Cook is offline. Ordering is currently unavailable.', 'error');
+    return;
+  }
   if (existing) {
     existing.qty++;
   } else {
-    cart.push({id: dish.id, name: dish.name, by: cook ? cook.name : 'Chef', price: dish.price, qty: 1, img: dish.img});
+    cart.push({id: dish.id, cookId: dish.cookId, name: dish.name, by: cook ? cook.name : 'Chef', price: dish.price, qty: 1, img: dish.img});
   }
   renderCart();
   showToast(`🛒 ${dish.name} added to cart!`, 'success');
@@ -5480,6 +5498,12 @@ function openDishModal(dishId) {
   document.getElementById('modalPrice').textContent = dish.price + ' ₺';
   document.getElementById('modalTags').innerHTML = `<span class="modal-tag">${safeDisplayHtml(dish.country || dish.tag, 'Country not set')}</span>`;
   document.getElementById('modalOptions').innerHTML = `<span class="modal-tag">⏱ ${safeDisplayHtml(dish.prepTime)}</span><span class="modal-tag">🌍 ${safeDisplayHtml(dish.country || dish.tag, 'Country not set')}</span>`;
+  const modalAddBtn = document.getElementById('modalAddBtn');
+  if (modalAddBtn) {
+    const offline = cook?.online === false;
+    modalAddBtn.disabled = offline;
+    modalAddBtn.textContent = offline ? 'Unavailable' : 'Order Now';
+  }
   document.getElementById('modalCook').innerHTML = cook ? `
     <div class="modal-cook-avatar">${cookAvatarInnerHtml(cook)}</div>
     <div class="modal-cook-info">
@@ -5491,7 +5515,14 @@ function openDishModal(dishId) {
   document.getElementById('dishModal').classList.add('open');
 }
 function addModalToCart() {
-  if (currentDish) { addToCart(currentDish); closeDishModal(); }
+  if (!currentDish) return;
+  const cook = cooks.find(c => sameId(c.id, currentDish.cookId));
+  if (cook?.online === false) {
+    showToast('Cook is offline. Ordering is currently unavailable.', 'error');
+    return;
+  }
+  addToCart(currentDish);
+  closeDishModal();
 }
 function closeDishModal() { document.getElementById('dishModal').classList.remove('open'); }
 function closeModal(e) { if (e.target === document.getElementById('dishModal')) closeDishModal(); }
@@ -6667,6 +6698,16 @@ function updateCheckoutItems() {
   deliveryEl.textContent = deliveryFee + ' ₺';
   serviceEl.textContent = serviceFee + ' ₺';
   totalEl.textContent = (sub + deliveryFee + serviceFee) + ' ₺';
+  const offlineCook = cart.some(item => {
+    const dish = dishes.find(d => sameId(d.id, item.id));
+    const cookId = item.cookId || dish?.cookId;
+    return cooks.find(c => sameId(c.id, cookId))?.online === false;
+  });
+  const placeOrderButton = document.querySelector('.btn-place-order');
+  if (placeOrderButton) {
+    placeOrderButton.disabled = offlineCook;
+    placeOrderButton.textContent = offlineCook ? 'Unavailable' : 'Place Order →';
+  }
   syncCheckoutDeliveryAddress();
 }
 function paymentName(method) {
@@ -6755,6 +6796,16 @@ function selectPayment(el) {
 }
 async function placeOrder(button = null) {
   if (cart.length === 0) { showToast('Your cart is empty!', 'error'); return; }
+  const offlineCook = cart.some(item => {
+    const dish = dishes.find(d => sameId(d.id, item.id));
+    const cookId = item.cookId || dish?.cookId;
+    return cooks.find(c => sameId(c.id, cookId))?.online === false;
+  });
+  if (offlineCook) {
+    showToast('Cook is offline. Ordering is currently unavailable.', 'error');
+    renderCart();
+    return;
+  }
   const items = cart.map(item => ({ dishId: item.id, name: item.name, qty: item.qty, price: item.price }));
   const activePayment = document.querySelector('#paymentMethods .payment-method.active');
   const paymentMethod = activePayment?.dataset.paymentMethod || paymentValue(activePayment?.dataset.paymentLabel || '') || 'cash';

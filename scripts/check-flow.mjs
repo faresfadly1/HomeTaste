@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260621-strict-delivery-location-02" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260621-availability-driver-chat-03" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -286,12 +286,16 @@ try {
   assert(marketplaceSrcEarly.includes('id="checkoutDeliveryAddress"') && marketplaceSrcEarly.includes("checkoutAddressInput?.value") && marketplaceSrcEarly.includes("Set a valid delivery location before placing a delivery order."), "mobile Checkout uses the current address input and blocks unresolved delivery locations");
   assert(marketplaceSrcEarly.includes("if (currentUserId) return scoped") && appSrcEarly.includes("return state?.user?.id ? scoped"), "authenticated checkout locations use user-scoped storage without generic cross-user fallback");
   assert(!/deliveryCoordinateFromText\(value, fallback\s*=\s*\{\s*lat:41\.0082/.test(marketplaceSrcEarly), "mobile delivery billing has no silent Istanbul coordinate fallback");
-  assert(appSrcEarly.includes('new Set(["placed", "accepted", "preparing", "ready"])') && appSrcEarly.includes("Incoming delivery orders") && appSrcEarly.includes("Waiting for cook"), "driver state and UI expose incoming delivery orders before food is ready");
+  assert(appSrcEarly.includes("function staticResolveDeliveryPoint") && appSrcEarly.includes("ankara demetevler") && !/staticCoordinateFromText\(value,\s*fallback\s*=/.test(appSrcEarly), "static checkout resolves known delivery points strictly without an Istanbul fallback");
+  assert(appSrcEarly.includes("This cook is currently offline and cannot accept new orders.") && appSrcEarly.includes("Ordering is currently unavailable."), "frontend and static API block new orders from offline cooks");
+  assert(appSrcEarly.includes('["placed", "accepted", "preparing"].includes(order.status)') && appSrcEarly.includes("Incoming delivery orders") && appSrcEarly.includes("Waiting for cook"), "driver state and UI expose incoming delivery orders before food is ready");
   const driverDashboardSource = appSrcEarly.split("function renderDashboard() {")[1]?.split("function renderSubscriptions()")[0] || "";
   const driverCardSource = appSrcEarly.split("function driverOrderCard(order) {")[1]?.split("function routeMap(order)")[0] || "";
   const driverOperationsSource = appSrcEarly.split("function renderDriverOperations() {")[1]?.split("function renderCustomerOperations()")[0] || "";
   const driverCopySource = `${driverDashboardSource}${driverCardSource}${driverOperationsSource}`;
   assert(driverCopySource.includes("Ready for driver pickup") && !driverCopySource.includes("Ready for pickup"), "driver ready-delivery sections and cards use unambiguous driver pickup copy");
+  assert(driverCopySource.includes("Active deliveries") && driverCopySource.includes("Completed today") && driverCopySource.includes("Delivery history") && driverCopySource.includes("driverPayout || order.driverEarnings?.finalPayout || 0"), "Driver Hub separates active/completed/history and daily earning only counts delivered payouts");
+  assert(driverCardSource.includes("${activeTrip ? (mapLocationReady ? routeMap(order)") && driverCardSource.includes("Valid pickup and dropoff locations required."), "only active deliveries render embedded maps and invalid routes do not show fake earnings");
   assert(mobileCheckoutMarkup.includes('<strong>Pickup</strong>') && mobileCheckoutMarkup.includes("Collect from cook"), "customer checkout keeps the Pickup fulfillment option unchanged");
   assert(appSrcEarly.includes('!order.driverId && order.status === "ready"') && appSrcEarly.includes('data-driver-accept="${order.id}"') && appSrcEarly.includes('disabled aria-disabled="true">Waiting for cook'), "driver acceptance stays enabled only for ready orders");
   assert(appSrcEarly.includes('document.addEventListener("visibilitychange"') && appSrcEarly.includes("setInterval(() => refresh(), isDriverSession ? 8000 : 10000)"), "driver state refreshes on visibility and a guarded safe interval");
@@ -300,7 +304,7 @@ try {
   assert(appSrcEarly.includes("Pickup from cook") && appSrcEarly.includes("Drop off to customer") && appSrcEarly.includes("Location unavailable. Use address."), "driver cards show explicit pickup and dropoff details with a missing-location warning");
   assert(appSrcEarly.includes("Finish by cook") && appSrcEarly.includes("Received from cook") && appSrcEarly.includes("Deliver to customer"), "cook and driver handoff actions use friendly unambiguous labels");
   assert(appSrcEarly.includes("approachDistanceKm") && appSrcEarly.includes("deliveryLegDistanceKm") && appSrcEarly.includes("driverPayoutDistanceKm"), "driver UI separates approach and billable delivery distance");
-  assert(appSrcEarly.includes("function renderCookOrderPanel()") && appSrcEarly.includes('data-status="ready">${t("foodFinished")}') && appSrcEarly.includes("Back to marketplace"), "cook My Orders opens a dedicated compact panel with Finish by cook controls");
+  assert(appSrcEarly.includes("function renderCookOrderPanel()") && appSrcEarly.includes('accepted: ["preparing", t("startPreparing")]') && appSrcEarly.includes('preparing: ["ready", t("foodFinished")]') && appSrcEarly.includes("Back to marketplace"), "cook My Orders opens a dedicated compact panel with one valid Accept, Prepare, Finish by cook flow");
   assert(appSrcEarly.includes("Cook finished") && appSrcEarly.includes("Driver accepted") && appSrcEarly.includes("Received from cook") && appSrcEarly.includes("Approach distance") && appSrcEarly.includes("Delivery distance"), "admin order details organize handoff timestamps and distance legs");
   assert(["The cook is preparing your order.", "Your food is ready. Waiting for driver.", "Driver is going to pick up your order.", "Driver picked up your order.", "Your order is on the way."].every((copy) => marketplaceSrcEarly.includes(copy)), "customer Track Order uses the complete friendly delivery handoff copy");
   assert(stylesSrcEarly.includes(".handoff-route-card") && stylesSrcEarly.includes(".admin-actions .button.small { min-height: 44px; }") && marketplaceSrcEarly.includes("min-height:44px"), "handoff controls meet mobile layout and tap-target requirements");
@@ -576,6 +580,9 @@ try {
   assert(cookState.cooks.find((cook) => cook.id === ownerCook.id)?.online === false, "cook can turn offline from their own interface");
   const offlineMarket = await request(base, "", "GET", "/api/marketplace");
   assert(offlineMarket.cooks.some((cook) => cook.id === ownerCook.id && cook.online === false), "offline cook is offline across the public marketplace");
+  const offlineOrderAttempt = await requestRaw(base, customer.token, "POST", "/api/orders", { items: [{ dishId: dish.id, qty: 1 }], deliveryAddress: "Kadikoy, Istanbul", customerLocation: "Kadikoy, Istanbul", paymentMethod: "iban", fulfillmentType: "delivery" });
+  assert(offlineOrderAttempt.status === 409 && /offline/i.test(offlineOrderAttempt.body.error || ""), "server rejects new orders from offline cooks");
+  assert((await request(base, customer.token, "GET", "/api/state")).orders.length >= 0, "existing customer state still loads while cook is offline");
   cookState = await request(base, cookAccount.token, "PATCH", "/api/cooks/online", { online: true });
   const onlineMarket = await request(base, "", "GET", "/api/marketplace");
   assert(onlineMarket.cooks.some((cook) => cook.id === ownerCook.id && cook.online === true), "online cook is online again across the public marketplace");
@@ -645,7 +652,7 @@ try {
   subscription = customerState.subscriptions.find((item) => item.id === subscription.id);
   assert(subscription.status === "active" && subscription.skipWeeks.length === 1, "subscription pause/resume/skip-week flow saves");
 
-  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Ankara", locationLabel: "Ankara Demetevler", locationQuery: "Ankara Demetevler" });
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Istanbul", locationLabel: "Ankara Demetevler", locationQuery: "Ankara Demetevler" });
   customerState = await request(base, customer.token, "PATCH", "/api/users/profile", { city: "Istanbul", locationLabel: "Istanbul, Turkey", locationQuery: "Istanbul" });
   const crossCityResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
@@ -661,6 +668,29 @@ try {
   assert(crossCityOrder.deliveryDistanceKm > 300 && crossCityOrder.deliveryFee > 1800 && crossCityOrder.deliveryFee !== 3, "Ankara Demetevler to Istanbul uses server distance and cannot be spoofed to 3 TL");
   assert(/ankara|demetevler/i.test(crossCityOrder.delivery.pickupAddress) && /istanbul/i.test(crossCityOrder.delivery.dropoffAddress), "cross-city delivery stores Ankara pickup and Istanbul dropoff labels");
   assert(crossCityOrder.delivery.pickupLocationQuality === "district" && crossCityOrder.delivery.dropoffLocationQuality === "city" && crossCityOrder.delivery.distanceSource === "server_cook_to_customer", "order stores admin-only location quality and server distance source");
+  assert(crossCityOrder.delivery.pickupAddress === "Ankara Demetevler" && /demetevler/i.test(crossCityOrder.delivery.pickupAddress), "stale broad Istanbul cook city does not override detailed Ankara Demetevler pickup");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Ankara", locationLabel: "Istanbul", locationQuery: "Istanbul" });
+  const inverseConflictResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Demetevler, Ankara",
+    customerLocation: "Demetevler, Ankara",
+    paymentMethod: "iban",
+    fulfillmentType: "delivery",
+    notes: "Inverse stale city strict location check"
+  });
+  const inverseConflictOrder = inverseConflictResult.state.orders.find((item) => item.notes === "Inverse stale city strict location check");
+  assert(inverseConflictOrder.deliveryDistanceKm > 300 && /istanbul/i.test(inverseConflictOrder.delivery.pickupAddress) && /demetevler|ankara/i.test(inverseConflictOrder.delivery.dropoffAddress), "inverse stale city conflict keeps detailed Istanbul pickup over broad Ankara city");
+  cookState = await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Istanbul", locationLabel: "Ankara Demetevler", locationQuery: "40.9909,29.0303" });
+  const exactPriorityResult = await request(base, customer.token, "POST", "/api/orders", {
+    items: [{ dishId: dish.id, qty: 1 }],
+    deliveryAddress: "Demetevler, Ankara",
+    customerLocation: "Demetevler, Ankara",
+    paymentMethod: "iban",
+    fulfillmentType: "delivery",
+    notes: "Exact coordinates priority strict location check"
+  });
+  const exactPriorityOrder = exactPriorityResult.state.orders.find((item) => item.notes === "Exact coordinates priority strict location check");
+  assert(exactPriorityOrder.delivery.pickupLocationQuality === "exact" && exactPriorityOrder.deliveryDistanceKm > 300, "exact saved coordinates take priority over conflicting detailed text and stale city");
   const missingCustomerLocation = await requestRaw(base, customer.token, "POST", "/api/orders", { items: [{ dishId: dish.id, qty: 1 }], deliveryAddress: "Unknown place", customerLocation: "Unknown place", paymentMethod: "iban", fulfillmentType: "delivery" });
   assert(missingCustomerLocation.status === 400 && missingCustomerLocation.body.code === "DELIVERY_LOCATION_REQUIRED", "Delivery blocks an unrecognized customer location instead of falling back to Istanbul");
   await request(base, cookAccount.token, "PATCH", "/api/users/profile", { city: "Unknown", locationLabel: "Unknown cook place", locationQuery: "Unknown cook place" });
@@ -686,9 +716,9 @@ try {
     notes: "Second customer public stats order"
   });
   const secondCustomerCook = secondCustomerOrderResult.state.cooks.find((cook) => cook.id === ownerCook.id);
-  assert(secondCustomerOrderResult.state.orders.length === 1 && secondCustomerCook?.stats?.ordersTotal === 3, "cook order total includes orders from customers hidden from the current viewer");
+  assert(secondCustomerOrderResult.state.orders.length === 1 && secondCustomerCook?.stats?.ordersTotal === 5, "cook order total includes orders from customers hidden from the current viewer");
   const firstCustomerStatsState = await request(base, customer.token, "GET", "/api/state");
-  assert(firstCustomerStatsState.orders.length === 2 && firstCustomerStatsState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.ordersTotal === 3, "different customer receives the same complete public cook order total");
+  assert(firstCustomerStatsState.orders.length === 4 && firstCustomerStatsState.cooks.find((cook) => cook.id === ownerCook.id)?.stats?.ordersTotal === 5, "different customer receives the same complete public cook order total");
 
   const orderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],

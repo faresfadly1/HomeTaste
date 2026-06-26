@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260621-strict-delivery-location-02";
+const backendBuild = "20260621-availability-driver-chat-03";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1058,6 +1058,14 @@ function resolveDeliveryPoint(value, fallbackText = "") {
   return { point: { lat: known.lat, lng: known.lng }, label: rawLabel || known.label, quality: known.quality, city: known.city };
 }
 
+function firstResolvedDeliveryPoint(...values) {
+  for (const value of values) {
+    const resolved = resolveDeliveryPoint(value);
+    if (resolved.point) return resolved;
+  }
+  return { point: null, label: "", quality: "missing", city: "" };
+}
+
 function normalizeLocation(value, fallbackText = "") {
   if (value && typeof value === "object") {
     const lat = Number(value.lat);
@@ -1083,15 +1091,24 @@ function exactLocation(value) {
 function cookPickupDetails(db, cookId) {
   const cook = db.cooks.find((item) => item.id === cookId);
   const owner = cook ? db.users.find((item) => item.id === cook.userId) : null;
-  const exactCandidate = exactLocation(owner?.authMeta?.locationQuery) || exactLocation(cook?.location) || exactLocation(owner?.location);
+  const exactCandidate = exactLocation(owner?.authMeta?.locationQuery)
+    || exactLocation(owner?.authMeta?.locationLabel)
+    || exactLocation(cook?.location)
+    || exactLocation(cook?.address)
+    || exactLocation(owner?.location);
   if (exactCandidate) {
     const address = String(owner?.authMeta?.locationLabel || cook?.address || cook?.city || owner?.city || "Cook location").trim();
-    return { name: cook?.name || owner?.name || "HomeTaste cook", address, location: exactCandidate, exact: true, quality: "exact", city: resolveDeliveryPoint(cook?.city || owner?.city).city };
+    return { name: cook?.name || owner?.name || "HomeTaste cook", address, location: exactCandidate, exact: true, quality: "exact", city: resolveDeliveryPoint(address).city || resolveDeliveryPoint(cook?.city || owner?.city).city };
   }
-  const canonicalCity = resolveDeliveryPoint(cook?.city || owner?.city || "");
-  const textCandidates = [cook?.address, owner?.authMeta?.locationLabel, cook?.city, owner?.city].filter(Boolean);
-  const resolvedCandidates = textCandidates.map((label) => resolveDeliveryPoint(label)).filter((item) => item.point && (!canonicalCity.city || !item.city || item.city === canonicalCity.city));
-  const resolved = resolvedCandidates.find((item) => item.quality === "district") || resolvedCandidates.find((item) => item.quality === "city") || canonicalCity;
+  const detailedLocation = firstResolvedDeliveryPoint(
+    owner?.authMeta?.locationQuery,
+    owner?.authMeta?.locationLabel,
+    cook?.address,
+    cook?.location,
+    cook?.district || owner?.district
+  );
+  const cityLocation = resolveDeliveryPoint(cook?.city || owner?.city || "");
+  const resolved = detailedLocation?.point ? detailedLocation : cityLocation;
   const address = String(resolved?.label || cook?.city || owner?.city || "Cook address unavailable").trim();
   return {
     name: cook?.name || owner?.name || "HomeTaste cook",
@@ -1099,7 +1116,7 @@ function cookPickupDetails(db, cookId) {
     location: resolved?.point || null,
     exact: resolved?.quality === "exact",
     quality: resolved?.quality || "missing",
-    city: resolved?.city || canonicalCity.city || ""
+    city: resolved?.city || cityLocation.city || ""
   };
 }
 
@@ -1956,6 +1973,7 @@ const fromOrderLegacy = (order) => ({
 const toMessage = (row) => ({
   id: row.id,
   orderId: row.order_id,
+  conversationType: row.conversation_type || "customer_cook",
   fromUserId: row.from_user_id,
   toCookId: row.to_cook_id,
   toUserId: row.to_user_id,
@@ -2448,6 +2466,22 @@ function visibleOrders(db, user) {
   return db.orders.filter((order) => order.customerId === user.id);
 }
 
+function messageConversationType(message, order = null) {
+  if (message?.conversationType === "cook_driver") return "cook_driver";
+  if (message?.conversationType === "customer_cook") return "customer_cook";
+  if (order?.driverId && (message?.fromUserId === order.driverId || message?.toUserId === order.driverId)) return "cook_driver";
+  return "customer_cook";
+}
+
+function canAccessMessage(db, user, order, conversationType) {
+  if (!user || !order) return false;
+  if (user.role === "owner") return true;
+  const cook = db.cooks.find((item) => item.id === order.cookId);
+  const cookOwnerId = cook?.userId;
+  if (conversationType === "cook_driver") return Boolean(order.driverId) && (user.id === cookOwnerId || user.id === order.driverId);
+  return user.id === order.customerId || user.id === cookOwnerId;
+}
+
 function orderWithVisibleContacts(db, order, user) {
   const driver = order.driverId ? db.users.find((item) => item.id === order.driverId) : null;
   const cook = db.cooks.find((item) => item.id === order.cookId);
@@ -2562,7 +2596,14 @@ function publicState(db, user = null) {
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: orders.map((order) => orderWithVisibleContacts(db, order, user)),
     messages: user
-      ? db.messages.filter((message) => orderIds.has(message.orderId))
+      ? db.messages.filter((message) => {
+        if (!orderIds.has(message.orderId)) return false;
+        const order = orders.find((item) => item.id === message.orderId);
+        return canAccessMessage(db, user, order, messageConversationType(message, order));
+      }).map((message) => {
+        const order = orders.find((item) => item.id === message.orderId);
+        return { ...message, conversationType: messageConversationType(message, order) };
+      })
       : [],
     mealPlans: db.mealPlans.filter((plan) => user?.role === "owner" || (plan.active && cookIds.has(plan.cookId))),
     subscriptions: user ? visibleSubscriptions(db, user) : [],
@@ -3332,6 +3373,10 @@ async function api(req, res, pathname) {
     const firstDish = db.dishes.find((dish) => dish.id === normalized[0].dishId);
     const sameCook = normalized.every((item) => db.dishes.find((dish) => dish.id === item.dishId)?.cookId === firstDish.cookId);
     if (!sameCook) return json(res, 400, { error: "Please order from one cook at a time." });
+    const orderCook = db.cooks.find((cook) => cook.id === firstDish.cookId);
+    if (!orderCook?.online) {
+      return json(res, 409, { error: "This cook is currently offline and cannot accept new orders." });
+    }
     const subtotal = normalized.reduce((sum, item) => sum + item.qty * item.price, 0);
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
@@ -3538,8 +3583,8 @@ async function api(req, res, pathname) {
     if (isOrderCook && !["accepted", "preparing", "ready", "cancelled"].includes(input.status)) {
       return json(res, 403, { error: "Cook can accept, prepare, mark finished, or cancel." });
     }
-    if (isOrderCook && input.status === "ready" && !["accepted", "preparing"].includes(order.status)) {
-      return json(res, 400, { error: "The cook can finish only an accepted or preparing order." });
+    if (isOrderCook && input.status === "ready" && order.status !== "preparing") {
+      return json(res, 400, { error: "Start preparing before marking food finished." });
     }
     if (isOrderDriver && !["picked_up", "out_for_delivery", "near_you", "delivered"].includes(input.status)) {
       return json(res, 403, { error: "Driver can receive, start delivery, mark near you, or mark delivered." });
@@ -3668,21 +3713,26 @@ async function api(req, res, pathname) {
     const input = await body(req);
     const order = db.orders.find((item) => item.id === input.orderId);
     if (!order) return json(res, 404, { error: "Order not found." });
-    const cook = cookForUser(db, user.id);
-    if (user.role !== "owner" && user.id !== order.customerId && cook?.id !== order.cookId && user.id !== order.driverId) return json(res, 403, { error: "No access to this chat." });
+    const conversationType = input.conversationType === "cook_driver" ? "cook_driver" : "customer_cook";
+    if (!canAccessMessage(db, user, order, conversationType)) return json(res, 403, { error: "No access to this chat." });
+    const relatedCook = db.cooks.find((item) => item.id === order.cookId);
+    const cookOwnerId = relatedCook?.userId;
+    const recipientId = conversationType === "cook_driver"
+      ? (user.id === order.driverId ? cookOwnerId : order.driverId)
+      : (user.id === order.customerId ? cookOwnerId : order.customerId);
     const msg = {
       id: id("msg"),
       orderId: order.id,
+      conversationType,
       fromUserId: user.id,
       toCookId: order.cookId,
+      toUserId: recipientId || "",
       text: textValue(input.text, "Message", { min: 1, max: 1000 }),
       createdAt: now()
     };
     db.messages.push(msg);
-    const relatedCook = db.cooks.find((item) => item.id === order.cookId);
-    const recipientId = user.id === order.customerId ? relatedCook?.userId : order.customerId;
     const messageNote = recipientId && recipientId !== user.id
-      ? optionalNotification(db, recipientId, "messages", `New message from ${user.name} about order ${order.id}.`, { type: "message", orderId: order.id, messageId: msg.id })
+      ? optionalNotification(db, recipientId, "messages", `New message from ${user.name} about order ${order.id}.`, { type: "message", orderId: order.id, messageId: msg.id, conversationType })
       : null;
     await saveDb(db);
     await sendPushBatch(db, [messageNote]);

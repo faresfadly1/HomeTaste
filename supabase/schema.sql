@@ -85,12 +85,15 @@ create table if not exists orders (
 create table if not exists messages (
   id text primary key,
   order_id text not null references orders(id) on delete cascade,
+  conversation_type text not null default 'customer_cook',
   from_user_id text not null references app_users(id) on delete cascade,
   to_cook_id text references cook_profiles(id) on delete set null,
   to_user_id text references app_users(id) on delete set null,
   text text not null,
   created_at timestamptz not null default now()
 );
+
+alter table messages add column if not exists conversation_type text not null default 'customer_cook';
 
 create table if not exists notifications (
   id text primary key,
@@ -304,7 +307,7 @@ alter table orders add column if not exists location_history jsonb not null defa
 alter table orders add column if not exists route jsonb;
 alter table orders add column if not exists eta_minutes integer;
 alter table orders drop constraint if exists orders_status_check;
-alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
+alter table orders add constraint orders_status_check check (status in ('placed', 'accepted', 'preparing', 'ready', 'driver_assigned', 'picked_up', 'out_for_delivery', 'near_you', 'delivered', 'cancelled'));
 alter table notifications add column if not exists data jsonb not null default '{}'::jsonb;
 alter table app_sessions add column if not exists expires_at timestamptz not null default (now() + interval '7 days');
 alter table payments add column if not exists external_payment_id text;
