@@ -938,7 +938,7 @@ body.app-light .auth-wrap {
 }
 .market-content.cook-orders-active { grid-template-columns: 1fr; }
 .market-content.cook-orders-active .market-frame { display: none; }
-.market-content.cook-orders-active .role-panel { border-left: 0; width: min(900px, 100%); margin: 0 auto; }
+.market-content.cook-orders-active .role-panel { border-left: 0; width: min(1180px, 100%); margin: 0 auto; }
 .role-panel {
   overflow: auto;
   border-left: 1px solid var(--line);
@@ -961,6 +961,270 @@ html[dir="rtl"] .role-panel { border-left: 0; border-right: 1px solid var(--line
   background: var(--panel-2);
   border-radius: var(--radius);
   padding: 12px;
+  margin-top: 12px;
+}
+
+.cook-orders-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 4px 0 24px;
+}
+
+.cook-orders-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cook-orders-header h3 {
+  margin: 0 0 4px;
+  font-size: clamp(24px, 4vw, 38px);
+  line-height: 1;
+}
+
+.cook-orders-header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.cook-order-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.cook-order-summary span {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-2);
+}
+
+.cook-order-summary strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.cook-order-summary small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cook-order-section {
+  margin-top: 18px;
+}
+
+.cook-order-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cook-order-section-head h4 {
+  margin: 0;
+}
+
+.cook-order-section-head span {
+  display: inline-flex;
+  min-width: 30px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 106, 26, .14);
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.cook-order-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cook-order-card {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+}
+
+.cook-order-card-head,
+.cook-order-meta,
+.cook-order-line,
+.cook-order-chat-actions,
+.cook-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cook-order-card-head {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cook-order-card-head div {
+  min-width: 0;
+}
+
+.cook-order-card-head small {
+  display: block;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.cook-order-card-head strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.cook-order-status {
+  flex: 0 0 auto;
+  max-width: 48%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 106, 26, .14);
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.cook-order-status.status-preparing,
+.cook-order-status.status-accepted { background: rgba(245, 158, 11, .16); color: #b45309; }
+.cook-order-status.status-ready,
+.cook-order-status.status-driver_assigned { background: rgba(16, 185, 129, .16); color: #047857; }
+.cook-order-status.status-cancelled { background: rgba(239, 68, 68, .14); color: #b91c1c; }
+.cook-order-status.status-delivered { background: rgba(34, 197, 94, .16); color: #15803d; }
+
+.cook-order-meta {
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cook-order-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cook-order-items {
+  display: grid;
+  gap: 8px;
+}
+
+.cook-order-line {
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.cook-order-line span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.cook-order-line strong {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+.cook-order-address,
+.cook-order-driver,
+.cook-order-handoff {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .48);
+}
+
+.cook-order-address small,
+.cook-order-driver small {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.cook-order-address span,
+.cook-order-driver span,
+.cook-order-handoff span {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.cook-order-handoff strong {
+  color: var(--brand);
+}
+
+.cook-order-chat-actions,
+.cook-order-actions {
+  flex-wrap: wrap;
+}
+
+.cook-order-chat-actions .button,
+.cook-order-actions .button,
+.cook-order-primary {
+  min-height: 44px;
+}
+
+.cook-order-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+.cook-order-empty {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.cook-order-empty strong {
+  color: var(--text);
+}
+
+.cook-order-history {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-2);
+  padding: 12px;
+}
+
+.cook-order-history summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.cook-order-history .cook-order-list {
   margin-top: 12px;
 }
 .delivery-breakdown {
@@ -1621,11 +1885,65 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
 .route-location-warning { margin: 10px 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--panel-2); font-size: 13px; }
 
 @media (max-width: 768px) {
+  .cook-orders-page {
+    padding: 2px 0 calc(98px + env(safe-area-inset-bottom));
+  }
+  .cook-orders-header {
+    display: grid;
+    gap: 12px;
+  }
+  .cook-orders-header h3 {
+    font-size: 26px;
+  }
+  .cook-orders-header .button {
+    width: 100%;
+  }
+  .cook-order-summary,
+  .cook-order-list {
+    grid-template-columns: 1fr;
+  }
+  .cook-order-card {
+    border-radius: 16px;
+    padding: 13px;
+  }
+  .cook-order-card-head strong {
+    font-size: 17px;
+  }
+  .cook-order-status {
+    max-width: 52%;
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+  .cook-order-chat-actions .button {
+    flex: 1 1 140px;
+  }
+  .cook-order-line span {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
   .handoff-route-card { grid-template-columns: 1fr; }
   .driver-waiting-copy,
   .operation-card .meta { overflow-wrap: anywhere; }
   .operation-card .toolbar { align-items: stretch; }
   .operation-card .toolbar .button { min-height: 44px; }
+}
+
+@media (max-width: 359px) {
+  .cook-order-card-head {
+    display: grid;
+  }
+  .cook-order-status {
+    max-width: 100%;
+    justify-self: start;
+  }
+  .cook-order-meta {
+    display: grid;
+  }
+  .cook-order-chat-actions {
+    display: grid;
+  }
 }
 
 @media (max-width: 380px) {

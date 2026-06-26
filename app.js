@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260621-availability-driver-chat-03";
+const APP_BUILD = "20260626-cook-orders-polish-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -53,6 +53,9 @@ let selectedAdminOrderId = "";
 let pendingChatOpen = null;
 let systemHealth = null;
 let systemHealthLoading = false;
+let cookOrdersSyncInFlight = false;
+let cookOrdersRefreshTimer = null;
+const pendingCookOrderActions = new Set();
 const adminReadChatIds = new Set((() => {
   try { return JSON.parse(localStorage.getItem("hometaste_admin_read_chats") || "[]"); }
   catch { return []; }
@@ -323,6 +326,8 @@ async function handleMarketplaceMessage(event) {
     document.querySelector(".market-shell")?.classList.toggle("settings-page-active", currentMarketPage === "settings");
     if (isCook()) refreshEmbeddedRolePanel();
     updateRolePanelVisibility();
+    scheduleCookOrdersRefresh();
+    if (isCookOrdersActive()) refreshCookOrders();
     return;
   }
   if (event.data.action === "market-state-request") {
@@ -532,6 +537,76 @@ function refreshEmbeddedRolePanel() {
   panel.innerHTML = renderRoleOperations();
   updateRolePanelVisibility();
   bindPage();
+}
+
+function isCookOrdersActive() {
+  return Boolean(isCook() && currentMarketPage === "orders");
+}
+
+function scheduleCookOrdersRefresh() {
+  if (cookOrdersRefreshTimer) {
+    clearInterval(cookOrdersRefreshTimer);
+    cookOrdersRefreshTimer = null;
+  }
+  if (isCookOrdersActive()) {
+    cookOrdersRefreshTimer = setInterval(() => refreshCookOrders(), 10000);
+  }
+}
+
+async function refreshCookOrders() {
+  if (!isCookOrdersActive() || cookOrdersSyncInFlight || !token) return;
+  cookOrdersSyncInFlight = true;
+  try {
+    const previous = cookOrdersFingerprint(state?.orders || []);
+    const nextState = await api("/api/state");
+    applyAdminState(nextState);
+    if (previous !== cookOrdersFingerprint(state.orders || [])) patchCookOrdersUI();
+  } catch (error) {
+    console.warn("Cook orders refresh failed", error);
+  } finally {
+    cookOrdersSyncInFlight = false;
+  }
+}
+
+function cookOrdersFingerprint(orders = []) {
+  return JSON.stringify((orders || []).map((order) => [
+    order.id,
+    order.status,
+    order.driverId,
+    order.updatedAt,
+    order.total,
+    order.scheduledFor
+  ]));
+}
+
+function patchCookOrdersUI() {
+  const panel = document.querySelector(".role-panel .cook-orders-page");
+  if (!panel) return refreshEmbeddedRolePanel();
+  const scrollY = window.scrollY;
+  panel.outerHTML = renderCookOrderPanel();
+  bindPage();
+  window.scrollTo({ top: scrollY, left: window.scrollX });
+}
+
+function renderSingleCookOrderCard(orderId) {
+  const card = [...document.querySelectorAll("[data-cook-order-card]")]
+    .find((node) => sameId(node.dataset.cookOrderCard, orderId));
+  if (!card) return patchCookOrdersUI();
+  const order = (state.orders || []).find((item) => sameId(item.id, orderId));
+  if (!order || !isVisibleCookOrder(order)) return patchCookOrdersUI();
+  const scrollY = window.scrollY;
+  card.outerHTML = cookOrderCard(order);
+  refreshCookOrderCounters();
+  bindPage();
+  window.scrollTo({ top: scrollY, left: window.scrollX });
+}
+
+function refreshCookOrderCounters() {
+  const stats = cookOrderGroups();
+  const activeCount = document.querySelector("[data-cook-order-count='active']");
+  const completedCount = document.querySelector("[data-cook-order-count='completed']");
+  if (activeCount) activeCount.textContent = String(stats.active.length);
+  if (completedCount) completedCount.textContent = String(stats.completedToday.length);
 }
 
 function toggleLanguageMenu(event) {
@@ -2714,6 +2789,7 @@ function renderApp() {
   applyAppearance();
   if (!state?.user) {
     scheduleOwnerRefresh();
+    scheduleCookOrdersRefresh();
     return renderAuth();
   }
   if (page === "become" || page === "cook") {
@@ -2722,6 +2798,7 @@ function renderApp() {
   }
   if (!isOwner() && !isDriver() && !["settings", "subscriptions"].includes(page)) return renderMarketplaceFrame();
   scheduleOwnerRefresh();
+  scheduleCookOrdersRefresh();
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
@@ -2793,6 +2870,8 @@ function renderMarketplaceFrame() {
     sendPreferenceToMarketplace("theme", "light");
     updateRolePanelVisibility();
   });
+  scheduleCookOrdersRefresh();
+  if (showCookOrders) refreshCookOrders();
   bindPage();
   if (isDriver()) syncDriverAutoTracking();
 }
@@ -3660,12 +3739,157 @@ function renderRoleOperations() {
 }
 
 function renderCookOrderPanel() {
-  const active = (state.orders || []).filter((order) => !["delivered", "cancelled"].includes(order.status));
+  const groups = cookOrderGroups();
   return `
-    <h3>Cook orders</h3>
-    <p class="meta">Accept, prepare, then finish each order for pickup.</p>
-    <button class="button small secondary" type="button" data-cook-orders-close>Back to marketplace</button>
-    ${active.map(orderOperationCard).join("") || `<div class="empty">No active cook orders yet.</div>`}
+    <section class="cook-orders-page">
+      <div class="cook-orders-header">
+        <div>
+          <h3>Cook Orders</h3>
+          <p>Accept, prepare, and finish each order when it is ready for handoff.</p>
+        </div>
+        <button class="button small secondary" type="button" data-cook-orders-close>Back to marketplace</button>
+      </div>
+      <div class="cook-order-summary" aria-label="Cook order summary">
+        <span><strong data-cook-order-count="active">${groups.active.length}</strong><small>Active</small></span>
+        <span><strong data-cook-order-count="completed">${groups.completedToday.length}</strong><small>Completed today</small></span>
+      </div>
+      <section class="cook-order-section">
+        <div class="cook-order-section-head"><h4>Active orders</h4><span>${groups.active.length}</span></div>
+        <div class="cook-order-list">
+          ${groups.active.map(cookOrderCard).join("") || `<div class="cook-order-empty"><strong>No active orders</strong><span>New orders will appear here when customers order from you.</span></div>`}
+        </div>
+      </section>
+      <section class="cook-order-section">
+        <div class="cook-order-section-head"><h4>Completed today</h4><span>${groups.completedToday.length}</span></div>
+        <div class="cook-order-list cook-order-list-muted">
+          ${groups.completedToday.map(cookOrderCard).join("") || `<div class="cook-order-empty"><strong>No completed orders today.</strong><span>Finished handoffs will show here.</span></div>`}
+        </div>
+      </section>
+      ${groups.cancelled.length ? `<details class="cook-order-history"><summary>Cancelled history</summary><div class="cook-order-list cook-order-list-muted">${groups.cancelled.map(cookOrderCard).join("")}</div></details>` : ""}
+    </section>
+  `;
+}
+
+function cookOrderGroups() {
+  const cook = myCook();
+  const cookOrders = (state.orders || [])
+    .filter((order) => !cook?.id || sameId(order.cookId, cook.id))
+    .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt));
+  const activeStatuses = new Set(["placed", "accepted", "preparing", "ready", "driver_assigned", "picked_up", "out_for_delivery", "near_you"]);
+  return {
+    active: cookOrders.filter((order) => activeStatuses.has(order.status)),
+    completedToday: cookOrders.filter((order) => order.status === "delivered" && isToday(order.updatedAt || order.delivery?.completedAt || order.createdAt)),
+    cancelled: cookOrders.filter((order) => order.status === "cancelled").slice(0, 8)
+  };
+}
+
+function isVisibleCookOrder(order) {
+  return cookOrderGroups().active.concat(cookOrderGroups().completedToday, cookOrderGroups().cancelled)
+    .some((item) => sameId(item.id, order.id));
+}
+
+function shortOrderRef(order) {
+  const id = String(order.id || "");
+  const compact = id.replace(/^ord[_-]?/i, "").replace(/[^a-z0-9]/gi, "");
+  return `#${(compact.slice(-4) || compact || "ORDER").toUpperCase()}`;
+}
+
+function cookOrderFulfillmentLabel(order) {
+  return order.fulfillmentType === "pickup" || order.requiresDriver === false ? "Customer pickup" : "Delivery";
+}
+
+function cookOrderStatusText(order) {
+  if (order.status === "ready" && order.fulfillmentType === "pickup") return "Ready for customer pickup";
+  if (order.status === "ready") return "Ready for driver pickup";
+  const labels = {
+    placed: "New order",
+    accepted: "Accepted",
+    preparing: "Preparing",
+    driver_assigned: "Driver assigned",
+    picked_up: "Driver picked up",
+    out_for_delivery: "On the way",
+    near_you: "Near customer",
+    delivered: order.fulfillmentType === "pickup" ? "Collected" : "Delivered",
+    cancelled: "Cancelled"
+  };
+  return labels[order.status] || statusLabel(order.status);
+}
+
+function cookOrderStatusClass(order) {
+  return `status-${String(order.status || "unknown").replace(/[^a-z0-9_-]/gi, "")}`;
+}
+
+function cookOrderScheduleLabel(order) {
+  return order.scheduledFor ? `Scheduled ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP";
+}
+
+function cookOrderDriverStatus(order) {
+  if (order.fulfillmentType === "pickup" || order.requiresDriver === false) return "";
+  const driver = state.users?.find((user) => sameId(user.id, order.driverId));
+  if (driver) return `Driver: ${driver.name || "Assigned"}`;
+  if (order.status === "ready") return "Waiting for driver";
+  return "Driver not assigned yet";
+}
+
+function cookOrderItems(order) {
+  return (order.items || []).map((item) => `
+    <div class="cook-order-line">
+      <span>${Number(item.qty || 1)}x ${escapeAttr(item.name || "Dish")}</span>
+      <strong>${money(Number(item.price || 0) * Number(item.qty || 1))}</strong>
+    </div>
+  `).join("");
+}
+
+function cookOrderPrimaryAction(order) {
+  const pending = pendingCookOrderActions.has(String(order.id));
+  const next = {
+    placed: ["accepted", "Accept order"],
+    accepted: ["preparing", "Start preparing"],
+    preparing: ["ready", "Finish by cook"]
+  }[order.status];
+  if (next) {
+    return `<button class="button cook-order-primary" type="button" data-cook-order-action="${escapeAttr(order.id)}" data-status="${next[0]}" ${pending ? "disabled" : ""}>${pending ? "Updating…" : next[1]}</button>`;
+  }
+  if (order.status === "ready") {
+    return `<div class="cook-order-handoff"><strong>${order.fulfillmentType === "pickup" ? "Ready for customer pickup" : "Ready for driver pickup"}</strong><span>${order.fulfillmentType === "pickup" ? "The customer can collect this order." : "Waiting for driver"}</span></div>`;
+  }
+  if (["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status)) {
+    return `<div class="cook-order-handoff"><strong>${cookOrderStatusText(order)}</strong><span>${cookOrderDriverStatus(order)}</span></div>`;
+  }
+  return `<span class="meta">${cookOrderStatusText(order)}</span>`;
+}
+
+function cookOrderChatActions(order) {
+  const customerChat = `<button class="button small secondary" type="button" data-open-chat-order="${escapeAttr(order.id)}" data-chat-type="customer_cook">${order.fulfillmentType === "delivery" && order.driverId ? "Customer chat" : "Chat with customer"}</button>`;
+  if (order.fulfillmentType !== "delivery" || order.requiresDriver === false) return customerChat;
+  if (!order.driverId) return `${customerChat}<button class="button small secondary" type="button" disabled aria-disabled="true">Driver not assigned yet</button>`;
+  return `${customerChat}<button class="button small secondary" type="button" data-open-chat-order="${escapeAttr(order.id)}" data-chat-type="cook_driver">Driver chat</button>`;
+}
+
+function cookOrderCard(order) {
+  const customerName = escapeAttr(order.customerName || userName(order.customerId, "Customer"));
+  const deliveryAddress = order.customerAddress || order.deliveryAddress || order.delivery?.dropoffAddress || "";
+  const driverStatus = cookOrderDriverStatus(order);
+  return `
+    <article class="cook-order-card ${cookOrderStatusClass(order)}" data-cook-order-card="${escapeAttr(order.id)}">
+      <div class="cook-order-card-head">
+        <div>
+          <small>Order ${shortOrderRef(order)}</small>
+          <strong>${customerName}</strong>
+        </div>
+        <span class="cook-order-status ${cookOrderStatusClass(order)}">${cookOrderStatusText(order)}</span>
+      </div>
+      <div class="cook-order-meta">
+        <span>${cookOrderFulfillmentLabel(order)}</span>
+        <span>${cookOrderScheduleLabel(order)}</span>
+        <span>Total ${money(order.total)}</span>
+      </div>
+      <div class="cook-order-items">${cookOrderItems(order)}</div>
+      ${deliveryAddress && order.fulfillmentType === "delivery" ? `<div class="cook-order-address"><small>Delivery address</small><span>${escapeAttr(deliveryAddress)}</span></div>` : ""}
+      ${driverStatus ? `<div class="cook-order-driver"><small>Driver status</small><span>${escapeAttr(driverStatus)}</span></div>` : ""}
+      <div class="cook-order-chat-actions">${cookOrderChatActions(order)}</div>
+      <div class="cook-order-actions">${cookOrderPrimaryAction(order)}</div>
+    </article>
   `;
 }
 
@@ -4037,6 +4261,9 @@ function bindPage() {
   });
   document.querySelectorAll("[data-order-action]").forEach((button) => {
     button.onclick = () => setOrderStatus(button.dataset.orderAction, button.dataset.status, button);
+  });
+  document.querySelectorAll("[data-cook-order-action]").forEach((button) => {
+    button.onclick = () => runCookOrderAction(button.dataset.cookOrderAction, button.dataset.status, button);
   });
   document.querySelectorAll("[data-market-page]").forEach((button) => {
     button.onclick = () => openMarketplacePage(button.dataset.marketPage);
@@ -4887,6 +5114,35 @@ async function setOrderStatus(orderId, status, control = null) {
   }
 }
 
+async function runCookOrderAction(orderId, status, button = null) {
+  const id = String(orderId || "");
+  if (!id || pendingCookOrderActions.has(id)) return;
+  const order = (state.orders || []).find((item) => sameId(item.id, id));
+  if (!order || order.status === status) return;
+  pendingCookOrderActions.add(id);
+  const previousText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Updating…";
+  }
+  try {
+    const result = await api(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+    applyAdminState(result);
+    pendingCookOrderActions.delete(id);
+    renderSingleCookOrderCard(id);
+    toast("Order updated.");
+    setTimeout(() => refreshCookOrders(), 0);
+  } catch (err) {
+    toast(err.message || "Could not update order.", true);
+  } finally {
+    pendingCookOrderActions.delete(id);
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
 async function changePasswordDirect(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -4947,7 +5203,9 @@ async function sendMessage(event) {
 
 document.addEventListener("click", () => document.querySelector("#languageMenu")?.classList.remove("open"));
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && isDriver()) refresh();
+  if (document.visibilityState !== "visible") return;
+  if (isDriver()) refresh();
+  if (isCookOrdersActive()) refreshCookOrders();
 });
 
 async function handleAuthLinkParams() {
