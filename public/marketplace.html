@@ -4090,6 +4090,7 @@ function mapMessagesForMobile(rawState) {
     return {
       id: order.id,
       cookId: order.cookId,
+      orderRef: shortOrderRef(order.id),
       unread: orderMessages.filter(message => !sameId(message.fromUserId, currentUserId)).length,
       messages: orderMessages
         .slice()
@@ -5031,6 +5032,11 @@ function orderTotalLabel(order) {
   const total = Number(raw.total || order.total || 0);
   return total > 0 ? `₺${total.toLocaleString('tr-TR')}` : (order.price || 'Total pending');
 }
+function shortOrderRef(orderOrId) {
+  const raw = typeof orderOrId === 'string' ? orderOrId : orderOrId?.id;
+  const suffix = String(raw || '').replace(/^ord[_-]?/i, '').replace(/[^a-z0-9]/gi, '').slice(-4).toUpperCase();
+  return suffix ? `Order #${suffix}` : 'Order';
+}
 function orderEtaLabel(order) {
   if (isPickupOrder(order)) return 'No driver needed';
   const raw = orderRaw(order);
@@ -5184,6 +5190,7 @@ function openTrackChatFromOrder(orderId) {
     chatMessages.unshift({
       id: order.id,
       cookId: order.cookId,
+      orderRef: shortOrderRef(order.id),
       unread: 0,
       title: order.by || 'Order chat',
       messages: []
@@ -5632,7 +5639,7 @@ function renderChatList() {
       <div class="chat-avatar">${safeDisplayHtml(cook ? cook.emoji : '👤', '👤')}<div class="chat-online"></div></div>
       <div class="chat-meta">
         <div class="chat-name">${safeDisplayHtml(chatName)}</div>
-        <div class="chat-preview">${safeDisplayHtml(last.text)}</div>
+        <div class="chat-preview">${safeDisplayHtml(conv.orderRef || shortOrderRef(conv.id))} · ${safeDisplayHtml(last.text)}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         <div class="chat-time">${safeDisplayHtml(last.time)}</div>
@@ -5651,7 +5658,7 @@ function openChat(convId, options = {}) {
   setChatDetailOpen(true);
   document.getElementById('chatHeaderAvatar').textContent = cook ? cook.emoji : '👤';
   document.getElementById('chatHeaderName').textContent = displayText(cook ? cook.name : conv.title, 'Cook');
-  document.getElementById('chatHeaderDesc').textContent = cook ? `${displayText(cook.cuisine)} · ${cook.online ? 'Online' : 'Offline'}` : '';
+  document.getElementById('chatHeaderDesc').textContent = cook ? `${conv.orderRef || shortOrderRef(conv.id)} · ${displayText(cook.cuisine)} · ${cook.online ? 'Online' : 'Offline'}` : (conv.orderRef || shortOrderRef(conv.id));
   const msgs = document.getElementById('chatMessages');
   msgs.innerHTML = conv.messages.length
     ? conv.messages.map(m => `
