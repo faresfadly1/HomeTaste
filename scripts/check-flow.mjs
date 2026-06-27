@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260627-structured-address-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260627-address-modal-compact-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -286,6 +286,7 @@ try {
   assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
   assert(!appSrcEarly.includes("Popular locations") && !marketplaceSrcEarly.includes("popular-locations"), "address selection removes Popular locations shortcuts");
   assert(appSrcEarly.includes("addressStreetNo") && appSrcEarly.includes("addressFloor") && appSrcEarly.includes("addressFlatNo") && appSrcEarly.includes("addressNote"), "host address picker uses structured street, floor, flat, and note fields");
+  assert(appSrcEarly.includes("address-row-3") && appSrcEarly.includes("address-map-preview") && appSrcEarly.includes("address-form-compact"), "host address picker uses compact three-column address row and secondary map preview");
   assert(marketplaceSrcEarly.includes('id="checkoutDeliveryAddress"') && marketplaceSrcEarly.includes('id="checkoutStreetNo"') && marketplaceSrcEarly.includes('id="checkoutFloor"') && marketplaceSrcEarly.includes('id="checkoutFlatNo"') && marketplaceSrcEarly.includes("deliveryAddressDetails") && marketplaceSrcEarly.includes("Complete street name, street no, floor, and flat no."), "mobile Checkout uses structured delivery address details and blocks incomplete delivery locations");
   assert(appSrcEarly.includes("dropoffAddressDetails") && serverSrcEarly.includes("dropoffAddressDetails"), "orders persist structured dropoff address details for driver and admin views");
   assert(marketplaceSrcEarly.includes("if (currentUserId) return scoped") && appSrcEarly.includes("return state?.user?.id ? scoped"), "authenticated checkout locations use user-scoped storage without generic cross-user fallback");

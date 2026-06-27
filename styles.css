@@ -716,27 +716,27 @@ body.app-light .auth-wrap {
   background: rgba(8,8,9,.72);
   display: none;
   place-items: center;
-  padding: 18px;
+  padding: 12px;
   z-index: 100;
   backdrop-filter: blur(10px);
 }
 .location-overlay.open { display: grid; }
 .location-card {
-  width: min(680px, 100%);
-  max-height: min(86dvh, 720px);
+  width: min(760px, 100%);
+  max-height: min(88dvh, 680px);
   overflow: auto;
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 22px;
+  border-radius: 24px;
+  padding: 18px;
   box-shadow: 0 28px 80px rgba(0,0,0,.42);
 }
-.location-title { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.location-title h2 { margin: 0; font-size: 22px; font-weight: 900; font-family: Inter, system-ui, sans-serif; letter-spacing: 0; }
+.location-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.location-title h2 { margin: 0; font-size: 20px; font-weight: 900; font-family: Inter, system-ui, sans-serif; letter-spacing: 0; }
 .pin-icon, .market-location-pin {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: inline-grid;
   place-items: center;
   color: var(--brand);
@@ -745,47 +745,58 @@ body.app-light .auth-wrap {
 .pin-icon svg, .market-location-pin svg { width: 100%; height: 100%; }
 .address-box {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   align-items: end;
-  gap: 10px;
+  gap: 9px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--panel-2);
-  padding: 22px 14px 14px;
+  padding: 14px;
 }
 .address-field { min-width: 0; }
 .address-field-full { grid-column: 1/-1; }
+.address-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.address-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 8px;
+}
 .address-box label {
   display: block;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
 .address-box input,
 .address-box textarea {
   width: 100%;
-  min-height: 46px;
+  min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0 12px;
-  font-size: 14px;
+  border-radius: 11px;
+  padding: 0 10px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   background: var(--panel);
 }
 .address-box textarea {
-  min-height: 78px;
-  padding: 12px;
+  min-height: 62px;
+  padding: 9px 10px;
   resize: vertical;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
 }
 .address-box input::placeholder,
 .address-box textarea::placeholder { color: var(--muted); }
-.address-error { display: block; min-height: 16px; margin-top: 4px; color: #b42318; font-size: 11px; font-weight: 800; overflow-wrap: anywhere; }
+.address-error { display: block; min-height: 12px; margin-top: 2px; color: #b42318; font-size: 10px; font-weight: 800; overflow-wrap: anywhere; line-height: 1.2; }
 .address-note { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 4px; overflow-wrap: anywhere; }
 .address-details-grid {
   display: grid;
@@ -798,31 +809,32 @@ body.app-light .auth-wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  min-height: 46px;
+  gap: 8px;
+  min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 11px;
   background: var(--panel);
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
-  padding: 0 12px;
+  padding: 0 10px;
 }
-.locate-me span { color: var(--brand); font-size: 20px; }
+.locate-me span { color: var(--brand); font-size: 17px; }
 .address-submit {
-  min-height: 46px;
-  border-radius: 12px;
+  min-height: 42px;
+  border-radius: 11px;
   background: var(--brand);
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   display: grid;
   place-items: center;
-  padding: 0 16px;
+  padding: 0 14px;
 }
-.location-close { float: right; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 10px; padding: 8px 10px; font-weight: 800; }
-#locationMap { width: 100%; height: 220px; border: 1px solid var(--line); border-radius: 14px; margin-top: 16px; background: var(--panel-2); }
+.location-close { float: right; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); border-radius: 10px; min-height: 36px; padding: 6px 10px; font-weight: 800; }
+#locationMap { width: 100%; height: 150px; border: 1px solid var(--line); border-radius: 14px; margin-top: 10px; background: var(--panel-2); }
+.address-map-preview { max-height: 150px; overflow: hidden; }
 .market-shell {
   width: 100%;
   max-width: 100%;
@@ -1785,19 +1797,28 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .market-content { min-height: 0; overflow: hidden; }
   .market-frame { width: 100%; height: 100%; }
   .language-menu { right: -44px; }
-  .location-card { padding: 20px; border-radius: 16px; }
-  .location-title { margin-bottom: 16px; }
-  .location-title h2 { font-size: 19px; }
+  .location-overlay { padding: 8px; align-items: start; padding-top: max(8px, env(safe-area-inset-top)); }
+  .location-card { width: min(94vw, 640px); max-height: 88dvh; padding: 12px; border-radius: 18px; margin-top: 4px; }
+  .location-title { margin-bottom: 8px; gap: 8px; }
+  .location-title h2 { font-size: 18px; }
+  .pin-icon { width: 22px; height: 22px; }
   .address-box {
     grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 18px 12px 12px;
+    gap: 7px;
+    padding: 10px;
+    border-radius: 14px;
   }
+  .address-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .address-details-grid { grid-template-columns: 1fr; }
-  .address-box input { font-size: 16px; }
-  .locate-me { justify-content: center; font-size: 13px; }
-  .address-submit { min-height: 44px; font-size: 14px; }
-  #locationMap { height: 180px; }
+  .address-box label { font-size: 10px; margin-bottom: 3px; }
+  .address-box input { min-height: 40px; font-size: 14px; padding: 0 8px; }
+  .address-box textarea { min-height: 54px; font-size: 13px; padding: 8px; }
+  .address-error { min-height: 10px; font-size: 9px; }
+  .address-actions { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .locate-me { justify-content: center; font-size: 12px; min-height: 40px; padding: 0 8px; }
+  .address-submit { min-height: 40px; font-size: 12px; padding: 0 8px; }
+  #locationMap { height: 112px; margin-top: 8px; }
+  .address-map-preview { max-height: 112px; }
 }
 @media (max-width: 360px) {
   body { font-size: 13px; }
@@ -1822,6 +1843,15 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .market-location { font-size: 12px; min-height: 44px; }
   .icon-action { width: 44px; height: 44px; }
   .button.small { min-height: 44px; padding: 8px 9px; font-size: 11px; }
+  .location-card { width: calc(100vw - 14px); padding: 10px; }
+  .address-row-3 { gap: 5px; }
+  .address-box { padding: 8px; gap: 6px; }
+  .address-box label { font-size: 9px; letter-spacing: 0; }
+  .address-box input { min-height: 38px; font-size: 13px; padding: 0 6px; border-radius: 10px; }
+  .address-box textarea { min-height: 50px; }
+  .locate-me, .address-submit { min-height: 38px; font-size: 11px; border-radius: 10px; }
+  #locationMap { height: 96px; }
+  .address-map-preview { max-height: 96px; }
 }
 .fulfillment-choice {
   display: grid;

@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260627-structured-address-01";
+const APP_BUILD = "20260627-address-modal-compact-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -733,35 +733,39 @@ function locationOverlay() {
           </span>
           <h2>${t("selectAddress")}</h2>
         </div>
-        <div class="address-box">
+        <div class="address-box address-form-compact">
           <div class="address-field address-field-full">
             <label for="locationInput">Street Name *</label>
             <input id="locationInput" autocomplete="address-line1" placeholder="Street name, district or full address">
             <small class="address-error" data-address-error="streetName"></small>
           </div>
-          <div class="address-field">
-            <label for="addressStreetNo">Street No *</label>
-            <input id="addressStreetNo" autocomplete="address-line2" placeholder="No">
-            <small class="address-error" data-address-error="streetNo"></small>
-          </div>
-          <div class="address-field">
-            <label for="addressFloor">Floor *</label>
-            <input id="addressFloor" inputmode="numeric" autocomplete="address-line3" placeholder="Floor">
-            <small class="address-error" data-address-error="floor"></small>
-          </div>
-          <div class="address-field">
-            <label for="addressFlatNo">Flat No *</label>
-            <input id="addressFlatNo" inputmode="numeric" autocomplete="address-line3" placeholder="Flat">
-            <small class="address-error" data-address-error="flatNo"></small>
+          <div class="address-row-3 address-field-full">
+            <div class="address-field">
+              <label for="addressStreetNo">Street No *</label>
+              <input id="addressStreetNo" autocomplete="address-line2" placeholder="No">
+              <small class="address-error" data-address-error="streetNo"></small>
+            </div>
+            <div class="address-field">
+              <label for="addressFloor">Floor *</label>
+              <input id="addressFloor" inputmode="numeric" autocomplete="address-line3" placeholder="Floor">
+              <small class="address-error" data-address-error="floor"></small>
+            </div>
+            <div class="address-field">
+              <label for="addressFlatNo">Flat No *</label>
+              <input id="addressFlatNo" inputmode="numeric" autocomplete="address-line3" placeholder="Flat">
+              <small class="address-error" data-address-error="flatNo"></small>
+            </div>
           </div>
           <div class="address-field address-field-full">
             <label for="addressNote">Delivery note / Directions</label>
-            <textarea id="addressNote" rows="3" maxlength="220" placeholder="Door code, building entrance, or delivery note"></textarea>
+            <textarea id="addressNote" rows="2" maxlength="220" placeholder="Door code, building entrance, or delivery note"></textarea>
           </div>
-          <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> ${t("locateMe", "Locate me")}</button>
-          <button class="address-submit" id="searchLocation" type="button">Save address</button>
+          <div class="address-actions address-field-full">
+            <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> ${t("locateMe", "Locate me")}</button>
+            <button class="address-submit" id="searchLocation" type="button">Save address</button>
+          </div>
         </div>
-        <iframe id="locationMap" title="Selected location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <iframe class="address-map-preview" id="locationMap" title="Selected location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
     </div>
   `);
