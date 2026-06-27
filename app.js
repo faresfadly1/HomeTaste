@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260627-marketplace-skeleton-01";
+const APP_BUILD = "20260627-admin-driver-ops-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -45,7 +45,7 @@ let adminCookFilter = "active";
 let adminCookSearch = "";
 let adminUserSearch = "";
 let adminDishSearch = "";
-let adminOrderFilters = { q: "", status: "", cookId: "", driverId: "", customerId: "", date: "", payment: "", refund: "" };
+let adminOrderFilters = { q: "", status: "", fulfillment: "", cookId: "", driverId: "", customerId: "", city: "", date: "", payment: "", refund: "", problem: "" };
 let adminChatFilter = "all";
 let adminChatSearch = "";
 let activeAdminChatOrderId = "";
@@ -3072,29 +3072,95 @@ function adminAuditEntries() {
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 }
 
+function adminIssueEntries(orderId = "") {
+  const orderIssues = (state.orders || [])
+    .filter((order) => !orderId || sameId(order.id, orderId))
+    .flatMap((order) => (order.adminIssues || []).map((issue) => ({
+      id: issue.id,
+      text: `${issue.issueType}${issue.details ? ` · ${issue.details}` : ""}`,
+      createdAt: issue.createdAt,
+      data: { type: "driver_issue", orderId: order.id, ...issue }
+    })));
+  const notificationIssues = (state.notifications || [])
+    .filter((note) => note.data?.type === "driver_issue" && (!orderId || sameId(note.data.orderId, orderId)))
+  return [...orderIssues, ...notificationIssues]
+    .filter((entry, index, list) => index === list.findIndex((item) => String(item.id || item.data?.issueId) === String(entry.id || entry.data?.issueId)))
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+}
+
+function adminOrderHasProblem(order) {
+  const delivery = deliveryBreakdown(order);
+  const ageMinutes = Math.max(0, (Date.now() - new Date(order.updatedAt || order.createdAt || Date.now()).getTime()) / 60000);
+  const hasDriverIssue = adminIssueEntries(order.id).length > 0;
+  const missingLocation = order.fulfillmentType === "delivery" && order.requiresDriver !== false && (
+    !order.delivery?.pickupLocation || !order.delivery?.dropoffLocation ||
+    ["missing", "city"].includes(order.delivery?.pickupLocationQuality) ||
+    ["missing", "city"].includes(order.delivery?.dropoffLocationQuality)
+  );
+  const stuckStatus = ["placed", "accepted", "preparing", "ready", "driver_assigned"].includes(order.status) && ageMinutes > 45;
+  const waitingDriver = order.fulfillmentType === "delivery" && order.status === "ready" && !order.driverId && ageMinutes > 10;
+  const assignedNoLocation = order.driverId && ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status) && !order.delivery?.lastLocationAt && ageMinutes > 12;
+  const suspiciousDelivery = order.fulfillmentType === "delivery" && Number(delivery.customerFee || 0) <= 0;
+  const payoutMismatch = order.status === "delivered" && Number(order.driverPayout || 0) < 0;
+  const cancelledAfterPayment = order.status === "cancelled" && ["held", "released", "pending"].includes(order.payment?.status);
+  return hasDriverIssue || missingLocation || stuckStatus || waitingDriver || assignedNoLocation || suspiciousDelivery || payoutMismatch || cancelledAfterPayment;
+}
+
+function adminOrderGroupKey(order) {
+  if (order.status === "cancelled") return "cancelled";
+  if (order.status === "delivered") return "delivered";
+  if (order.fulfillmentType === "pickup" && order.status === "ready") return "pickup_ready";
+  if (order.status === "ready") return "ready_driver";
+  if (order.status === "driver_assigned") return "driver_assigned";
+  if (["picked_up", "out_for_delivery", "near_you"].includes(order.status)) return "out_for_delivery";
+  if (["accepted", "preparing"].includes(order.status)) return "preparing";
+  return "new";
+}
+
+const adminOrderGroups = [
+  ["new", "New orders"],
+  ["preparing", "Preparing"],
+  ["ready_driver", "Ready for driver pickup"],
+  ["driver_assigned", "Driver assigned"],
+  ["out_for_delivery", "Out for delivery"],
+  ["pickup_ready", "Ready for customer pickup"],
+  ["delivered", "Delivered"],
+  ["cancelled", "Cancelled / refunded"]
+];
+
 function renderAdminDashboard() {
   const orders = state.orders || [];
   const activeStatuses = new Set(["placed", "accepted", "preparing", "ready", "driver_assigned", "picked_up", "out_for_delivery", "near_you"]);
   const activeOrders = orders.filter((order) => activeStatuses.has(order.status));
   const cancelledOrders = orders.filter((order) => order.status === "cancelled");
   const onlineCooks = (state.cooks || []).filter((cook) => cook.status === "approved" && cook.online);
+  const offlineCooks = (state.cooks || []).filter((cook) => cook.status === "approved" && !cook.online);
+  const waitingForCook = activeOrders.filter((order) => ["placed", "accepted", "preparing"].includes(order.status));
+  const waitingForDriver = activeOrders.filter((order) => order.fulfillmentType === "delivery" && order.status === "ready" && !order.driverId);
+  const completedToday = orders.filter((order) => order.status === "delivered" && isToday(order.delivery?.completedAt || order.updatedAt || order.createdAt));
   const activeDrivers = new Set(activeOrders.map((order) => order.driverId).filter(Boolean));
   const todayPayments = (state.payments || []).filter((payment) => isToday(payment.releasedAt || payment.capturedAt));
   const todayRevenue = todayPayments.length
     ? todayPayments.reduce((sum, payment) => sum + Number(payment.gross || 0), 0)
     : orders.filter((order) => order.status === "delivered" && isToday(order.updatedAt)).reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const driverPayoutsToday = completedToday.reduce((sum, order) => sum + Number(order.driverPayout || order.payment?.driverPayout || 0), 0);
   const activity = adminAuditEntries().slice(0, 8);
   return `
     ${header(t("dashboardTitle"), "Live operations, approvals, fulfillment, and support at a glance.")}
     <section class="admin-metric-grid">
-      <button class="admin-metric" data-page="admin"><small>Pending cooks</small><strong>${state.stats.pendingCooks || 0}</strong><span>Review applications</span></button>
-      <button class="admin-metric" data-page="admin"><small>Pending refunds</small><strong>${state.stats.pendingRefunds || 0}</strong><span>Resolve customer issues</span></button>
+      <button class="admin-metric" data-page="orders"><small>Today orders</small><strong>${orders.filter((order) => isToday(order.createdAt)).length}</strong><span>Created today</span></button>
       <button class="admin-metric" data-page="orders"><small>Active orders</small><strong>${activeOrders.length}</strong><span>Monitor fulfillment</span></button>
-      <button class="admin-metric" data-page="orders"><small>Cancelled orders</small><strong>${cancelledOrders.length}</strong><span>Review cancellations</span></button>
+      <button class="admin-metric" data-page="orders"><small>Orders waiting for cook</small><strong>${waitingForCook.length}</strong><span>Placed, accepted, preparing</span></button>
+      <button class="admin-metric" data-page="orders"><small>Orders waiting for driver</small><strong>${waitingForDriver.length}</strong><span>Ready delivery handoffs</span></button>
+      <button class="admin-metric" data-page="orders"><small>Active deliveries</small><strong>${activeOrders.filter((order) => ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status)).length}</strong><span>Driver in progress</span></button>
+      <button class="admin-metric" data-page="orders"><small>Completed today</small><strong>${completedToday.length}</strong><span>Delivered or collected</span></button>
+      <button class="admin-metric" data-page="orders"><small>Cancelled today</small><strong>${cancelledOrders.filter((order) => isToday(order.updatedAt || order.createdAt)).length}</strong><span>Needs review</span></button>
+      <button class="admin-metric" data-page="admin"><small>Refunds pending</small><strong>${state.stats.pendingRefunds || 0}</strong><span>Resolve customer issues</span></button>
+      <div class="admin-metric"><small>Driver payouts today</small><strong>${money(driverPayoutsToday)}</strong><span>Delivered only</span></div>
+      <div class="admin-metric"><small>Revenue today</small><strong>${money(todayRevenue)}</strong><span>Released or delivered today</span></div>
+      <button class="admin-metric" data-page="admin"><small>Offline cooks</small><strong>${offlineCooks.length}</strong><span>Approved but unavailable</span></button>
       <button class="admin-metric" data-page="admin"><small>Online cooks</small><strong>${onlineCooks.length}</strong><span>Approved and available</span></button>
       <button class="admin-metric" data-page="orders"><small>Active drivers</small><strong>${activeDrivers.size}</strong><span>Assigned to live orders</span></button>
-      <div class="admin-metric"><small>Today revenue</small><strong>${money(todayRevenue)}</strong><span>Released or delivered today</span></div>
-      <button class="admin-metric" data-page="chat"><small>Inbox</small><strong>${adminUnreadConversationCount()}</strong><span>Unread conversations</span></button>
     </section>
     <section class="grid cols-2" style="margin-top:18px">
       <div class="panel">
@@ -3130,8 +3196,15 @@ function renderDashboard() {
     const deliveredToday = completedOrders.filter((order) => new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toDateString() === new Date().toDateString());
     const deliveryHistory = completedOrders.filter((order) => !deliveredToday.includes(order)).slice(0, 12);
     const dailyEarning = deliveredToday.reduce((sum, order) => sum + Number(order.driverPayout || order.driverEarnings?.finalPayout || 0), 0);
+    const pendingPayout = activeDeliveries.reduce((sum, order) => sum + Number(order.driverPayout || deliveryBreakdown(order).driverPayout || 0), 0);
+    const anyTrackingActive = activeDeliveries.some((order) => activeDriverWatches.has(String(order.id)));
     return `
       ${header(t("driverHubTitle"), t("driverHubSubtitle"))}
+      <section class="driver-status-card">
+        <div><small>Driver status</small><strong>Online as driver</strong><span>Location permission starts when you accept a ready delivery.</span></div>
+        <div><small>Auto tracking</small><strong>${anyTrackingActive ? "Active" : "Standby"}</strong><span>${anyTrackingActive ? "Keep Driver Hub open." : "No active route right now."}</span></div>
+        <div><small>Pending payout</small><strong>${money(pendingPayout)}</strong><span>Active trips only</span></div>
+      </section>
       <section class="grid cols-5">
         <div class="stat"><small>Incoming</small><strong>${incomingOrders.length}</strong></div>
         <div class="stat"><small>Ready</small><strong>${availableOrders.length}</strong></div>
@@ -3629,15 +3702,19 @@ function filteredAdminOrders() {
     const customer = state.users?.find((user) => sameId(user.id, order.customerId));
     const driver = state.users?.find((user) => sameId(user.id, order.driverId));
     const refund = adminOrderRefund(order.id);
-    const haystack = `${order.id} ${customer?.name || ""} ${customer?.email || ""} ${cookName(order.cookId)} ${driver?.name || ""} ${(order.items || []).map((item) => item.name).join(" ")}`.toLowerCase();
+    const cityText = `${order.customerAddress || ""} ${order.deliveryAddress || ""} ${order.delivery?.dropoffAddress || ""} ${order.delivery?.pickupAddress || ""} ${customer?.city || ""}`.toLowerCase();
+    const haystack = `${shortOrderRef(order)} ${order.id} ${customer?.name || ""} ${customer?.email || ""} ${cookName(order.cookId)} ${driver?.name || ""} ${(order.items || []).map((item) => item.name).join(" ")}`.toLowerCase();
     return (!filters.q || haystack.includes(filters.q.toLowerCase()))
       && (!filters.status || order.status === filters.status)
+      && (!filters.fulfillment || (filters.fulfillment === "pickup" ? order.fulfillmentType === "pickup" : order.fulfillmentType !== "pickup"))
       && (!filters.cookId || sameId(order.cookId, filters.cookId))
       && (!filters.driverId || sameId(order.driverId, filters.driverId))
       && (!filters.customerId || sameId(order.customerId, filters.customerId))
+      && (!filters.city || cityText.includes(filters.city.toLowerCase()))
       && (!filters.date || String(order.createdAt || "").slice(0, 10) === filters.date)
       && (!filters.payment || order.paymentMethod === filters.payment || order.payment?.status === filters.payment)
-      && (!filters.refund || (filters.refund === "none" ? !refund : refund?.status === filters.refund || refund?.outcome === filters.refund));
+      && (!filters.refund || (filters.refund === "none" ? !refund : refund?.status === filters.refund || refund?.outcome === filters.refund))
+      && (!filters.problem || adminOrderHasProblem(order));
   }).sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 }
 
@@ -3645,21 +3722,31 @@ function adminOrderCard(order) {
   const customer = state.users?.find((user) => sameId(user.id, order.customerId));
   const driver = state.users?.find((user) => sameId(user.id, order.driverId));
   const refund = adminOrderRefund(order.id);
+  const delivery = deliveryBreakdown(order);
+  const issueCount = adminIssueEntries(order.id).length;
+  const lastUpdate = order.statusHistory?.length ? order.statusHistory[order.statusHistory.length - 1]?.at : (order.updatedAt || order.createdAt);
+  const problem = adminOrderHasProblem(order);
   return `
-    <article class="admin-order-card">
-      <div class="admin-order-head"><div><strong>${order.id}</strong><span>${new Date(order.createdAt).toLocaleString()}</span></div><span class="status">${statusLabel(order.status)}</span></div>
+    <article class="admin-order-card ${problem ? "has-problem" : ""}">
+      <div class="admin-order-head"><div><strong>${shortOrderRef(order)}</strong><span>${new Date(order.createdAt).toLocaleString()} · Last update ${new Date(lastUpdate || order.createdAt).toLocaleTimeString()}</span></div><span class="status">${statusLabel(order.status)}</span></div>
       <div class="admin-order-grid">
         <span><small>Customer</small><strong>${customer?.name || order.customerId}</strong></span>
         <span><small>Cook</small><strong>${cookName(order.cookId)}</strong></span>
-        <span><small>Fulfillment</small><strong>${order.fulfillmentType === "pickup" ? "Pickup" : "Delivery"}</strong></span>
+        <span><small>Fulfillment</small><strong>${order.fulfillmentType === "pickup" ? "Customer Pickup" : "Delivery"}</strong><em>${order.scheduledFor ? `Scheduled ${new Date(order.scheduledFor).toLocaleString()}` : "ASAP"}</em></span>
         <span><small>Driver</small><strong>${order.fulfillmentType === "pickup" ? "Not required" : (driver?.name || "Unassigned")}</strong></span>
-        <span><small>Total</small><strong>${money(order.total)}</strong></span>
+        <span><small>Items</small><strong>${(order.items || []).reduce((sum, item) => sum + Number(item.qty || 1), 0)}</strong></span>
+        <span><small>Total</small><strong>${money(order.total)}</strong><em>Delivery ${money(order.deliveryFee || 0)}</em></span>
+        <span><small>Driver payout</small><strong>${order.fulfillmentType === "pickup" ? "Not required" : money(order.driverPayout || delivery.driverPayout || 0)}</strong><em>${order.fulfillmentType === "pickup" ? "Customer pickup" : delivery.driverPayoutSource}</em></span>
         <span><small>Payment</small><strong>${paymentLabel(order.paymentMethod)} · ${order.payment?.status || "pending"}</strong></span>
         <span><small>Refund</small><strong>${refund ? `${refund.status}${refund.outcome ? ` · ${refund.outcome}` : ""}` : "None"}</strong></span>
       </div>
+      ${problem ? `<div class="admin-problem-note"><strong>Problem flag</strong><span>${issueCount ? `${issueCount} driver/support issue${issueCount > 1 ? "s" : ""}` : "Needs operational review"}</span></div>` : ""}
       <div class="admin-order-items">${order.items.map((item) => `${item.qty}x ${item.name}`).join(" · ")}</div>
       <div class="admin-actions">
         <button class="button small secondary" data-admin-order-details="${order.id}">Order details</button>
+        <button class="button small secondary" data-copy-text="${shortOrderRef(order)}">Copy ref</button>
+        <button class="button small secondary" data-open-chat-order="${order.id}" data-chat-type="customer_cook">Customer/cook chat</button>
+        ${order.driverId ? `<button class="button small secondary" data-open-chat-order="${order.id}" data-chat-type="cook_driver">Cook/driver chat</button>` : ""}
         ${orderActionButtons(order)}
       </div>
     </article>
@@ -3671,13 +3758,14 @@ function adminOrderDetails(order) {
   const customer = state.users?.find((user) => sameId(user.id, order.customerId));
   const driver = state.users?.find((user) => sameId(user.id, order.driverId));
   const refund = adminOrderRefund(order.id);
+  const issues = adminIssueEntries(order.id);
   const payment = (state.payments || []).find((item) => sameId(item.orderId, order.id)) || order.payment || {};
   const delivery = deliveryBreakdown(order);
   const dropoffAddressText = formatAddressDetails(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || {}, order.deliveryAddress || order.delivery?.dropoffAddress || "No address", { includeNote: false });
   return `
     <div class="admin-modal-backdrop" data-close-order-details>
       <section class="admin-drawer" role="dialog" aria-modal="true" aria-label="Order details" onclick="event.stopPropagation()">
-        <div class="section-heading"><div><h3>${order.id}</h3><p>${new Date(order.createdAt).toLocaleString()}</p></div><button class="icon-close" type="button" data-close-order-details aria-label="Close">×</button></div>
+        <div class="section-heading"><div><h3>${shortOrderRef(order)}</h3><p>${new Date(order.createdAt).toLocaleString()} · <button class="link-button" type="button" data-copy-text="${order.id}">Copy technical ID</button></p></div><button class="icon-close" type="button" data-close-order-details aria-label="Close">×</button></div>
         <div class="admin-order-grid">
           <span><small>Customer</small><strong>${customer?.name || order.customerId}</strong><em>${customer?.email || ""}</em></span>
           <span><small>Cook</small><strong>${cookName(order.cookId)}</strong></span>
@@ -3695,7 +3783,12 @@ function adminOrderDetails(order) {
         <div class="detail-section"><h4>Status history</h4><div class="timeline">${(order.statusHistory || []).map((entry) => `<div><span></span><p><strong>${statusLabel(entry.status)}</strong><small>${new Date(entry.at).toLocaleString()} · ${entry.role || userName(entry.byUserId, "system")}</small>${entry.note ? `<em>${entry.note}</em>` : ""}</p></div>`).join("") || `<div class="empty">No history yet.</div>`}</div></div>
         <div class="detail-section"><h4>Payment</h4><div class="admin-order-grid"><span><small>Method</small><strong>${paymentLabel(order.paymentMethod)}</strong></span><span><small>Status</small><strong>${payment.status || "pending"}</strong></span><span><small>Commission</small><strong>${money(payment.commission || 0)}</strong></span><span><small>Cook payout</small><strong>${money(payment.cookPayout || 0)}</strong></span><span><small>Driver payout</small><strong>${money(payment.driverPayout ?? order.driverPayout ?? order.deliveryFee)}</strong></span><span><small>Gross</small><strong>${money(payment.gross ?? order.total)}</strong></span></div></div>
         <div class="detail-section"><h4>Refund</h4>${refund ? `<p><strong>${refund.status}</strong> · ${refundLabel(refund.reason)} · ${money(refund.amount || 0)}</p><p class="meta">${refund.details || "No customer note"}${refund.adminNote ? ` · Admin: ${refund.adminNote}` : ""}</p>` : `<div class="empty">No refund request.</div>`}</div>
-        <div class="admin-actions">${orderActionButtons(order)}</div>
+        <div class="detail-section"><h4>Driver/support issues</h4>${issues.length ? issues.map((note) => `<div class="admin-issue-row"><strong>${escapeHtml(note.data?.issueType || "Issue")}</strong><span>${escapeHtml(note.data?.details || note.text || "")}</span><small>${new Date(note.createdAt).toLocaleString()} · ${escapeHtml(note.data?.driverName || "Driver")}</small></div>`).join("") : `<div class="empty">No driver or support issue reported.</div>`}</div>
+        <div class="detail-section"><h4>Admin actions</h4><div class="admin-actions">
+          <button class="button small secondary" data-open-chat-order="${order.id}" data-chat-type="customer_cook">Open customer/cook chat</button>
+          ${order.driverId ? `<button class="button small secondary" data-open-chat-order="${order.id}" data-chat-type="cook_driver">Open cook/driver chat</button>` : ""}
+          ${orderActionButtons(order)}
+        </div></div>
       </section>
     </div>
   `;
@@ -3714,22 +3807,34 @@ function renderAdminOrders() {
   const drivers = (state.users || []).filter((user) => user.role === "driver");
   const customers = (state.users || []).filter((user) => user.role === "customer");
   const selected = selectedAdminOrderId ? state.orders.find((order) => sameId(order.id, selectedAdminOrderId)) : null;
+  const grouped = Object.fromEntries(adminOrderGroups.map(([key]) => [key, []]));
+  orders.forEach((order) => grouped[adminOrderGroupKey(order)]?.push(order));
   return `
-    ${header("Order Control", "Filter fulfillment, inspect history, and make protected status changes.")}
+    ${header("Live orders", "Grouped operations board for delivery, pickup, refunds, and issue review.")}
     <section class="panel admin-filter-panel">
       <div class="admin-filter-grid">
         <input class="input" data-admin-order-filter="q" value="${adminOrderFilters.q}" placeholder="Search order, customer, cook, driver, or dish">
         <select data-admin-order-filter="status"><option value="">All statuses</option>${["placed", "accepted", "preparing", "ready", "driver_assigned", "picked_up", "out_for_delivery", "near_you", "delivered", "cancelled"].map((value) => `<option value="${value}" ${adminOrderFilters.status === value ? "selected" : ""}>${statusLabel(value)}</option>`).join("")}</select>
+        <select data-admin-order-filter="fulfillment"><option value="">Delivery + Pickup</option><option value="delivery" ${adminOrderFilters.fulfillment === "delivery" ? "selected" : ""}>Delivery only</option><option value="pickup" ${adminOrderFilters.fulfillment === "pickup" ? "selected" : ""}>Customer pickup only</option></select>
         <select data-admin-order-filter="cookId"><option value="">All cooks</option>${state.cooks.map((cook) => `<option value="${cook.id}" ${adminOrderFilters.cookId === cook.id ? "selected" : ""}>${cook.name}</option>`).join("")}</select>
         <select data-admin-order-filter="driverId"><option value="">All drivers</option>${drivers.map((driver) => `<option value="${driver.id}" ${adminOrderFilters.driverId === driver.id ? "selected" : ""}>${driver.name}</option>`).join("")}</select>
         <select data-admin-order-filter="customerId"><option value="">All customers</option>${customers.map((customer) => `<option value="${customer.id}" ${adminOrderFilters.customerId === customer.id ? "selected" : ""}>${customer.name}</option>`).join("")}</select>
+        <input class="input" data-admin-order-filter="city" value="${adminOrderFilters.city}" placeholder="City/location">
         <input class="input" type="date" data-admin-order-filter="date" value="${adminOrderFilters.date}">
         <select data-admin-order-filter="payment"><option value="">All payments</option>${["iban", "cash", "held", "released", "refunded"].map((value) => `<option value="${value}" ${adminOrderFilters.payment === value ? "selected" : ""}>${value}</option>`).join("")}</select>
         <select data-admin-order-filter="refund"><option value="">All refund states</option><option value="none" ${adminOrderFilters.refund === "none" ? "selected" : ""}>No refund</option>${["pending", "reviewed", "full", "half"].map((value) => `<option value="${value}" ${adminOrderFilters.refund === value ? "selected" : ""}>${value}</option>`).join("")}</select>
+        <select data-admin-order-filter="problem"><option value="">All orders</option><option value="1" ${adminOrderFilters.problem ? "selected" : ""}>Problem orders only</option></select>
       </div>
       <div class="price-row" style="margin-top:12px"><span class="meta">${orders.length} orders match</span><button class="button small secondary" data-clear-order-filters>Clear filters</button></div>
     </section>
-    <section class="admin-order-list" style="margin-top:16px">${orders.map(adminOrderCard).join("") || `<div class="panel empty">No orders match these filters.</div>`}</section>
+    <section class="admin-live-board" style="margin-top:16px">
+      ${adminOrderGroups.map(([key, label]) => `
+        <section class="admin-live-column">
+          <div class="admin-live-heading"><strong>${label}</strong><span>${grouped[key].length}</span></div>
+          <div class="admin-order-list">${grouped[key].map(adminOrderCard).join("") || `<div class="empty">No orders here.</div>`}</div>
+        </section>
+      `).join("")}
+    </section>
     ${adminOrderDetails(selected)}
   `;
 }
@@ -3758,7 +3863,9 @@ function driverOrderCard(order) {
   const pickupQuality = order.delivery?.pickupLocationQuality || order.pickupLocationQuality || ((order.delivery?.pickupLocationExact ?? order.cookLocationExact) ? "exact" : "missing");
   const dropoffQuality = order.delivery?.dropoffLocationQuality || order.dropoffLocationQuality || ((order.delivery?.dropoffLocationExact ?? order.customerLocationExact) ? "exact" : "missing");
   const dropoffAddress = addressDetailsHtml(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || {}, order.customerAddress || order.deliveryAddress || order.delivery?.dropoffAddress || t("customerAddress"));
-  const coordinateLabel = (point) => point?.lat && point?.lng ? `${Number(point.lat).toFixed(5)}, ${Number(point.lng).toFixed(5)}` : "";
+  const pickupAddress = order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable";
+  const customerAddress = order.deliveryAddress || order.delivery?.dropoffAddress || order.customerAddress || "";
+  const locationQualityLabel = (quality, point) => point?.lat && point?.lng ? `${quality === "exact" ? "Exact" : "Resolved"} location saved` : "Location unavailable. Use address.";
   const stageTitle = completed ? (order.status === "delivered" ? "Delivered" : "Cancelled") : order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Deliver to customer" : readyToAccept ? "Ready for driver pickup" : "Delivery order";
   const mapLocationReady = order.status === "driver_assigned" || !order.driverId ? Boolean(pickupLocation) : Boolean(dropoffLocation);
   const estimateLabel = pickupLocation && dropoffLocation ? `${delivery.estimatedDistanceKm} km estimated delivery` : "Delivery distance unavailable";
@@ -3780,14 +3887,16 @@ function driverOrderCard(order) {
       ${!pickupLocation || !dropoffLocation ? `<div class="route-location-warning">Valid pickup and dropoff locations required.</div>` : ""}
       ${waitingForCook ? `<div class="driver-waiting-copy"><strong>Waiting for cook</strong><span>The cook is preparing this order.</span><span>You can accept delivery when it is ready.</span></div>` : ""}
       <div class="handoff-route-card">
-        <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</span><em>${pickupLocation && coordinateLabel(pickupLocation) ? `${pickupQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(pickupLocation)}` : "Location unavailable. Use address."}</em></div>
-        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${dropoffAddress}</span><em>${dropoffLocation && coordinateLabel(dropoffLocation) ? `${dropoffQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(dropoffLocation)}` : "Location unavailable. Use address."}</em></div>
+        <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${pickupAddress}</span><em>${locationQualityLabel(pickupQuality, pickupLocation)}</em></div>
+        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${dropoffAddress}</span><em>${locationQualityLabel(dropoffQuality, dropoffLocation)}</em></div>
       </div>
       <div class="meta">${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
       ${showDeliveryBreakdown ? `<div class="delivery-breakdown"><strong>${completed ? stageTitle : order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong>${completed ? "" : `<span data-driver-tracking-state="${order.id}">${trackingLabel}</span>`}<span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">${payoutDistanceLabel}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span>${completed ? `<span>Completed at ${new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toLocaleString()}</span>` : `<span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span>`}</div>` : ""}${activeTrip ? (mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Location unavailable. Use the address above.</div>`) : ""}
       <div class="toolbar" style="margin:10px 0 0">
         ${completed ? "" : waitingForCook ? `<button class="button small secondary" type="button" disabled aria-disabled="true">Waiting for cook</button>` : readyToAccept ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
         ${completed || waitingForCook ? "" : `<a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>`}
+        ${completed || waitingForCook ? "" : `<button class="button small secondary" type="button" data-copy-text="${escapeAttr(order.status === "driver_assigned" ? pickupAddress : customerAddress || "Customer address")}">Copy address</button>`}
+        ${activeTrip ? `<button class="button small secondary" type="button" data-open-chat-order="${order.id}" data-chat-type="cook_driver">Contact cook</button><button class="button small secondary" type="button" data-open-chat-order="${order.id}" data-chat-type="customer_cook">Contact customer</button><button class="button small secondary" type="button" data-driver-issue="${order.id}">Report issue</button>` : ""}
         ${manualLocationFallback ? `<button class="button small secondary" data-driver-location="${order.id}">Update location manually</button>` : ""}
       </div>
     </article>
@@ -4358,7 +4467,7 @@ function bindPage() {
     input.onchange = input.dataset.adminOrderFilter === "q" ? null : update;
   });
   document.querySelector("[data-clear-order-filters]")?.addEventListener("click", () => {
-    adminOrderFilters = { q: "", status: "", cookId: "", driverId: "", customerId: "", date: "", payment: "", refund: "" };
+    adminOrderFilters = { q: "", status: "", fulfillment: "", cookId: "", driverId: "", customerId: "", city: "", date: "", payment: "", refund: "", problem: "" };
     renderApp();
   });
   document.querySelectorAll("[data-admin-order-details]").forEach((button) => {
@@ -4513,6 +4622,12 @@ function bindPage() {
   });
   document.querySelectorAll("[data-driver-location]").forEach((button) => {
     button.onclick = () => updateDriverLocation(button.dataset.driverLocation);
+  });
+  document.querySelectorAll("[data-driver-issue]").forEach((button) => {
+    button.onclick = () => reportDriverIssue(button.dataset.driverIssue, button);
+  });
+  document.querySelectorAll("[data-copy-text]").forEach((button) => {
+    button.onclick = () => copyUiText(button.dataset.copyText || "", button);
   });
 }
 
@@ -5019,6 +5134,58 @@ async function requestRefund(orderId) {
   } catch (err) {
     toast(err.message, true);
   }
+}
+
+async function copyUiText(text, button = null) {
+  const value = String(text || "").trim();
+  if (!value) return;
+  const previous = button?.textContent || "";
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+    else {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    if (button) {
+      button.textContent = "Copied";
+      window.setTimeout(() => { button.textContent = previous || "Copy"; }, 900);
+    }
+  } catch (err) {
+    toast("Could not copy. Long press the address instead.", true);
+  }
+}
+
+async function reportDriverIssue(orderId, button = null) {
+  const issueTypes = [
+    "Cannot find cook",
+    "Cannot find customer",
+    "Customer not responding",
+    "Address problem",
+    "App/location problem",
+    "Other"
+  ];
+  const issueType = window.prompt(`Issue type:\n${issueTypes.join("\n")}`, issueTypes[0]);
+  if (!issueType) return;
+  const normalizedType = issueTypes.includes(issueType) ? issueType : "Other";
+  const details = window.prompt("Add a short note for admin support", "");
+  await withPendingAction(`driverIssue:${orderId}`, button, async () => {
+    try {
+      state = await api("/api/driver/issues", {
+        method: "POST",
+        body: JSON.stringify({ orderId, issueType: normalizedType, details })
+      });
+      toast("Issue sent to admin.");
+      renderApp();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, "Sending...");
 }
 
 async function subscribePlan(planId) {

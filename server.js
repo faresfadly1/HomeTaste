@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260627-marketplace-skeleton-01";
+const backendBuild = "20260627-admin-driver-ops-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -3602,6 +3602,43 @@ async function api(req, res, pathname) {
     refreshOrderFinancials(order, db.payments.find((item) => item.orderId === order.id));
     await saveDb(db);
     return json(res, 200, publicState(db, user));
+  }
+
+  if (req.method === "POST" && pathname === "/api/driver/issues") {
+    if (user.role !== "driver") return json(res, 403, { error: "Only drivers can report delivery issues." });
+    const input = await body(req);
+    const order = db.orders.find((item) => item.id === input.orderId);
+    if (!order) return json(res, 404, { error: "Order not found." });
+    if (order.driverId !== user.id) return json(res, 403, { error: "Only the assigned driver can report an issue for this order." });
+    if (order.fulfillmentType === "pickup" || order.requiresDriver === false) return json(res, 400, { error: "Pickup orders do not use driver issue reports." });
+    if (["delivered", "cancelled"].includes(order.status)) return json(res, 400, { error: "This delivery is already closed." });
+    const allowedIssues = new Set(["Cannot find cook", "Cannot find customer", "Customer not responding", "Address problem", "App/location problem", "Other"]);
+    const issueType = allowedIssues.has(input.issueType) ? input.issueType : "Other";
+    const details = textValue(input.details || "", "Driver issue note", { max: 700 });
+    order.adminIssues ||= [];
+    const issue = {
+      id: id("iss"),
+      orderId: order.id,
+      driverId: user.id,
+      driverName: user.name || "Driver",
+      issueType,
+      details,
+      createdAt: now(),
+      status: "open"
+    };
+    order.adminIssues.unshift(issue);
+    order.updatedAt = now();
+    notifyOwners(db, `Driver issue on ${order.id}: ${issueType}`, {
+      type: "driver_issue",
+      issueId: issue.id,
+      orderId: order.id,
+      driverId: user.id,
+      driverName: user.name || "Driver",
+      issueType,
+      details
+    });
+    await saveDb(db);
+    return json(res, 201, publicState(db, user));
   }
 
   if (req.method === "PATCH" && pathname.startsWith("/api/orders/")) {

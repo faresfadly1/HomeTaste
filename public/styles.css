@@ -1386,9 +1386,15 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
 .admin-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .admin-order-list { display: grid; gap: 12px; }
 .admin-order-card { padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.admin-order-card.has-problem { border-color: rgba(239,68,68,.55); box-shadow: 0 0 0 1px rgba(239,68,68,.08); }
 .admin-order-head { display: flex; justify-content: space-between; gap: 12px; }
 .admin-order-head strong, .admin-order-head span { display: block; }
 .admin-order-head > div > span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.admin-live-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.admin-live-column { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.admin-live-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.admin-live-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-live-heading span { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; background: rgba(249,115,22,.14); color: var(--brand); font-weight: 900; }
 .admin-order-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .admin-order-grid > span { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
 .admin-order-grid small, .admin-order-grid strong, .admin-order-grid em { display: block; }
@@ -1396,9 +1402,13 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
 .admin-order-grid strong { margin-top: 5px; overflow-wrap: anywhere; }
 .admin-order-grid em { margin-top: 3px; color: var(--muted); font-size: 11px; font-style: normal; }
 .admin-order-items { margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.admin-problem-note, .admin-issue-row { display: grid; gap: 4px; margin: 10px 0; padding: 10px 12px; border: 1px solid rgba(239,68,68,.35); border-radius: 10px; background: rgba(239,68,68,.08); }
+.admin-problem-note strong, .admin-issue-row strong { color: #ef4444; }
+.admin-problem-note span, .admin-issue-row span, .admin-issue-row small { color: var(--muted); overflow-wrap: anywhere; }
 .admin-modal-backdrop { position: fixed; inset: 0; z-index: 2000; display: flex; justify-content: flex-end; background: rgba(0,0,0,.62); }
 .admin-drawer { width: min(620px, 100%); height: 100%; overflow-y: auto; padding: 22px; color: var(--text); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -20px 0 50px rgba(0,0,0,.35); }
 .icon-close { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--panel-2); font-size: 25px; line-height: 1; }
+.link-button { border: 0; padding: 0; color: var(--brand); background: transparent; font: inherit; font-weight: 900; text-decoration: underline; cursor: pointer; }
 .detail-section { padding: 14px 0; border-top: 1px solid var(--line); }
 .detail-section h4 { margin: 0 0 10px; }
 .timeline { display: grid; gap: 0; }
@@ -1429,6 +1439,12 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
 .health-grid small { grid-column: 2; color: var(--muted); margin-top: 3px; }
 .health-dot { width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--warn); }
 .health-dot.ok { background: var(--good); }
+.driver-status-card { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.driver-status-card > div { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.driver-status-card small, .driver-status-card strong, .driver-status-card span { display: block; }
+.driver-status-card small { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.driver-status-card strong { margin-top: 6px; font-size: 18px; overflow-wrap: anywhere; }
+.driver-status-card span { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }
@@ -1452,7 +1468,9 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-order-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-live-board { grid-template-columns: 1fr; }
   .health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .driver-status-card { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   html, body, #app { width: 100%; max-width: 100%; min-height: 100dvh; overflow-x: hidden; }
@@ -1783,6 +1801,12 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .admin-list-card { grid-template-columns: minmax(0, 1fr) auto; }
   .admin-list-card .admin-actions { grid-column: 1 / -1; }
   .admin-actions .button, .admin-actions select { min-height: 44px; }
+  .admin-live-column { padding: 10px; }
+  .admin-order-card { padding: 13px; }
+  .admin-order-head { display: grid; }
+  .admin-order-head .status { justify-self: start; }
+  .driver-status-card { gap: 9px; }
+  .driver-status-card > div { padding: 12px; }
   .admin-responsive-table thead { display: none; }
   .admin-responsive-table, .admin-responsive-table tbody, .admin-responsive-table tr, .admin-responsive-table td { display: block; width: 100%; }
   .admin-responsive-table tr { margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }

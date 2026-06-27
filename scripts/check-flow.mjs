@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260627-marketplace-skeleton-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260627-admin-driver-ops-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -224,8 +224,10 @@ try {
   assert(appSrcEarly.includes('data-admin-cook-filter="${value}"') && appSrcEarly.includes('["rejected", "Rejected"]'), "admin cook table provides an explicit Rejected filter");
   assert(appSrcEarly.includes("adminRemovedCookIds") && appSrcEarly.includes("applyAdminState"), "stale admin refreshes cannot reinsert removed cooks");
   assert(appSrcEarly.includes('api(`/api/state?ts=${Date.now()}`)') && appSrcEarly.includes("Cook removal did not persist"), "admin UI verifies permanent cook removal against a fresh state");
-  assert(appSrcEarly.includes("function renderAdminDashboard") && appSrcEarly.includes("Today revenue") && appSrcEarly.includes("Recent activity"), "admin dashboard is operations-focused");
+  assert(appSrcEarly.includes("function renderAdminDashboard") && appSrcEarly.includes("Revenue today") && appSrcEarly.includes("Recent activity"), "admin dashboard is operations-focused");
   assert(appSrcEarly.includes("function filteredAdminOrders") && appSrcEarly.includes("data-admin-order-filter") && appSrcEarly.includes("function adminOrderDetails"), "admin orders provide full filters and an order details drawer");
+  assert(appSrcEarly.includes("const adminOrderGroups") && appSrcEarly.includes("Ready for customer pickup") && appSrcEarly.includes("Problem orders only"), "admin live orders board groups operational states with a problem-orders filter");
+  assert(appSrcEarly.includes("function adminOrderHasProblem") && appSrcEarly.includes("missingLocation") && appSrcEarly.includes("driver/support issue") && appSrcEarly.includes("shortOrderRef(order)") && !appSrcEarly.includes("<strong>${order.id}</strong><span>${new Date(order.createdAt).toLocaleString()}</span>"), "normal admin order cards use short refs and problem flags instead of raw debug IDs");
   assert(appSrcEarly.includes("Cancellation reason (required)") && appSrcEarly.includes('["delivered", "cancelled"].includes(status)'), "admin terminal order changes require protected confirmation flow");
   assert(appSrcEarly.includes("function renderAdminInbox") && appSrcEarly.includes("Refund/support") && appSrcEarly.includes("adminUnreadConversationCount"), "admin chat provides a searchable filtered inbox");
   assert(appSrcEarly.includes("Developer / System") && appSrcEarly.includes('api("/api/health")') && appSrcEarly.includes("directPasswordForm"), "admin profile separates security and live system health");
@@ -236,6 +238,7 @@ try {
   assert(appSrcEarly.includes("function normalizeMediaValue") && appSrcEarly.includes("function resolveCookMedia") && appSrcEarly.includes("Stored background image is unavailable"), "admin media resolver supports legacy formats and clear broken-image states");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   const stylesSrcEarly = await readFile(path.join(root, "public/styles.css"), "utf8");
+  assert(stylesSrcEarly.includes(".admin-live-board") && stylesSrcEarly.includes(".driver-status-card") && stylesSrcEarly.includes(".admin-problem-note"), "admin and driver operations layouts include mobile-safe board and status card styles");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceSkeletonIfEmpty();") && marketplaceSrcEarly.includes("function renderInitialSkeletonOnce") && marketplaceSrcEarly.includes("skeleton-card"), "mobile marketplace uses silent initial skeleton cards before live data renders");
   const oldCookLoadingText = ["Loading", "cooks"].join(" ");
   const oldDishLoadingText = ["Loading", "dishes"].join(" ");
@@ -311,6 +314,8 @@ try {
   assert(appSrcEarly.includes("function shortOrderRef(orderOrId)") && hostChatSource.includes("${shortOrderRef(order)} · ${option.label}") && hostChatSource.includes("${shortOrderRef(order || orderId)}") && !hostChatSource.includes("${order.id} - ${option.label}") && !hostChatSource.includes("${t(\"order\")} ${orderId}"), "host customer, cook, and driver chat use short order references instead of visible raw order IDs");
   assert(marketplaceSrcEarly.includes("function shortOrderRef(orderOrId)") && marketplaceSrcEarly.includes("orderRef: shortOrderRef(order.id)") && marketplaceSrcEarly.includes("${safeDisplayHtml(conv.orderRef || shortOrderRef(conv.id))} ·"), "mobile Messages list and chat header use short order references instead of raw IDs");
   assert(driverCopySource.includes("Ready for driver pickup") && !driverCopySource.includes("Ready for pickup"), "driver ready-delivery sections and cards use unambiguous driver pickup copy");
+  assert(driverCopySource.includes("driver-status-card") && driverCopySource.includes("Pending payout") && driverCopySource.includes("Copy address") && driverCopySource.includes("Report issue") && serverSrcEarly.includes('pathname === "/api/driver/issues"'), "Driver Hub exposes status, copy address, contact, and admin-visible issue reporting");
+  assert(driverCardSource.includes("locationQualityLabel") && !driverCardSource.includes("coordinateLabel"), "driver cards hide raw coordinate debug text from normal UI");
   assert(driverCopySource.includes("Active deliveries") && driverCopySource.includes("Completed today") && driverCopySource.includes("Delivery history") && driverCopySource.includes("driverPayout || order.driverEarnings?.finalPayout || 0"), "Driver Hub separates active/completed/history and daily earning only counts delivered payouts");
   assert(driverCardSource.includes("${activeTrip ? (mapLocationReady ? routeMap(order)") && driverCardSource.includes("Valid pickup and dropoff locations required."), "only active deliveries render embedded maps and invalid routes do not show fake earnings");
   assert(driverCardSource.includes("const showDeliveryBreakdown = completed || activeTrip") && driverCardSource.includes("${showDeliveryBreakdown ? `<div class=\"delivery-breakdown\""), "ready driver cards show estimates only until acceptance, while active/completed cards show tracking and payout details");
@@ -800,6 +805,11 @@ try {
   const customerTrackedOrder = customerDriverState.orders.find((item) => item.id === order.id);
   assert(customerTrackedOrder?.driverId === driver.state.user.id && customerTrackedOrder.etaMinutes > 0, "customer track order shows assigned driver and ETA");
   assert(customerTrackedOrder?.driverName === "Flow Driver" && customerTrackedOrder.driverPhone === "+90 555 900 1000", "customer track order can show driver call/contact details after assignment");
+  driverState = await request(base, driver.token, "POST", "/api/driver/issues", { orderId: order.id, issueType: "Address problem", details: "Entrance is hard to find." });
+  driverOrder = driverState.orders.find((item) => item.id === order.id);
+  assert(driverOrder.adminIssues?.some((issue) => issue.issueType === "Address problem" && issue.details === "Entrance is hard to find."), "driver issue report persists on the order");
+  const ownerIssueState = await request(base, owner.token, "GET", "/api/state");
+  assert(ownerIssueState.orders.find((item) => item.id === order.id)?.adminIssues?.some((issue) => issue.issueType === "Address problem") && ownerIssueState.notifications.some((note) => note.data?.type === "driver_issue" && note.data?.orderId === order.id), "admin sees driver issue report as a problem order note");
   const blockedLocation = await requestRaw(base, otherCustomer.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: "41.0000,29.0000" });
   assert(blockedLocation.status === 403, "unrelated customer cannot update order tracking location");
   driverState = await request(base, driver.token, "PATCH", `/api/orders/${order.id}/location`, { driverLocation: { lat: 41.0350, lng: 29.0300, accuracy: 8, heading: 90, speed: 4, at: new Date().toISOString() }, automatic: true });
