@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260627-checkout-address-summary-01";
+const APP_BUILD = "20260627-checkout-no-address-ui-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -3530,9 +3530,11 @@ function renderCart() {
   const missingDeliveryLocation = !isPickup && cart.length && (!cookLocationPoint || !customerPoint || !estimatedRoute);
   const savedDetails = currentSavedAddressDetails();
   const savedAddressComplete = requiredAddressDetailsComplete(savedDetails);
-  const deliveryAddressValue = formatAddressDetails(savedDetails, state.user?.authMeta?.locationLabel || state.user?.city || "", { includeNote: false });
   const missingSavedAddress = !isPickup && cart.length && !savedAddressComplete;
   const checkoutBlocked = !cart.length || offlineCookInCart || missingDeliveryLocation || missingSavedAddress;
+  const checkoutError = missingSavedAddress
+    ? "Please select your delivery address first."
+    : missingDeliveryLocation ? "Set a valid cook and customer delivery location before checkout." : "";
   return `
     <aside class="panel cart">
       <h3>${t("cart")}</h3>
@@ -3555,17 +3557,8 @@ function renderCart() {
         </div>
         <input type="hidden" name="fulfillmentType" value="${checkoutFulfillmentType}">
         ${isPickup ? `<div class="field"><label>Pickup location</label><input class="input" value="${firstCartCook?.city || "Cook location"}" readonly></div>` : `
-          <div class="checkout-address-summary ${savedAddressComplete ? "" : "missing"}">
-            <div>
-              <strong>Delivery address</strong>
-              <p>${savedAddressComplete ? escapeHtml(deliveryAddressValue) : "Please add your delivery address before placing the order."}</p>
-              ${savedAddressComplete && savedDetails.note ? `<small>Note: ${escapeHtml(savedDetails.note)}</small>` : ""}
-            </div>
-            <button class="button small" type="button" onclick="openLocation()">${savedAddressComplete ? "Change address" : "Add address"}</button>
-          </div>
+          <div class="meta">Delivering to the address selected at the top of HomeTaste.</div>
         `}
-        ${missingSavedAddress ? `<div class="notice warning">Please add your delivery address before placing the order.</div>` : ""}
-        ${missingDeliveryLocation ? `<div class="notice warning">Set a valid cook and customer delivery location before checkout.</div>` : ""}
         <div class="row"><span>Delivery fee</span><strong>${missingDeliveryLocation ? "Location needed" : money(deliveryFee)}</strong></div>
         <div class="row"><span>Total</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
         <div class="field"><label>${t("scheduleOrder")}</label><input class="input" type="datetime-local" name="scheduledFor"></div>
@@ -3574,6 +3567,7 @@ function renderCart() {
           <option value="cash">${paymentLabel("cash")}</option>
         </select></div>
         <div class="field"><label>${t("notes")}</label><textarea name="notes" placeholder="${t("notesPlaceholder")}"></textarea></div>
+        ${checkoutError ? `<div class="checkout-inline-error">${checkoutError}</div>` : ""}
         <button class="button" ${checkoutBlocked ? "disabled" : ""}>${offlineCookInCart ? "Unavailable" : t("placeOrder")}</button>
       </form>
     </aside>
@@ -4672,8 +4666,7 @@ async function placeOrder(event) {
   if (input.fulfillmentType !== "pickup") {
     const deliveryAddressDetails = currentSavedAddressDetails();
     if (!requiredAddressDetailsComplete(deliveryAddressDetails)) {
-      toast("Please add your delivery address before placing the order.", true);
-      openLocation();
+      toast("Please select your delivery address first.", true);
       return;
     }
     input.deliveryAddressDetails = deliveryAddressDetails;

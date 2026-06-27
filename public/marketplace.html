@@ -1203,13 +1203,7 @@ ul{list-style:none}
   transition:border-color var(--transition);
 }
 .form-input:focus{border-color:var(--orange);outline:none}
-.checkout-address-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:13px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
-.checkout-address-summary.missing{border-color:rgba(255,106,26,.42);background:var(--orange-light)}
-.checkout-address-copy{min-width:0}
-.checkout-address-summary strong{display:block;margin-bottom:4px;font-size:13px;font-weight:800;color:var(--text);overflow-wrap:anywhere}
-.checkout-address-summary p,.checkout-address-summary small{display:block;margin:0;color:var(--text2);font-size:12px;line-height:1.4;overflow-wrap:anywhere}
-.checkout-address-action{flex:0 0 auto;min-height:42px;border:0;border-radius:12px;padding:0 14px;background:var(--orange);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}
-.checkout-address-status{display:block;margin-top:8px;color:var(--text3);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.checkout-inline-error{display:block;margin:10px 0 0;color:#b42318;font-size:12px;font-weight:800;line-height:1.35;overflow-wrap:anywhere}
 .payment-methods{display:flex;gap:10px}
 .payment-method{
   flex:1;padding:12px;border-radius:10px;
@@ -1859,8 +1853,7 @@ ul{list-style:none}
   .checkout-layout{display:block;padding:10px 10px calc(130px + env(safe-area-inset-bottom))}
   .order-summary{position:static;top:auto}
   .checkout-section{padding:16px}
-  .checkout-address-summary{align-items:stretch}
-  .checkout-address-action{min-height:44px}
+  .checkout-inline-error{font-size:12px}
   .payment-methods{grid-template-columns:1fr}
   .order-card{align-items:flex-start}
   .order-right{text-align:left}
@@ -2631,17 +2624,6 @@ ul{list-style:none}
             <button class="cart-tab active" type="button" data-fulfillment-mode="delivery" onclick="setFulfillmentMode('delivery')"><strong>Delivery</strong><small>To your address</small></button>
             <button class="cart-tab" type="button" data-fulfillment-mode="pickup" onclick="setFulfillmentMode('pickup')"><strong>Pickup</strong><small>Collect from cook</small></button>
           </div>
-          <div class="form-group checkout-delivery-address" id="checkoutDeliveryAddressGroup">
-            <label>Delivery address</label>
-            <div class="checkout-address-summary" id="checkoutDeliverySummary">
-              <div class="checkout-address-copy">
-                <strong>Add your delivery address</strong>
-                <p>Please add your delivery address before placing the order.</p>
-              </div>
-              <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Add address</button>
-            </div>
-            <small class="checkout-address-status" id="checkoutDeliveryLocationStatus">Choose the saved address where this order should be delivered.</small>
-          </div>
         </div>
         <div class="checkout-section">
           <h3>💳 Payment Method</h3>
@@ -2670,6 +2652,7 @@ ul{list-style:none}
             <div class="summary-row"><span>Service fee</span><span id="checkoutServiceFee">15 ₺</span></div>
             <div class="summary-total-row"><span>Total</span><span id="checkoutTotal" style="color:var(--orange)">415 ₺</span></div>
           </div>
+          <small class="checkout-inline-error" id="checkoutAddressInlineError" hidden>Please select your delivery address first.</small>
           <button class="btn-place-order" onclick="placeOrder(this)">Place Order →</button>
           <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:12px">
             🔒 All payments are secure and encrypted
@@ -3262,6 +3245,7 @@ const pendingSocialStates = new Map();
 let countryMenuTimer = null;
 let marketplaceRefreshTimer = null;
 let lastMarketplaceFingerprint = '';
+let marketplaceSoftRefreshInFlight = false;
 let activeTrackOrderId = null;
 let trackRefreshTimer = null;
 let lastPlacedOrderId = null;
@@ -3702,6 +3686,33 @@ function renderMarketplaceChrome() {
 function activeMarketplacePageId() {
   return document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
 }
+function captureMarketplaceUiState() {
+  return {
+    route: activeMarketplacePageId(),
+    scrollY: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
+    cartOpen: document.getElementById('cartPanel')?.classList.contains('open') || false,
+    checkoutMode: cartFulfillmentMode,
+    activeChatId,
+    activeTrackOrderId,
+    addressModalOpen: false
+  };
+}
+function restoreMarketplaceUiState(snapshot) {
+  if (!snapshot) return;
+  const currentRoute = activeMarketplacePageId();
+  if (currentRoute === snapshot.route) {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: snapshot.scrollY, behavior: 'auto' });
+      document.body.classList.toggle('cart-open', snapshot.cartOpen);
+      document.getElementById('cartPanel')?.classList.toggle('open', snapshot.cartOpen);
+      cartFulfillmentMode = snapshot.checkoutMode || cartFulfillmentMode;
+      document.querySelectorAll('[data-fulfillment-mode]').forEach(button => {
+        button.classList.toggle('active', button.dataset.fulfillmentMode === cartFulfillmentMode);
+      });
+      syncCheckoutDeliveryAddressState();
+    });
+  }
+}
 function renderMarketplacePage(pageId = activeMarketplacePageId()) {
   switch (pageId) {
     case 'home':
@@ -4123,6 +4134,7 @@ function mapMessagesForMobile(rawState) {
 }
 function applyMarketplaceState(rawState, options = {}) {
   if (!rawState) return;
+  const uiSnapshot = options.preserveUi === false ? null : captureMarketplaceUiState();
   const version = Number(options.version || 0);
   if (!options.socialMutation && socialMutationInFlight) return false;
   if (!options.socialMutation && version && version < latestSocialMutationVersion) return false;
@@ -4202,6 +4214,7 @@ function applyMarketplaceState(rawState, options = {}) {
 	  renderCuisineFilterOptions();
 	  refreshActiveMarketplaceViews();
 	  renderCart();
+	  restoreMarketplaceUiState(uiSnapshot);
 	  if (messagesPageOpen && activeChatId && chatMessages.some(conv => sameId(conv.id, activeChatId))) {
 	    openChat(activeChatId, { focus: false });
 	  }
@@ -4300,15 +4313,20 @@ function shouldRefreshMarketplaceNow() {
 }
 function refreshMarketplaceFast() {
   if (!shouldRefreshMarketplaceNow()) return;
-  if (marketSyncInFlight || publicMarketSyncInFlight) return;
+  if (marketplaceSoftRefreshInFlight || marketSyncInFlight || publicMarketSyncInFlight) return;
+  marketplaceSoftRefreshInFlight = true;
+  const finish = () => { marketplaceSoftRefreshInFlight = false; };
   if (hasHostWindow()) {
     const posted = postHostAction('market-state-request', {}, '', nextMarketStateVersion());
-    if (posted || hostBridgeReady) return;
+    if (posted || hostBridgeReady) {
+      setTimeout(finish, 1500);
+      return;
+    }
   }
   if (marketAuthToken()) {
-    runStandaloneMarketAction('market-state-request').catch(error => console.warn(error));
+    runStandaloneMarketAction('market-state-request').catch(error => console.warn(error)).finally(finish);
   } else {
-    refreshPublicMarketplaceState();
+    refreshPublicMarketplaceState().finally(finish);
   }
 }
 function isOrdersFocusedPage(pageId = activeMarketplacePageId()) {
@@ -5462,9 +5480,7 @@ function setFulfillmentMode(type) {
   updateCheckoutItems();
   const timeTitle = document.querySelector('#deliveryTimeOptions')?.closest('.checkout-section')?.querySelector('h3');
   if (timeTitle) timeTitle.textContent = cartFulfillmentMode === 'pickup' ? '⏰ Pickup Time' : '⏰ Delivery Time';
-  const addressGroup = document.getElementById('checkoutDeliveryAddressGroup');
-  if (addressGroup) addressGroup.hidden = cartFulfillmentMode === 'pickup';
-  syncCheckoutDeliveryAddress();
+  syncCheckoutDeliveryAddressState();
 }
 function checkoutFromCart() {
   if (cart.length === 0) { showToast('Add at least one dish before checkout.', 'error'); return; }
@@ -6710,7 +6726,7 @@ function deliveryEstimateForCart() {
   return { distanceKm, fee:deliveryFeeForKm(distanceKm), cookPoint, customerPoint, valid:true };
 }
 
-function checkoutAddressSummaryData() {
+function checkoutSavedAddressState() {
   const details = currentSavedAddressDetails();
   const complete = requiredAddressDetailsComplete(details);
   const label = formatAddressDetails(details, currentSavedAddress(), { includeNote:false });
@@ -6721,49 +6737,22 @@ function checkoutAddressSummaryData() {
     locationQuery: currentSavedLocationQuery() || label || currentSavedAddress()
   };
 }
-function renderCheckoutAddressSummary() {
-  const panel = document.getElementById('checkoutDeliverySummary');
-  if (!panel) return checkoutAddressSummaryData();
-  const summary = checkoutAddressSummaryData();
-  panel.classList.toggle('missing', !summary.complete);
-  panel.innerHTML = summary.complete ? `
-    <div class="checkout-address-copy">
-      <strong>Delivery address</strong>
-      <p>${safeDisplayHtml(summary.label)}</p>
-      ${summary.details.note ? `<small>Note: ${safeDisplayHtml(summary.details.note)}</small>` : ''}
-    </div>
-    <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Change address</button>
-  ` : `
-    <div class="checkout-address-copy">
-      <strong>Add your delivery address</strong>
-      <p>Please add your delivery address before placing the order.</p>
-    </div>
-    <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Add address</button>
-  `;
-  return summary;
-}
-function openCheckoutAddressSelector() {
-  if (hasHostWindow()) {
-    postHostAction('market-open-location');
-    return;
-  }
-  showToast('Use the address selector at the top of HomeTaste to add your delivery address.', 'info');
-}
-function syncCheckoutDeliveryAddress() {
-  const group = document.getElementById('checkoutDeliveryAddressGroup');
-  if (!group) return;
-  const summary = renderCheckoutAddressSummary();
+function syncCheckoutDeliveryAddressState() {
+  const savedAddress = checkoutSavedAddressState();
   const estimate = deliveryEstimateForCart();
-  const status = document.getElementById('checkoutDeliveryLocationStatus');
-  if (status) status.textContent = cartFulfillmentMode === 'pickup'
-    ? 'You will collect this order from the cook.'
-    : !summary.complete ? 'Please add your delivery address before placing the order.' : estimate.valid ? 'Delivery address ready.' : 'Set a valid delivery location before placing a delivery order.';
   const offlineCook = cart.some(item => {
     const dish = dishes.find(d => sameId(d.id, item.id));
     const cookId = item.cookId || dish?.cookId;
     return cooks.find(c => sameId(c.id, cookId))?.online === false;
   });
-  document.querySelector('.btn-place-order')?.toggleAttribute('disabled', offlineCook || (cartFulfillmentMode === 'delivery' && (!estimate.valid || !summary.complete)));
+  const missingAddress = cartFulfillmentMode === 'delivery' && !savedAddress.complete;
+  const invalidRoute = cartFulfillmentMode === 'delivery' && savedAddress.complete && !estimate.valid;
+  const error = document.getElementById('checkoutAddressInlineError');
+  if (error) {
+    error.hidden = !missingAddress && !invalidRoute;
+    error.textContent = missingAddress ? 'Please select your delivery address first.' : invalidRoute ? 'Set a valid delivery location before placing a delivery order.' : '';
+  }
+  document.querySelector('.btn-place-order')?.toggleAttribute('disabled', offlineCook || missingAddress || invalidRoute);
 }
 
 // ===== CHECKOUT =====
@@ -6804,7 +6793,7 @@ function updateCheckoutItems() {
     placeOrderButton.disabled = offlineCook;
     placeOrderButton.textContent = offlineCook ? 'Unavailable' : 'Place Order →';
   }
-  syncCheckoutDeliveryAddress();
+  syncCheckoutDeliveryAddressState();
 }
 function paymentName(method) {
   return String(method || '').replace(/^\S+\s/, '').trim();
@@ -6920,13 +6909,12 @@ async function placeOrder(button = null) {
     }
   }
   const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
-  const addressSummary = checkoutAddressSummaryData();
-  const deliveryAddressDetails = addressSummary.details;
-  const checkoutAddress = addressSummary.label;
-  const checkoutLocation = addressSummary.locationQuery || checkoutAddress;
-  if (cartFulfillmentMode === 'delivery' && (!checkoutAddress || !addressSummary.complete || !deliveryEstimateForCart().valid)) {
-    showToast(addressSummary.complete ? 'Set a valid delivery location before placing a delivery order.' : 'Please add your delivery address before placing the order.', 'error');
-    if (!addressSummary.complete) openCheckoutAddressSelector();
+  const savedAddress = checkoutSavedAddressState();
+  const deliveryAddressDetails = savedAddress.details;
+  const checkoutAddress = savedAddress.label;
+  const checkoutLocation = savedAddress.locationQuery || checkoutAddress;
+  if (cartFulfillmentMode === 'delivery' && (!checkoutAddress || !savedAddress.complete || !deliveryEstimateForCart().valid)) {
+    showToast(savedAddress.complete ? 'Set a valid delivery location before placing a delivery order.' : 'Please select your delivery address first.', 'error');
     return;
   }
   await withMarketButton(button, 'Placing...', async () => {

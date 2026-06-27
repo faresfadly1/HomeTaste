@@ -805,41 +805,13 @@ body.app-light .auth-wrap {
 }
 .address-details-grid.compact { margin-bottom: 12px; }
 .address-details-grid .field { margin: 0; min-width: 0; }
-.checkout-address-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-2);
-}
-.checkout-address-summary.missing {
-  border-color: rgba(249,115,22,.45);
-  background: rgba(249,115,22,.08);
-}
-.checkout-address-summary div { min-width: 0; }
-.checkout-address-summary strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 900;
-}
-.checkout-address-summary p,
-.checkout-address-summary small {
-  display: block;
-  margin: 0;
-  color: var(--muted);
+.checkout-inline-error {
+  margin: 2px 0 10px;
+  color: #b42318;
   font-size: 12px;
+  font-weight: 800;
   line-height: 1.35;
   overflow-wrap: anywhere;
-}
-.checkout-address-summary .button {
-  flex: 0 0 auto;
-  min-height: 40px;
 }
 .locate-me {
   display: inline-flex;
@@ -1877,8 +1849,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
     margin-top: auto;
   }
   .address-map-preview { max-height: 220px; }
-  .checkout-address-summary { align-items: stretch; }
-  .checkout-address-summary .button { min-height: 44px; }
+  .checkout-inline-error { font-size: 12px; }
 }
 @media (max-width: 360px) {
   body { font-size: 13px; }
@@ -1912,7 +1883,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .locate-me, .address-submit { min-height: 38px; font-size: 11px; border-radius: 10px; }
   #locationMap { min-height: 90px; max-height: 150px; height: auto; margin-top: auto; }
   .address-map-preview { max-height: 150px; }
-  .checkout-address-summary { flex-direction: column; }
+  .checkout-inline-error { font-size: 11px; }
 }
 .fulfillment-choice {
   display: grid;
