@@ -1203,11 +1203,12 @@ ul{list-style:none}
   transition:border-color var(--transition);
 }
 .form-input:focus{border-color:var(--orange);outline:none}
-.checkout-address-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
-.checkout-address-grid .form-group{margin-bottom:0}
-.checkout-address-grid .address-field-full{grid-column:1/-1}
-.checkout-address-grid textarea.form-input{min-height:82px;resize:vertical}
-.checkout-address-error{display:block;min-height:16px;margin-top:4px;color:#b42318;font-size:11px;font-weight:700;overflow-wrap:anywhere}
+.checkout-address-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:13px;border:1px solid var(--border);border-radius:14px;background:var(--bg3)}
+.checkout-address-summary.missing{border-color:rgba(255,106,26,.42);background:var(--orange-light)}
+.checkout-address-copy{min-width:0}
+.checkout-address-summary strong{display:block;margin-bottom:4px;font-size:13px;font-weight:800;color:var(--text);overflow-wrap:anywhere}
+.checkout-address-summary p,.checkout-address-summary small{display:block;margin:0;color:var(--text2);font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.checkout-address-action{flex:0 0 auto;min-height:42px;border:0;border-radius:12px;padding:0 14px;background:var(--orange);color:#fff;font-weight:800;cursor:pointer;white-space:nowrap}
 .checkout-address-status{display:block;margin-top:8px;color:var(--text3);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
 .payment-methods{display:flex;gap:10px}
 .payment-method{
@@ -1858,8 +1859,8 @@ ul{list-style:none}
   .checkout-layout{display:block;padding:10px 10px calc(130px + env(safe-area-inset-bottom))}
   .order-summary{position:static;top:auto}
   .checkout-section{padding:16px}
-  .checkout-address-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .checkout-address-grid .address-field-full{grid-column:1/-1}
+  .checkout-address-summary{align-items:stretch}
+  .checkout-address-action{min-height:44px}
   .payment-methods{grid-template-columns:1fr}
   .order-card{align-items:flex-start}
   .order-right{text-align:left}
@@ -2632,33 +2633,14 @@ ul{list-style:none}
           </div>
           <div class="form-group checkout-delivery-address" id="checkoutDeliveryAddressGroup">
             <label>Delivery address</label>
-            <div class="checkout-address-grid">
-              <div class="form-group address-field-full">
-                <label for="checkoutDeliveryAddress">Street Name *</label>
-                <input class="form-input" id="checkoutDeliveryAddress" type="text" autocomplete="address-line1" placeholder="Street name, district or full address" oninput="handleCheckoutDeliveryAddress(this)">
-                <small class="checkout-address-error" data-checkout-address-error="streetName"></small>
+            <div class="checkout-address-summary" id="checkoutDeliverySummary">
+              <div class="checkout-address-copy">
+                <strong>Add your delivery address</strong>
+                <p>Please add your delivery address before placing the order.</p>
               </div>
-              <div class="form-group">
-                <label for="checkoutStreetNo">Street No *</label>
-                <input class="form-input" id="checkoutStreetNo" type="text" autocomplete="address-line2" placeholder="No" oninput="handleCheckoutAddressDetails()">
-                <small class="checkout-address-error" data-checkout-address-error="streetNo"></small>
-              </div>
-              <div class="form-group">
-                <label for="checkoutFloor">Floor *</label>
-                <input class="form-input" id="checkoutFloor" type="text" inputmode="numeric" autocomplete="address-line3" placeholder="Floor" oninput="handleCheckoutAddressDetails()">
-                <small class="checkout-address-error" data-checkout-address-error="floor"></small>
-              </div>
-              <div class="form-group">
-                <label for="checkoutFlatNo">Flat No *</label>
-                <input class="form-input" id="checkoutFlatNo" type="text" inputmode="numeric" autocomplete="address-line3" placeholder="Flat" oninput="handleCheckoutAddressDetails()">
-                <small class="checkout-address-error" data-checkout-address-error="flatNo"></small>
-              </div>
-              <div class="form-group address-field-full">
-                <label for="checkoutDeliveryNote">Delivery note / Directions</label>
-                <textarea class="form-input" id="checkoutDeliveryNote" rows="3" maxlength="220" placeholder="Door code, building entrance, or delivery note" oninput="handleCheckoutAddressDetails()"></textarea>
-              </div>
+              <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Add address</button>
             </div>
-            <small class="checkout-address-status" id="checkoutDeliveryLocationStatus">Set the address where this order should be delivered.</small>
+            <small class="checkout-address-status" id="checkoutDeliveryLocationStatus">Choose the saved address where this order should be delivered.</small>
           </div>
         </div>
         <div class="checkout-section">
@@ -6718,9 +6700,9 @@ function deliveryEstimateForCart() {
   if (!cart.length) return { distanceKm:0, fee:0, valid:false };
   const firstDish = dishes.find(dish => sameId(dish.id, cart[0].id));
   const cook = cooks.find(item => sameId(item.id, firstDish?.cookId));
-  const checkout = document.getElementById('checkoutDeliveryAddress');
-  const checkoutAddress = readableLocationLabel(checkout?.value) || currentSavedAddress();
-  const checkoutQuery = checkout?.dataset.locationQuery || checkoutAddress || currentSavedLocationQuery();
+  const details = currentSavedAddressDetails();
+  const checkoutAddress = formatAddressDetails(details, currentSavedAddress(), { includeNote:false }) || currentSavedAddress();
+  const checkoutQuery = currentSavedLocationQuery() || checkoutAddress;
   const cookPoint = normalizeDeliveryLocation(cook?.deliveryLocation?.point, cook?.deliveryLocation?.label || cook?.city || '');
   const customerPoint = normalizeDeliveryLocation(checkoutQuery, checkoutAddress);
   if (!cookPoint || !customerPoint) return { distanceKm:0, fee:0, cookPoint, customerPoint, valid:false };
@@ -6728,70 +6710,60 @@ function deliveryEstimateForCart() {
   return { distanceKm, fee:deliveryFeeForKm(distanceKm), cookPoint, customerPoint, valid:true };
 }
 
-function collectCheckoutAddressDetails() {
-  return normalizeAddressDetails({
-    streetName: document.getElementById('checkoutDeliveryAddress')?.value,
-    streetNo: document.getElementById('checkoutStreetNo')?.value,
-    floor: document.getElementById('checkoutFloor')?.value,
-    flatNo: document.getElementById('checkoutFlatNo')?.value,
-    note: document.getElementById('checkoutDeliveryNote')?.value
-  });
-}
-function showCheckoutAddressErrors(details) {
-  const clean = normalizeAddressDetails(details);
-  const labels = { streetName:'Street name', streetNo:'Street no', floor:'Floor', flatNo:'Flat no' };
-  let valid = true;
-  Object.entries(labels).forEach(([key, label]) => {
-    const error = document.querySelector(`[data-checkout-address-error="${key}"]`);
-    const missing = !clean[key];
-    if (error) error.textContent = missing ? `${label} is required.` : '';
-    valid = valid && !missing;
-  });
-  return valid;
-}
-function populateCheckoutAddressFields() {
+function checkoutAddressSummaryData() {
   const details = currentSavedAddressDetails();
-  const street = document.getElementById('checkoutDeliveryAddress');
-  if (street && !street.value.trim()) street.value = details.streetName || currentSavedAddress();
-  const streetNo = document.getElementById('checkoutStreetNo');
-  if (streetNo && !streetNo.value.trim()) streetNo.value = details.streetNo;
-  const floor = document.getElementById('checkoutFloor');
-  if (floor && !floor.value.trim()) floor.value = details.floor;
-  const flat = document.getElementById('checkoutFlatNo');
-  if (flat && !flat.value.trim()) flat.value = details.flatNo;
-  const note = document.getElementById('checkoutDeliveryNote');
-  if (note && !note.value.trim()) note.value = details.note;
+  const complete = requiredAddressDetailsComplete(details);
+  const label = formatAddressDetails(details, currentSavedAddress(), { includeNote:false });
+  return {
+    details,
+    complete,
+    label: label || currentSavedAddress(),
+    locationQuery: currentSavedLocationQuery() || label || currentSavedAddress()
+  };
 }
-function handleCheckoutAddressDetails() {
-  const details = collectCheckoutAddressDetails();
-  storeCheckoutAddressDetails(details);
-  showCheckoutAddressErrors(details);
-  updateCheckoutItems();
+function renderCheckoutAddressSummary() {
+  const panel = document.getElementById('checkoutDeliverySummary');
+  if (!panel) return checkoutAddressSummaryData();
+  const summary = checkoutAddressSummaryData();
+  panel.classList.toggle('missing', !summary.complete);
+  panel.innerHTML = summary.complete ? `
+    <div class="checkout-address-copy">
+      <strong>Delivery address</strong>
+      <p>${safeDisplayHtml(summary.label)}</p>
+      ${summary.details.note ? `<small>Note: ${safeDisplayHtml(summary.details.note)}</small>` : ''}
+    </div>
+    <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Change address</button>
+  ` : `
+    <div class="checkout-address-copy">
+      <strong>Add your delivery address</strong>
+      <p>Please add your delivery address before placing the order.</p>
+    </div>
+    <button class="checkout-address-action" type="button" onclick="openCheckoutAddressSelector()">Add address</button>
+  `;
+  return summary;
+}
+function openCheckoutAddressSelector() {
+  if (hasHostWindow()) {
+    postHostAction('market-open-location');
+    return;
+  }
+  showToast('Use the address selector at the top of HomeTaste to add your delivery address.', 'info');
 }
 function syncCheckoutDeliveryAddress() {
-  const input = document.getElementById('checkoutDeliveryAddress');
-  if (!input) return;
-  populateCheckoutAddressFields();
-  if (!input.dataset.locationQuery) input.dataset.locationQuery = currentSavedLocationQuery() || input.value.trim();
-  const details = collectCheckoutAddressDetails();
-  const detailsValid = requiredAddressDetailsComplete(details);
+  const group = document.getElementById('checkoutDeliveryAddressGroup');
+  if (!group) return;
+  const summary = renderCheckoutAddressSummary();
   const estimate = deliveryEstimateForCart();
   const status = document.getElementById('checkoutDeliveryLocationStatus');
   if (status) status.textContent = cartFulfillmentMode === 'pickup'
     ? 'You will collect this order from the cook.'
-    : !detailsValid ? 'Complete street name, street no, floor, and flat no.' : estimate.valid ? 'Delivery location ready.' : 'Set a valid delivery location before placing a delivery order.';
-  document.querySelector('.btn-place-order')?.toggleAttribute('disabled', cartFulfillmentMode === 'delivery' && (!estimate.valid || !detailsValid));
-}
-
-function handleCheckoutDeliveryAddress(input) {
-  input.dataset.locationQuery = input.value.trim();
-  handleCheckoutAddressDetails();
-  if (currentUserId) {
-    const details = collectCheckoutAddressDetails();
-    localStorage.setItem(userAddressKey(), formatAddressDetails(details, input.value.trim(), { includeNote:false }) || input.value.trim());
-    localStorage.setItem(userLocationQueryKey(), input.dataset.locationQuery || input.value.trim());
-  }
-  updateCheckoutItems();
+    : !summary.complete ? 'Please add your delivery address before placing the order.' : estimate.valid ? 'Delivery address ready.' : 'Set a valid delivery location before placing a delivery order.';
+  const offlineCook = cart.some(item => {
+    const dish = dishes.find(d => sameId(d.id, item.id));
+    const cookId = item.cookId || dish?.cookId;
+    return cooks.find(c => sameId(c.id, cookId))?.online === false;
+  });
+  document.querySelector('.btn-place-order')?.toggleAttribute('disabled', offlineCook || (cartFulfillmentMode === 'delivery' && (!estimate.valid || !summary.complete)));
 }
 
 // ===== CHECKOUT =====
@@ -6948,25 +6920,18 @@ async function placeOrder(button = null) {
     }
   }
   const scheduledFor = scheduleActive && savedSchedule.date && savedSchedule.time ? `${savedSchedule.date}T${savedSchedule.time}` : '';
-  const checkoutAddressInput = document.getElementById('checkoutDeliveryAddress');
-  const deliveryAddressDetails = collectCheckoutAddressDetails();
-  const addressDetailsValid = requiredAddressDetailsComplete(deliveryAddressDetails);
-  const checkoutAddress = formatAddressDetails(deliveryAddressDetails, readableLocationLabel(checkoutAddressInput?.value) || currentSavedAddress(), { includeNote:false });
-  const checkoutLocation = checkoutAddressInput?.dataset.locationQuery || checkoutAddress;
-  if (cartFulfillmentMode === 'delivery' && (!checkoutAddress || !addressDetailsValid || !deliveryEstimateForCart().valid)) {
-    showCheckoutAddressErrors(deliveryAddressDetails);
-    showToast(addressDetailsValid ? 'Set a valid delivery location before placing a delivery order.' : 'Complete street name, street no, floor, and flat no.', 'error');
+  const addressSummary = checkoutAddressSummaryData();
+  const deliveryAddressDetails = addressSummary.details;
+  const checkoutAddress = addressSummary.label;
+  const checkoutLocation = addressSummary.locationQuery || checkoutAddress;
+  if (cartFulfillmentMode === 'delivery' && (!checkoutAddress || !addressSummary.complete || !deliveryEstimateForCart().valid)) {
+    showToast(addressSummary.complete ? 'Set a valid delivery location before placing a delivery order.' : 'Please add your delivery address before placing the order.', 'error');
+    if (!addressSummary.complete) openCheckoutAddressSelector();
     return;
   }
-  storeCheckoutAddressDetails(deliveryAddressDetails);
   await withMarketButton(button, 'Placing...', async () => {
     try {
       pendingOrderPlacement = true;
-      if (cartFulfillmentMode === 'delivery' && currentUserId) {
-        await sendMarketAction('market-profile', {
-          profile: { locationLabel: checkoutAddress, locationQuery: checkoutLocation, addressDetails: deliveryAddressDetails }
-        });
-      }
       const result = await sendMarketAction('market-place-order', {
         payload: {
           items,

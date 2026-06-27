@@ -805,6 +805,42 @@ body.app-light .auth-wrap {
 }
 .address-details-grid.compact { margin-bottom: 12px; }
 .address-details-grid .field { margin: 0; min-width: 0; }
+.checkout-address-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-2);
+}
+.checkout-address-summary.missing {
+  border-color: rgba(249,115,22,.45);
+  background: rgba(249,115,22,.08);
+}
+.checkout-address-summary div { min-width: 0; }
+.checkout-address-summary strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+.checkout-address-summary p,
+.checkout-address-summary small {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.checkout-address-summary .button {
+  flex: 0 0 auto;
+  min-height: 40px;
+}
 .locate-me {
   display: inline-flex;
   align-items: center;
@@ -1797,12 +1833,28 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .market-content { min-height: 0; overflow: hidden; }
   .market-frame { width: 100%; height: 100%; }
   .language-menu { right: -44px; }
-  .location-overlay { padding: 8px; align-items: start; padding-top: max(8px, env(safe-area-inset-top)); }
-  .location-card { width: min(94vw, 640px); max-height: 88dvh; padding: 12px; border-radius: 18px; margin-top: 4px; }
+  .location-overlay {
+    align-items: stretch;
+    justify-items: center;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .location-card {
+    width: min(94vw, 640px);
+    height: min(94dvh, calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    max-height: 94dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 12px;
+    border-radius: 18px;
+    margin-top: 0;
+  }
+  .location-close { flex: 0 0 auto; align-self: flex-end; }
   .location-title { margin-bottom: 8px; gap: 8px; }
   .location-title h2 { font-size: 18px; }
   .pin-icon { width: 22px; height: 22px; }
   .address-box {
+    flex: 0 0 auto;
     grid-template-columns: 1fr;
     gap: 7px;
     padding: 10px;
@@ -1817,8 +1869,16 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .address-actions { grid-template-columns: 1fr 1fr; gap: 7px; }
   .locate-me { justify-content: center; font-size: 12px; min-height: 40px; padding: 0 8px; }
   .address-submit { min-height: 40px; font-size: 12px; padding: 0 8px; }
-  #locationMap { height: 112px; margin-top: 8px; }
-  .address-map-preview { max-height: 112px; }
+  #locationMap {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: 220px;
+    height: auto;
+    margin-top: auto;
+  }
+  .address-map-preview { max-height: 220px; }
+  .checkout-address-summary { align-items: stretch; }
+  .checkout-address-summary .button { min-height: 44px; }
 }
 @media (max-width: 360px) {
   body { font-size: 13px; }
@@ -1843,15 +1903,16 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .market-location { font-size: 12px; min-height: 44px; }
   .icon-action { width: 44px; height: 44px; }
   .button.small { min-height: 44px; padding: 8px 9px; font-size: 11px; }
-  .location-card { width: calc(100vw - 14px); padding: 10px; }
+  .location-card { width: calc(100vw - 14px); padding: 10px; height: min(94dvh, calc(100dvh - 14px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
   .address-row-3 { gap: 5px; }
   .address-box { padding: 8px; gap: 6px; }
   .address-box label { font-size: 9px; letter-spacing: 0; }
   .address-box input { min-height: 38px; font-size: 13px; padding: 0 6px; border-radius: 10px; }
   .address-box textarea { min-height: 50px; }
   .locate-me, .address-submit { min-height: 38px; font-size: 11px; border-radius: 10px; }
-  #locationMap { height: 96px; }
-  .address-map-preview { max-height: 96px; }
+  #locationMap { min-height: 90px; max-height: 150px; height: auto; margin-top: auto; }
+  .address-map-preview { max-height: 150px; }
+  .checkout-address-summary { flex-direction: column; }
 }
 .fulfillment-choice {
   display: grid;

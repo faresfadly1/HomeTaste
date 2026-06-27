@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260627-address-modal-compact-01";
+const APP_BUILD = "20260627-checkout-address-summary-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -358,6 +358,12 @@ function sendPreferenceToMarketplace(name, value) {
   frame.contentWindow.postMessage({ source: "HomeTaste", name, value }, window.location.origin);
 }
 
+function sendStateToMarketplace() {
+  const frame = marketplaceFrame();
+  if (!frame?.contentWindow || !state?.user) return;
+  frame.contentWindow.postMessage({ source: "HomeTaste", action: "market-sync", state }, window.location.origin);
+}
+
 async function handleMarketplaceMessage(event) {
   if (event.origin !== window.location.origin || event.data?.source !== "HomeTaste") return;
   const reply = (payload) => event.source?.postMessage({
@@ -377,6 +383,11 @@ async function handleMarketplaceMessage(event) {
   }
   if (event.data.action === "market-state-request") {
     reply({ action: "market-sync", state });
+    return;
+  }
+  if (event.data.action === "market-open-location") {
+    openLocation();
+    reply({ action: "market-open-location", ok: true, state });
     return;
   }
   if (event.data.action === "market-profile") {
@@ -909,6 +920,8 @@ async function confirmLocation(value, mapQuery = value, addressDetails = null) {
   closeLocation();
   try {
     if (state?.user?.id) applyAdminState(await api("/api/users/profile", { method: "PATCH", body: JSON.stringify({ locationLabel: label, locationQuery: mapQuery || label, addressDetails: details }) }));
+    sendStateToMarketplace();
+    refreshEmbeddedRolePanel();
     toast(t("addressSaved"));
   } catch (error) {
     toast(error.message || "Location could not be saved.", true);
@@ -3515,9 +3528,11 @@ function renderCart() {
   const deliveryFee = isPickup ? 0 : deliveryFeeForKm(estimatedDistanceKm);
   const offlineCookInCart = cart.some((item) => byId(state.cooks, item.cookId)?.online === false);
   const missingDeliveryLocation = !isPickup && cart.length && (!cookLocationPoint || !customerPoint || !estimatedRoute);
-  const checkoutBlocked = !cart.length || offlineCookInCart || missingDeliveryLocation;
   const savedDetails = currentSavedAddressDetails();
-  const deliveryAddressValue = state.user?.authMeta?.locationLabel || state.user?.city || "";
+  const savedAddressComplete = requiredAddressDetailsComplete(savedDetails);
+  const deliveryAddressValue = formatAddressDetails(savedDetails, state.user?.authMeta?.locationLabel || state.user?.city || "", { includeNote: false });
+  const missingSavedAddress = !isPickup && cart.length && !savedAddressComplete;
+  const checkoutBlocked = !cart.length || offlineCookInCart || missingDeliveryLocation || missingSavedAddress;
   return `
     <aside class="panel cart">
       <h3>${t("cart")}</h3>
@@ -3540,15 +3555,16 @@ function renderCart() {
         </div>
         <input type="hidden" name="fulfillmentType" value="${checkoutFulfillmentType}">
         ${isPickup ? `<div class="field"><label>Pickup location</label><input class="input" value="${firstCartCook?.city || "Cook location"}" readonly></div>` : `
-          <div class="address-details-grid compact">
-            <div class="field address-field-full"><label>Street Name *</label><input class="input" name="streetName" value="${escapeAttr(savedDetails.streetName || deliveryAddressValue)}" placeholder="Street name, district or full address" required></div>
-            <div class="field"><label>Street No *</label><input class="input" name="streetNo" value="${escapeAttr(savedDetails.streetNo)}" placeholder="No" required></div>
-            <div class="field"><label>Floor *</label><input class="input" name="floor" value="${escapeAttr(savedDetails.floor)}" placeholder="Floor" required></div>
-            <div class="field"><label>Flat No *</label><input class="input" name="flatNo" value="${escapeAttr(savedDetails.flatNo)}" placeholder="Flat" required></div>
-            <div class="field address-field-full"><label>Delivery note / Directions</label><textarea name="deliveryNote" placeholder="Door code, building entrance, or delivery note">${escapeHtml(savedDetails.note)}</textarea></div>
+          <div class="checkout-address-summary ${savedAddressComplete ? "" : "missing"}">
+            <div>
+              <strong>Delivery address</strong>
+              <p>${savedAddressComplete ? escapeHtml(deliveryAddressValue) : "Please add your delivery address before placing the order."}</p>
+              ${savedAddressComplete && savedDetails.note ? `<small>Note: ${escapeHtml(savedDetails.note)}</small>` : ""}
+            </div>
+            <button class="button small" type="button" onclick="openLocation()">${savedAddressComplete ? "Change address" : "Add address"}</button>
           </div>
-          <input type="hidden" name="deliveryAddress" value="${escapeAttr(deliveryAddressValue)}">
         `}
+        ${missingSavedAddress ? `<div class="notice warning">Please add your delivery address before placing the order.</div>` : ""}
         ${missingDeliveryLocation ? `<div class="notice warning">Set a valid cook and customer delivery location before checkout.</div>` : ""}
         <div class="row"><span>Delivery fee</span><strong>${missingDeliveryLocation ? "Location needed" : money(deliveryFee)}</strong></div>
         <div class="row"><span>Total</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
@@ -4654,13 +4670,14 @@ async function placeOrder(event) {
     return;
   }
   if (input.fulfillmentType !== "pickup") {
-    const deliveryAddressDetails = normalizeAddressDetails({ streetName: input.streetName, streetNo: input.streetNo, floor: input.floor, flatNo: input.flatNo, note: input.deliveryNote });
+    const deliveryAddressDetails = currentSavedAddressDetails();
     if (!requiredAddressDetailsComplete(deliveryAddressDetails)) {
-      toast("Complete street name, street no, floor, and flat no.", true);
+      toast("Please add your delivery address before placing the order.", true);
+      openLocation();
       return;
     }
     input.deliveryAddressDetails = deliveryAddressDetails;
-    input.deliveryAddress = formatAddressDetails(deliveryAddressDetails, input.deliveryAddress || "", { includeNote: false });
+    input.deliveryAddress = formatAddressDetails(deliveryAddressDetails, state.user?.authMeta?.locationLabel || state.user?.city || "", { includeNote: false });
     const firstCartCook = cart.length ? byId(state.cooks, cart[0].cookId) : null;
     const cookLocationPoint = firstCartCook?.deliveryLocation?.point
       || staticFirstResolvedDeliveryPoint(firstCartCook?.location, firstCartCook?.address, firstCartCook?.city).point;
