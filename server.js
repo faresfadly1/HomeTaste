@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260627-ui-polish-02";
+const backendBuild = "20260627-structured-address-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -259,6 +259,27 @@ function numberValue(value, field, { min = 0, max = 100000, fallback = 0 } = {})
     throw appError(400, "INVALID_INPUT", `${field} must be between ${min} and ${max}.`);
   }
   return number;
+}
+function cleanAddressDetailValue(value, max = 120) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
+}
+function normalizeAddressDetails(input = {}) {
+  return {
+    streetName: cleanAddressDetailValue(input.streetName ?? input.street ?? input.address ?? "", 140),
+    streetNo: cleanAddressDetailValue(input.streetNo ?? input.streetNumber ?? input.no ?? "", 40),
+    floor: cleanAddressDetailValue(input.floor ?? "", 40),
+    flatNo: cleanAddressDetailValue(input.flatNo ?? input.flat ?? input.apartment ?? "", 40),
+    note: cleanAddressDetailValue(input.note ?? input.deliveryNote ?? input.directions ?? "", 220)
+  };
+}
+function requiredAddressDetailsComplete(details = {}) {
+  const clean = normalizeAddressDetails(details);
+  return Boolean(clean.streetName && clean.streetNo && clean.floor && clean.flatNo);
+}
+function formatAddressDetails(details = {}, fallback = "", { includeNote = true } = {}) {
+  const clean = normalizeAddressDetails(details);
+  const line = [clean.streetName || fallback, clean.streetNo ? `No: ${clean.streetNo}` : "", clean.floor ? `Floor: ${clean.floor}` : "", clean.flatNo ? `Flat: ${clean.flatNo}` : ""].filter(Boolean).join(", ");
+  return [line || fallback || "", includeNote && clean.note ? `Note: ${clean.note}` : ""].filter(Boolean).join("\n");
 }
 function validCookCanPublish(cook) {
   return cook && !["rejected", "suspended"].includes(cook.status);
@@ -1184,6 +1205,7 @@ function normalizeOrderDelivery(order) {
       dropoffLocation: null,
       pickupAddress: order.cookAddress || stored.pickupAddress || "",
       dropoffAddress: "",
+      dropoffAddressDetails: normalizeAddressDetails(stored.dropoffAddressDetails || order.deliveryAddressDetails || {}),
       pickupLocationExact: Boolean(order.cookLocationExact ?? stored.pickupLocationExact),
       dropoffLocationExact: false,
       approachDistanceKm: 0,
@@ -1232,6 +1254,7 @@ function normalizeOrderDelivery(order) {
     dropoffLocation: stored.dropoffLocation || order.customerLocation || null,
     pickupAddress: stored.pickupAddress || order.cookAddress || "",
     dropoffAddress: stored.dropoffAddress || order.deliveryAddress || "",
+    dropoffAddressDetails: normalizeAddressDetails(stored.dropoffAddressDetails || order.deliveryAddressDetails || {}),
     pickupLocationExact: Boolean(stored.pickupLocationExact ?? order.cookLocationExact),
     dropoffLocationExact: Boolean(stored.dropoffLocationExact ?? order.customerLocationExact),
     pickupLocationQuality: stored.pickupLocationQuality || order.pickupLocationQuality || (stored.pickupLocationExact || order.cookLocationExact ? "exact" : "missing"),
@@ -1633,6 +1656,7 @@ function normalizeDb(db) {
         order.delivery.dropoffLocation = dropoff.point;
         order.delivery.pickupAddress = pickup.address;
         order.delivery.dropoffAddress = order.deliveryAddress || dropoff.label;
+        order.delivery.dropoffAddressDetails = normalizeAddressDetails(order.delivery.dropoffAddressDetails || order.deliveryAddressDetails || customer?.authMeta?.addressDetails || {});
         order.delivery.pickupLocationExact = pickup.exact;
         order.delivery.dropoffLocationExact = dropoff.quality === "exact";
         order.delivery.pickupLocationQuality = pickup.quality;
@@ -1895,6 +1919,7 @@ const toOrder = (row) => ({
   paymentMethod: row.payment_method,
   payment: row.payment || null,
   deliveryAddress: row.delivery_address,
+  deliveryAddressDetails: row.delivery?.dropoffAddressDetails || row.payment?.delivery?.dropoffAddressDetails || {},
   scheduledFor: row.scheduled_for,
   customerLocation: row.customer_location || null,
   cookLocation: row.cook_location || null,
@@ -2501,7 +2526,7 @@ function orderWithVisibleContacts(db, order, user) {
     cookName: cook?.name || cookOwner?.name || "HomeTaste cook",
     cookAddress: order.cookAddress || cookOwner?.authMeta?.locationLabel || cookOwner?.city || cook?.city || "Cook address unavailable",
     customerName: customer?.name || "Customer",
-    customerAddress: order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable"
+    customerAddress: formatAddressDetails(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || customer?.authMeta?.addressDetails || {}, order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable", { includeNote: false })
   };
 }
 
@@ -3060,6 +3085,13 @@ async function api(req, res, pathname) {
     if (input.locationQuery !== undefined || input.customerLocation !== undefined) {
       user.authMeta.locationQuery = textValue(input.locationQuery ?? input.customerLocation ?? "", "Location query", { max: 180 });
     }
+    if (input.addressDetails !== undefined || input.deliveryAddressDetails !== undefined) {
+      const details = normalizeAddressDetails(input.addressDetails ?? input.deliveryAddressDetails ?? {});
+      user.authMeta.addressDetails = details;
+      if (!user.authMeta.locationLabel && requiredAddressDetailsComplete(details)) {
+        user.authMeta.locationLabel = formatAddressDetails(details, "", { includeNote: false });
+      }
+    }
     if (input.phone) {
       const phone = textValue(input.phone, "Phone number", { max: 24 });
       if (!isValidPhone(phone)) return json(res, 400, { code: "INVALID_PHONE", error: "Enter a valid phone number." });
@@ -3381,7 +3413,13 @@ async function api(req, res, pathname) {
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
-    const customerPoint = resolveDeliveryPoint(input.customerLocation, String(input.deliveryAddress || ""));
+    const hasStructuredAddressDetails = input.deliveryAddressDetails !== undefined || user.authMeta?.addressDetails !== undefined;
+    const deliveryAddressDetails = normalizeAddressDetails(input.deliveryAddressDetails || user.authMeta?.addressDetails || {});
+    if (fulfillmentType === "delivery" && hasStructuredAddressDetails && !requiredAddressDetailsComplete(deliveryAddressDetails)) {
+      return json(res, 400, { code: "DELIVERY_ADDRESS_DETAILS_REQUIRED", error: "Complete street name, street no, floor, and flat no." });
+    }
+    const formattedDeliveryAddress = formatAddressDetails(deliveryAddressDetails, textValue(input.deliveryAddress || "", "Delivery address", { max: 240 }), { includeNote: false });
+    const customerPoint = resolveDeliveryPoint(input.customerLocation, formattedDeliveryAddress);
     const customerLocation = customerPoint.point;
     const pickup = cookPickupDetails(db, firstDish.cookId);
     const cookLocation = pickup.location;
@@ -3403,7 +3441,8 @@ async function api(req, res, pathname) {
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: now(), note: "Order placed by customer." }],
       paymentMethod,
-      deliveryAddress: textValue(input.deliveryAddress || "", "Delivery address", { max: 240 }),
+      deliveryAddress: formattedDeliveryAddress,
+      deliveryAddressDetails,
       scheduledFor: textValue(input.scheduledFor || "", "Scheduled time", { max: 80 }) || null,
       customerLocation,
       customerLocationExact: customerPoint.quality === "exact",
@@ -3435,6 +3474,7 @@ async function api(req, res, pathname) {
       dropoffLocation: customerLocation,
       pickupAddress: pickup.address,
       dropoffAddress: order.deliveryAddress,
+      dropoffAddressDetails: deliveryAddressDetails,
       pickupLocationExact: pickup.exact,
       dropoffLocationExact: customerPoint.quality === "exact",
       pickupLocationQuality: pickup.quality,

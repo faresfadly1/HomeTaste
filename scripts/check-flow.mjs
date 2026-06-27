@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260627-ui-polish-02" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260627-structured-address-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -216,6 +216,7 @@ try {
   }
   // Frontend keeps the Google button clickable and shows a clear message when unconfigured.
   const appSrcEarly = await readFile(path.join(root, "public/app.js"), "utf8");
+  const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(/button\.hidden\s*=\s*false/.test(appSrcEarly) && /button\.disabled\s*=\s*false/.test(appSrcEarly), "Google button stays visible and enabled (never silently hidden)");
   assert(appSrcEarly.includes("sign-in is not configured"), "frontend shows a clear 'sign-in is not configured' message");
   assert(appSrcEarly.includes('api("/api/auth/oauth/start"') && appSrcEarly.includes("handleAuthLinkParams"), "frontend Google button uses OAuth start and stores callback auth token");
@@ -283,7 +284,10 @@ try {
   assert(mobileCheckoutMarkup.includes("To your address") && mobileCheckoutMarkup.includes("Collect from cook") && !mobileCheckoutMarkup.includes("₺/km") && !mobileCheckoutMarkup.includes("delivery-price-note"), "mobile Checkout keeps a simple fulfillment choice without distance formulas");
   assert(hostCartSource.indexOf('id="checkoutForm"') < hostCartSource.indexOf('data-fulfillment="delivery"') && !hostCartSource.includes("TL/km") && hostCartSource.includes("Total before delivery"), "host Cart moves the fulfillment choice into its Checkout section and hides technical math");
   assert(marketplaceSrcEarly.includes("deliveryEstimateForCart") && marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee"), "mobile Checkout calculates the final delivery amount internally and switches pickup to zero");
-  assert(marketplaceSrcEarly.includes('id="checkoutDeliveryAddress"') && marketplaceSrcEarly.includes("checkoutAddressInput?.value") && marketplaceSrcEarly.includes("Set a valid delivery location before placing a delivery order."), "mobile Checkout uses the current address input and blocks unresolved delivery locations");
+  assert(!appSrcEarly.includes("Popular locations") && !marketplaceSrcEarly.includes("popular-locations"), "address selection removes Popular locations shortcuts");
+  assert(appSrcEarly.includes("addressStreetNo") && appSrcEarly.includes("addressFloor") && appSrcEarly.includes("addressFlatNo") && appSrcEarly.includes("addressNote"), "host address picker uses structured street, floor, flat, and note fields");
+  assert(marketplaceSrcEarly.includes('id="checkoutDeliveryAddress"') && marketplaceSrcEarly.includes('id="checkoutStreetNo"') && marketplaceSrcEarly.includes('id="checkoutFloor"') && marketplaceSrcEarly.includes('id="checkoutFlatNo"') && marketplaceSrcEarly.includes("deliveryAddressDetails") && marketplaceSrcEarly.includes("Complete street name, street no, floor, and flat no."), "mobile Checkout uses structured delivery address details and blocks incomplete delivery locations");
+  assert(appSrcEarly.includes("dropoffAddressDetails") && serverSrcEarly.includes("dropoffAddressDetails"), "orders persist structured dropoff address details for driver and admin views");
   assert(marketplaceSrcEarly.includes("if (currentUserId) return scoped") && appSrcEarly.includes("return state?.user?.id ? scoped"), "authenticated checkout locations use user-scoped storage without generic cross-user fallback");
   assert(!/deliveryCoordinateFromText\(value, fallback\s*=\s*\{\s*lat:41\.0082/.test(marketplaceSrcEarly), "mobile delivery billing has no silent Istanbul coordinate fallback");
   assert(appSrcEarly.includes("function staticResolveDeliveryPoint") && appSrcEarly.includes("ankara demetevler") && !/staticCoordinateFromText\(value,\s*fallback\s*=/.test(appSrcEarly), "static checkout resolves known delivery points strictly without an Istanbul fallback");
@@ -357,7 +361,6 @@ try {
   assert(marketplaceSrcEarly.includes(".cook-management-profile{grid-template-columns:1fr}") && marketplaceSrcEarly.includes(".manager-dish{grid-template-columns:52px minmax(0,1fr)"), "unified Become a Cook controls and dish actions stack safely at mobile widths");
   assert(!marketplaceSrcEarly.includes("function toggleCookManagementOnline(button)") && !marketplaceSrcEarly.includes("cookManagementOnlineToggle"), "approved Become a Cook management leaves cook availability exclusively in Profile Settings");
   assert(!/localStorage\.(?:getItem|setItem)\([^\n]*(?:studio|cook.?ui)/i.test(marketplaceSrcEarly), "no localStorage flag can force a separate cook UI");
-  const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
   assert(serverSrcEarly.includes("function startOrderDeliveryLeg(order)") && serverSrcEarly.includes('order.status === "driver_assigned"') && serverSrcEarly.includes("deliveryLegDistanceKm"), "backend separates approach tracking from the billable delivery leg");
   assert(serverSrcEarly.includes("Cook finished the order. Ready for driver pickup.") && serverSrcEarly.includes("Your food is ready. Waiting for driver."), "backend records and notifies the cook-finished handoff");
   assert(serverSrcEarly.includes('"content-encoding": "gzip"') && serverSrcEarly.includes("/api/images/"), "backend compresses JSON and serves uploaded photos as image URLs");
@@ -739,6 +742,7 @@ try {
   const orderResult = await request(base, customer.token, "POST", "/api/orders", {
     items: [{ dishId: dish.id, qty: 1 }],
     deliveryAddress: "Uskudar, Istanbul",
+    deliveryAddressDetails: { streetName: "Uskudar, Istanbul", streetNo: "12", floor: "3", flatNo: "8", note: "Ring HomeTaste bell" },
     customerLocation: "41.0240,29.0170",
     scheduledFor: "2026-06-12T18:00:00.000Z",
     paymentMethod: "iban",
@@ -756,8 +760,8 @@ try {
   assert(order.paymentMethod === "iban" && order.payment?.provider === "bank_transfer" && order.payment.status === "held", "IBAN payment is accepted as a held manual payment");
   assert(order.route?.provider && order.etaMinutes > 0 && order.customerLocation?.lat, "order route, customer location, and ETA save");
   assert(order.status === "placed" && order.statusHistory?.some((item) => item.status === "placed"), "track order starts from real placed status history");
-  assert(order.deliveryAddress === "Uskudar, Istanbul" && order.scheduledFor === "2026-06-12T18:00:00.000Z", "track order carries delivery address and scheduled time");
-  assert(order.delivery.pickupLocation?.lat === order.cookLocation.lat && order.delivery.dropoffLocation?.lat === order.customerLocation.lat && order.delivery.pickupAddress && order.delivery.dropoffAddress, "delivery stores explicit cook pickup and customer dropoff details");
+  assert(order.deliveryAddress === "Uskudar, Istanbul, No: 12, Floor: 3, Flat: 8" && order.scheduledFor === "2026-06-12T18:00:00.000Z", "track order carries formatted structured delivery address and scheduled time");
+  assert(order.delivery.pickupLocation?.lat === order.cookLocation.lat && order.delivery.dropoffLocation?.lat === order.customerLocation.lat && order.delivery.pickupAddress && order.delivery.dropoffAddress && order.delivery.dropoffAddressDetails?.note === "Ring HomeTaste bell", "delivery stores explicit cook pickup and structured customer dropoff details");
   let earlyDriverState = await request(base, driver.token, "GET", "/api/state");
   let earlyDriverOrder = earlyDriverState.orders.find((item) => item.id === order.id);
   assert(earlyDriverOrder?.status === "placed" && !earlyDriverOrder.driverId, "new delivery order appears to drivers immediately as unassigned incoming work");

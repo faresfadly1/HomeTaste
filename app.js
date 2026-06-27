@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260627-ui-polish-02";
+const APP_BUILD = "20260627-structured-address-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -74,6 +74,51 @@ const ACCEPTED_UPLOAD_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/w
 const isProductionDeployment = ["faresfadly1.github.io", "hometaste-api-production.up.railway.app"].includes(window.location.hostname);
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
+const structuredAddressKeys = ["streetName", "streetNo", "floor", "flatNo", "note"];
+function cleanAddressDetailValue(value, max = 120) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
+}
+function normalizeAddressDetails(input = {}) {
+  return {
+    streetName: cleanAddressDetailValue(input.streetName ?? input.street ?? input.address ?? "", 140),
+    streetNo: cleanAddressDetailValue(input.streetNo ?? input.streetNumber ?? input.no ?? "", 40),
+    floor: cleanAddressDetailValue(input.floor ?? "", 40),
+    flatNo: cleanAddressDetailValue(input.flatNo ?? input.flat ?? input.apartment ?? "", 40),
+    note: cleanAddressDetailValue(input.note ?? input.deliveryNote ?? input.directions ?? "", 220)
+  };
+}
+function requiredAddressDetailsComplete(details = {}) {
+  const clean = normalizeAddressDetails(details);
+  return Boolean(clean.streetName && clean.streetNo && clean.floor && clean.flatNo);
+}
+function formatAddressDetails(details = {}, fallback = "", { includeNote = true } = {}) {
+  const clean = normalizeAddressDetails(details);
+  const line = [clean.streetName || fallback, clean.streetNo ? `No: ${clean.streetNo}` : "", clean.floor ? `Floor: ${clean.floor}` : "", clean.flatNo ? `Flat: ${clean.flatNo}` : ""].filter(Boolean).join(", ");
+  return [line || fallback || "", includeNote && clean.note ? `Note: ${clean.note}` : ""].filter(Boolean).join("\n");
+}
+function addressDetailsHtml(details = {}, fallback = "") {
+  const clean = normalizeAddressDetails(details);
+  const line = formatAddressDetails(clean, fallback, { includeNote: false }) || fallback || t("customerAddress");
+  return `${escapeHtml(line)}${clean.note ? `<small class="address-note">${escapeHtml(clean.note)}</small>` : ""}`;
+}
+function userAddressDetailsKey() {
+  return `hometaste_address_details_${state?.user?.id || "guest"}`;
+}
+function currentSavedAddressDetails() {
+  const fromUser = normalizeAddressDetails(state?.user?.authMeta?.addressDetails || {});
+  if (requiredAddressDetailsComplete(fromUser) || fromUser.note) return fromUser;
+  try {
+    return normalizeAddressDetails(JSON.parse(localStorage.getItem(userAddressDetailsKey()) || localStorage.getItem("hometaste_address_details") || "{}"));
+  } catch {
+    return normalizeAddressDetails();
+  }
+}
+function storeAddressDetails(details) {
+  const clean = normalizeAddressDetails(details);
+  const key = state?.user?.id ? userAddressDetailsKey() : "hometaste_address_details";
+  localStorage.setItem(key, JSON.stringify(clean));
+  return clean;
+}
 function deliveryBreakdown(order = {}) {
   const delivery = order.delivery || order.payment?.delivery || {};
   if (order.fulfillmentType === "pickup" || delivery.source === "pickup") {
@@ -445,6 +490,7 @@ async function handleMarketplaceMessage(event) {
         body: JSON.stringify({
           items: payload.items || [],
           deliveryAddress: payload.deliveryAddress || currentSavedAddress() || "",
+          deliveryAddressDetails: payload.deliveryAddressDetails || currentSavedAddressDetails(),
           customerLocation: payload.customerLocation || currentSavedLocationQuery() || "",
           scheduledFor: payload.scheduledFor || "",
           paymentMethod: payload.paymentMethod || "cash",
@@ -688,32 +734,42 @@ function locationOverlay() {
           <h2>${t("selectAddress")}</h2>
         </div>
         <div class="address-box">
-          <label>${t("enterStreet", "Enter your street address")}</label>
-          <input id="locationInput" placeholder="${t("streetPostal", "Street, Postal Code")}">
+          <div class="address-field address-field-full">
+            <label for="locationInput">Street Name *</label>
+            <input id="locationInput" autocomplete="address-line1" placeholder="Street name, district or full address">
+            <small class="address-error" data-address-error="streetName"></small>
+          </div>
+          <div class="address-field">
+            <label for="addressStreetNo">Street No *</label>
+            <input id="addressStreetNo" autocomplete="address-line2" placeholder="No">
+            <small class="address-error" data-address-error="streetNo"></small>
+          </div>
+          <div class="address-field">
+            <label for="addressFloor">Floor *</label>
+            <input id="addressFloor" inputmode="numeric" autocomplete="address-line3" placeholder="Floor">
+            <small class="address-error" data-address-error="floor"></small>
+          </div>
+          <div class="address-field">
+            <label for="addressFlatNo">Flat No *</label>
+            <input id="addressFlatNo" inputmode="numeric" autocomplete="address-line3" placeholder="Flat">
+            <small class="address-error" data-address-error="flatNo"></small>
+          </div>
+          <div class="address-field address-field-full">
+            <label for="addressNote">Delivery note / Directions</label>
+            <textarea id="addressNote" rows="3" maxlength="220" placeholder="Door code, building entrance, or delivery note"></textarea>
+          </div>
           <button class="locate-me" id="useBrowserLocation" type="button"><span>◎</span> ${t("locateMe", "Locate me")}</button>
-          <button class="address-submit" id="searchLocation" type="button">→</button>
-        </div>
-        <h3 class="popular-title">${t("popularLocations", "Popular locations")}</h3>
-        <div class="popular-locations">
-          ${["Istanbul", "Izmir", "Ankara", "Antalya", "Bursa"].map(city => `<button type="button" data-location-city="${city}">${city}</button>`).join("")}
+          <button class="address-submit" id="searchLocation" type="button">Save address</button>
         </div>
         <iframe id="locationMap" title="Selected location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
     </div>
   `);
   document.querySelector("#closeLocation").onclick = closeLocation;
-  document.querySelector("#searchLocation").onclick = () => {
-    const input = document.querySelector("#locationInput");
-    const value = input.value.trim();
-    if (!value) return toast(t("enterAddress"), true);
-    confirmLocation(value, input.dataset.mapQuery || value);
-  };
+  document.querySelector("#searchLocation").onclick = saveStructuredLocation;
   document.querySelector("#useBrowserLocation").onclick = useBrowserLocation;
-  document.querySelector("#locationInput").addEventListener("input", (event) => {
-    event.currentTarget.dataset.mapQuery = event.currentTarget.value;
-  });
-  document.querySelectorAll("[data-location-city]").forEach((button) => {
-    button.onclick = () => setLocationMap(`${button.dataset.locationCity}, Turkey`);
+  ["locationInput", "addressStreetNo", "addressFloor", "addressFlatNo", "addressNote"].forEach((id) => {
+    document.querySelector(`#${id}`)?.addEventListener("input", handleAddressDetailInput);
   });
 }
 
@@ -738,7 +794,8 @@ function setLocationMap(query, label = query) {
   }
   const input = document.querySelector("#locationInput");
   if (input) {
-    input.value = cleanLabel;
+    const details = currentSavedAddressDetails();
+    input.value = details.streetName || cleanLabel;
     input.dataset.mapQuery = cleanQuery || cleanLabel;
   }
   const map = document.querySelector("#locationMap");
@@ -768,10 +825,13 @@ function syncUserLocationFromState() {
   if (!user?.id) return;
   const label = readableLocationLabel(user.authMeta?.locationLabel || "");
   const query = String(user.authMeta?.locationQuery || "").trim();
+  const details = normalizeAddressDetails(user.authMeta?.addressDetails || {});
   if (label) localStorage.setItem(`hometaste_address_${user.id}`, label);
   else localStorage.removeItem(`hometaste_address_${user.id}`);
   if (query || label) localStorage.setItem(`hometaste_location_query_${user.id}`, query || label);
   else localStorage.removeItem(`hometaste_location_query_${user.id}`);
+  if (requiredAddressDetailsComplete(details) || details.note) localStorage.setItem(`hometaste_address_details_${user.id}`, JSON.stringify(details));
+  else localStorage.removeItem(`hometaste_address_details_${user.id}`);
 }
 
 function updateAddressButton(value = currentSavedAddress()) {
@@ -779,17 +839,72 @@ function updateAddressButton(value = currentSavedAddress()) {
   if (label) label.textContent = value || t("selectAddress");
 }
 
-async function confirmLocation(value, mapQuery = value) {
+function collectAddressDetailsFromOverlay() {
+  return normalizeAddressDetails({
+    streetName: document.querySelector("#locationInput")?.value,
+    streetNo: document.querySelector("#addressStreetNo")?.value,
+    floor: document.querySelector("#addressFloor")?.value,
+    flatNo: document.querySelector("#addressFlatNo")?.value,
+    note: document.querySelector("#addressNote")?.value
+  });
+}
+
+function showAddressDetailErrors(details) {
+  const clean = normalizeAddressDetails(details);
+  const labels = { streetName: "Street name", streetNo: "Street no", floor: "Floor", flatNo: "Flat no" };
+  let valid = true;
+  Object.entries(labels).forEach(([key, label]) => {
+    const error = document.querySelector(`[data-address-error="${key}"]`);
+    const missing = !clean[key];
+    if (error) error.textContent = missing ? `${label} is required.` : "";
+    valid = valid && !missing;
+  });
+  return valid;
+}
+
+function populateAddressDetailFields(details = currentSavedAddressDetails()) {
+  const clean = normalizeAddressDetails(details);
+  const input = document.querySelector("#locationInput");
+  if (input) input.value = clean.streetName || currentSavedAddress();
+  const streetNo = document.querySelector("#addressStreetNo");
+  if (streetNo) streetNo.value = clean.streetNo;
+  const floor = document.querySelector("#addressFloor");
+  if (floor) floor.value = clean.floor;
+  const flat = document.querySelector("#addressFlatNo");
+  if (flat) flat.value = clean.flatNo;
+  const note = document.querySelector("#addressNote");
+  if (note) note.value = clean.note;
+}
+
+function handleAddressDetailInput(event) {
+  if (event?.currentTarget?.id === "locationInput") event.currentTarget.dataset.mapQuery = event.currentTarget.value.trim();
+  const details = collectAddressDetailsFromOverlay();
+  showAddressDetailErrors(details);
+  const input = document.querySelector("#locationInput");
+  const map = document.querySelector("#locationMap");
+  if (map && input && details.streetName) map.src = `https://maps.google.com/maps?q=${encodeURIComponent(input.dataset.mapQuery || details.streetName)}&z=14&output=embed`;
+}
+
+async function saveStructuredLocation() {
+  const input = document.querySelector("#locationInput");
+  const details = collectAddressDetailsFromOverlay();
+  if (!showAddressDetailErrors(details)) return toast("Complete street name, street no, floor, and flat no.", true);
+  const label = formatAddressDetails(details, details.streetName, { includeNote: false });
+  await confirmLocation(label, input?.dataset.mapQuery || currentSavedLocationQuery() || details.streetName, details);
+}
+
+async function confirmLocation(value, mapQuery = value, addressDetails = null) {
   const clean = value.trim();
   if (!clean) return toast(t("enterAddress"), true);
-  const label = readableLocationLabel(clean) || t("currentLocation");
+  const details = addressDetails ? storeAddressDetails(addressDetails) : currentSavedAddressDetails();
+  const label = readableLocationLabel(clean) || formatAddressDetails(details, "", { includeNote: false }) || t("currentLocation");
   localStorage.setItem(userAddressKey(), label);
   if (mapQuery) localStorage.setItem(userLocationQueryKey(), mapQuery);
   setLocationMap(mapQuery, label);
   updateAddressButton(label);
   closeLocation();
   try {
-    if (state?.user?.id) applyAdminState(await api("/api/users/profile", { method: "PATCH", body: JSON.stringify({ locationLabel: label, locationQuery: mapQuery || label }) }));
+    if (state?.user?.id) applyAdminState(await api("/api/users/profile", { method: "PATCH", body: JSON.stringify({ locationLabel: label, locationQuery: mapQuery || label, addressDetails: details }) }));
     toast(t("addressSaved"));
   } catch (error) {
     toast(error.message || "Location could not be saved.", true);
@@ -800,6 +915,7 @@ function openLocation() {
   locationOverlay();
   document.querySelector("#locationOverlay").classList.add("open");
   const saved = currentSavedAddress();
+  populateAddressDetailFields();
   if (saved) setLocationMap(currentSavedLocationQuery() || saved, saved);
   else {
     const map = document.querySelector("#locationMap");
@@ -1267,7 +1383,7 @@ function staticPublicState(db, user) {
       cookName: cook?.name || cookOwner?.name || "HomeTaste cook",
       cookAddress: order.cookAddress || cookOwner?.authMeta?.locationLabel || cookOwner?.city || cook?.city || "Cook address unavailable",
       customerName: customer?.name || "Customer",
-      customerAddress: order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable"
+      customerAddress: formatAddressDetails(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || customer?.authMeta?.addressDetails || {}, order.deliveryAddress || customer?.authMeta?.locationLabel || customer?.city || "Customer address unavailable", { includeNote: false })
     };
   });
   return {
@@ -1443,6 +1559,7 @@ function staticNormalizeOrderDelivery(order) {
       dropoffLocation: null,
       pickupAddress: order.cookAddress || stored.pickupAddress || "",
       dropoffAddress: "",
+      dropoffAddressDetails: normalizeAddressDetails(stored.dropoffAddressDetails || order.deliveryAddressDetails || {}),
       pickupLocationExact: Boolean(order.cookLocationExact ?? stored.pickupLocationExact),
       dropoffLocationExact: false,
       approachDistanceKm: 0,
@@ -1490,6 +1607,7 @@ function staticNormalizeOrderDelivery(order) {
     dropoffLocation: stored.dropoffLocation || order.customerLocation || null,
     pickupAddress: stored.pickupAddress || order.cookAddress || "",
     dropoffAddress: stored.dropoffAddress || order.deliveryAddress || "",
+    dropoffAddressDetails: normalizeAddressDetails(stored.dropoffAddressDetails || order.deliveryAddressDetails || {}),
     pickupLocationExact: Boolean(stored.pickupLocationExact ?? order.cookLocationExact),
     dropoffLocationExact: Boolean(stored.dropoffLocationExact ?? order.customerLocationExact),
     approachDistanceKm,
@@ -1711,6 +1829,10 @@ async function staticApi(path, options = {}) {
     if (input.city) user.city = String(input.city).trim();
     if (input.country) user.country = String(input.country).trim();
     if (input.phone) user.phone = String(input.phone).trim();
+    user.authMeta ||= {};
+    if (input.locationLabel !== undefined || input.address !== undefined) user.authMeta.locationLabel = String(input.locationLabel ?? input.address ?? "").trim();
+    if (input.locationQuery !== undefined || input.customerLocation !== undefined) user.authMeta.locationQuery = String(input.locationQuery ?? input.customerLocation ?? "").trim();
+    if (input.addressDetails !== undefined || input.deliveryAddressDetails !== undefined) user.authMeta.addressDetails = normalizeAddressDetails(input.addressDetails ?? input.deliveryAddressDetails ?? {});
     const cook = staticCookForUser(db, user.id);
     if (cook) {
       if (input.bio !== undefined) cook.bio = String(input.bio || "").trim();
@@ -1904,7 +2026,9 @@ async function staticApi(path, options = {}) {
     const cook = db.cooks.find((item) => item.id === firstDish.cookId);
     if (!cook?.online) throw new Error("This cook is currently offline and cannot accept new orders.");
     const pickup = staticCookPickupDetails(db, firstDish.cookId);
-    const customerPoint = staticResolveDeliveryPoint(input.customerLocation, String(input.deliveryAddress || ""));
+    const deliveryAddressDetails = normalizeAddressDetails(input.deliveryAddressDetails || user.authMeta?.addressDetails || {});
+    const formattedDeliveryAddress = formatAddressDetails(deliveryAddressDetails, String(input.deliveryAddress || "").trim(), { includeNote: false }) || String(input.deliveryAddress || "").trim();
+    const customerPoint = staticResolveDeliveryPoint(input.customerLocation, formattedDeliveryAddress);
     if (fulfillmentType === "delivery" && (!pickup.location || !customerPoint.point)) {
       throw new Error("Set a valid cook and customer delivery location before placing a delivery order.");
     }
@@ -1924,7 +2048,8 @@ async function staticApi(path, options = {}) {
       status: "placed",
       statusHistory: [{ status: "placed", byUserId: user.id, at: createdAt, note: "Order placed by customer." }],
       paymentMethod: String(input.paymentMethod || "cash"),
-      deliveryAddress: String(input.deliveryAddress || "").trim(),
+      deliveryAddress: formattedDeliveryAddress,
+      deliveryAddressDetails,
       scheduledFor: String(input.scheduledFor || "").trim() || null,
       customerLocation: customerPoint.point,
       customerLocationExact: customerPoint.quality === "exact",
@@ -1955,6 +2080,7 @@ async function staticApi(path, options = {}) {
       dropoffLocation: order.customerLocation,
       pickupAddress: pickup.address,
       dropoffAddress: order.deliveryAddress,
+      dropoffAddressDetails: deliveryAddressDetails,
       pickupLocationExact: pickup.exact,
       dropoffLocationExact: customerPoint.quality === "exact",
       pickupLocationQuality: pickup.quality,
@@ -3386,6 +3512,7 @@ function renderCart() {
   const offlineCookInCart = cart.some((item) => byId(state.cooks, item.cookId)?.online === false);
   const missingDeliveryLocation = !isPickup && cart.length && (!cookLocationPoint || !customerPoint || !estimatedRoute);
   const checkoutBlocked = !cart.length || offlineCookInCart || missingDeliveryLocation;
+  const savedDetails = currentSavedAddressDetails();
   const deliveryAddressValue = state.user?.authMeta?.locationLabel || state.user?.city || "";
   return `
     <aside class="panel cart">
@@ -3408,7 +3535,16 @@ function renderCart() {
           <button type="button" class="${isPickup ? "active" : ""}" data-fulfillment="pickup"><strong>Pickup</strong><small>Collect from cook</small></button>
         </div>
         <input type="hidden" name="fulfillmentType" value="${checkoutFulfillmentType}">
-        ${isPickup ? `<div class="field"><label>Pickup location</label><input class="input" value="${firstCartCook?.city || "Cook location"}" readonly></div>` : `<div class="field"><label>${t("deliveryAddress")}</label><input class="input" name="deliveryAddress" value="${deliveryAddressValue}" placeholder="Enter delivery city or district"></div>`}
+        ${isPickup ? `<div class="field"><label>Pickup location</label><input class="input" value="${firstCartCook?.city || "Cook location"}" readonly></div>` : `
+          <div class="address-details-grid compact">
+            <div class="field address-field-full"><label>Street Name *</label><input class="input" name="streetName" value="${escapeAttr(savedDetails.streetName || deliveryAddressValue)}" placeholder="Street name, district or full address" required></div>
+            <div class="field"><label>Street No *</label><input class="input" name="streetNo" value="${escapeAttr(savedDetails.streetNo)}" placeholder="No" required></div>
+            <div class="field"><label>Floor *</label><input class="input" name="floor" value="${escapeAttr(savedDetails.floor)}" placeholder="Floor" required></div>
+            <div class="field"><label>Flat No *</label><input class="input" name="flatNo" value="${escapeAttr(savedDetails.flatNo)}" placeholder="Flat" required></div>
+            <div class="field address-field-full"><label>Delivery note / Directions</label><textarea name="deliveryNote" placeholder="Door code, building entrance, or delivery note">${escapeHtml(savedDetails.note)}</textarea></div>
+          </div>
+          <input type="hidden" name="deliveryAddress" value="${escapeAttr(deliveryAddressValue)}">
+        `}
         ${missingDeliveryLocation ? `<div class="notice warning">Set a valid cook and customer delivery location before checkout.</div>` : ""}
         <div class="row"><span>Delivery fee</span><strong>${missingDeliveryLocation ? "Location needed" : money(deliveryFee)}</strong></div>
         <div class="row"><span>Total</span><strong>${money(cart.length ? subtotal + deliveryFee + commission : 0)}</strong></div>
@@ -3523,6 +3659,7 @@ function adminOrderDetails(order) {
   const refund = adminOrderRefund(order.id);
   const payment = (state.payments || []).find((item) => sameId(item.orderId, order.id)) || order.payment || {};
   const delivery = deliveryBreakdown(order);
+  const dropoffAddressText = formatAddressDetails(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || {}, order.deliveryAddress || order.delivery?.dropoffAddress || "No address", { includeNote: false });
   return `
     <div class="admin-modal-backdrop" data-close-order-details>
       <section class="admin-drawer" role="dialog" aria-modal="true" aria-label="Order details" onclick="event.stopPropagation()">
@@ -3534,7 +3671,7 @@ function adminOrderDetails(order) {
           <span><small>Driver</small><strong>${order.fulfillmentType === "pickup" ? "Not required" : (driver?.name || "Unassigned")}</strong><em>${driver?.phone || ""}</em></span>
           <span><small>Driver visibility</small><strong>${driverVisibilityLabel(order)}</strong></span>
           <span><small>Pickup location</small><strong>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</strong></span>
-          <span><small>Dropoff location</small><strong>${order.fulfillmentType === "pickup" ? "Customer pickup" : (order.deliveryAddress || "No address")}</strong></span>
+          <span><small>Dropoff location</small><strong>${order.fulfillmentType === "pickup" ? "Customer pickup" : escapeHtml(dropoffAddressText)}</strong>${order.delivery?.dropoffAddressDetails?.note ? `<em>${escapeHtml(order.delivery.dropoffAddressDetails.note)}</em>` : ""}</span>
           <span><small>Pickup quality</small><strong>${order.delivery?.pickupLocationQuality || order.pickupLocationQuality || "missing"}</strong></span>
           <span><small>Dropoff quality</small><strong>${order.delivery?.dropoffLocationQuality || order.dropoffLocationQuality || "missing"}</strong></span>
           <span><small>Distance source</small><strong>${order.delivery?.distanceSource || order.distanceSource || "server_cook_to_customer"}</strong></span>
@@ -3606,6 +3743,7 @@ function driverOrderCard(order) {
   const dropoffLocation = order.delivery?.dropoffLocation || order.customerLocation;
   const pickupQuality = order.delivery?.pickupLocationQuality || order.pickupLocationQuality || ((order.delivery?.pickupLocationExact ?? order.cookLocationExact) ? "exact" : "missing");
   const dropoffQuality = order.delivery?.dropoffLocationQuality || order.dropoffLocationQuality || ((order.delivery?.dropoffLocationExact ?? order.customerLocationExact) ? "exact" : "missing");
+  const dropoffAddress = addressDetailsHtml(order.delivery?.dropoffAddressDetails || order.deliveryAddressDetails || {}, order.customerAddress || order.deliveryAddress || order.delivery?.dropoffAddress || t("customerAddress"));
   const coordinateLabel = (point) => point?.lat && point?.lng ? `${Number(point.lat).toFixed(5)}, ${Number(point.lng).toFixed(5)}` : "";
   const stageTitle = completed ? (order.status === "delivered" ? "Delivered" : "Cancelled") : order.status === "driver_assigned" ? "Go to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Deliver to customer" : readyToAccept ? "Ready for driver pickup" : "Delivery order";
   const mapLocationReady = order.status === "driver_assigned" || !order.driverId ? Boolean(pickupLocation) : Boolean(dropoffLocation);
@@ -3629,7 +3767,7 @@ function driverOrderCard(order) {
       ${waitingForCook ? `<div class="driver-waiting-copy"><strong>Waiting for cook</strong><span>The cook is preparing this order.</span><span>You can accept delivery when it is ready.</span></div>` : ""}
       <div class="handoff-route-card">
         <div><small>Pickup from cook</small><strong>${order.cookName || cookName(order.cookId)}</strong><span>${order.cookAddress || order.delivery?.pickupAddress || "Cook address unavailable"}</span><em>${pickupLocation && coordinateLabel(pickupLocation) ? `${pickupQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(pickupLocation)}` : "Location unavailable. Use address."}</em></div>
-        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${order.customerAddress || order.deliveryAddress || t("customerAddress")}</span><em>${dropoffLocation && coordinateLabel(dropoffLocation) ? `${dropoffQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(dropoffLocation)}` : "Location unavailable. Use address."}</em></div>
+        <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${dropoffAddress}</span><em>${dropoffLocation && coordinateLabel(dropoffLocation) ? `${dropoffQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(dropoffLocation)}` : "Location unavailable. Use address."}</em></div>
       </div>
       <div class="meta">${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
       ${showDeliveryBreakdown ? `<div class="delivery-breakdown"><strong>${completed ? stageTitle : order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong>${completed ? "" : `<span data-driver-tracking-state="${order.id}">${trackingLabel}</span>`}<span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">${payoutDistanceLabel}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span>${completed ? `<span>Completed at ${new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toLocaleString()}</span>` : `<span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span>`}</div>` : ""}${activeTrip ? (mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Location unavailable. Use the address above.</div>`) : ""}
@@ -4512,10 +4650,17 @@ async function placeOrder(event) {
     return;
   }
   if (input.fulfillmentType !== "pickup") {
+    const deliveryAddressDetails = normalizeAddressDetails({ streetName: input.streetName, streetNo: input.streetNo, floor: input.floor, flatNo: input.flatNo, note: input.deliveryNote });
+    if (!requiredAddressDetailsComplete(deliveryAddressDetails)) {
+      toast("Complete street name, street no, floor, and flat no.", true);
+      return;
+    }
+    input.deliveryAddressDetails = deliveryAddressDetails;
+    input.deliveryAddress = formatAddressDetails(deliveryAddressDetails, input.deliveryAddress || "", { includeNote: false });
     const firstCartCook = cart.length ? byId(state.cooks, cart[0].cookId) : null;
     const cookLocationPoint = firstCartCook?.deliveryLocation?.point
       || staticFirstResolvedDeliveryPoint(firstCartCook?.location, firstCartCook?.address, firstCartCook?.city).point;
-    const customerPoint = staticFirstResolvedDeliveryPoint(input.deliveryAddress, state.user?.authMeta?.locationQuery, state.user?.authMeta?.locationLabel, state.user?.city).point;
+    const customerPoint = staticFirstResolvedDeliveryPoint(state.user?.authMeta?.locationQuery, input.deliveryAddress, state.user?.authMeta?.locationLabel, state.user?.city).point;
     if (!cookLocationPoint || !customerPoint) {
       toast("Set a valid cook and customer delivery location before placing a delivery order.", true);
       renderApp();
@@ -4532,7 +4677,7 @@ async function placeOrder(event) {
   try {
     const result = await api("/api/orders", {
       method: "POST",
-      body: JSON.stringify({ ...input, customerLocation: input.deliveryAddress, items: cart })
+      body: JSON.stringify({ ...input, customerLocation: state.user?.authMeta?.locationQuery || input.deliveryAddress, items: cart })
     });
     state = result.state || result;
     cart = [];
