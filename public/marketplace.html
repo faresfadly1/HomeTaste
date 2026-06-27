@@ -512,10 +512,45 @@ ul{list-style:none}
   overflow:hidden;border:1px solid var(--border);
   cursor:pointer;transition:all var(--transition);
 }
+.skeleton-card {
+  pointer-events: none;
+  cursor: default;
+  box-shadow: none;
+}
+.skeleton-block,
+.skeleton-line {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--bg3), #fff, var(--bg3));
+  background-size: 180% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.skeleton-block {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+.skeleton-line {
+  width: 72%;
+  height: 12px;
+  margin: 8px 0;
+}
+.skeleton-line.wide { width: 92%; height: 14px; }
+.skeleton-line.short { width: 46%; }
+@keyframes skeletonShimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -80% 0; }
+}
 .cook-card:hover{
   transform:translateY(-4px);
   border-color:var(--orange);
   box-shadow:0 12px 32px rgba(0,0,0,0.4),0 0 0 1px var(--orange-glow);
+}
+.cook-card.skeleton-card:hover,
+.dish-card.skeleton-card:hover {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
 }
 .cook-card-img{
   width:100%;height:160px;object-fit:cover;
@@ -4227,29 +4262,49 @@ function applyMarketplaceState(rawState, options = {}) {
 	  }
 	  return true;
 	}
-function marketplaceLoadingHtml(label = 'HomeTaste') {
-  return `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⏳</div><h3>Loading ${safeDisplayHtml(label)}</h3><p>Getting the latest live dishes and cooks.</p></div>`;
+function marketplaceSkeletonHtml(type = 'cook') {
+  const count = type === 'dish' ? 4 : 3;
+  return Array.from({ length: count }, () => `
+    <div class="${type === 'dish' ? 'dish-card' : 'cook-card'} skeleton-card" aria-hidden="true">
+      <div class="${type === 'dish' ? 'dish-img' : 'cook-card-img'} skeleton-block"></div>
+      <div class="${type === 'dish' ? 'dish-body' : 'cook-card-body'}">
+        <span class="skeleton-line wide"></span>
+        <span class="skeleton-line"></span>
+        <span class="skeleton-line short"></span>
+      </div>
+    </div>
+  `).join('');
+}
+function renderInitialSkeletonOnce(grid, type = 'cook') {
+  if (!grid) return;
+  if (grid.children.length > 0 && grid.dataset.initialSkeleton !== 'true') return;
+  if (grid.dataset.initialSkeleton === 'true') return;
+  grid.innerHTML = marketplaceSkeletonHtml(type);
+  grid.dataset.initialSkeleton = 'true';
+}
+function clearInitialSkeleton(grid) {
+  if (grid?.dataset.initialSkeleton) delete grid.dataset.initialSkeleton;
 }
 function marketplaceLoadErrorHtml() {
   return `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><h3>Could not load live dishes</h3><p>Please check your connection and try again.</p></div>`;
 }
-function showMarketplaceLoading() {
+function showMarketplaceSkeletonIfEmpty() {
   if (marketStateLoaded) return;
   const homeGrid = document.getElementById('homeCooksGrid');
   const browseGrid = document.getElementById('browseGrid');
   const dishesGrid = document.getElementById('dishesGrid');
-  if (homeGrid) homeGrid.innerHTML = marketplaceLoadingHtml('cooks');
-  if (browseGrid) browseGrid.innerHTML = marketplaceLoadingHtml('cooks');
-  if (dishesGrid) dishesGrid.innerHTML = marketplaceLoadingHtml('dishes');
+  renderInitialSkeletonOnce(homeGrid, 'cook');
+  renderInitialSkeletonOnce(browseGrid, 'cook');
+  renderInitialSkeletonOnce(dishesGrid, 'dish');
 }
 function showMarketplaceLoadError() {
   if (marketStateLoaded) return;
   const homeGrid = document.getElementById('homeCooksGrid');
   const browseGrid = document.getElementById('browseGrid');
   const dishesGrid = document.getElementById('dishesGrid');
-  if (homeGrid) homeGrid.innerHTML = marketplaceLoadErrorHtml();
-  if (browseGrid) browseGrid.innerHTML = marketplaceLoadErrorHtml();
-  if (dishesGrid) dishesGrid.innerHTML = marketplaceLoadErrorHtml();
+  if (homeGrid && (!homeGrid.children.length || homeGrid.dataset.initialSkeleton === 'true')) homeGrid.innerHTML = marketplaceLoadErrorHtml();
+  if (browseGrid && (!browseGrid.children.length || browseGrid.dataset.initialSkeleton === 'true')) browseGrid.innerHTML = marketplaceLoadErrorHtml();
+  if (dishesGrid && (!dishesGrid.children.length || dishesGrid.dataset.initialSkeleton === 'true')) dishesGrid.innerHTML = marketplaceLoadErrorHtml();
 }
 function requestMarketplaceState() {
   if (socialMutationInFlight) return false;
@@ -4377,7 +4432,7 @@ function clearLegacyLocalDemoData() {
 
 // ===== INIT =====
 async function initializeMarketplace(initialPage) {
-  showMarketplaceLoading();
+  showMarketplaceSkeletonIfEmpty();
   try {
     if (marketAuthToken()) {
       await syncMarketplaceFromApi();
@@ -4844,11 +4899,17 @@ function filterChip(el, type) {
 function renderHomeCooks() {
   const grid = document.getElementById('homeCooksGrid');
   if (!grid) return;
+  const list = countryCooks().slice(0, 4);
   if (!marketStateLoaded) {
-    grid.innerHTML = marketplaceLoadingHtml('cooks');
+    if (list.length) {
+      clearInitialSkeleton(grid);
+      grid.innerHTML = list.map((c, i) => cookCard(c, `stagger-${i+1}`)).join('');
+    } else {
+      renderInitialSkeletonOnce(grid, 'cook');
+    }
     return;
   }
-  const list = countryCooks().slice(0, 4);
+  clearInitialSkeleton(grid);
   grid.innerHTML = list.length
     ? list.map((c, i) => cookCard(c, `stagger-${i+1}`)).join('')
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No cooks near you yet</h3><p>Try another city or check back soon.</p></div>`;
@@ -4856,11 +4917,19 @@ function renderHomeCooks() {
 function renderBrowseCooks() {
   const grid = document.getElementById('browseGrid');
   if (!grid) return;
+  const filtered = getFilteredCooks();
   if (!marketStateLoaded) {
-    grid.innerHTML = marketplaceLoadingHtml('cooks');
+    if (cooks.length) {
+      clearInitialSkeleton(grid);
+      grid.innerHTML = filtered.length
+        ? filtered.map((c, i) => cookCard(c, `stagger-${(i%4)+1}`)).join('')
+        : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>${tr('noCooks')}</h3><p>${tr('tryFilters')}</p></div>`;
+    } else {
+      renderInitialSkeletonOnce(grid, 'cook');
+    }
     return;
   }
-  const filtered = getFilteredCooks();
+  clearInitialSkeleton(grid);
   grid.innerHTML = filtered.length
     ? filtered.map((c, i) => cookCard(c, `stagger-${(i%4)+1}`)).join('')
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔎</div><h3>${tr('noCooks')}</h3><p>${tr('tryFilters')}</p></div>`;
@@ -4911,14 +4980,22 @@ function cookCard(c, staggerClass) {
 function renderDishes(container = 'dishesGrid') {
   const grid = document.getElementById(container);
   if (!grid) return;
-  if (!marketStateLoaded) {
-    grid.innerHTML = marketplaceLoadingHtml('dishes');
-    return;
-  }
   const pageChip = document.querySelector('#page-dishes .filter-bar .chip.active')?.textContent?.trim().toLowerCase();
   const homeChip = document.querySelector('.filter-chips .chip.active')?.textContent?.trim().toLowerCase();
   const activeChip = pageChip || homeChip || 'all';
   const list = countryDishes().filter(d => activeChip.includes('all') || [d.tag, d.country].some(value => String(value || '').toLowerCase().includes(activeChip)));
+  if (!marketStateLoaded) {
+    if (dishes.length) {
+      clearInitialSkeleton(grid);
+      grid.innerHTML = list.length
+        ? list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('')
+        : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>When cooks publish real dishes, they will appear here.</p></div>`;
+    } else {
+      renderInitialSkeletonOnce(grid, 'dish');
+    }
+    return;
+  }
+  clearInitialSkeleton(grid);
   grid.innerHTML = list.length
     ? list.map((d, i) => dishCard(d, `stagger-${(i%3)+1}`)).join('')
     : `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🍽️</div><h3>No dishes yet</h3><p>When cooks publish real dishes, they will appear here.</p></div>`;

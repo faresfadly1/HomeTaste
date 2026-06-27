@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260627-checkout-no-address-ui-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260627-marketplace-skeleton-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -236,7 +236,11 @@ try {
   assert(appSrcEarly.includes("function normalizeMediaValue") && appSrcEarly.includes("function resolveCookMedia") && appSrcEarly.includes("Stored background image is unavailable"), "admin media resolver supports legacy formats and clear broken-image states");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   const stylesSrcEarly = await readFile(path.join(root, "public/styles.css"), "utf8");
-  assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceLoading();"), "mobile marketplace shows a loading state before live data renders");
+  assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceSkeletonIfEmpty();") && marketplaceSrcEarly.includes("function renderInitialSkeletonOnce") && marketplaceSrcEarly.includes("skeleton-card"), "mobile marketplace uses silent initial skeleton cards before live data renders");
+  const oldCookLoadingText = ["Loading", "cooks"].join(" ");
+  const oldDishLoadingText = ["Loading", "dishes"].join(" ");
+  const oldLoadingBody = ["Getting the latest live", "dishes and cooks."].join(" ");
+  assert(!marketplaceSrcEarly.includes(oldCookLoadingText) && !marketplaceSrcEarly.includes(oldDishLoadingText) && !marketplaceSrcEarly.includes(oldLoadingBody) && !marketplaceSrcEarly.includes("marketplaceLoadingHtml"), "mobile marketplace never renders the old cook or dish loading card");
   assert(marketplaceSrcEarly.includes("const MARKETPLACE_REFRESH_MS = 30000"), "mobile marketplace refresh interval is controlled, not an 8-second re-render loop");
   assert(!marketplaceSrcEarly.includes("requestMarketplaceState();\n  loadPublicMarketplaceState();"), "mobile marketplace does not race authenticated state with public fallback on first load");
   assert(marketplaceSrcEarly.includes("async function initializeMarketplace") && marketplaceSrcEarly.includes("initializeMarketplace(initialPage);"), "mobile marketplace uses one clean async initialization sequence");
@@ -253,6 +257,7 @@ try {
   assert(/class="btn-reorder" type="button" onclick='\$\{action\}'/.test(marketplaceSrcEarly), "mobile order action buttons preserve quoted order IDs for Track Order and Reorder");
   assert(!marketplaceSrcEarly.includes('class="btn-reorder" onclick="${action}"'), "mobile order action buttons do not use broken double-quoted handlers");
   assert(marketplaceSrcEarly.includes("refreshActiveMarketplaceViews()"), "mobile marketplace refreshes only the active page after state sync");
+  assert(marketplaceSrcEarly.includes("if (grid.children.length > 0 && grid.dataset.initialSkeleton !== 'true') return;") && marketplaceSrcEarly.includes("renderInitialSkeletonOnce(grid, 'cook')") && marketplaceSrcEarly.includes("renderInitialSkeletonOnce(grid, 'dish')"), "marketplace refresh keeps existing cook and dish cards visible instead of wiping grids during fetch");
   assert(marketplaceSrcEarly.includes("function cookViewModel(cook)") && marketplaceSrcEarly.includes("function formatCookRating(cook)") && marketplaceSrcEarly.includes("function formatMemberSince(dateValue)"), "cook cards and profiles share one canonical real-data view model");
   assert(marketplaceSrcEarly.includes("orders: stats.ordersTotal") && !marketplaceSrcEarly.includes("(rawState?.orders || []).filter(order => sameId(order.cookId, cook.id)).length"), "public cook order totals never come from the viewer's visible orders");
   assert(marketplaceSrcEarly.includes("No reviews yet") && !marketplaceSrcEarly.includes("speed ${safeDisplayHtml(c.speedRating)}★") && !marketplaceSrcEarly.includes("Member since Jan 2024"), "new cooks show honest review, response, and membership labels without fake ratings");
