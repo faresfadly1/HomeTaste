@@ -86,6 +86,7 @@ button.is-busy { opacity: .72; cursor: wait; }
 .nav { display: grid; gap: 6px; }
 .nav button, .logout {
   width: 100%;
+  min-height: 44px;
   border: 0;
   border-radius: var(--radius);
   color: var(--muted);
@@ -1455,7 +1456,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .nav button,
   .logout {
     width: auto;
-    min-height: 40px;
+    min-height: 44px;
     flex: 0 0 auto;
     padding: 10px;
     text-align: center;
@@ -1730,7 +1731,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
     grid-area: location;
     width: 100%;
     justify-content: flex-start;
-    min-height: 34px;
+    min-height: 44px;
     padding: 6px 8px;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -1739,7 +1740,7 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   }
   .market-location-pin { width: 18px; height: 18px; }
   .icon-action { width: 44px; height: 44px; font-size: 16px; }
-  .button.small { min-height: 38px; padding: 9px 10px; font-size: 12px; }
+  .button.small { min-height: 44px; padding: 9px 10px; font-size: 12px; }
   .role-panel .button.small { min-height: 44px; }
   .admin-actions .button.small { min-height: 44px; }
   .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
@@ -1807,9 +1808,9 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
   .brand.compact h1 { font-size: 16px; }
   .mark { width: 34px; height: 34px; }
   .mark svg { width: 70%; height: 70%; stroke-width: 3.4; }
-  .market-location { font-size: 12px; min-height: 32px; }
+  .market-location { font-size: 12px; min-height: 44px; }
   .icon-action { width: 44px; height: 44px; }
-  .button.small { min-height: 36px; padding: 8px 9px; font-size: 11px; }
+  .button.small { min-height: 44px; padding: 8px 9px; font-size: 11px; }
 }
 .fulfillment-choice {
   display: grid;

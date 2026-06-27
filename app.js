@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260626-cook-orders-polish-01";
+const APP_BUILD = "20260627-end-to-end-audit-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -3589,6 +3589,7 @@ function driverOrderCard(order) {
   const assigned = order.driverId === state.user.id;
   const completed = ["delivered", "cancelled"].includes(order.status);
   const activeTrip = assigned && ["driver_assigned", "picked_up", "out_for_delivery", "near_you"].includes(order.status);
+  const showDeliveryBreakdown = completed || activeTrip;
   const readyToAccept = !assigned && !order.driverId && order.status === "ready";
   const waitingForCook = !assigned && !order.driverId && ["placed", "accepted", "preparing"].includes(order.status);
   const trackingState = driverTrackingStates.get(String(order.id));
@@ -3619,7 +3620,7 @@ function driverOrderCard(order) {
         <div><small>Drop off to customer</small><strong>${order.customerName || "Customer"}</strong><span>${order.customerAddress || order.deliveryAddress || t("customerAddress")}</span><em>${dropoffLocation && coordinateLabel(dropoffLocation) ? `${dropoffQuality === "exact" ? "Exact" : "Resolved"} location · ${coordinateLabel(dropoffLocation)}` : "Location unavailable. Use address."}</em></div>
       </div>
       <div class="meta">${order.scheduledFor ? `${t("scheduled")} ${new Date(order.scheduledFor).toLocaleString()}` : t("asap")}</div>
-      ${waitingForCook ? "" : `<div class="delivery-breakdown"><strong>${completed ? stageTitle : order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong>${completed ? "" : `<span data-driver-tracking-state="${order.id}">${assigned ? trackingLabel : "Tracking starts after you accept."}</span>`}<span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">${payoutDistanceLabel}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span>${completed ? `<span>Completed at ${new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toLocaleString()}</span>` : `<span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span>`}</div>${activeTrip ? (mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Location unavailable. Use the address above.</div>`) : ""}`}
+      ${showDeliveryBreakdown ? `<div class="delivery-breakdown"><strong>${completed ? stageTitle : order.status === "driver_assigned" ? "Going to cook" : ["picked_up", "out_for_delivery", "near_you"].includes(order.status) ? "Delivering to customer" : "Delivery details"}</strong>${completed ? "" : `<span data-driver-tracking-state="${order.id}">${trackingLabel}</span>`}<span>To cook: ${delivery.approachDistanceKm} km</span><span data-driver-actual="${order.id}">${payoutDistanceLabel}</span><span data-driver-earning="${order.id}">${order.status === "delivered" ? "Final payout" : "Current payout"} ${money(delivery.driverPayout)}</span>${completed ? `<span>Completed at ${new Date(order.delivery?.completedAt || order.updatedAt || order.createdAt).toLocaleString()}</span>` : `<span data-driver-last-update="${order.id}">Last update: ${order.delivery?.lastLocationAt ? new Date(order.delivery.lastLocationAt).toLocaleTimeString() : "waiting"}</span>`}</div>` : ""}${activeTrip ? (mapLocationReady ? routeMap(order) : `<div class="route-location-warning">Location unavailable. Use the address above.</div>`) : ""}
       <div class="toolbar" style="margin:10px 0 0">
         ${completed ? "" : waitingForCook ? `<button class="button small secondary" type="button" disabled aria-disabled="true">Waiting for cook</button>` : readyToAccept ? `<button class="button small" data-driver-accept="${order.id}">Accept delivery</button>` : orderActionButtons(order)}
         ${completed || waitingForCook ? "" : `<a class="button small secondary" href="${navUrl}" target="_blank" rel="noreferrer">${t("navigate")}</a>`}

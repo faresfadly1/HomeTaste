@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260626-cook-orders-polish-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260627-end-to-end-audit-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -296,6 +296,7 @@ try {
   assert(driverCopySource.includes("Ready for driver pickup") && !driverCopySource.includes("Ready for pickup"), "driver ready-delivery sections and cards use unambiguous driver pickup copy");
   assert(driverCopySource.includes("Active deliveries") && driverCopySource.includes("Completed today") && driverCopySource.includes("Delivery history") && driverCopySource.includes("driverPayout || order.driverEarnings?.finalPayout || 0"), "Driver Hub separates active/completed/history and daily earning only counts delivered payouts");
   assert(driverCardSource.includes("${activeTrip ? (mapLocationReady ? routeMap(order)") && driverCardSource.includes("Valid pickup and dropoff locations required."), "only active deliveries render embedded maps and invalid routes do not show fake earnings");
+  assert(driverCardSource.includes("const showDeliveryBreakdown = completed || activeTrip") && driverCardSource.includes("${showDeliveryBreakdown ? `<div class=\"delivery-breakdown\""), "ready driver cards show estimates only until acceptance, while active/completed cards show tracking and payout details");
   assert(mobileCheckoutMarkup.includes('<strong>Pickup</strong>') && mobileCheckoutMarkup.includes("Collect from cook"), "customer checkout keeps the Pickup fulfillment option unchanged");
   assert(appSrcEarly.includes('!order.driverId && order.status === "ready"') && appSrcEarly.includes('data-driver-accept="${order.id}"') && appSrcEarly.includes('disabled aria-disabled="true">Waiting for cook'), "driver acceptance stays enabled only for ready orders");
   assert(appSrcEarly.includes('document.addEventListener("visibilitychange"') && appSrcEarly.includes("setInterval(() => refresh(), isDriverSession ? 8000 : 10000)"), "driver state refreshes on visibility and a guarded safe interval");
@@ -314,7 +315,7 @@ try {
   assert(stylesSrcEarly.includes(".cook-order-list") && stylesSrcEarly.includes("grid-template-columns: repeat(2, minmax(0, 1fr))") && stylesSrcEarly.includes(".cook-order-primary") && stylesSrcEarly.includes("@media (max-width: 359px)"), "Cook Orders layout is mobile-safe with desktop columns and compact small-width fallback");
   assert(appSrcEarly.includes("Cook finished") && appSrcEarly.includes("Driver accepted") && appSrcEarly.includes("Received from cook") && appSrcEarly.includes("Approach distance") && appSrcEarly.includes("Delivery distance"), "admin order details organize handoff timestamps and distance legs");
   assert(["The cook is preparing your order.", "Your food is ready. Waiting for driver.", "Driver is going to pick up your order.", "Driver picked up your order.", "Your order is on the way."].every((copy) => marketplaceSrcEarly.includes(copy)), "customer Track Order uses the complete friendly delivery handoff copy");
-  assert(stylesSrcEarly.includes(".handoff-route-card") && stylesSrcEarly.includes(".admin-actions .button.small { min-height: 44px; }") && marketplaceSrcEarly.includes("min-height:44px"), "handoff controls meet mobile layout and tap-target requirements");
+  assert(stylesSrcEarly.includes(".handoff-route-card") && stylesSrcEarly.includes(".admin-actions .button.small { min-height: 44px; }") && stylesSrcEarly.includes(".nav button, .logout") && stylesSrcEarly.includes("min-height: 44px") && marketplaceSrcEarly.includes("min-height:44px"), "handoff and role navigation controls meet mobile layout and tap-target requirements");
   assert(mobileTrackSource.includes("Delivery fee") && !/Delivery rate|Estimated delivery|Actual delivery|How delivery pricing works|₺\/km/.test(mobileTrackSource), "customer Track Order shows only the final delivery fee number");
   assert(marketplaceSrcEarly.includes("To your address") && marketplaceSrcEarly.includes("Collect from cook") && marketplaceSrcEarly.includes("function setFulfillmentMode(type)"), "mobile Checkout offers synchronized Delivery and Pickup choices with simple copy");
   assert(marketplaceSrcEarly.includes("const deliveryFee = isPickup ? 0 : estimate.fee") && marketplaceSrcEarly.includes("fulfillmentType: cartFulfillmentMode"), "switching fulfillment updates totals immediately and persists the selection");
