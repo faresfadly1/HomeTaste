@@ -154,7 +154,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260627-admin-driver-ops-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260629-input-zoom-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -238,6 +238,14 @@ try {
   assert(appSrcEarly.includes("function normalizeMediaValue") && appSrcEarly.includes("function resolveCookMedia") && appSrcEarly.includes("Stored background image is unavailable"), "admin media resolver supports legacy formats and clear broken-image states");
   const marketplaceSrcEarly = await readFile(path.join(root, "public/marketplace.html"), "utf8");
   const stylesSrcEarly = await readFile(path.join(root, "public/styles.css"), "utf8");
+  const viewportHtmlFiles = ["public/index.html", "public/404.html", "public/marketplace.html", "index.html", "404.html", "marketplace.html"];
+  for (const file of viewportHtmlFiles) {
+    const html = await readFile(path.join(root, file), "utf8");
+    assert(html.includes('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'), `${file} keeps the accessible mobile viewport without disabling pinch zoom`);
+    assert(!/maximum-scale|user-scalable\s*=\s*no/i.test(html), `${file} does not disable manual zoom accessibility`);
+  }
+  assert(stylesSrcEarly.includes("iOS Safari auto-zooms editable controls below 16px") && stylesSrcEarly.includes("font-size: max(16px, 1em)") && stylesSrcEarly.includes(".address-box input") && stylesSrcEarly.includes("[contenteditable=\"true\"]"), "host CSS keeps all editable inputs at 16px or larger to prevent mobile focus auto-zoom");
+  assert(marketplaceSrcEarly.includes("Prevent mobile browser auto-zoom") && marketplaceSrcEarly.includes("font-size:max(16px,1em)") && marketplaceSrcEarly.includes(".search-input input") && marketplaceSrcEarly.includes(".filter-select") && marketplaceSrcEarly.includes(".chat-input") && marketplaceSrcEarly.includes("font-size:16px!important"), "marketplace CSS keeps search, filters, chat, cook, checkout, and profile fields at 16px or larger on mobile");
   assert(stylesSrcEarly.includes(".admin-live-board") && stylesSrcEarly.includes(".driver-status-card") && stylesSrcEarly.includes(".admin-problem-note"), "admin and driver operations layouts include mobile-safe board and status card styles");
   assert(marketplaceSrcEarly.includes("let marketStateLoaded = false") && marketplaceSrcEarly.includes("showMarketplaceSkeletonIfEmpty();") && marketplaceSrcEarly.includes("function renderInitialSkeletonOnce") && marketplaceSrcEarly.includes("skeleton-card"), "mobile marketplace uses silent initial skeleton cards before live data renders");
   const oldCookLoadingText = ["Loading", "cooks"].join(" ");

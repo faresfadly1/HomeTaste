@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HomeTaste – Real Cooks. Real Food. Real People.</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2141,6 +2141,42 @@ ul{list-style:none}
   .order-card{grid-template-columns:58px minmax(0,1fr) auto;padding:10px;gap:8px}
   .order-img{width:58px;height:58px}
   #cookBioInput{height:72px}
+}
+
+/* Prevent mobile browser auto-zoom when focusing editable controls.
+   Manual pinch-to-zoom remains enabled through the viewport meta tag. */
+input,
+textarea,
+select,
+.form-input,
+.search-input input,
+.country-search,
+.filter-select,
+.chat-input,
+.cook-input,
+.welcome-select,
+[contenteditable="true"],
+[contenteditable="plaintext-only"]{
+  font-size:max(16px,1em);
+  line-height:1.35;
+}
+
+@media (max-width:768px){
+  input,
+  textarea,
+  select,
+  .form-input,
+  .search-input input,
+  .country-search,
+  .filter-select,
+  .chat-input,
+  .cook-input,
+  .welcome-select,
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"]{
+    font-size:16px!important;
+    line-height:1.35;
+  }
 }
 </style>
 </head>

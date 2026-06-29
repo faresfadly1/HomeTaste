@@ -2049,3 +2049,37 @@ button.admin-metric:hover { border-color: rgba(249,115,22,.55); background: var(
     grid-template-columns: 1fr;
   }
 }
+
+/* iOS Safari auto-zooms editable controls below 16px. Keep pinch zoom enabled,
+   but ensure every editable field stays large enough when focused. */
+input,
+textarea,
+select,
+.input,
+[contenteditable="true"],
+[contenteditable="plaintext-only"] {
+  font-size: max(16px, 1em);
+  line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select,
+  .input,
+  .address-box input,
+  .address-box textarea,
+  .auth-card .input,
+  .auth-card textarea,
+  .auth-card select,
+  .admin-search,
+  .chat-input,
+  .form-input,
+  .cook-input,
+  .welcome-select,
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"] {
+    font-size: 16px;
+    line-height: 1.35;
+  }
+}
