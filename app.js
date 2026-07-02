@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260629-input-zoom-01";
+const APP_BUILD = "20260702-fast-admin-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -45,6 +45,7 @@ let adminCookFilter = "active";
 let adminCookSearch = "";
 let adminUserSearch = "";
 let adminDishSearch = "";
+let adminTab = "overview";
 let adminOrderFilters = { q: "", status: "", fulfillment: "", cookId: "", driverId: "", customerId: "", city: "", date: "", payment: "", refund: "", problem: "" };
 let adminChatFilter = "all";
 let adminChatSearch = "";
@@ -2512,6 +2513,15 @@ function escapeAttr(value) {
     .replace(/>/g, "&gt;");
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function normalizeMediaValue(value) {
   if (!value) return "";
   if (typeof value === "object") {
@@ -3344,6 +3354,12 @@ function filteredAdminDishes() {
   return (state.dishes || []).filter((dish) => `${dish.name} ${dish.description || ""} ${dish.country || ""} ${cookName(dish.cookId)}`.toLowerCase().includes(query));
 }
 
+function setAdminTab(next) {
+  const allowed = new Set(["overview", "cooks", "users", "dishes", "finance", "subscriptions", "activity"]);
+  adminTab = allowed.has(next) ? next : "overview";
+  renderApp();
+}
+
 function renderAdmin() {
   if (!isOwner()) return renderDashboard();
   const pendingCooks = state.cooks.filter((cook) => cook.status === "pending");
@@ -3359,8 +3375,30 @@ function renderAdmin() {
     ["rejected", "Rejected"],
     ["suspended", "Suspended"]
   ];
-  return `
-    ${header(t("adminTitle"), t("adminSubtitle"))}
+  const activeOrders = state.orders.filter((order) => !["delivered", "cancelled"].includes(order.status));
+  const deliveredOrders = state.orders.filter((order) => order.status === "delivered");
+  const cancelledOrders = state.orders.filter((order) => order.status === "cancelled");
+  const pendingRefunds = (state.refunds || []).filter((refund) => refund.status === "pending");
+  const unreadSupport = adminUnreadConversationCount();
+
+  const attention = [
+    pendingCooks.length ? { target: "cooks", page: "", label: "Cook approvals", count: pendingCooks.length } : null,
+    pendingRefunds.length ? { target: "finance", page: "", label: "Refunds to review", count: pendingRefunds.length } : null,
+    unreadSupport ? { target: "", page: "chat", label: "Support messages", count: unreadSupport } : null
+  ].filter(Boolean);
+
+  const tabs = [
+    ["overview", "Overview", 0],
+    ["cooks", "Cooks", pendingCooks.length],
+    ["users", "Users", 0],
+    ["dishes", "Dishes", 0],
+    ["finance", "Finance", pendingRefunds.length],
+    ["subscriptions", "Subscriptions", 0],
+    ["activity", "Activity", 0]
+  ];
+  const activeTab = tabs.some(([key]) => key === adminTab) ? adminTab : "overview";
+
+  const kpiStrip = `
     <section class="admin-metric-grid">
       <div class="stat"><small>${t("users")}</small><strong>${state.stats.users}</strong></div>
       <div class="stat"><small>${t("cooks")}</small><strong>${state.stats.cooks}</strong></div>
@@ -3370,54 +3408,40 @@ function renderAdmin() {
       <div class="stat"><small>${t("commission15")}</small><strong>${money(state.stats.commission || 0)}</strong></div>
       <div class="stat"><small>${t("activeSubscriptions")}</small><strong>${state.stats.activeSubscriptions || 0}</strong></div>
       <div class="stat"><small>${t("refundReview")}</small><strong>${state.stats.pendingRefunds || 0}</strong></div>
-	    </section>
-	    <section class="grid cols-2" style="margin-top:18px">
-	      <div class="panel">
-	        <h3>Become a cook requests</h3>
-	        ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
+    </section>`;
+
+  const overviewSection = `
+    ${kpiStrip}
+    <section class="panel" style="margin-top:16px">
+      <div class="section-heading">
+        <div><h3>${t("fulfillmentControl")}</h3><p>Live order pipeline. Open the Orders workspace for full control.</p></div>
+        <button class="button" data-page="orders">Open order control</button>
       </div>
-      <div class="panel">
-        <div class="section-heading"><div><h3>${t("dishControls")}</h3><p>Search, hide, or remove marketplace dishes.</p></div></div>
-        <input class="input admin-search" data-admin-search="dish" value="${adminDishSearch}" placeholder="Search dishes, cooks, or countries">
-        <div class="admin-card-list" style="margin-top:12px">
-          ${visibleDishes.map((dish) => `
-            <article class="admin-list-card">
-              <div class="admin-list-main"><strong>${dish.name}</strong><span>${cookName(dish.cookId)} · ${money(dish.price)} · ${dish.country || "No country"}</span></div>
-              <span class="status">${dish.available ? t("availableLower") : t("hidden")}</span>
-              <div class="admin-actions">
-                <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
-                <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
-              </div>
-            </article>
-          `).join("") || `<div class="empty">No dishes match this search.</div>`}
-        </div>
-        <details class="admin-disclosure" style="margin-top:16px">
-          <summary>Advanced Tools · Add dish for an approved cook</summary>
-          <form class="form" id="adminDishForm" style="margin-top:14px">
-            <div class="notice">Admin dish creation is restricted to approved cooks and requires a real image.</div>
-            <div class="field"><label>Approved cook</label><select name="cookId" required>
-              <option value="">Choose approved cook</option>
-              ${approvedCooks.map((cook) => `<option value="${cook.id}">${cook.name}</option>`).join("")}
-            </select></div>
-            <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Dish name"></div>
-            <div class="field"><label>${t("description")}</label><textarea name="description" placeholder="Real dish description"></textarea></div>
-            <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" step="0.01" inputmode="decimal"></div>
-            <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" required min="5" max="240" value="35"></div>
-            <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
-            <div class="field"><label>Dish photo</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
-            <div class="field"><label>Or image URL</label><input class="input" type="url" name="image" placeholder="https://..."></div>
-            <button class="button">${t("createDish")}</button>
-          </form>
-        </details>
+      <div class="admin-summary-strip">
+        <span><strong>${activeOrders.length}</strong> active</span>
+        <span><strong>${deliveredOrders.length}</strong> delivered</span>
+        <span><strong>${cancelledOrders.length}</strong> cancelled</span>
       </div>
     </section>
-    <section class="panel" style="margin-top:18px">
+    <section class="panel" style="margin-top:16px">
+      <div class="section-heading"><div><h3>Recent activity</h3><p>Latest administrative changes.</p></div><button class="button small secondary" data-admin-tab="activity">View all</button></div>
+      <div class="activity-list">
+        ${adminAuditEntries().slice(0, 6).map((note) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${note.text}</strong><small>${new Date(note.createdAt).toLocaleString()}</small></div></div>`).join("") || `<div class="empty">No admin activity recorded yet.</div>`}
+      </div>
+    </section>`;
+
+  const cooksSection = `
+    <section class="panel">
+      <h3>Become a cook requests</h3>
+      ${pendingCooks.map(adminCookRequestHtml).join("") || `<div class="empty">No become a cook requests yet.</div>`}
+    </section>
+    <section class="panel" style="margin-top:16px">
       <div class="price-row" style="align-items:flex-start;gap:12px">
-          <div><h3 style="margin:0">All cook profiles</h3><div class="meta">Rejected applications are kept for audit and shown only in All or Rejected.</div></div>
-          <div class="toolbar" style="margin:0;justify-content:flex-end">
-            ${cookFilters.map(([value, label]) => `<button class="button small ${adminCookFilter === value ? "good" : "secondary"}" type="button" data-admin-cook-filter="${value}">${label}</button>`).join("")}
-          </div>
+        <div><h3 style="margin:0">All cook profiles</h3><div class="meta">Rejected applications are kept for audit and shown only in All or Rejected.</div></div>
+        <div class="toolbar" style="margin:0;justify-content:flex-end">
+          ${cookFilters.map(([value, label]) => `<button class="button small ${adminCookFilter === value ? "good" : "secondary"}" type="button" data-admin-cook-filter="${value}">${label}</button>`).join("")}
         </div>
+      </div>
       <input class="input admin-search" data-admin-search="cook" value="${adminCookSearch}" placeholder="Search cooks, email, phone, city, or cuisine" style="margin:14px 0">
       ${visibleCooks.length ? `
         <div class="admin-table-wrap"><table class="table admin-responsive-table">
@@ -3444,15 +3468,53 @@ function renderAdmin() {
           }).join("")}</tbody>
         </table></div>
       ` : `<div class="empty">No ${adminCookFilter === "active" ? "active" : adminCookFilter} cook profiles.</div>`}
-    </section>
-    <section class="panel" style="margin-top:18px">
+    </section>`;
+
+  const dishesSection = `
+    <section class="panel">
+      <div class="section-heading"><div><h3>${t("dishControls")}</h3><p>Search, hide, or remove marketplace dishes.</p></div></div>
+      <input class="input admin-search" data-admin-search="dish" value="${adminDishSearch}" placeholder="Search dishes, cooks, or countries">
+      <div class="admin-card-list" style="margin-top:12px">
+        ${visibleDishes.map((dish) => `
+          <article class="admin-list-card">
+            <div class="admin-list-main"><strong>${dish.name}</strong><span>${cookName(dish.cookId)} · ${money(dish.price)} · ${dish.country || "No country"}</span></div>
+            <span class="status">${dish.available ? t("availableLower") : t("hidden")}</span>
+            <div class="admin-actions">
+              <button class="button small secondary" data-toggle-dish="${dish.id}">${dish.available ? t("hide") : t("show")}</button>
+              <button class="button small bad" data-delete-dish="${dish.id}">Remove</button>
+            </div>
+          </article>
+        `).join("") || `<div class="empty">No dishes match this search.</div>`}
+      </div>
+      <details class="admin-disclosure" style="margin-top:16px">
+        <summary>Advanced Tools · Add dish for an approved cook</summary>
+        <form class="form" id="adminDishForm" style="margin-top:14px">
+          <div class="notice">Admin dish creation is restricted to approved cooks and requires a real image.</div>
+          <div class="field"><label>Approved cook</label><select name="cookId" required>
+            <option value="">Choose approved cook</option>
+            ${approvedCooks.map((cook) => `<option value="${cook.id}">${cook.name}</option>`).join("")}
+          </select></div>
+          <div class="field"><label>${t("name")}</label><input class="input" name="name" required placeholder="Dish name"></div>
+          <div class="field"><label>${t("description")}</label><textarea name="description" placeholder="Real dish description"></textarea></div>
+          <div class="field"><label>${t("priceTl")}</label><input class="input" type="number" name="price" required min="1" step="0.01" inputmode="decimal"></div>
+          <div class="field"><label>${t("prepMinutes")}</label><input class="input" type="number" name="prepMinutes" required min="5" max="240" value="35"></div>
+          <div class="field"><label>Country of the dish</label><input class="input" name="country" required placeholder="Turkey, Syria, Egypt"></div>
+          <div class="field"><label>Dish photo</label><input class="input" type="file" name="imageFile" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></div>
+          <div class="field"><label>Or image URL</label><input class="input" type="url" name="image" placeholder="https://..."></div>
+          <button class="button">${t("createDish")}</button>
+        </form>
+      </details>
+    </section>`;
+
+  const usersSection = `
+    <section class="panel">
       <div class="section-heading"><div><h3>${t("registrationData")}</h3><p>Owner access is protected and cannot be assigned here.</p></div></div>
       <input class="input admin-search" data-admin-search="user" value="${adminUserSearch}" placeholder="Search users by name, email, phone, city, or role" style="margin-bottom:14px">
-	      <div class="admin-table-wrap"><table class="table admin-responsive-table">
-	        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th><th>Remove</th></tr></thead>
-	        <tbody>${visibleUsers.map((user) => {
-	          const cook = state.cooks.find((item) => item.userId === user.id);
-	          return `
+      <div class="admin-table-wrap"><table class="table admin-responsive-table">
+        <thead><tr><th>${t("person")}</th><th>${t("contact")}</th><th>${t("registration")}</th><th>${t("cookProfile")}</th><th>${t("changeRole")}</th><th>Remove</th></tr></thead>
+        <tbody>${visibleUsers.map((user) => {
+          const cook = state.cooks.find((item) => item.userId === user.id);
+          return `
           <tr>
             <td data-label="Person"><strong>${user.name}</strong><div class="meta">${user.id} - ${roleLabel(user.role)}</div></td>
             <td data-label="Contact">${user.email}<div class="meta">${user.phone || t("noPhone")} - ${user.city || t("noCity")}</div></td>
@@ -3460,26 +3522,17 @@ function renderAdmin() {
             <td data-label="Cook profile">${cook ? `${cook.name}<div class="meta">${cook.cuisine} - ${cook.status} - ${cook.verified ? t("verified") : t("notVerified")}</div>` : `<span class="meta">${t("eaterAccount")}</span>`}</td>
             <td data-label="Change role">
               ${user.role === "owner" ? `<span class="status">Protected owner</span>` : `<select data-role-user="${user.id}">
-	                ${["customer", "cook", "driver"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
-	              </select>`}
-	            </td>
-	            <td data-label="Remove"><button class="button small bad" data-admin-delete-user="${user.id}" ${user.id === state.user.id || user.role === "owner" ? "disabled" : ""}>Remove user</button></td>
-	          </tr>
-	        `;}).join("")}</tbody>
-	      </table></div>
-    </section>
-    <section class="panel" style="margin-top:18px">
-      <div class="section-heading">
-        <div><h3>${t("fulfillmentControl")}</h3><p>Use the dedicated Orders workspace for filtering, status history, payments, refunds, and protected status changes.</p></div>
-        <button class="button" data-page="orders">Open order control</button>
-      </div>
-      <div class="admin-summary-strip">
-        <span><strong>${state.orders.filter((order) => !["delivered", "cancelled"].includes(order.status)).length}</strong> active</span>
-        <span><strong>${state.orders.filter((order) => order.status === "delivered").length}</strong> delivered</span>
-        <span><strong>${state.orders.filter((order) => order.status === "cancelled").length}</strong> cancelled</span>
-      </div>
-    </section>
-    <section class="grid cols-2" style="margin-top:18px">
+                ${["customer", "cook", "driver"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${roleLabel(role)}</option>`).join("")}
+              </select>`}
+            </td>
+            <td data-label="Remove"><button class="button small bad" data-admin-delete-user="${user.id}" ${user.id === state.user.id || user.role === "owner" ? "disabled" : ""}>Remove user</button></td>
+          </tr>
+        `;}).join("")}</tbody>
+      </table></div>
+    </section>`;
+
+  const financeSection = `
+    <section class="grid cols-2">
       <div class="panel">
         <h3>${t("paymentEscrow")}</h3>
         ${state.payments?.length ? state.payments.map((payment) => `
@@ -3506,8 +3559,10 @@ function renderAdmin() {
           </div>
         `).join("") : `<div class="empty">${t("noRefundRequests")}</div>`}
       </div>
-    </section>
-    <section class="panel" style="margin-top:18px">
+    </section>`;
+
+  const subscriptionsSection = `
+    <section class="panel">
       <h3>${t("activeSubscriptions")}</h3>
       ${state.subscriptions?.length ? `
         <div class="admin-table-wrap"><table class="table admin-responsive-table">
@@ -3523,20 +3578,47 @@ function renderAdmin() {
           `).join("")}</tbody>
         </table></div>
       ` : `<div class="empty">${t("noSubscriptions")}</div>`}
-    </section>
-    <section class="panel" style="margin-top:18px">
+    </section>`;
+
+  const activitySection = `
+    <section class="panel">
       <div class="section-heading"><div><h3>Admin activity log</h3><p>Approvals, rejections, suspensions, removals, order changes, and refund decisions.</p></div></div>
       <div class="activity-list">
         ${adminAuditEntries().slice(0, 30).map((note) => `<div class="activity-item"><span class="activity-dot"></span><div><strong>${note.text}</strong><small>${note.data?.entityType || "system"} · ${note.data?.entityId || "-"} · ${new Date(note.createdAt).toLocaleString()}</small></div></div>`).join("") || `<div class="empty">No admin activity recorded yet.</div>`}
       </div>
     </section>
-    ${!isProductionDeployment ? `<section class="panel danger-zone" style="margin-top:18px">
+    ${!isProductionDeployment ? `<section class="panel danger-zone" style="margin-top:16px">
       <details>
         <summary>Danger Zone</summary>
         <p class="meta">Development-only cleanup for test users and linked records. This control is hidden in production.</p>
         <button class="button bad" type="button" id="cleanupDemoData">Clean test data</button>
       </details>
-    </section>` : ""}
+    </section>` : ""}`;
+
+  const sections = {
+    overview: overviewSection,
+    cooks: cooksSection,
+    users: usersSection,
+    dishes: dishesSection,
+    finance: financeSection,
+    subscriptions: subscriptionsSection,
+    activity: activitySection
+  };
+
+  const attentionBar = attention.length
+    ? `<div class="admin-attention">${attention.map((item) => {
+        const attr = item.page ? `data-page="${item.page}"` : `data-admin-tab="${item.target}"`;
+        return `<button class="admin-attention-chip" ${attr}><span class="admin-attention-count">${item.count}</span>${item.label}<span class="admin-attention-go">→</span></button>`;
+      }).join("")}</div>`
+    : `<div class="admin-allclear">✓ All clear — no pending cook approvals, refunds, or support messages.</div>`;
+
+  const subnav = `<nav class="admin-subnav">${tabs.map(([key, label, badge]) => `<button class="admin-subnav-tab ${activeTab === key ? "active" : ""}" data-admin-tab="${key}">${label}${badge ? `<span class="admin-subnav-badge">${badge}</span>` : ""}</button>`).join("")}</nav>`;
+
+  return `
+    ${header(t("adminTitle"), t("adminSubtitle"))}
+    ${attentionBar}
+    ${subnav}
+    <div class="admin-tab-panel">${sections[activeTab] || overviewSection}</div>
   `;
 }
 
@@ -4519,6 +4601,9 @@ function bindPage() {
 	  document.querySelectorAll("[data-admin-delete-user]").forEach((button) => {
 	    button.onclick = () => adminDeleteUser(button.dataset.adminDeleteUser);
 	  });
+  document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+    button.onclick = () => setAdminTab(button.dataset.adminTab);
+  });
   document.querySelectorAll("[data-feature]").forEach((button) => {
     button.onclick = () => featureDish(button.dataset.feature);
   });

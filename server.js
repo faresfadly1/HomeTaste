@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260629-input-zoom-01";
+const backendBuild = "20260702-fast-admin-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1689,8 +1689,30 @@ function normalizeDb(db) {
   return db;
 }
 
+// Short-lived in-memory cache for the Supabase-backed database. Loading the
+// full dataset costs 14 Supabase REST round trips (~2s per API request in
+// production), which made every page and poll feel slow. Reads within the TTL
+// window reuse the cached snapshot, and every save writes through the cache so
+// this single-instance server always reads its own writes immediately.
+const supabaseDbCacheMs = Math.max(0, Number(process.env.SUPABASE_DB_CACHE_MS || 3000));
+let supabaseDbCache = { db: null, at: 0 };
+let supabaseDbLoadInFlight = null;
+
 async function loadDb() {
-  if (useSupabase) return loadSupabaseDb();
+  if (useSupabase) {
+    if (supabaseDbCache.db && Date.now() - supabaseDbCache.at < supabaseDbCacheMs) return supabaseDbCache.db;
+    if (!supabaseDbLoadInFlight) {
+      supabaseDbLoadInFlight = loadSupabaseDb()
+        .then((db) => {
+          supabaseDbCache = { db, at: Date.now() };
+          return db;
+        })
+        .finally(() => {
+          supabaseDbLoadInFlight = null;
+        });
+    }
+    return supabaseDbLoadInFlight;
+  }
   if (!existsSync(dbPath)) {
     await mkdir(dataDir, { recursive: true });
     await saveDb(seedDb());
@@ -1700,7 +1722,10 @@ async function loadDb() {
 
 async function saveDb(db) {
   normalizeDb(db);
-  if (useSupabase) return saveSupabaseDb(db);
+  if (useSupabase) {
+    supabaseDbCache = { db, at: Date.now() };
+    return saveSupabaseDb(db);
+  }
   localSaveQueue = localSaveQueue.then(() => writeLocalDb(db));
   return localSaveQueue;
 }
@@ -4168,8 +4193,18 @@ async function staticFile(req, res, pathname) {
       ".svg": "image/svg+xml"
     }[ext] || "application/octet-stream";
     const data = await readFile(filePath);
-    res.writeHead(200, { "content-type": type });
-    res.end(data);
+    const compressible = [".html", ".css", ".js", ".json", ".svg"].includes(ext);
+    const shouldGzip = compressible && Boolean(res._acceptsGzip) && data.length > 1024;
+    const cacheControl = ext === ".html" || !ext
+      ? "no-cache"
+      : "public, max-age=86400, stale-while-revalidate=604800";
+    res.writeHead(200, {
+      "content-type": type,
+      "cache-control": cacheControl,
+      ...(compressible ? { vary: "Accept-Encoding" } : {}),
+      ...(shouldGzip ? { "content-encoding": "gzip" } : {})
+    });
+    res.end(shouldGzip ? zlib.gzipSync(data) : data);
   } catch {
     const wantsHtml = !path.extname(clean) || path.extname(clean) === ".html";
     if (wantsHtml) {
