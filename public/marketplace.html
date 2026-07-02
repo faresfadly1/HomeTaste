@@ -3125,6 +3125,13 @@ function tr(key) {
   return key;
 }
 const checkoutPaymentMethods = ['🏦 IBAN', '💵 Cash on delivery'];
+// Payment availability comes from the backend (/api/marketplace). IBAN stays
+// hidden until PAYMENT_IBAN_NUMBER and PAYMENT_IBAN_RECEIVER are configured
+// on the server, so the site can run cash-only until the real IBAN is added.
+let marketPayments = { cash: true, iban: false, ibanNumber: '', ibanReceiver: '' };
+function availableCheckoutMethods(list) {
+  return (list || []).filter((m) => marketPayments.iban || !/iban/i.test(m));
+}
 const paymentMethodsByCountry = {
   TR: checkoutPaymentMethods,
   DE: checkoutPaymentMethods,
@@ -4221,6 +4228,14 @@ function applyMarketplaceState(rawState, options = {}) {
   if (version) lastAppliedMarketStateVersion = Math.max(lastAppliedMarketStateVersion, version);
   hostStateReady = true;
   marketStateLoaded = true;
+  if (rawState.payments && typeof rawState.payments === 'object') {
+    marketPayments = {
+      cash: rawState.payments.cash !== false,
+      iban: rawState.payments.iban === true,
+      ibanNumber: String(rawState.payments.ibanNumber || ''),
+      ibanReceiver: String(rawState.payments.ibanReceiver || '')
+    };
+  }
   const user = rawState.user || {};
   marketplaceUserState = {...user};
   marketplaceNotifications = (rawState.notifications || []).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
@@ -4595,8 +4610,8 @@ function finishWelcome(goCook=false){
 }
 function updatePaymentMethods(){
   const wrap = document.getElementById('paymentMethods'); if(!wrap) return;
-  const saved = getSavedPaymentMethods();
-  const methods = saved.length ? saved : (paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
+  const saved = availableCheckoutMethods(getSavedPaymentMethods());
+  const methods = saved.length ? saved : availableCheckoutMethods(paymentMethodsByCountry[selectedCountry] || paymentMethodsByCountry.TR);
   wrap.innerHTML = methods.map((m,i)=>`<div class="payment-method ${i===0?'active':''}" data-payment-label="${escapeAttr(m)}" data-payment-method="${escapeAttr(paymentValue(m))}" onclick="selectPayment(this)"><div>${safeDisplayHtml(m.split(' ')[0])}</div><span>${safeDisplayHtml(m.replace(/^\S+\s/,''))}</span></div>`).join('');
   const note = document.getElementById('paymentNote');
   if(note) note.textContent = saved.length
@@ -6938,12 +6953,16 @@ function renderPaymentDetails(method) {
   const name = paymentName(method);
   panel.classList.toggle('empty', name === 'Cash on delivery' || !name);
   if (name.toLowerCase() === 'iban') {
+    if (!marketPayments.iban || !marketPayments.ibanNumber) {
+      panel.innerHTML = `<p class="payment-details-hint">IBAN transfer is not available yet. Please choose cash on delivery.</p>`;
+      return;
+    }
     panel.innerHTML = `
       <p class="payment-details-title">IBAN transfer details</p>
-      <p class="payment-details-hint">Add the real IBAN number and receiver full name here before launch.</p>
+      <p class="payment-details-hint">Transfer the exact order total and keep your receipt. Use your order ID as the transfer note.</p>
       <div class="iban-card">
-        <div class="iban-field"><span>IBAN Number</span><strong>TR00 0000 0000 0000 0000 0000 00</strong></div>
-        <div class="iban-field"><span>Receiver Full Name</span><strong>HomeTaste Receiver Name</strong></div>
+        <div class="iban-field"><span>IBAN Number</span><strong>${safeDisplayHtml(marketPayments.ibanNumber)}</strong></div>
+        <div class="iban-field"><span>Receiver Full Name</span><strong>${safeDisplayHtml(marketPayments.ibanReceiver)}</strong></div>
       </div>
     `;
     return;

@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260702-fast-admin-01";
+const backendBuild = "20260702-cash-only-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -25,6 +25,12 @@ if (existsSync(envPath)) {
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
 const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const useSupabase = process.env.HOMETASTE_DISABLE_SUPABASE === "1" ? false : Boolean(supabaseUrl && supabaseKey);
+// IBAN transfer details shown to customers at checkout. The IBAN payment
+// option stays hidden until both values are set, so the site can launch
+// cash-only and enable bank transfer later without a code change.
+const ibanPaymentNumber = String(process.env.PAYMENT_IBAN_NUMBER || "").trim();
+const ibanPaymentReceiver = String(process.env.PAYMENT_IBAN_RECEIVER || "").trim();
+const ibanPaymentConfigured = Boolean(ibanPaymentNumber && ibanPaymentReceiver);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://faresfadly1.github.io,http://localhost:4174,http://localhost:4173,http://127.0.0.1:4174,http://127.0.0.1:4173")
   .split(",")
   .map((item) => item.trim())
@@ -781,7 +787,7 @@ function cascadeRemovalStillPresent(db, removed) {
 
 function configuredGateways() {
   return {
-    iban: true,
+    iban: ibanPaymentConfigured,
     cash: true,
     manual: true,
     stripe: Boolean(stripeSecretKey),
@@ -2642,6 +2648,12 @@ function publicState(db, user = null) {
   } : null;
   return publicPayload({
     user: publicUser,
+    payments: {
+      cash: true,
+      iban: ibanPaymentConfigured,
+      ibanNumber: ibanPaymentConfigured ? ibanPaymentNumber : "",
+      ibanReceiver: ibanPaymentConfigured ? ibanPaymentReceiver : ""
+    },
     cooks: publicCooks,
     dishes: db.dishes.filter((dish) => cookIds.has(dish.cookId)),
     orders: orders.map((order) => orderWithVisibleContacts(db, order, user)),
@@ -2694,6 +2706,12 @@ function publicMarketplaceState(db) {
   const cooks = db.cooks.filter((cook) => cook.status === "approved");
   const cookIds = new Set(cooks.map((cook) => cook.id));
   return publicPayload({
+    payments: {
+      cash: true,
+      iban: ibanPaymentConfigured,
+      ibanNumber: ibanPaymentConfigured ? ibanPaymentNumber : "",
+      ibanReceiver: ibanPaymentConfigured ? ibanPaymentReceiver : ""
+    },
     cooks: cooks.map((cook) => ({
       ...cook,
       deliveryLocation: publicCookDeliveryLocation(db, cook),
@@ -3438,6 +3456,9 @@ async function api(req, res, pathname) {
     const serviceFee = Math.round(subtotal * commissionRate * 100) / 100;
     const fulfillmentType = input.fulfillmentType === "pickup" ? "pickup" : "delivery";
     const paymentMethod = paymentMethods.includes(input.paymentMethod) ? input.paymentMethod : "cash";
+    if (paymentMethod === "iban" && !ibanPaymentConfigured) {
+      return json(res, 400, { code: "IBAN_NOT_AVAILABLE", error: "IBAN transfer is not available yet. Choose cash on delivery." });
+    }
     const hasStructuredAddressDetails = input.deliveryAddressDetails !== undefined || user.authMeta?.addressDetails !== undefined;
     const deliveryAddressDetails = normalizeAddressDetails(input.deliveryAddressDetails || user.authMeta?.addressDetails || {});
     if (fulfillmentType === "delivery" && hasStructuredAddressDetails && !requiredAddressDetailsComplete(deliveryAddressDetails)) {
