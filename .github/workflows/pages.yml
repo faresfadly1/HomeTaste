@@ -38,3 +38,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Ride out slow Pages deployment queues (default 10 min aborted
+          # healthy deploys twice on 2026-07-02).
+          timeout: 1800000
