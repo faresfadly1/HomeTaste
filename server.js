@@ -12,7 +12,7 @@ const dataDir = process.env.HOMETASTE_DATA_DIR ? path.resolve(process.env.HOMETA
 const dbPath = path.join(dataDir, "db.json");
 const port = Number(process.env.PORT || 4173);
 const envPath = path.join(__dirname, ".env");
-const backendBuild = "20260702-cash-only-01";
+const backendBuild = "20260702-fast-actions-01";
 
 if (existsSync(envPath)) {
   const envText = await readFile(envPath, "utf8");
@@ -1726,11 +1726,43 @@ async function loadDb() {
   return normalizeDb(JSON.parse(await readFile(dbPath, "utf8")));
 }
 
+// Persist to Supabase asynchronously. A full save rewrites every table
+// (14+ sequential REST calls, seconds of latency), and every action endpoint
+// used to await it before responding — that wait is what made buttons feel
+// slow. Requests now respond from the in-memory cache immediately while a
+// serialized background chain persists the LATEST cache snapshot; bursts of
+// actions coalesce into one trailing save, failures retry once and heal on
+// the next save, and shutdown flushes the chain before exit.
+let supabaseSaveChain = Promise.resolve();
+let supabaseSaveQueued = false;
+
+function scheduleSupabaseSave() {
+  if (supabaseSaveQueued) return supabaseSaveChain;
+  supabaseSaveQueued = true;
+  supabaseSaveChain = supabaseSaveChain.then(async () => {
+    supabaseSaveQueued = false;
+    if (!supabaseDbCache.db) return;
+    try {
+      await saveSupabaseDb(supabaseDbCache.db);
+    } catch (error) {
+      console.error(`[persist] Supabase save failed: ${error.message}. Retrying in 2s.`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        if (supabaseDbCache.db) await saveSupabaseDb(supabaseDbCache.db);
+      } catch (retryError) {
+        console.error(`[persist] Supabase retry failed: ${retryError.message}. State stays served from memory and heals on the next save.`);
+      }
+    }
+  });
+  return supabaseSaveChain;
+}
+
 async function saveDb(db) {
   normalizeDb(db);
   if (useSupabase) {
     supabaseDbCache = { db, at: Date.now() };
-    return saveSupabaseDb(db);
+    scheduleSupabaseSave();
+    return db;
   }
   localSaveQueue = localSaveQueue.then(() => writeLocalDb(db));
   return localSaveQueue;
@@ -2769,6 +2801,9 @@ async function fastSupabaseLogin(req, res) {
   const session = createSession(user.id);
   await upsert("app_sessions", [{ token, user_id: user.id, created_at: session.createdAt, expires_at: session.expiresAt }], "token")
     .catch(() => upsert("app_sessions", [{ token, user_id: user.id, created_at: session.createdAt }], "token"));
+  // Mirror the new session into the cached snapshot so a background full
+  // save (which rewrites app_sessions from the snapshot) cannot wipe it.
+  if (supabaseDbCache.db?.sessions) supabaseDbCache.db.sessions[token] = session;
   return json(res, 200, { token, state: partialPublicState(user), partial: true });
 }
 
@@ -2780,6 +2815,7 @@ async function fastSupabaseLogout(req, res) {
       query: `?token=eq.${encodeURIComponent(token)}`,
       prefer: "return=minimal"
     });
+    if (supabaseDbCache.db?.sessions) delete supabaseDbCache.db.sessions[token];
   }
   return json(res, 200, { ok: true });
 }
@@ -4261,3 +4297,17 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`HomeTaste running on http://localhost:${port}`);
 });
+
+// Flush queued persistence before exiting so a redeploy or Ctrl+C cannot
+// drop writes that were acknowledged from the in-memory cache.
+let shuttingDown = false;
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    server.close(() => {});
+    Promise.allSettled([supabaseSaveChain, localSaveQueue])
+      .finally(() => process.exit(0));
+    setTimeout(() => process.exit(0), 8000).unref();
+  });
+}
