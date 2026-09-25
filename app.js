@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260925-static-recovery-01";
+const APP_BUILD = "20260925-static-cachefix-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -21,7 +21,11 @@ const savedLoginKey = "hometaste_saved_login";
 const currentScript = document.querySelector('script[src*="app.js"]');
 const assetBase = (currentScript?.getAttribute("src") || "").replace(/app\.js(?:\?.*)?$/, "");
 const isGitHubPages = window.location.hostname.endsWith("github.io");
-const configuredApiBase = String(window.HOMETASTE_API_BASE || localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, "");
+const configuredApiBaseFromConfig = String(window.HOMETASTE_API_BASE || "").trim().replace(/\/$/, "");
+if (isGitHubPages && !configuredApiBaseFromConfig) {
+  try { localStorage.removeItem("hometaste_api_base"); } catch {}
+}
+const configuredApiBase = configuredApiBaseFromConfig || (isGitHubPages ? "" : String(localStorage.getItem("hometaste_api_base") || "").trim().replace(/\/$/, ""));
 const useStaticApi = isGitHubPages && !configuredApiBase;
 const staticDbKey = "hometaste_static_db";
 
