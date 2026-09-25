@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const APP_BUILD = "20260702-cash-only-01";
+const APP_BUILD = "20260925-static-recovery-01";
 const DELIVERY_RATE_PER_KM_TRY = 6;
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const roundKm = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -72,7 +72,7 @@ const MAX_COMPRESSED_IMAGE_BYTES = 500 * 1024;
 const MAX_IMAGE_DIMENSION = 1000;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
 const ACCEPTED_UPLOAD_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const isProductionDeployment = ["faresfadly1.github.io", "hometaste-api-production.up.railway.app"].includes(window.location.hostname);
+const isProductionDeployment = ["faresfadly1.github.io"].includes(window.location.hostname);
 
 const money = (value) => `${Number(value || 0).toLocaleString("tr-TR")} TL`;
 const structuredAddressKeys = ["streetName", "streetNo", "floor", "flatNo", "note"];

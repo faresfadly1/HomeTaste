@@ -7,7 +7,6 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://hometaste-api-production.up.railway.app">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ======== RESET & BASE ======== */
@@ -4039,7 +4038,7 @@ function marketplaceFingerprint(rawState) {
   });
 }
 
-const MARKET_API_BASE = location.hostname.endsWith('github.io') ? 'https://hometaste-api-production.up.railway.app' : '';
+const MARKET_API_BASE = '';
 const orderStepByStatus = { placed:1, accepted:1, preparing:2, ready:3, driver_assigned:4, picked_up:5, out_for_delivery:5, near_you:6, delivered:7, cancelled:1 };
 const orderLabelByStatus = {
   placed:'Order placed',
@@ -4388,6 +4387,12 @@ async function refreshPublicMarketplaceState() {
   if (publicMarketSyncInFlight) return;
   publicMarketSyncInFlight = true;
   try {
+    if (!MARKET_API_BASE) {
+      loadCustomCookData();
+      marketStateLoaded = true;
+      refreshCookAndDishViews();
+      return;
+    }
     const res = await fetch(`${MARKET_API_BASE}/api/marketplace`, { headers: { accept: 'application/json' } });
     if (!res.ok) {
       showMarketplaceLoadError();

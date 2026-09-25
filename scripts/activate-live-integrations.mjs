@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 
 const envPath = process.argv[2] || ".env.railway.local";
-const apiBase = (process.argv[3] || "https://hometaste-api-production.up.railway.app").replace(/\/$/, "");
+const apiBase = (process.argv[3] || "").replace(/\/$/, "");
 
 const paymentVars = [
   "STRIPE_SECRET_KEY",

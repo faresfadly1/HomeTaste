@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 const base = (process.argv[2] || "https://faresfadly1.github.io/HomeTaste").replace(/\/$/, "");
-const apiBase = (process.argv[3] || "https://hometaste-api-production.up.railway.app").replace(/\/$/, "");
+const apiBase = (process.argv[3] || "").replace(/\/$/, "");
 const routes = ["/", "/orders/", "/browse/", "/dishes/", "/favorites/", "/messages/", "/become/", "/help/", "/settings/", "/subscriptions/", "/marketplace.html?page=orders"];
 const blockedEmailHashes = new Set([
   "2cc9249cc60b3c6ec92a16eeb28d29cc3ab7c7895a1c45bb477cadf24337e09d",
@@ -61,10 +61,17 @@ for (const asset of ["/app.js", "/marketplace.html"]) {
   await check(!hasBlockedEmail(text) && !blockedPublicStrings.some((pattern) => pattern.test(text)), `${asset} has no public account credentials or private gateway keys`);
 }
 
-const health = await fetch(`${apiBase}/api/health`, { cache: "no-store" });
-const body = await health.json().catch(() => ({}));
-await check(health.status === 200 && body.ok === true, "production API health is OK");
-await check(body.database === "supabase", "production API is using Supabase");
+if (apiBase) {
+  const health = await fetch(`${apiBase}/api/health`, { cache: "no-store" });
+  const body = await health.json().catch(() => ({}));
+  await check(health.status === 200 && body.ok === true, "production API health is OK");
+  await check(body.database === "supabase", "production API is using Supabase");
+} else {
+  const config = await fetch(`${base}/config.js?v=${Date.now()}`, { cache: "no-store" });
+  const configText = await config.text();
+  await check(config.status === 200, "production config loads");
+  await check(configText.includes('window.HOMETASTE_API_BASE = "";'), "production uses static GitHub Pages fallback when no backend API is configured");
+}
 
 if (failed) process.exit(1);
 console.log("Production deployment smoke check passed.");

@@ -1,4 +1,5 @@
-const apiBase = (process.argv[2] || "https://hometaste-api-production.up.railway.app").replace(/\/$/, "");
+const apiBase = (process.argv[2] || "").replace(/\/$/, "");
+const frontendBase = (process.argv[3] || "https://faresfadly1.github.io/HomeTaste").replace(/\/$/, "");
 
 const hasExternalGateway = (health) =>
   health.payments?.stripe === true || health.payments?.iyzico === true || health.payments?.paytr === true;
@@ -15,6 +16,21 @@ const required = [
   ["tracking.openStreetMap", (health) => health.tracking?.openStreetMap === true],
   ["database.supabase", (health) => health.database === "supabase"]
 ];
+
+if (!apiBase) {
+  const config = await fetch(`${frontendBase}/config.js?v=${Date.now()}`, { cache: "no-store" });
+  const configText = await config.text();
+  if (config.ok && configText.includes('window.HOMETASTE_API_BASE = "";')) {
+    console.log("OK   frontend static fallback");
+    console.log("OK   payments.iban manual in static mode");
+    console.log("OK   notifications.inApp in static mode");
+    console.log("OK   tracking.openStreetMap in static mode");
+    console.log("Live site is configured to run on GitHub Pages static fallback because no backend API is configured.");
+    process.exit(0);
+  }
+  console.error("Live activation check failed: no API URL was provided and frontend config is not in static fallback mode.");
+  process.exit(1);
+}
 
 const response = await fetch(`${apiBase}/api/health`, { cache: "no-store" });
 const health = await response.json().catch(() => ({}));

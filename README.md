@@ -10,7 +10,7 @@ The current production layer includes real authentication flows, live order rout
 - Node.js backend in `server.js`
 - Local JSON storage for development
 - Supabase-ready production persistence
-- Production API hosted at `https://hometaste-api-production.up.railway.app`
+- GitHub Pages can run in static fallback mode when no production API is configured
 
 ## Frontend source of truth
 
@@ -107,7 +107,7 @@ Behavior: when configured, clicking the button starts the Google OAuth flow and 
 
 ### Frontend API base
 
-- On GitHub Pages, [`public/config.js`](public/config.js) points the frontend at the Railway backend automatically.
+- On GitHub Pages, [`public/config.js`](public/config.js) currently leaves the API base empty so the frontend uses its built-in static fallback.
 - When the frontend is served by the backend itself, the API base is empty (same-origin requests).
 - For a separate static/Vite dev server, set the backend URL with either `window.HOMETASTE_API_BASE` (e.g. in `config.js`) or `localStorage.setItem("hometaste_api_base", "http://localhost:4174")`. If the backend is unreachable the login screen now shows a clear "Backend not reachable" message.
 
@@ -130,10 +130,10 @@ When those environment variables exist, the backend uses Supabase instead of `da
 
 ## Production backend
 
-The live frontend in [`public/config.js`](public/config.js) points to:
+When a production backend is available, point [`public/config.js`](public/config.js) to it, for example:
 
 ```text
-https://hometaste-api-production.up.railway.app
+https://your-service-name.up.railway.app
 ```
 
 Set these backend environment variables in the production host:
