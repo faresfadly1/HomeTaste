@@ -156,7 +156,7 @@ try {
   const health = await waitForHealth(base, child);
   assert(health.database === "local-json", "local flow check uses isolated JSON database");
   assert(health.tracking?.openStreetMap === true, "OpenStreetMap tracking is active");
-  assert(health.build === "20260925-static-cachefix-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
+  assert(health.build === "20260925-static-google-ui-01" && health.tracking?.deliveryRatePerKmTry === 6, "strict delivery-location build exposes the canonical internal delivery rate");
 
   let missingPage = await fetch(`${base}/this-route-does-not-exist`);
   assert(missingPage.status === 404, "unknown frontend routes return 404");
@@ -216,11 +216,11 @@ try {
     missingGoogle.kill();
     await rm(missingGoogleDir, { recursive: true, force: true });
   }
-  // Frontend keeps the Google button clickable and shows a clear message when unconfigured.
+  // Frontend hides unavailable Google sign-in in static/unconfigured mode and keeps the backend OAuth path for configured deployments.
   const appSrcEarly = await readFile(path.join(root, "public/app.js"), "utf8");
   const serverSrcEarly = await readFile(path.join(root, "server.js"), "utf8");
-  assert(/button\.hidden\s*=\s*false/.test(appSrcEarly) && /button\.disabled\s*=\s*false/.test(appSrcEarly), "Google button stays visible and enabled (never silently hidden)");
-  assert(appSrcEarly.includes("sign-in is not configured"), "frontend shows a clear 'sign-in is not configured' message");
+  assert(/button\.hidden\s*=\s*!available/.test(appSrcEarly) && /button\.disabled\s*=\s*!available/.test(appSrcEarly), "frontend hides unavailable Google sign-in instead of showing a broken option");
+  assert(appSrcEarly.includes("sign-in is not configured"), "frontend keeps a clear 'sign-in is not configured' fallback message");
   assert(appSrcEarly.includes('api("/api/auth/oauth/start"') && appSrcEarly.includes("handleAuthLinkParams"), "frontend Google button uses OAuth start and stores callback auth token");
   assert(appSrcEarly.includes('let adminCookFilter = "active"') && appSrcEarly.includes('cook.status !== "rejected"'), "default admin cook view excludes rejected applications");
   assert(appSrcEarly.includes('data-admin-cook-filter="${value}"') && appSrcEarly.includes('["rejected", "Rejected"]'), "admin cook table provides an explicit Rejected filter");
